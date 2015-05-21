@@ -64,6 +64,15 @@ def template_optimizer(x,u,p):
     
     # Simulation Time
     end_time = 0.2
+    
+    # NLP Solver and linear solver
+    nlp_solver = 'ipopt'
+    
+    # It is highly recommended that you use a more efficient linear solver
+    # such as the hsl linear solver MA27, which can be downloaded as a precompiled
+    # library which can be used by IPOPT on run time
+    
+    linear_solver = 'mumps'
 
     
     """
@@ -87,4 +96,4 @@ def template_optimizer(x,u,p):
     # Check if the user has introduced the data correctly
     
     return (nk, n_robust, t_step, end_time, deg, coll, ni, generate_code, +
-            open_loop, uncertainty_values, parameters_NLP,  state_discretization)
+            open_loop, uncertainty_values, parameters_NLP,  state_discretization, nlp_solver, linear_solver)

@@ -34,7 +34,7 @@ def setup_solver():
     # Call template_model to calculate the model
     x, u, xdot, p, z, x0, x_lb, x_ub, u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_lb, cons_ub, soft_constraint, penalty_term_cons, maximum_violation_ub, maximum_violation_lb, mterm, lterm, rterm = template_model()
     # Call template_optimizer to get the OCP formulation
-    nk, n_robust, t_step, end_time, deg, coll, ni, generate_code, open_loop, uncertainty_values, parameters_NLP, state_discretization = template_optimizer(x,u,p)    
+    nk, n_robust, t_step, end_time, deg, coll, ni, generate_code, open_loop, uncertainty_values, parameters_NLP, state_discretization, nlp_solver, linear_solver = template_optimizer(x,u,p)    
 	
     # Call setup_nlp to generate the NLP
     nlp_fcn, X_offset, U_offset, E_offset, vars_lb, vars_ub, vars_init, lbg, ubg, parent_scenario, child_scenario, n_branches, n_scenarios =  setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code, 
@@ -44,14 +44,14 @@ def setup_solver():
                                                                                     maximum_violation_lb, mterm, lterm, rterm, state_discretization, x, xdot, u, p)
     
     # Setup the solver    
-    solver = NlpSolver('ipopt',nlp_fcn)
+    solver = NlpSolver(nlp_solver,nlp_fcn)
     # Set options
     #solver.setOption("verbose",True)
     if state_discretization=='collocation':
     	solver.setOption("expand",True)
     solver.setOption("max_iter",200)
     solver.setOption("tol",1e-6)
-    solver.setOption("linear_solver","ma27")
+    solver.setOption("linear_solver",linear_solver)
     
     # initialize the solver
     solver.init()
