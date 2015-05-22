@@ -102,12 +102,8 @@ DO-MPC: Solution of the MPC problem
 ==========================================================================
 """
 
-# Choose the indices of the states to plot
-plot_states = [0, 1, 2]
-# Choose the indices of the controls to plot
-plot_control = [0, 1]
-# Plot animation (False or True)
-plot_anim = False
+# load the plotting options defined in template_simulator.py
+plot_states, plot_control, plot_anim = plotting_options()
 
 while (current_time < end_time):
 	# Define the real value of the uncertain parameters used for the simulation

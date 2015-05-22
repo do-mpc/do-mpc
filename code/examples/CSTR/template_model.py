@@ -157,7 +157,14 @@ def template_model():
     penalty_term_cons = NP.array([])
     # Maximum violation for the upper and lower bounds
     maximum_violation_ub = NP.array([0])
-    maximum_violation_lb = NP.array([0])
+    maximum_violation_lb = NP.array([0])    
+    
+    # Define the terminal constraint (leave it empty if not necessary)
+    cons_terminal = vertcat([])
+    # Define the lower and upper bounds of the constraint (leave it empty if not necessary)
+    cons_terminal_lb = NP.array([])
+    cons_terminal_ub = NP.array([])   
+
     
     """
     --------------------------------------------------------------------------
@@ -174,5 +181,6 @@ def template_model():
 
     return (_x, _u, _xdot, _p, _z, x0, x_lb, x_ub, +
 			u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_lb, cons_ub, +
+            cons_terminal, cons_terminal_lb, cons_terminal_ub, +
             soft_constraint, penalty_term_cons, maximum_violation_ub, +
             maximum_violation_lb, mterm, lterm, rterm)

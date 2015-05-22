@@ -42,7 +42,7 @@ def template_optimizer(x,u,p):
     t_step = 0.005
     
     # Robust horizon, set to 0 for standard NMPC
-    n_robust = 0
+    n_robust = 1
 
     # State discretization scheme: 'multiple-shooting' or 'collocation'
     state_discretization = 'collocation'
@@ -60,7 +60,7 @@ def template_optimizer(x,u,p):
     generate_code = 0
        
     # Simulate without feedback
-    open_loop = 0    
+    open_loop = 0
     
     # Simulation Time
     end_time = 0.2
@@ -70,7 +70,7 @@ def template_optimizer(x,u,p):
     
     # It is highly recommended that you use a more efficient linear solver
     # such as the hsl linear solver MA27, which can be downloaded as a precompiled
-    # library which can be used by IPOPT on run time
+    # library and can be used by IPOPT on run time
     
     linear_solver = 'mumps'
 

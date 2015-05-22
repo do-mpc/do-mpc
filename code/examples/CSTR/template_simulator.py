@@ -32,7 +32,7 @@
 
 def template_simulator(t_step):
     # Here you can use a different model for the simulator if desired
-    x, u, xdot, p, z, x0, x_lb, x_ub, u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_lb, cons_ub, soft_constraint, penalty_term_cons, maximum_violation_ub, maximum_violation_lb, mterm, lterm, rterm = template_model()
+    x, u, xdot, p, z, x0, x_lb, x_ub, u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_lb, cons_ub, cons_terminal, cons_terminal_lb, cons_terminal_ub, soft_constraint, penalty_term_cons, maximum_violation_ub, maximum_violation_lb, mterm, lterm, rterm = template_model()
     xdot = substitute(xdot,x,x*x_scaling)/x_scaling
     xdot = substitute(xdot,u,u*u_scaling)
     up = vertcat((u,p))
@@ -54,3 +54,13 @@ def template_simulator(t_step):
     integrator.init()
     
     return integrator
+
+def plotting_options():
+	# Choose the indices of the states to plot
+	plot_states = [0, 1, 2]
+	# Choose the indices of the controls to plot
+	plot_control = [0, 1]
+	# Plot animation (False or True)
+	plot_anim = False
+	
+	return plot_states, plot_control, plot_anim

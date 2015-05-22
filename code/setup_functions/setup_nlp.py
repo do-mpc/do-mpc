@@ -34,7 +34,8 @@
 
 def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code, 
             open_loop, uncertainty_values, parameters_NLP, x0, x_lb, x_ub, 
-            u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_lb, cons_ub, 
+            u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_lb, cons_ub,
+            cons_terminal, cons_terminal_lb, cons_terminal_ub, 
             soft_constraint, penalty_term_cons, maximum_violation_ub, 
             maximum_violation_lb, mterm, lterm, rterm, state_discretization, x, xdot, u, p):
                 
@@ -65,7 +66,11 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
     cons = substitute(cons,x,x*x_scaling)
     cons = substitute(cons,u,u*u_scaling)
     cfcn = SXFunction([x,u,p],[cons])    
-    cfcn.init() 
+    cfcn.init()
+    cons_terminal = substitute(cons_terminal,x,x*x_scaling)
+    cons_terminal = substitute(cons_terminal,u,u*u_scaling)
+    cfcn_terminal = SXFunction([x,u,p],[cons_terminal])    
+    cfcn_terminal.init()
     # Mayer term of the cost functions
     mterm = substitute(mterm,x,x*x_scaling)
     mterm = substitute(mterm,u,u*u_scaling)
@@ -180,8 +185,13 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
     
         # Evaluate the time derivative of the polynomial at all collocation points to get the coefficients of the continuity equation
         for r in range(deg+1):
-          lfcn.setInput(tau_root[r])
-          C[j,r] = NP.array([substitute(lfcn.jac(),tau,tau_root[r]).getNZ()])
+			lfcn.setInput(tau_root[r])
+			try:
+				C[j,r] = NP.array([substitute(lfcn.jac(),tau,tau_root[r]).getNZ()])
+			# In case of CasADi version 2.2 instead of 2.3
+			except NotImplementedError:
+				jac_val = NP.array(substitute(lfcn.jac(),tau,tau_root[r]),dtype=str)
+				C[j,r] = float(jac_val[0,0])
 
       # Initial condition
       xk0 = MX.sym("xk0",nx)
@@ -295,21 +305,7 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
       
       # Set options
       ifcn.setOption("tf",t_step)
-      """
-      # Set CVodesIntegrator specific options
-      if Integ==CVodesIntegrator:
-        ifcn.setOption("reltol",1e-8)
-        ifcn.setOption("abstol",1e-8)
-      
-      # Set CollocationIntegrator specific options
-      if Integ==CollocationIntegrator:
-        ifcn.setOption("implicit_solver",KinsolSolver)
-        ifcn.setOption("startup_integrator",CVodesIntegrator)
-        ifcn.setOption("expand_f",True)
-        ifcn.setOption("collocation_scheme","radau")
-        ifcn.setOption("number_of_finite_elements",5)
-        ifcn.setOption("interpolation_order",3)
-      """
+
       # Initialize the integrator
       ifcn.init()
       
@@ -498,7 +494,13 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
           g.append(residual)
           lbg.append(cons_lb)
           ubg.append(cons_ub)
-          
+
+          # Add terminal constraints
+          if k == nk - 1:
+			  [residual_terminal] = cfcn_terminal.call([xf_ksb,U_ks,P_ksb])  
+			  g.append(residual_terminal)
+			  lbg.append(cons_terminal_lb)
+			  ubg.append(cons_terminal_ub)          
           # Add contribution to the cost
           [J_ksb] = mfcn.call([xf_ksb,U_ks,P_ksb])
           J += omega[k]*J_ksb
@@ -508,11 +510,20 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
           u_prev = U[k-1,s_parent] if k>0 else uk_prev
           [du_k] = rfcn.call([u_prev,U[k,s]])
           J += omega_delta_u[k]*n_branches[k]*du_k
-      
+
+
+    # Add non-anticipativity constraints for open-loop multi-stage NMPC
+    if open_loop == 1:
+		for kk in range(1,nk):
+			for ss in range(n_scenarios[kk]-1):
+				g.append(U[kk,ss] - U[kk,ss+1])
+				lbg.append(NP.zeros(nu))
+				ubg.append(NP.zeros(nu))
     # Concatenate constraints
     g = vertcat(g)
     lbg = NP.concatenate(lbg)
     ubg = NP.concatenate(ubg)
+    
       
     # Nonlinear constraint function
     #gfcn = MXFunction([V],[g])
