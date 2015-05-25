@@ -34,10 +34,10 @@
 
 def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code, 
             open_loop, uncertainty_values, parameters_NLP, x0, x_lb, x_ub, 
-            u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_lb, cons_ub,
+            u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_ub,
             cons_terminal, cons_terminal_lb, cons_terminal_ub, 
-            soft_constraint, penalty_term_cons, maximum_violation_ub, 
-            maximum_violation_lb, mterm, lterm, rterm, state_discretization, x, xdot, u, p):
+            soft_constraint, penalty_term_cons, maximum_violation, 
+            mterm, lterm, rterm, state_discretization, x, xdot, u, p):
                 
 	# Size of the state, contorl and parameter vector
  
@@ -47,9 +47,10 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
     
     # Generate, scale and initialize all the necessary functions
     # Consider as initial guess the initial conditions
-    x_init = x0
-    u_init = u0
+    x_init = deepcopy(x0)
+    u_init = deepcopy(u0)
     up = vertcat((u,p))
+    
     # Right hand side of the ODEs
     for i in (x0,x_ub,x_lb,x_init): i /= x_scaling
     xdot = substitute(xdot,x,x*x_scaling)/x_scaling
@@ -59,13 +60,14 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
     ffcn.init()
     # Constraints, possibly soft
     # Epsilon for the soft constraints
-    epsilon = SX.sym ("epsilon",nx)
-    epsilon_lbf = maximum_violation_lb
-    epsilon_ubf = maximum_violation_ub
-    epsilon_init = NP.zeros(1)
     cons = substitute(cons,x,x*x_scaling)
     cons = substitute(cons,u,u*u_scaling)
-    cfcn = SXFunction([x,u,p],[cons])    
+    if soft_constraint:
+        epsilon = SX.sym ("epsilon",cons.size())
+        cons = cons - epsilon
+        cfcn = SXFunction([x,u,p,epsilon],[cons])  
+    else:
+        cfcn = SXFunction([x,u,p],[cons])    
     cfcn.init()
     cons_terminal = substitute(cons_terminal,x,x*x_scaling)
     cons_terminal = substitute(cons_terminal,u,u*u_scaling)
@@ -218,7 +220,7 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
       first_j = 1 # Skip allocating x for the first collocation point for the first finite element
         
       # Penalty terms for the soft constraints
-      EPSILON = NP.resize(NP.array([],dtype=MX),(nx)) 
+      EPSILON = NP.resize(NP.array([],dtype=MX),(cons.size())) 
 
       # For each finite element
       for i in range(ni):
@@ -312,7 +314,7 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
       # No implicitly defined variables
       n_ik = 0
       # Penalty terms for the soft constraints
-      EPSILON = NP.resize(NP.array([],dtype=MX),(nx))
+      EPSILON = NP.resize(NP.array([],dtype=MX),(cons.size()))
       uk_prev = MX.sym ("uk_prev",nu)
       
     # Number of branches
@@ -351,7 +353,7 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
     
     if soft_constraint:
 		# If soft constraints are implemented
-		NV += 1 
+		NV += cons.size() 
     # Weighting factor for every scenario
     omega = [1./n_scenarios[k+1] for k in range(nk)]
     omega_delta_u = [1./n_scenarios[k+1] for k in range(nk)]
@@ -434,12 +436,12 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
       offset += nx
     if soft_constraint:
 		# Last elements (epsilon) for soft constraints
-		EPSILON = V[offset:offset+1]
+		EPSILON = V[offset:offset + cons.size()]
 		E_offset = offset
-		vars_lb[offset:offset+1] = maximum_violation_lb
-		vars_ub[offset:offset+1] = maximum_violation_ub
-		vars_init[offset:offset+1] = 0
-		offset +=1
+		vars_lb[offset:offset + cons.size()] = NP.zeros(cons.size())
+		vars_ub[offset:offset + cons.size()] = maximum_violation
+		vars_init[offset:offset + cons.size()] = 0
+		offset += cons.size()
     
     # Check offset for consistency
     assert(offset == NV)
@@ -490,9 +492,12 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
           
           # Add extra constraints depending on other states
           #pdb.set_trace()
-          [residual] = cfcn.call([xf_ksb,U_ks,P_ksb])  
+          if soft_constraint:
+              [residual] = cfcn.call([xf_ksb,U_ks,P_ksb, EPSILON])
+          else:
+              [residual] = cfcn.call([xf_ksb,U_ks,P_ksb])
           g.append(residual)
-          lbg.append(cons_lb)
+          lbg.append(NP.ones(cons.size())*(-inf))
           ubg.append(cons_ub)
 
           # Add terminal constraints
@@ -505,6 +510,10 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
           [J_ksb] = mfcn.call([xf_ksb,U_ks,P_ksb])
           J += omega[k]*J_ksb
           
+          # Add contribution to the cost of the soft constraints penalty term
+          if soft_constraint:
+              J_ksb_soft = sum((EPSILON * penalty_term_cons)**2)
+              J += J_ksb_soft
           # Penalize deviations in u
           s_parent = parent_scenario[k][s]
           u_prev = U[k-1,s_parent] if k>0 else uk_prev

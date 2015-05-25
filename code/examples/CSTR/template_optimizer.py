@@ -82,7 +82,7 @@ def template_optimizer(x,u,p):
     """    
     # Define the different possible values of the uncertain parameters in the scenario tree
     alpha_values = NP.array([1.0, 1.1, 0.9])
-    beta_values = NP.array([1.0, 1.05])
+    beta_values = NP.array([1.0, 1.1, 0.9])
     uncertainty_values = NP.array([alpha_values,beta_values])
     # Parameteres of the NLP which may vary along the time (For example a set point that varies at a given time)
     set_point = SX.sym('set_point')

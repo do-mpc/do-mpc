@@ -32,7 +32,7 @@
 
 def template_simulator(t_step):
     # Here you can use a different model for the simulator if desired
-    x, u, xdot, p, z, x0, x_lb, x_ub, u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_lb, cons_ub, cons_terminal, cons_terminal_lb, cons_terminal_ub, soft_constraint, penalty_term_cons, maximum_violation_ub, maximum_violation_lb, mterm, lterm, rterm = template_model()
+    x, u, xdot, p, z, x0, x_lb, x_ub, u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_ub, cons_terminal, cons_terminal_lb, cons_terminal_ub, soft_constraint, penalty_term_cons, maximum_violation, mterm, lterm, rterm = template_model()
     xdot = substitute(xdot,x,x*x_scaling)/x_scaling
     xdot = substitute(xdot,u,u*u_scaling)
     up = vertcat((u,p))
@@ -64,3 +64,10 @@ def plotting_options():
 	plot_anim = False
 	
 	return plot_states, plot_control, plot_anim
+
+def real_parameters(current_time):
+    # Here choose the real value of the uncertain parameters that will be chosen
+    # to perform the simulation of the system. They can be constant or time-varying
+    p_real =  NP.array([1.0,1.0])
+    
+    return p_real

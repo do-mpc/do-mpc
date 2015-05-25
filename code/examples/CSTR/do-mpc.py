@@ -108,7 +108,7 @@ plot_states, plot_control, plot_anim = plotting_options()
 while (current_time < end_time):
 	# Define the real value of the uncertain parameters used for the simulation
 	# It can be changed as a function of time
-	p_real = NP.array([1.0,1.0])
+	p_real = real_parameters(current_time)
 	"""
 	==========================================================================
 	DO-MPC: Optimizer

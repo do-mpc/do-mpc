@@ -57,7 +57,6 @@ def template_model():
     K_w = 4032.0 # [kj/h.m^2.K]
     C_A0 = (5.7+4.5)/2.0*1.0 # Concentration of A in input Upper bound 5.7 lower bound 4.5 [mol/l]
     
-    alpha = 1.0
 
     """
     --------------------------------------------------------------------------
@@ -144,20 +143,18 @@ def template_model():
     x_scaling = NP.array([1.0, 1.0, 1.0, 1.0])
     u_scaling = NP.array([1.0, 1.0])
     
-    # Other possibly nonlinear constraints in the form cons_lb <= cons(x,u,p) <= cons_ub
+    # Other possibly nonlinear constraints in the form cons(x,u,p) <= cons_ub
     # Define the expresion of the constraint (leave it empty if not necessary)
     cons = vertcat([])
     # Define the lower and upper bounds of the constraint (leave it empty if not necessary)
-    cons_lb = NP.array([])
     cons_ub = NP.array([])
     
     # Activate if the nonlinear constraints should be implemented as soft constraints
     soft_constraint = 0
     # Penalty term to add in the cost function for the constraints (it should be the same size as cons)
     penalty_term_cons = NP.array([])
-    # Maximum violation for the upper and lower bounds
-    maximum_violation_ub = NP.array([0])
-    maximum_violation_lb = NP.array([0])    
+    # Maximum violation for the constraints
+    maximum_violation = NP.array([0])    
     
     # Define the terminal constraint (leave it empty if not necessary)
     cons_terminal = vertcat([])
@@ -177,10 +174,10 @@ def template_model():
     # Lagrange term
     lterm =  0
     # Penalty term for the control movements
-    rterm = 0*NP.array([0.00001, 0.001])
+    rterm = NP.array([0.0, 0.0])
 
     return (_x, _u, _xdot, _p, _z, x0, x_lb, x_ub, +
-			u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_lb, cons_ub, +
+			u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_ub, +
             cons_terminal, cons_terminal_lb, cons_terminal_ub, +
-            soft_constraint, penalty_term_cons, maximum_violation_ub, +
-            maximum_violation_lb, mterm, lterm, rterm)
+            soft_constraint, penalty_term_cons, maximum_violation, +
+            mterm, lterm, rterm)
