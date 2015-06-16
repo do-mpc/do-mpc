@@ -5,7 +5,7 @@ DO-MPC proposes a new, modularized implementation and testing support for optima
 
 Moreover, DO-MPC provides a very simple framework for the implementation of a state-of-the art robust nonlinear model predictive control approach called multi-stage NMPC, which is based on the description of the uncertainty as a scenario tree.
 
-The DO-MPC software is Python based and works therefore on any OS with a Python 2.7 distribution. DO-MPC has been developed at the DYN chair by Sergio Lucia, Alexandru Tatulea and Sebastian Engell and it can be downloaded FREE here. Please check this page for further information and example code from the developers.
+The DO-MPC software is Python based and works therefore on any OS with a Python 2.7 distribution. DO-MPC has been developed at the DYN chair by Sergio Lucia, Alexandru Tatulea and Sebastian Engell.
 
 # Installation instructions
 For detailed instructions go to the [wiki](https://github.com/do-mpc/do-mpc/wiki)
