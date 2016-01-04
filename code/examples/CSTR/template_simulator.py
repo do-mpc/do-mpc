@@ -36,8 +36,17 @@ def template_simulator(t_step):
     xdot = substitute(xdot,x,x*x_scaling)/x_scaling
     xdot = substitute(xdot,u,u*u_scaling)
     up = vertcat((u,p))
+    
+    f_sim = SXFunction("f_sim", controldaeIn(x=x,p=p,u=u),daeOut(ode=xdot))
+    opts = {}
+    opts["integrator"] = "cvodes"
+    opts["integrator_options"] = {"abstol":1e-10,"reltol":1e-10, "exact_jacobian":True}
+    N = 2
+    tgrid = linspace(0,t_step,N)
+    integrator = ControlSimulator("integrator", f_sim, tgrid,  opts)
+    
     f_sim = SXFunction(daeIn(x=x,p=up),daeOut(ode=xdot))
-
+    """
 	# Choose the integrator (CVODES, IDAS)
     integrator = Integrator('cvodes',f_sim)
     # Choose the integrator parameters
@@ -52,7 +61,7 @@ def template_simulator(t_step):
     integrator.setOption("fsens_reltol",1e-8)
     integrator.setOption("exact_jacobian",True)
     integrator.init()
-    
+    """
     return integrator
 
 def plotting_options():

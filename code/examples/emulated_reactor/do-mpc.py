@@ -1,25 +1,25 @@
 # 	 -*- coding: utf-8 -*-
 #
 #    This file is part of DO-MPC
-#    
+#
 #    DO-MPC: An environment for the easy, modular and efficient implementation of
 #            robust nonlinear model predictive control
-#	 
-#    The MIT License (MIT)	
+#
+#    The MIT License (MIT)
 #
 #    Copyright (c) 2014-2015 Sergio Lucia, Alexandru Tatulea-Codrean, Sebastian Engell
 #                            TU Dortmund. All rights reserved
-#    
+#
 #    Permission is hereby granted, free of charge, to any person obtaining a copy
 #    of this software and associated documentation files (the "Software"), to deal
 #    in the Software without restriction, including without limitation the rights
 #    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 #    copies of the Software, and to permit persons to whom the Software is
 #    furnished to do so, subject to the following conditions:
-#    
+#
 #    The above copyright notice and this permission notice shall be included in all
 #    copies or substantial portions of the Software.
-#    
+#
 #    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 #    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 #    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -103,7 +103,7 @@ DO-MPC: Solution of the MPC problem
 """
 
 # load the plotting options defined in template_simulator.py
-plot_states, plot_control, plot_anim = plotting_options()
+plot_states, plot_control, plot_anim, export_to_matlab, export_name = plotting_options()
 
 while (current_time < end_time):
 	# Define the real value of the uncertain parameters used for the simulation
@@ -112,7 +112,7 @@ while (current_time < end_time):
 	"""
 	==========================================================================
 	DO-MPC: Optimizer
-	==========================================================================	
+	==========================================================================
 	"""
 	# Solve the NLP
 	optimal_solution, optimal_cost, constraints = loop_optimizer(solver, arg)
@@ -123,15 +123,15 @@ while (current_time < end_time):
 	"""
 	==========================================================================
 	DO-MPC: Simulator
-	==========================================================================	
+	==========================================================================
 	"""
 	xf_sim = loop_simulator(x0_sim, u_mpc, p_real, simulator, t0_sim, t_step);
 	x0_sim = xf_sim
-    
+
 	"""
 	==========================================================================
 	DO-MPC: Observer
-	==========================================================================	
+	==========================================================================
 	"""
 	# Measurement and observer
 	y_meas = loop_measure(xf_sim)
@@ -140,23 +140,29 @@ while (current_time < end_time):
 	"""
 	==========================================================================
 	DO-MPC: Prepare next iteration and store information
-	==========================================================================	
+	==========================================================================
 	"""
 	# Store the infromation
 	mpc_states, mpc_control, mpc_time, mpc_cpu = loop_store(x0_sim, u_mpc, t0_sim, t_step, p_real, index_mpc, solver, mpc_states, mpc_control, mpc_time, mpc_parameters, mpc_cpu)
 	# Set initial condition constraint for the next iteration
 	solver, vars_lb, vars_ub, t0_sim, index_mpc, arg = loop_initialize(solver, xf_meas, u_mpc, v_opt, vars_lb, vars_ub, X_offset, U_offset, nx, nu, t0_sim, t_step, index_mpc, arg)
-	current_time = t0_sim; 
+	current_time = t0_sim;
 	# Plot animation
- 
+
 	if plot_anim:
 		plot_animation(mpc_states, mpc_control, mpc_time, index_mpc, plot_states, plot_control, x_scaling, u_scaling, x, u, X_offset, U_offset, n_branches, n_scenarios, nk, t0_sim-t_step, child_scenario, parent_scenario, t_step, v_opt)
 		raw_input("Press Enter to continue...")
-	
-	
+
+
 """
 ==========================================================================
 DO-MPC: Plot the results
-==========================================================================	
+==========================================================================
 """
 plot_mpc(mpc_states, mpc_control, mpc_time, index_mpc, plot_states, plot_control, x_scaling, u_scaling, x, u)
+if export_to_matlab:
+    execfile(path_do_mpc+"aux_functions/export_to_matlab.py")
+    export_to_matlab(mpc_states, mpc_control, mpc_time, mpc_cpu, index_mpc, x_scaling, u_scaling, export_name)
+    print("Exporting to Matlab as ''" + export_name + "''")
+
+raw_input("Press Enter to exit DO-MPC...")

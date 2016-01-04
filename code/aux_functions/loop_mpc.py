@@ -52,22 +52,28 @@ def initialize_first_iteration(end_time, t_step, nx, nu, np, x0, u0):
 	
 	return mpc_states, mpc_control, mpc_alg, mpc_time, mpc_cost, mpc_cpu, mpc_parameters, x0_sim
 	
-def loop_optimizer(solver):
-	solver.evaluate()
+def loop_optimizer(solver, arg):
+	res = solver(arg)
+	optimal_solution = NP.array(res["x"])
+	optimal_cost = NP.array(res["f"])
+	constraints = NP.array(res["g"])
+	"""
 	optimal_cost = NP.array(solver.output(NLP_SOLVER_F))
 	constraints = NP.array(solver.output(NLP_SOLVER_G))
 	optimal_solution = NP.array(solver.output(NLP_SOLVER_X))
-	
+	"""
 	return optimal_solution, optimal_cost, constraints
 	
 def loop_simulator(x0_sim, u_mpc, p_real, simulator, t0_sim, t_step):
 	tf_sim = t0_sim + t_step
-	simulator.setOption("t0",t0_sim)
-	simulator.setOption("tf",tf_sim)
-	simulator.setInput(vertcat((u_mpc,p_real)),INTEGRATOR_P)
-	simulator.setInput(x0_sim,INTEGRATOR_X0)
+	#simulator.setOption("t0",t0_sim)
+	#simulator.setOption("tf",tf_sim)
+	#pdb.set_trace()
+	simulator.setInput(p_real,"p")
+	simulator.setInput(u_mpc,"u")
+	simulator.setInput(x0_sim,"x0")
 	simulator.evaluate()	 
-	xf_sim = NP.squeeze(simulator.output())
+	xf_sim = NP.squeeze(simulator.getOutput())[:,1]
 	return xf_sim
 	
 def loop_measure(xf_sim):
@@ -79,21 +85,34 @@ def loop_observer(y):
 	x = template_observer(y)
 	return x
 
-def loop_initialize(solver, x0_meas, u_mpc, v_opt, vars_lb, vars_ub, X_offset, U_offset, nx, nu, t0_sim, t_step, index_mpc):
-	# Set initial condition constraint for the next iteration
-	vars_lb[X_offset[0,0]:X_offset[0,0]+nx] = x0_meas
-	vars_ub[X_offset[0,0]:X_offset[0,0]+nx] = x0_meas
-	solver.setInput(vars_lb,NLP_SOLVER_LBX)
-	solver.setInput(vars_ub,NLP_SOLVER_UBX)
-	# Set the last control input as parameter for the penalty term
-	solver.setInput(u_mpc, NLP_SOLVER_P)
-	# Set current solution as initial guess for next iteration
-	solver.setInput(v_opt,NLP_SOLVER_X0)
-	solver.setInput(solver.output(NLP_SOLVER_LAM_X),NLP_SOLVER_LAM_X0)
-	solver.setInput(solver.output(NLP_SOLVER_LAM_G),NLP_SOLVER_LAM_G0)
-	t0_sim = t0_sim + t_step
-	index_mpc = index_mpc + 1
-	return solver, vars_lb, vars_ub, t0_sim, index_mpc
+def loop_initialize(solver, x0_meas, u_mpc, v_opt, vars_lb, vars_ub, X_offset, U_offset, nx, nu, t0_sim, t_step, index_mpc, arg):
+    # Set initial condition constraint for the next iteration
+    vars_lb[X_offset[0,0]:X_offset[0,0]+nx] = x0_meas
+    vars_ub[X_offset[0,0]:X_offset[0,0]+nx] = x0_meas
+    # FIXME NEW VERSION
+    #solver.setInput(vars_lb,NLP_SOLVER_LBX)
+    #solver.setInput(vars_ub,NLP_SOLVER_UBX)
+    # Set the last control input as parameter for the penalty term
+    #solver.setInput(u_mpc, NLP_SOLVER_P)
+    # Set current solution as initial guess for next iteration
+    #solver.setInput(v_opt,NLP_SOLVER_X0)
+    # Initial condition
+    arg["x0"] = v_opt
+    # Bounds on x
+    arg["lbx"] = vars_lb
+    arg["ubx"] = vars_ub
+
+    # Bounds on g
+    #arg["lbg"] = lbg
+    #arg["ubg"] = ubg
+    # NLP parameters
+    arg["p"] = u_mpc
+
+    #solver.setInput(solver.output(NLP_SOLVER_LAM_X),NLP_SOLVER_LAM_X0)
+    #solver.setInput(solver.output(NLP_SOLVER_LAM_G),NLP_SOLVER_LAM_G0)
+    t0_sim = t0_sim + t_step
+    index_mpc = index_mpc + 1
+    return solver, vars_lb, vars_ub, t0_sim, index_mpc, arg
 
 def loop_store(x0_sim, u_mpc, t0_sim, t_step, p_real, index_mpc, solver, mpc_states, mpc_control, mpc_time, mpc_parameters, mpc_cpu):
 	mpc_states[index_mpc,:] = x0_sim
@@ -101,5 +120,6 @@ def loop_store(x0_sim, u_mpc, t0_sim, t_step, p_real, index_mpc, solver, mpc_sta
 	mpc_time[index_mpc] = t0_sim + t_step
 	mpc_parameters[index_mpc,:] = p_real
 	aux = solver.getStats()
-	mpc_cpu[index_mpc] = aux['t_mainloop']	
+	#pdb.set_trace()
+	mpc_cpu[index_mpc] = aux['t_mainloop.wall']	
 	return mpc_states, mpc_control, mpc_time, mpc_cpu

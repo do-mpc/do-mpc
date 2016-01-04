@@ -1,25 +1,25 @@
 # 	 -*- coding: utf-8 -*-
 #
 #    This file is part of DO-MPC
-#    
+#
 #    DO-MPC: An environment for the easy, modular and efficient implementation of
 #            robust nonlinear model predictive control
-#	 
-#    The MIT License (MIT)	
+#
+#    The MIT License (MIT)
 #
 #    Copyright (c) 2014-2015 Sergio Lucia, Alexandru Tatulea-Codrean, Sebastian Engell
 #                            TU Dortmund. All rights reserved
-#    
+#
 #    Permission is hereby granted, free of charge, to any person obtaining a copy
 #    of this software and associated documentation files (the "Software"), to deal
 #    in the Software without restriction, including without limitation the rights
 #    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 #    copies of the Software, and to permit persons to whom the Software is
 #    furnished to do so, subject to the following conditions:
-#    
+#
 #    The above copyright notice and this permission notice shall be included in all
 #    copies or substantial portions of the Software.
-#    
+#
 #    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 #    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 #    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -47,12 +47,12 @@ def plot_mpc(mpc_states, mpc_control, mpc_time, index_mpc, plot_states, plot_con
 	for index in range(len(plot_control)):
 		plot = plt.subplot(total_subplots, 1, len(plot_states) + index + 1)
 		plt.plot(mpc_time[0:index_mpc], mpc_control[0:index_mpc,plot_control[index]] * u_scaling[plot_control[index]] ,drawstyle='steps')
-		plt.ylabel(str(u[plot_states[index]]))
+		plt.ylabel(str(u[plot_control[index]]))
 		plt.xlabel("Time")
 		plt.grid()
 		plot.yaxis.set_major_locator(MaxNLocator(4))
-			
-		
+
+
 
 def plot_state_pred(v,t0,el,lineop, n_scenarios, n_brances, nk, child_scenario, X_offset, x_scaling, t_step):
   # This function plots the prediction of a state
@@ -72,8 +72,8 @@ def plot_state_pred(v,t0,el,lineop, n_scenarios, n_brances, nk, child_scenario, 
         s_next = child_scenario[k][s][b]
         x_end = v[el+X_offset[k+1][s_next]]
         x_segment = NP.array([x_beginning,x_end])*x_scaling[el]
-        plt.plot(tgrid[k:k+2],x_segment,lineop)			
-		
+        plt.plot(tgrid[k:k+2],x_segment,lineop)
+
 
 def plot_control_pred(v,t0,el,lineop, n_scenarios, n_brances, nk, parent_scenario, U_offset, u_scaling, t_step, u_last_step):
 	# This function plots the prediction of a control input

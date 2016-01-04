@@ -80,7 +80,7 @@ execfile(path_do_mpc+"aux_functions/setup_aux.py")
 execfile(path_do_mpc+"aux_functions/loop_mpc.py")
 
 # First formulate the optimization problem usign all the previous information
-solver, X_offset, U_offset, E_offset, vars_lb, vars_ub, end_time, t_step, x0, u0, x, u, p, x_scaling, u_scaling, nk, parent_scenario, child_scenario, n_branches, n_scenarios = setup_solver()
+solver, X_offset, U_offset, E_offset, vars_lb, vars_ub, end_time, t_step, x0, u0, x, u, p, x_scaling, u_scaling, nk, parent_scenario, child_scenario, n_branches, n_scenarios, arg = setup_solver()
 # Define the simulator of the real system
 simulator = template_simulator(t_step)
 # Initialize necessary variables
@@ -115,7 +115,7 @@ while (current_time < end_time):
 	==========================================================================	
 	"""
 	# Solve the NLP
-	optimal_solution, optimal_cost, constraints = loop_optimizer(solver)
+	optimal_solution, optimal_cost, constraints = loop_optimizer(solver, arg)
 
 	# Extract the control input that will be injected to the plant
 	v_opt = optimal_solution;
@@ -145,7 +145,7 @@ while (current_time < end_time):
 	# Store the infromation
 	mpc_states, mpc_control, mpc_time, mpc_cpu = loop_store(x0_sim, u_mpc, t0_sim, t_step, p_real, index_mpc, solver, mpc_states, mpc_control, mpc_time, mpc_parameters, mpc_cpu)
 	# Set initial condition constraint for the next iteration
-	solver, vars_lb, vars_ub, t0_sim, index_mpc = loop_initialize(solver, xf_meas, u_mpc, v_opt, vars_lb, vars_ub, X_offset, U_offset, nx, nu, t0_sim, t_step, index_mpc)
+	solver, vars_lb, vars_ub, t0_sim, index_mpc, arg = loop_initialize(solver, xf_meas, u_mpc, v_opt, vars_lb, vars_ub, X_offset, U_offset, nx, nu, t0_sim, t_step, index_mpc, arg)
 	current_time = t0_sim; 
 	# Plot animation
  

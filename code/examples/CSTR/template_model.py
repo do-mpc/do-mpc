@@ -176,8 +176,4 @@ def template_model():
     # Penalty term for the control movements
     rterm = NP.array([0.0, 0.0])
 
-    return (_x, _u, _xdot, _p, _z, x0, x_lb, x_ub, +
-			u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_ub, +
-            cons_terminal, cons_terminal_lb, cons_terminal_ub, +
-            soft_constraint, penalty_term_cons, maximum_violation, +
-            mterm, lterm, rterm)
+    return (_x, _u, _xdot, _p, _z, x0, x_lb, x_ub, u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_ub, cons_terminal, cons_terminal_lb, cons_terminal_ub, soft_constraint, penalty_term_cons, maximum_violation, mterm, lterm, rterm)
