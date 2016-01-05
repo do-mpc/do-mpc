@@ -29,6 +29,12 @@
 #    SOFTWARE.
 #
 
+
+# This file describes the model and optimal control problem of an emulated lab
+# reactor, taken from the following publication. Plese cite it if you use this model:
+
+# S. Lucia. Robust Multi-stage Nonlinear Model Predictive Control. Shaker Verlag, 2015.
+
 def template_model():
 
     """

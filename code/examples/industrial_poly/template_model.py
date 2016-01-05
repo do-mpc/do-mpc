@@ -29,6 +29,15 @@
 #    SOFTWARE.
 #
 
+
+# This file describes the model and optimal control problem of an industrial
+# polymerization reactor, taken from the following publication. Plese cite
+# it if you use this model:
+
+# S. Lucia, J. Andersson, H. Brandt, M. Diehl and S. Engell. Handling Uncertainty
+# in Economic Nonlinear Model Predictive Control: a Comparative Case Study.
+# Journal of Process Control 24 (8), 1247-1259, 2014.
+
 def template_model():
 
     """
