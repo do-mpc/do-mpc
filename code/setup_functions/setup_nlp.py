@@ -65,10 +65,9 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
     if soft_constraint:
         epsilon = SX.sym ("epsilon",cons.size())
         cons = cons - epsilon
-        cfcn = SXFunction('cfcn',[x,u,p,epsilon],[cons])
+        cfcn = SXFunction('cfcn', [x,u,p,epsilon],[cons])
     else:
-        cfcn = SXFunction([x,u,p],[cons])
-    cfcn.init()
+        cfcn = SXFunction('cfcn', [x,u,p],[cons])
     cons_terminal = substitute(cons_terminal,x,x*x_scaling)
     cons_terminal = substitute(cons_terminal,u,u*u_scaling)
     cfcn_terminal = SXFunction('cfcn',[x,u,p],[cons_terminal])
@@ -291,8 +290,7 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
       assert(gk.size()==ik.size())
 
       # Create the integrator function
-      ifcn = MXFunction([ik,xk0,pk,uk],[gk,xkf])
-      ifcn.init()
+      ifcn = MXFunction("ifcn", [ik,xk0,pk,uk],[gk,xkf])
 
     elif state_discretization == 'multiple-shooting':
 
@@ -305,8 +303,6 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
       # Set options
       ifcn.setOption("tf",t_step)
 
-      # Initialize the integrator
-      ifcn.init()
 
       # No implicitly defined variables
       n_ik = 0
@@ -530,14 +526,7 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
     lbg = NP.concatenate(lbg)
     ubg = NP.concatenate(ubg)
 
-
-    # Nonlinear constraint function
-    #gfcn = MXFunction([V],[g])
-
-    # Objective function of the NLP
-    #jfcn = MXFunction([V],[J])
-
-    nlp_fcn = MXFunction(nlpIn(x=V,p=uk_prev),nlpOut(f=J,g=g))
+    nlp_fcn = MXFunction('nlp_fcn', nlpIn(x=V,p=uk_prev),nlpOut(f=J,g=g))
 
 
     return nlp_fcn, X_offset, U_offset, E_offset, vars_lb, vars_ub, vars_init, lbg, ubg, parent_scenario, child_scenario, n_branches, n_scenarios
