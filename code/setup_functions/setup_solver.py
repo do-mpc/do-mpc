@@ -61,7 +61,7 @@ def setup_solver():
     opts["expand"] = True
     opts["linear_solver"] = linear_solver
     opts["max_iter"] = 500
-    opts["tol"] = 1e-8
+    opts["tol"] = 1e-6
     # Setup the solver
     solver = NlpSolver("solver", nlp_solver, nlp_fcn, opts)
     arg = {}

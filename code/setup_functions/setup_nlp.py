@@ -428,13 +428,13 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
       vars_init[offset:offset+nx] = x_init
       offset += nx
     if soft_constraint:
-		# Last elements (epsilon) for soft constraints
-		EPSILON = V[offset:offset + cons.size()]
-		E_offset = offset
-		vars_lb[offset:offset + cons.size()] = NP.zeros(cons.size())
-		vars_ub[offset:offset + cons.size()] = maximum_violation
-		vars_init[offset:offset + cons.size()] = 0
-		offset += cons.size()
+        # Last elements (epsilon) for soft constraints
+        EPSILON = V[offset:offset + cons.size()]
+        E_offset = offset
+        vars_lb[offset:offset + cons.size()] = NP.zeros(cons.size())
+        vars_ub[offset:offset + cons.size()] = maximum_violation
+        vars_init[offset:offset + cons.size()] = 0
+        offset += cons.size()
 
     # Check offset for consistency
     assert(offset == NV)
@@ -505,7 +505,7 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
 
           # Add contribution to the cost of the soft constraints penalty term
           if soft_constraint:
-              J_ksb_soft = sum(penalty_term_cons * (EPSILON )**2)
+              J_ksb_soft = sum(penalty_term_cons * (EPSILON)**2)
               J += J_ksb_soft
           # Penalize deviations in u
           s_parent = parent_scenario[k][s]

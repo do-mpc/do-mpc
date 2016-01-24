@@ -42,7 +42,7 @@ def template_optimizer(x,u,p):
     t_step = 20.0
 
     # Robust horizon, set to 0 for standard NMPC
-    n_robust = 0
+    n_robust = 1
 
     # State discretization scheme: 'multiple-shooting' or 'collocation'
     state_discretization = 'collocation'
@@ -54,7 +54,7 @@ def template_optimizer(x,u,p):
     coll = 'radau'
 
     # Number of finite elements per control interval
-    ni = 2
+    ni = 1
 
     # GENERATE C CODE shared libraries
     generate_code = 0
@@ -63,7 +63,7 @@ def template_optimizer(x,u,p):
     open_loop = 0
 
     # Simulation Time
-    end_time = 1000.0
+    end_time = 1200.0
 
     # NLP Solver and linear solver
     nlp_solver = 'ipopt'
@@ -81,8 +81,8 @@ def template_optimizer(x,u,p):
     --------------------------------------------------------------------------
     """
     # Define the different possible values of the uncertain parameters in the scenario tree
-    k_values = NP.array([0.0482/3600.0*1.00, 0.0482/3600.0*1.30, 0.0482/3600.0*0.7])
-    delH_values = NP.array([-50.0, -50.0 * 1.30, -50.0 * 0.70])
+    k_values = NP.array([0.0482/3600.0*1.00, 0.0482/3600.0*(1.30), 0.0482/3600.0*0.7])
+    delH_values = NP.array([-50.0, -50.0 * (1.30), -50.0 * 0.70])
     uncertainty_values = NP.array([k_values, delH_values])
     # Parameteres of the NLP which may vary along the time (For example a set point that varies at a given time)
     set_point = SX.sym('set_point')

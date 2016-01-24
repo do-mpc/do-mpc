@@ -164,14 +164,14 @@ def template_model():
     cons = vertcat([T_R, -T_R, i_feed*CBin])
     # Define the upper bounds of the constraint (leave it empty if not necessary)
 
-    cons_ub = NP.array([52.0+273.15, - 48.0+273.15, Ca_0 * x0[0]])
+    cons_ub = NP.array([52.0+273.15, - (48.0+273.15), Ca_0 * x0[0]])
     #cons_ub = NP.array([])
     # Activate if the nonlinear constraints should be implemented as soft constraints
     soft_constraint = 1
     # l1 - Penalty term to add in the cost function for the constraints (it should be the same size as cons)
-    penalty_term_cons = NP.array([1e6])
+    penalty_term_cons = NP.array([1e5, 1e5, 0])
     # Maximum violation for the upper and lower bounds
-    maximum_violation = NP.array([10])
+    maximum_violation = NP.array([10,10, 0])
 
     # Define the terminal constraint (leave it empty if not necessary)
     cons_terminal = vertcat([])
@@ -187,10 +187,10 @@ def template_model():
     """
     # Define the cost function
     # Mayer term
-    mterm =  - V_R*Cc   # maximize the producion of C
+    mterm =  - 10.0 * V_R*Cc   # maximize the producion of C
     # Lagrange term
-    lterm =  0
+    lterm =  0.0
     # Penalty term for the control movements
-    rterm = NP.array([5e7,0.1])
+    rterm = NP.array([5e6,0.01])
 
     return (_x, _u, _xdot, _p, _z, x0, x_lb, x_ub, u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_ub, cons_terminal, cons_terminal_lb, cons_terminal_ub, soft_constraint, penalty_term_cons, maximum_violation, mterm, lterm, rterm)

@@ -76,8 +76,8 @@ def plotting_options():
 def real_parameters(current_time):
     # Here choose the real value of the uncertain parameters that will be chosen
     # to perform the simulation of the system. They can be constant or time-varying
-    k_real	= 0.0482/3600.0*1.00
-    delH_real = -50.0*1.00
+    k_real	= 0.0482/3600.0*1.25
+    delH_real = -50.0*1.25
     p_real = NP.array([k_real, delH_real])
     """
     if current_time < 0:
