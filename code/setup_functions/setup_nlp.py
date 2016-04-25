@@ -31,15 +31,54 @@
 #   Important parts of this script were coded in colaboration with Joel Andersson.
 #   His support is gratefully acknowledged
 
+def setup_nlp(model, optimizer):
+# def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
+#             open_loop, uncertainty_values, parameters_NLP, x0, x_lb, x_ub,
+#             u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_ub,
+#             cons_terminal, cons_terminal_lb, cons_terminal_ub,
+#             soft_constraint, penalty_term_cons, maximum_violation,
+#             mterm, lterm, rterm, state_discretization, x, xdot, u, p):
 
-def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
-            open_loop, uncertainty_values, parameters_NLP, x0, x_lb, x_ub,
-            u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_ub,
-            cons_terminal, cons_terminal_lb, cons_terminal_ub,
-            soft_constraint, penalty_term_cons, maximum_violation,
-            mterm, lterm, rterm, state_discretization, x, xdot, u, p):
+    # Decode all the necessary parameters from the model and optimizer information
+    # TODO: we might want to change the name of some variables nk, deg, ....
+    # Parameters from optimizer
+    nk = optimizer.n_horizon # TODO change name
+    n_robust = optimizer.n_robust
+    t_step = optimizer.t_step
+    deg = optimizer.poly_degree # TODO change name
+    coll = optimizer.collocation # TODO change name
+    ni = optimizer.n_fin_elem # TODO change name
+    open_loop = optimizer.open_loop
+    uncertainty_values = optimizer.uncertainty_values
+    parameters_nlp = optimizer.parameters_nlp
+    state_discretization = optimizer.state_discretization
+    # Parameters from model
+    x0 = model.ocp.x0
+    u0 = model.ocp.u0
+    x_lb = model.ocp.x_lb
+    x_ub = model.ocp.x_ub
+    u_lb = model.ocp.u_lb
+    u_ub = model.ocp.u_lb
+    x_scaling = model.ocp.x_scaling
+    u_scaling = model.ocp.u_scaling
+    cons = model.ocp.cons
+    cons_ub = model.ocp.cons_ub
+    cons_terminal = model.ocp.cons_terminal
+    cons_terminal_lb = model.ocp.cons_terminal_lb
+    cons_terminal_ub = model.ocp.cons_terminal_ub
+    soft_constraint = model.ocp.soft_constraint
+    penalty_term_cons = model.ocp.penalty_term_cons
+    maximum_violation = model.ocp.maximum_violation
+    mterm = model.ocp.mterm
+    lterm = model.ocp.lterm
+    rterm = model.ocp.rterm
+    x = model.x
+    u = model.u
+    p = model.p
+    z = model.z
+    xdot = model.rhs  # TODO change name
 
-	# Size of the state, control and parameter vector
+    # Size of the state, control and parameter vector
 
     nx = x.size(1)
     nu = u.size(1)
@@ -52,6 +91,7 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
     up = vertcat(u,p)
 
     # Right hand side of the ODEs
+    # FIXME look scaling
     for i in (x0,x_ub,x_lb,x_init): i /= x_scaling
     xdot = substitute(xdot,x,x*x_scaling)/x_scaling
     for i in (u_ub,u_lb,u_init): i /= u_scaling
@@ -78,7 +118,7 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
     # Lagrange term of the cost function
     lterm = substitute(lterm,x,x*x_scaling)
     lterm = substitute(lterm,u,u*u_scaling)
-    lfcn = Function('lfcn',[x,u,p],[lterm])
+    lagrange_fcn = Function('lagrange_fcn',[x,u,p],[lterm])
     # Penalty term for the control inputs
     u_prev = SX.sym("u_prev",nu)
     du = u-u_prev
@@ -504,7 +544,10 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
 			  lbg.append(cons_terminal_lb)
 			  ubg.append(cons_terminal_ub)
           # Add contribution to the cost
-          [J_ksb] = mfcn.call([xf_ksb,U_ks,P_ksb])
+          if k < nk - 1:
+              [J_ksb] = lagrange_fcn.call([xf_ksb,U_ks,P_ksb])
+          else:
+              [J_ksb] = mfcn.call([xf_ksb,U_ks,P_ksb])
           J += omega[k]*J_ksb
 
           # Add contribution to the cost of the soft constraints penalty term
@@ -535,4 +578,8 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
     # TODO: Clean up the name of this dictionary
     nlp_fcn = {'f': J,'x': V,'p':uk_prev,'g': g}
 
-    return nlp_fcn, X_offset, U_offset, E_offset, vars_lb, vars_ub, vars_init, lbg, ubg, parent_scenario, child_scenario, n_branches, n_scenarios
+    nlp_dict_out = {'nlp_fcn':nlp_fcn,'X_offset':X_offset,'U_offset': U_offset,
+    'E_offset':E_offset,'vars_lb':vars_lb,'vars_ub':vars_ub,'vars_init': vars_init,
+    'lbg':lbg,'ubg': ubg,'parent_scenario':parent_scenario,'child_scenario': child_scenario,'n_branches': n_branches,'n_scenarios':n_scenarios}
+
+    return nlp_dict_out

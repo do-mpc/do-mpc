@@ -29,7 +29,7 @@
 #    SOFTWARE.
 #
 
-def template_optimizer(x,u,p):
+def template_optimizer(model):
     """
     --------------------------------------------------------------------------
     template_optimizer: tuning parameters
@@ -67,7 +67,7 @@ def template_optimizer(x,u,p):
 
     # NLP Solver and linear solver
     nlp_solver = 'ipopt'
-
+    qp_solver = 'qpoases'
     # It is highly recommended that you use a more efficient linear solver
     # such as the hsl linear solver MA27, which can be downloaded as a precompiled
     # library and can be used by IPOPT on run time
@@ -86,7 +86,7 @@ def template_optimizer(x,u,p):
     uncertainty_values = NP.array([alpha_values,beta_values])
     # Parameteres of the NLP which may vary along the time (For example a set point that varies at a given time)
     set_point = SX.sym('set_point')
-    parameters_NLP = NP.array([set_point])
+    parameters_nlp = NP.array([set_point])
 
     """
     --------------------------------------------------------------------------
@@ -95,10 +95,10 @@ def template_optimizer(x,u,p):
     """
     # Check if the user has introduced the data correctly
     optimizer_dict = {'n_horizon':n_horizon, 'n_robust':n_robust, 't_step': t_step,
-    't_end':end_time,'poly_degree': poly_degree, 'collocation':collocation,
+    't_end':t_end,'poly_degree': poly_degree, 'collocation':collocation,
     'n_fin_elem': n_fin_elem,'generate_code':generate_code,'open_loop': open_loop,
-    'uncertainty_values':uncertainty_values,'parameters_NLP':parameters_NLP,
+    'uncertainty_values':uncertainty_values,'parameters_nlp':parameters_nlp,
     'state_discretization':state_discretization,'nlp_solver': nlp_solver,
     'linear_solver':linear_solver, 'qp_solver':qp_solver}
-    optimizer_1 = optimizer(model_1,optimizer_dict)
+    optimizer_1 = core_do_mpc.optimizer(model,optimizer_dict)
     return optimizer_1

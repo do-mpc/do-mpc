@@ -32,65 +32,49 @@
 def setup_solver():
 
     # Call template_model to calculate the model
-    x, u, xdot, p, z, x0, x_lb, x_ub, u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_ub, cons_terminal, cons_terminal_lb, cons_terminal_ub, soft_constraint, penalty_term_cons, maximum_violation, mterm, lterm, rterm = template_model()
+    model_1 = template_model()
+    #x, u, xdot, p, z, x0, x_lb, x_ub, u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_ub, cons_terminal, cons_terminal_lb, cons_terminal_ub, soft_constraint, penalty_term_cons, maximum_violation, mterm, lterm, rterm = template_model()
     # Call template_optimizer to get the OCP formulation
-    nk, n_robust, t_step, end_time, deg, coll, ni, generate_code, open_loop, uncertainty_values, parameters_NLP, state_discretization, nlp_solver, linear_solver = template_optimizer(x,u,p)
+    # TODO: Check names of the mode. Maybe include in do_mpc configuration
+    optimizer_1 = template_optimizer(model_1)
+    configuration_1 = core_do_mpc.do_mpc_configuration(model_1, optimizer_1, [],[])
+    #nk, n_robust, t_step, end_time, deg, coll, ni, generate_code, open_loop, uncertainty_values, parameters_NLP, state_discretization, nlp_solver, linear_solver = template_optimizer(x,u,p)
 
     # Call setup_nlp to generate the NLP
-    nlp_fcn, X_offset, U_offset, E_offset, vars_lb, vars_ub, vars_init, lbg, ubg, parent_scenario, child_scenario, n_branches, n_scenarios =  setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
-    open_loop, uncertainty_values, parameters_NLP, x0, x_lb, x_ub,
-    u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_ub,
-    cons_terminal, cons_terminal_lb, cons_terminal_ub,
-    soft_constraint, penalty_term_cons, maximum_violation,
-    mterm, lterm, rterm, state_discretization, x, xdot, u, p)
-    """
-	FIXME NEW VERSION
-    # Setup the solver
-    solver = NlpSolver('solver', nlp_solver,nlp_fcn)
-    # Set options
-    #solver.setOption("verbose",True)
+    nlp_dict_out = setup_nlp(configuration_1.model, configuration_1.optimizer)
 
-	if state_discretization=='collocation':
-    	solver.setOption("expand",True)
-    solver.setOption("max_iter",500)
-    solver.setOption("tol",1e-12)
-    solver.setOption("linear_solver",linear_solver)
-	"""
+    # nlp_fcn, X_offset, U_offset, E_offset, vars_lb, vars_ub, vars_init, lbg, ubg, parent_scenario, child_scenario, n_branches, n_scenarios =  setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
+    # open_loop, uncertainty_values, parameters_NLP, x0, x_lb, x_ub,
+    # u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_ub,
+    # cons_terminal, cons_terminal_lb, cons_terminal_ub,
+    # soft_constraint, penalty_term_cons, maximum_violation,
+    # mterm, lterm, rterm, state_discretization, x, xdot, u, p)
+
     # Set options
     opts = {}
     opts["expand"] = True
-    opts["ipopt.linear_solver"] = linear_solver
+    opts["ipopt.linear_solver"] = configuration_1.optimizer.linear_solver
+    #TODO: this should be passed as parameters of the optimizer class
     opts["ipopt.max_iter"] = 500
     opts["ipopt.tol"] = 1e-6
     # Setup the solver
-    solver = nlpsol("solver", nlp_solver, nlp_fcn, opts)
+    solver = nlpsol("solver", configuration_1.optimizer.nlp_solver, nlp_dict_out['nlp_fcn'], opts)
     arg = {}
 
     # Initial condition
-    arg["x0"] = vars_init
+    arg["x0"] = nlp_dict_out['vars_init']
 
     # Bounds on x
-    arg["lbx"] = vars_lb
-    arg["ubx"] = vars_ub
+    arg["lbx"] = nlp_dict_out['vars_lb']
+    arg["ubx"] = nlp_dict_out['vars_ub']
 
     # Bounds on g
-    arg["lbg"] = lbg
-    arg["ubg"] = ubg
+    arg["lbg"] = nlp_dict_out['lbg']
+    arg["ubg"] = nlp_dict_out['ubg']
     # NLP parameters
-    arg["p"] = u0
-    """
-    # Initial condition
-    solver.setInput(vars_init,NLP_SOLVER_X0)
+    arg["p"] = configuration_1.model.ocp.u0
+    # TODO: better way than adding new fields here?
+    configuration_1.optimizer.solver = solver
+    configuration_1.optimizer.arg = arg
 
-    # Bounds on x
-    solver.setInput(vars_lb,NLP_SOLVER_LBX)
-    solver.setInput(vars_ub,NLP_SOLVER_UBX)
-
-    # Bounds on g
-    solver.setInput(lbg,NLP_SOLVER_LBG)
-    solver.setInput(ubg,NLP_SOLVER_UBG)
-
-    # NLP parameters
-    solver.setInput(u0, NLP_SOLVER_P)
-    """
-    return solver, X_offset, U_offset, E_offset, vars_lb, vars_ub, end_time, t_step, x0, u0, x, u, p, x_scaling, u_scaling, nk, parent_scenario, child_scenario, n_branches, n_scenarios, arg
+    return configuration_1, nlp_dict_out

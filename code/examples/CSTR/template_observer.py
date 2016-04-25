@@ -34,7 +34,7 @@ def template_observer(y):
 
 	# Full state feedback
 	observer_dict = {'x'}
-	observer_1 = observer(model_1,observer_dict)
+	observer_1 = core_do_mpc.observer(model_1,observer_dict)
 	# here some functions depending on observer_1
 
 	# Implement here your own observer

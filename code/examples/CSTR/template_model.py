@@ -53,7 +53,7 @@ def template_model():
     A_R = 0.215 # Area of reactor wall [m^2]
     V_R = 10.01 #0.01 # Volume of reactor [l]
     m_k = 5.0 # Coolant mass[kg]
-    T_in = 130.0 # Temp of inflow [Celcuis]
+    T_in = 130.0 # Temp of inflow [Celcius]
     K_w = 4032.0 # [kj/h.m^2.K]
     C_A0 = (5.7+4.5)/2.0*1.0 # Concentration of A in input Upper bound 5.7 lower bound 4.5 [mol/l]
 
@@ -171,9 +171,9 @@ def template_model():
     """
     # Define the cost function
     # Mayer term
-    mterm =  (100.0*(C_b - 0.9))**2 + (100.0*(C_a - 1.2))**2
+    lterm =  (100.0*(C_b - 0.9))**2 + (100.0*(C_a - 1.2))**2
     # Lagrange term
-    lterm =  0
+    mterm =  0
     # Penalty term for the control movements
     rterm = NP.array([0.0, 0.0])
 
@@ -182,6 +182,6 @@ def template_model():
     model_dict = {'x':_x,'u': _u, 'rhs':_xdot,'p': _p, 'z':_z,'x0': x0,'x_lb': x_lb,'x_ub': x_ub, 'u0':u0, 'u_lb':u_lb, 'u_ub':u_ub, 'x_scaling':x_scaling, 'u_scaling':u_scaling, 'cons':cons,
     "cons_ub": cons_ub, 'cons_terminal':cons_terminal, 'cons_terminal_lb': cons_terminal_lb, 'cons_terminal_ub':cons_terminal_ub, 'soft_constraint': soft_constraint, 'penalty_term_cons': penalty_term_cons, 'maximum_violation': maximum_violation, 'mterm': mterm,'lterm':lterm, 'rterm':rterm}
 
-    model_1 = model(model_dict)
+    model_1 = core_do_mpc.model(model_dict)
 
     return model_1

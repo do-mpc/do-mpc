@@ -71,6 +71,6 @@ def template_simulator(t_step):
     simulator_dict = {'integration_tool':integration_tool,'plot_states':plot_states,
     'plot_control': plot_control,'plot_anim': plot_anim,'export_to_matlab': export_to_matlab,'export_name': export_name, 'p_real':p_real}
 
-    simulator_1 = simulator(model_1, simulator_dict)
+    simulator_1 = core_do_mpc.simulator(model_1, simulator_dict)
 
     return simulator_1

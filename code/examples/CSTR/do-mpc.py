@@ -31,8 +31,10 @@
 
 # This is the main path of your DO-MPC installation relative to the execution folder
 path_do_mpc = '../../'
-
+import sys
+sys.path.insert(0,path_do_mpc+'setup_functions')
 import core_do_mpc
+
 """
 ==========================================================================
 DO-MPC: Import Commands
@@ -81,7 +83,7 @@ execfile(path_do_mpc+"aux_functions/setup_aux.py")
 execfile(path_do_mpc+"aux_functions/loop_mpc.py")
 
 # First formulate the optimization problem usign all the previous information
-solver, X_offset, U_offset, E_offset, vars_lb, vars_ub, end_time, t_step, x0, u0, x, u, p, x_scaling, u_scaling, nk, parent_scenario, child_scenario, n_branches, n_scenarios, arg = setup_solver()
+configuration_1, nlp_dict_out = setup_solver()
 # Define the simulator of the real system
 simulator = template_simulator(t_step)
 # Initialize necessary variables

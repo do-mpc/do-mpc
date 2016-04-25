@@ -52,7 +52,7 @@ class ocp:
         self.cons_terminal_lb = param_dict["cons_terminal_lb"]
         self.cons_terminal_ub = param_dict["cons_terminal_ub"]
         # Flag for soft constraints
-        self.soft_constraints = param_dict["soft_constraints"]
+        self.soft_constraint = param_dict["soft_constraint"]
         # Penalty term and maximum violation of soft constraints
         self.penalty_term_cons = param_dict["penalty_term_cons"]
         self.maximum_violation = param_dict["maximum_violation"]
@@ -66,9 +66,7 @@ class model:
     def __init__(self, param_dict, *opt):
         # Assert for define length of param_dict
         required_dimension = 24
-        try:
-            assert(len(param_dict) == required_dimension)
-        raise Exception("Model / OCP information is incomplete. The number of elements in the dictionary is not correct")
+        if not (len(param_dict) == required_dimension):            raise Exception("Model / OCP information is incomplete. The number of elements in the dictionary is not correct")
         # Assign the main variables describing the model equations
         self.x = param_dict["x"]
         self.u = param_dict["u"]
@@ -78,7 +76,7 @@ class model:
          # Assign the main variables that describe the OCP
         self.ocp = ocp(param_dict)
 
-    @clasmethod
+    @classmethod
     def user_model(cls, param_dict, *opt):
         " This is open for the implementation of a user-defined model class"
         dummy = 1
@@ -89,9 +87,7 @@ class simulator:
     def __init__(self, model_simulator, param_dict, *opt):
         # Assert for define length of param_dict
         required_dimension = 7
-        try:
-            assert(len(param_dict) == required_dimension)
-        raise Exception("Simulator information is incomplete. The number of elements in the dictionary is not correct")
+        if not (len(param_dict) == required_dimension): raise Exception("Simulator information is incomplete. The number of elements in the dictionary is not correct")
         dae = {'x':model_simulator.x, 'p':vertcat(model_simulator.u,model_simulator.p), 'ode':model_simulator.rhs}
         #FIXME Check the scaling factors!
         #tgrid = linspace(0,t_step,N)
@@ -104,13 +100,13 @@ class simulator:
         self.export_name = param_dict["export_name"]
         self.p_real = param_dic["p_real"]
 
-    @clasmethod
+    @classmethod
     def user_simulator(cls, param_dict, *opt):
         " This is open for the implementation of a user-defined simulator class"
         dummy = 1
         return cls(dummy)
 
-    @clasmethod
+    @classmethod
     def application(cls, param_dict, *opt):
         " This is open for the implementation of connection to a real plant"
         dummy = 1
@@ -128,9 +124,7 @@ class optimizer:
         self.optimizer_model = optimizer_model
         # Assert for the required size of the parameters
         required_dimension = 15
-        try:
-             assert(len(param_dict)==required_dimension)
-        raise Exception("The length of the parameter dictionary is not correct!")
+        if not (len(param_dict) == required_dimension): raise Exception("The length of the parameter dictionary is not correct!")
         # Define optimizer parameters
         self.n_horizon = param_dict["n_horizon"]
         self.t_step = param_dict["t_step"]
@@ -148,7 +142,7 @@ class optimizer:
         # Define model uncertain parameters
         self.uncertainty_values = param_dict["uncertainty_values"]
         # Defin time varying optimizer parameters
-        self.parameters_NLP = param_dict["parameters_NLP"]
+        self.parameters_nlp = param_dict["parameters_nlp"]
     @classmethod
     def user_optimizer(cls, optimizer_model, param_dict, *opt):
         "This method is open for the impelmentation of a user defined optimizer"
@@ -165,10 +159,10 @@ class observer:
         self.observer = param_dict['observer']
     def observer_step(observer, args):
         #x = observer(args) # TODO: this should probably be updated
-        result = args{'y'} # TODO: this is a dummy observer
+        result = args['y'] # TODO: this is a dummy observer
         return result
 
-    @clasmethod
+    @classmethod
     def user_observer(cls, param_dict, *opt):
         " This is open for the implementation of a user-defined estimator class"
         dummy = 1
@@ -182,4 +176,3 @@ class do_mpc_configuration:
         self.optimizer = optimizer
         self.observer = observer
         self.simulator = simulator
-    
