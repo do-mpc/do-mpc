@@ -38,11 +38,11 @@ def setup_solver():
 
     # Call setup_nlp to generate the NLP
     nlp_fcn, X_offset, U_offset, E_offset, vars_lb, vars_ub, vars_init, lbg, ubg, parent_scenario, child_scenario, n_branches, n_scenarios =  setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
-                                                                                    open_loop, uncertainty_values, parameters_NLP, x0, x_lb, x_ub,
-                                                                                    u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_ub,
-                                                                                    cons_terminal, cons_terminal_lb, cons_terminal_ub,
-                                                                                    soft_constraint, penalty_term_cons, maximum_violation,
-                                                                                    mterm, lterm, rterm, state_discretization, x, xdot, u, p)
+    open_loop, uncertainty_values, parameters_NLP, x0, x_lb, x_ub,
+    u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_ub,
+    cons_terminal, cons_terminal_lb, cons_terminal_ub,
+    soft_constraint, penalty_term_cons, maximum_violation,
+    mterm, lterm, rterm, state_discretization, x, xdot, u, p)
     """
 	FIXME NEW VERSION
     # Setup the solver
@@ -59,11 +59,11 @@ def setup_solver():
     # Set options
     opts = {}
     opts["expand"] = True
-    opts["linear_solver"] = linear_solver
-    opts["max_iter"] = 500
-    opts["tol"] = 1e-6
+    opts["ipopt.linear_solver"] = linear_solver
+    opts["ipopt.max_iter"] = 500
+    opts["ipopt.tol"] = 1e-6
     # Setup the solver
-    solver = NlpSolver("solver", nlp_solver, nlp_fcn, opts)
+    solver = nlpsol("solver", nlp_solver, nlp_fcn, opts)
     arg = {}
 
     # Initial condition

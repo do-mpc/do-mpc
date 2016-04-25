@@ -90,7 +90,7 @@ tf_sim = current_time + t_step
 index_mpc = 1
 nx = x0.size
 nu = u0.size
-np = p.size()
+np = p.size(1)
 # Initialize MPC information structures
 mpc_states, mpc_control, mpc_alg, mpc_time, mpc_cost, mpc_cpu, mpc_parameters, x0_sim = initialize_first_iteration(end_time, t_step, nx, nu, np, x0, u0)
 

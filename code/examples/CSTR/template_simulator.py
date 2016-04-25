@@ -35,17 +35,20 @@ def template_simulator(t_step):
     x, u, xdot, p, z, x0, x_lb, x_ub, u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_ub, cons_terminal, cons_terminal_lb, cons_terminal_ub, soft_constraint, penalty_term_cons, maximum_violation, mterm, lterm, rterm = template_model()
     xdot = substitute(xdot,x,x*x_scaling)/x_scaling
     xdot = substitute(xdot,u,u*u_scaling)
-    up = vertcat((u,p))
+    up = vertcat(u,p)
 
-    f_sim = SXFunction("f_sim", controldaeIn(x=x,p=p,u=u),daeOut(ode=xdot))
+    #f_sim = Function("f_sim", controldaeIn(x=x,p=p,u=u),daeOut(ode=xdot))
+    #f_sim = Function("f_sim", [x,p,u],[xdot])
     opts = {}
-    opts["integrator"] = "cvodes"
-    opts["integrator_options"] = {"abstol":1e-10,"reltol":1e-10, "exact_jacobian":True}
-    N = 2
-    tgrid = linspace(0,t_step,N)
-    integrator = ControlSimulator("integrator", f_sim, tgrid,  opts)
+    #opts["integrator"] = "cvodes"
+    # FIXME Only one step integration
+    opts = {"abstol":1e-10,"reltol":1e-10, "exact_jacobian":True, 'tf':t_step}
+    #N = 2
+    dae = {'x':x, 'p':vertcat(u,p), 'ode':xdot}
+    #tgrid = linspace(0,t_step,N)
+    simulator = integrator("simulator", "cvodes", dae,  opts)
 
-    f_sim = SXFunction(daeIn(x=x,p=up),daeOut(ode=xdot))
+    #f_sim = SXFunction(daeIn(x=x,p=up),daeOut(ode=xdot))
     """
 	# Choose the integrator (CVODES, IDAS)
     integrator = Integrator('cvodes',f_sim)
@@ -62,7 +65,7 @@ def template_simulator(t_step):
     integrator.setOption("exact_jacobian",True)
     integrator.init()
     """
-    return integrator
+    return simulator
 
 def plotting_options():
     # Choose the indices of the states to plot

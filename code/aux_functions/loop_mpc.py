@@ -1,25 +1,25 @@
 # 	 -*- coding: utf-8 -*-
 #
 #    This file is part of DO-MPC
-#    
+#
 #    DO-MPC: An environment for the easy, modular and efficient implementation of
 #            robust nonlinear model predictive control
-#	 
-#    The MIT License (MIT)	
+#
+#    The MIT License (MIT)
 #
 #    Copyright (c) 2014-2015 Sergio Lucia, Alexandru Tatulea-Codrean, Sebastian Engell
 #                            TU Dortmund. All rights reserved
-#    
+#
 #    Permission is hereby granted, free of charge, to any person obtaining a copy
 #    of this software and associated documentation files (the "Software"), to deal
 #    in the Software without restriction, including without limitation the rights
 #    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 #    copies of the Software, and to permit persons to whom the Software is
 #    furnished to do so, subject to the following conditions:
-#    
+#
 #    The above copyright notice and this permission notice shall be included in all
 #    copies or substantial portions of the Software.
-#    
+#
 #    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 #    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 #    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -49,11 +49,11 @@ def initialize_first_iteration(end_time, t_step, nx, nu, np, x0, u0):
 	mpc_control[0,:]= u0
 	mpc_time[0]		= 0
 	x0_sim=x0
-	
+
 	return mpc_states, mpc_control, mpc_alg, mpc_time, mpc_cost, mpc_cpu, mpc_parameters, x0_sim
-	
+
 def loop_optimizer(solver, arg):
-	res = solver(arg)
+	res = solver(x0=arg['x0'], lbx=arg['lbx'], ubx=arg['ubx'], lbg=arg['lbg'], ubg=arg['ubg'])
 	optimal_solution = NP.array(res["x"])
 	optimal_cost = NP.array(res["f"])
 	constraints = NP.array(res["g"])
@@ -63,24 +63,27 @@ def loop_optimizer(solver, arg):
 	optimal_solution = NP.array(solver.output(NLP_SOLVER_X))
 	"""
 	return optimal_solution, optimal_cost, constraints
-	
+
 def loop_simulator(x0_sim, u_mpc, p_real, simulator, t0_sim, t_step):
 	tf_sim = t0_sim + t_step
 	#simulator.setOption("t0",t0_sim)
 	#simulator.setOption("tf",tf_sim)
 	#pdb.set_trace()
-	simulator.setInput(p_real,"p")
-	simulator.setInput(u_mpc,"u")
-	simulator.setInput(x0_sim,"x0")
-	simulator.evaluate()	 
-	xf_sim = NP.squeeze(simulator.getOutput())[:,1]
+	#.setInput(p_real,"p")
+	#simulator.setInput(u_mpc,"u")
+	#simulator.setInput(x0_sim,"x0")
+	#simulator.evaluate()
+	result = simulator(x0 = x0_sim, p = vertcat(u_mpc,p_real))
+	#pdb.set_trace()
+	xf_sim = NP.squeeze(result['xf'])
+	#xf_sim = NP.squeeze(simulator.getOutput())[:,1]
 	return xf_sim
-	
+
 def loop_measure(xf_sim):
 	y_meas = deepcopy(xf_sim)
 	#Introduce here noise if the measurement contains noise
 	return y_meas
-	
+
 def loop_observer(y):
 	x = template_observer(y)
 	return x
@@ -119,7 +122,7 @@ def loop_store(x0_sim, u_mpc, t0_sim, t_step, p_real, index_mpc, solver, mpc_sta
 	mpc_control[index_mpc,:] = u_mpc
 	mpc_time[index_mpc] = t0_sim + t_step
 	mpc_parameters[index_mpc,:] = p_real
-	aux = solver.getStats()
+	aux = solver.stats()
 	#pdb.set_trace()
-	mpc_cpu[index_mpc] = aux['t_mainloop.wall']	
+	mpc_cpu[index_mpc] = aux['t_wall_mainloop']
 	return mpc_states, mpc_control, mpc_time, mpc_cpu
