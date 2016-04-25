@@ -173,22 +173,25 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
           if r != j:
             L *= (tau-tau_root[r])/(tau_root[j]-tau_root[r])
         lfcn = Function('lfcn',[tau],[L])
-
+        # TODO: clean up
         # Evaluate the polynomial at the final time to get the coefficients of the continuity equation
         #lfcn.setInput(1.0)
         #lfcn.evaluate()
         #D[j] = lfcn.getOutput()
-        pdb.set_trace()
+        #pdb.set_trace()
         D[j] = lfcn(1.0)
         # Evaluate the time derivative of the polynomial at all collocation points to get the coefficients of the continuity equation
+        tfcn = lfcn.tangent()
         for r in range(deg+1):
-			lfcn.setInput(tau_root[r])
-			try:
-				C[j,r] = NP.array([substitute(lfcn.jac(),tau,tau_root[r]).getNZ()])
-			# In case of CasADi version 2.2 instead of 2.3
-			except NotImplementedError:
-				jac_val = NP.array(substitute(lfcn.jac(),tau,tau_root[r]),dtype=str)
-				C[j,r] = float(jac_val[0,0])
+          C[j,r], _ = tfcn(tau_root[r])
+        # for r in range(deg+1):
+		# 	lfcn.setInput(tau_root[r])
+		# 	try:
+		# 		C[j,r] = NP.array([substitute(lfcn.jac(),tau,tau_root[r]).getNZ()])
+		# 	# In case of CasADi version 2.2 instead of 2.3
+		# 	except NotImplementedError:
+		# 		jac_val = NP.array(substitute(lfcn.jac(),tau,tau_root[r]),dtype=str)
+		# 		C[j,r] = float(jac_val[0,0])
 
       # Initial condition
       xk0 = MX.sym("xk0",nx)
@@ -285,7 +288,7 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
         ubgk.append(NP.zeros(nx))
 
       # Concatenate constraints
-      gk = vertcat(gk)
+      gk = vertcat(*gk)
       lbgk = NP.concatenate(lbgk)
       ubgk = NP.concatenate(ubgk)
       assert(gk.size()==ik.size())
@@ -523,11 +526,13 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
 				lbg.append(NP.zeros(nu))
 				ubg.append(NP.zeros(nu))
     # Concatenate constraints
-    g = vertcat(g)
-    lbg = NP.concatenate(lbg)
-    ubg = NP.concatenate(ubg)
+    g = vertcat(*g)
+    #pdb.set_trace()
+    lbg = vertcat(*lbg)
+    ubg = vertcat(*ubg)
 
-    nlp_fcn = Function('nlp_fcn', nlpIn(x=V,p=uk_prev),nlpOut(f=J,g=g))
-
+    #nlp_fcn = Function('nlp_fcn', nlpIn(x=V,p=uk_prev),nlpOut(f=J,g=g))
+    # TODO: Clean up the name of this dictionary
+    nlp_fcn = {'f': J,'x': V,'p':uk_prev,'g': g}
 
     return nlp_fcn, X_offset, U_offset, E_offset, vars_lb, vars_ub, vars_init, lbg, ubg, parent_scenario, child_scenario, n_branches, n_scenarios
