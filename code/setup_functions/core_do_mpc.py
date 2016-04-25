@@ -123,7 +123,7 @@ class optimizer:
         # Set the local model to be used by the model
         self.optimizer_model = optimizer_model
         # Assert for the required size of the parameters
-        required_dimension = 14
+        required_dimension = 15
         try:
              assert(len(param_dict)==required_dimension)
         raise Exception("The length of the parameter dictionary is not correct!")
@@ -131,6 +131,7 @@ class optimizer:
         self.n_horizon = param_dict["n_horizon"]
         self.t_step = param_dict["t_step"]
         self.n_robust = param_dict["n_robust"]
+        self.state_discretization = param_dict["state_discretization"]
         self.poly_degree = param_dict["poly_degree"]
         self.collocation = param_dict["collocation"]
         self.n_fin_elem = param_dict["n_fin_elem"]

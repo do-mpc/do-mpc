@@ -32,6 +32,7 @@
 # This is the main path of your DO-MPC installation relative to the execution folder
 path_do_mpc = '../../'
 
+import core_do_mpc
 """
 ==========================================================================
 DO-MPC: Import Commands

@@ -112,6 +112,7 @@ def template_model():
     _z = []
 
 
+
     """
     --------------------------------------------------------------------------
     template_model: initial condition and constraints
@@ -176,4 +177,11 @@ def template_model():
     # Penalty term for the control movements
     rterm = NP.array([0.0, 0.0])
 
-    return (_x, _u, _xdot, _p, _z, x0, x_lb, x_ub, u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_ub, cons_terminal, cons_terminal_lb, cons_terminal_ub, soft_constraint, penalty_term_cons, maximum_violation, mterm, lterm, rterm)
+
+
+    model_dict = {'x':_x,'u': _u, 'rhs':_xdot,'p': _p, 'z':_z,'x0': x0,'x_lb': x_lb,'x_ub': x_ub, 'u0':u0, 'u_lb':u_lb, 'u_ub':u_ub, 'x_scaling':x_scaling, 'u_scaling':u_scaling, 'cons':cons,
+    "cons_ub": cons_ub, 'cons_terminal':cons_terminal, 'cons_terminal_lb': cons_terminal_lb, 'cons_terminal_ub':cons_terminal_ub, 'soft_constraint': soft_constraint, 'penalty_term_cons': penalty_term_cons, 'maximum_violation': maximum_violation, 'mterm': mterm,'lterm':lterm, 'rterm':rterm}
+
+    model_1 = model(model_dict)
+
+    return model_1

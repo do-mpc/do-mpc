@@ -36,7 +36,7 @@ def template_optimizer(x,u,p):
     --------------------------------------------------------------------------
     """
     # Prediction horizon
-    nk = 20
+    n_horizon = 20
 
     # Sampling time
     t_step = 0.005
@@ -49,12 +49,12 @@ def template_optimizer(x,u,p):
 
     # Collocation-specific options
     # Degree of interpolating polynomials: 1 to 5
-    deg = 2
+    poly_degree = 2
     # Collocation points: 'legendre' or 'radau'
-    coll = 'radau'
+    collocation = 'radau'
 
     # Number of finite elements per control interval
-    ni = 2
+    n_fin_elem = 2
 
     # GENERATE C CODE shared libraries
     generate_code = 0
@@ -63,7 +63,7 @@ def template_optimizer(x,u,p):
     open_loop = 0
 
     # Simulation Time
-    end_time = 0.2
+    t_end = 0.2
 
     # NLP Solver and linear solver
     nlp_solver = 'ipopt'
