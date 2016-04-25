@@ -94,6 +94,11 @@ def template_optimizer(x,u,p):
     --------------------------------------------------------------------------
     """
     # Check if the user has introduced the data correctly
-
-    return (nk, n_robust, t_step, end_time, deg, coll, ni, generate_code, +
-            open_loop, uncertainty_values, parameters_NLP,  state_discretization, nlp_solver, linear_solver)
+    optimizer_dict = {'n_horizon':n_horizon, 'n_robust':n_robust, 't_step': t_step,
+    't_end':end_time,'poly_degree': poly_degree, 'collocation':collocation,
+    'n_fin_elem': n_fin_elem,'generate_code':generate_code,'open_loop': open_loop,
+    'uncertainty_values':uncertainty_values,'parameters_NLP':parameters_NLP,
+    'state_discretization':state_discretization,'nlp_solver': nlp_solver,
+    'linear_solver':linear_solver, 'qp_solver':qp_solver}
+    optimizer_1 = optimizer(model_1,optimizer_dict)
+    return optimizer_1

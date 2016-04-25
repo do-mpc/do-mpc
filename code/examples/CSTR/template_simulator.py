@@ -32,10 +32,10 @@
 
 def template_simulator(t_step):
     # Here you can use a different model for the simulator if desired
-    x, u, xdot, p, z, x0, x_lb, x_ub, u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_ub, cons_terminal, cons_terminal_lb, cons_terminal_ub, soft_constraint, penalty_term_cons, maximum_violation, mterm, lterm, rterm = template_model()
-    xdot = substitute(xdot,x,x*x_scaling)/x_scaling
-    xdot = substitute(xdot,u,u*u_scaling)
-    up = vertcat(u,p)
+    #x, u, xdot, p, z, x0, x_lb, x_ub, u0, u_lb, u_ub, x_scaling, u_scaling, #cons, cons_ub, cons_terminal, cons_terminal_lb, cons_terminal_ub, #soft_constraint, penalty_term_cons, maximum_violation, mterm, lterm, rterm = #template_model()
+    #xdot = substitute(xdot,x,x*x_scaling)/x_scaling
+    #xdot = substitute(xdot,u,u*u_scaling)
+    #up = vertcat(u,p)
 
     #f_sim = Function("f_sim", controldaeIn(x=x,p=p,u=u),daeOut(ode=xdot))
     #f_sim = Function("f_sim", [x,p,u],[xdot])
@@ -44,30 +44,14 @@ def template_simulator(t_step):
     # FIXME Only one step integration
     opts = {"abstol":1e-10,"reltol":1e-10, "exact_jacobian":True, 'tf':t_step}
     #N = 2
-    dae = {'x':x, 'p':vertcat(u,p), 'ode':xdot}
+    # Use integrator: for example 'cvodes' for ODEs or 'idas' for DAEs
+    integrator_tool = 'cvodes'
+    #dae = {'x':x, 'p':vertcat(u,p), 'ode':xdot}
     #tgrid = linspace(0,t_step,N)
-    simulator = integrator("simulator", "cvodes", dae,  opts)
+    #simulator = integrator("simulator", "cvodes", dae,  opts)
+    #return simulator
 
-    #f_sim = SXFunction(daeIn(x=x,p=up),daeOut(ode=xdot))
-    """
-	# Choose the integrator (CVODES, IDAS)
-    integrator = Integrator('cvodes',f_sim)
-    # Choose the integrator parameters
-    integrator.setOption("abstol",1e-10) # tolerance
-    integrator.setOption("reltol",1e-10) # tolerance
-    integrator.setOption("steps_per_checkpoint",100)
-    t0_sim=0;
-    tf_sim=t0_sim+t_step
-    integrator.setOption("t0",t0_sim)
-    integrator.setOption("tf",tf_sim)
-    integrator.setOption("fsens_abstol",1e-8)
-    integrator.setOption("fsens_reltol",1e-8)
-    integrator.setOption("exact_jacobian",True)
-    integrator.init()
-    """
-    return simulator
-
-def plotting_options():
+#def plotting_options():
     # Choose the indices of the states to plot
     plot_states = [0, 1, 2]
     # Choose the indices of the controls to plot
@@ -77,11 +61,16 @@ def plotting_options():
     # Export to matlab (for better plotting or postprocessing)
     export_to_matlab = True
     export_name = "mpc_result.mat"  # Change this name if desired
-    return plot_states, plot_control, plot_anim, export_to_matlab, export_name
+    #return plot_states, plot_control, plot_anim, export_to_matlab, export_name
 
-def real_parameters(current_time):
+#def real_parameters(current_time):
     # Here choose the real value of the uncertain parameters that will be chosen
     # to perform the simulation of the system. They can be constant or time-varying
     p_real =  NP.array([1.0,1.0])
 
-    return p_real
+    simulator_dict = {'integration_tool':integration_tool,'plot_states':plot_states,
+    'plot_control': plot_control,'plot_anim': plot_anim,'export_to_matlab': export_to_matlab,'export_name': export_name, 'p_real':p_real}
+
+    simulator_1 = simulator(model_1, simulator_dict)
+
+    return simulator_1

@@ -92,7 +92,11 @@ class simulator:
         try:
             assert(len(param_dict) == required_dimension)
         raise Exception("Simulator information is incomplete. The number of elements in the dictionary is not correct")
-        self.simulator = param_dict["simulator"]
+        dae = {'x':model_simulator.x, 'p':vertcat(model_simulator.u,model_simulator.p), 'ode':model_simulator.rhs}
+        #FIXME Check the scaling factors!
+        #tgrid = linspace(0,t_step,N)
+        simulator_do_mpc = integrator("simulator", "cvodes", dae,  opts)
+        self.simulator = simulator_do_mpc
         self.plot_states = param_dict["plot_states"]
         self.plot_control = param_dict["plot_control"]
         self.plot_anim = param_dict["plot_anim"]
@@ -151,7 +155,7 @@ class optimizer:
         dummy = 1
         return cls(dummy)
     def optimizer_step(solver, args):
-        result = solver(x0=arg['x0'], lbx=arg['lbx'], ubx=arg['ubx'], lbg=arg['lbg'], ubg=arg['ubg'])
+        result = solver(x0=args['x0'], lbx=args['lbx'], ubx=args['ubx'], lbg=args['lbg'], ubg=args['ubg'])
         return result
 
 class observer:
@@ -160,11 +164,22 @@ class observer:
         self.x = param_dict['x']
         self.observer = param_dict['observer']
     def observer_step(observer, args):
-        x = observer(args) # TODO: this should probably be updated
-        return x
+        #x = observer(args) # TODO: this should probably be updated
+        result = args{'y'} # TODO: this is a dummy observer
+        return result
 
     @clasmethod
     def user_observer(cls, param_dict, *opt):
         " This is open for the implementation of a user-defined estimator class"
         dummy = 1
         return cls(dummy)
+
+class do_mpc_configuration:
+    """ A class for the definition of a do-mpc configuration that
+    contains a model, optimizer, observer and simulator module """
+    def __init__(self, model, optimizer, observer, simulator):
+        self.model = model
+        self.optimizer = optimizer
+        self.observer = observer
+        self.simulator = simulator
+    
