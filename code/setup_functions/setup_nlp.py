@@ -39,24 +39,24 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
             soft_constraint, penalty_term_cons, maximum_violation,
             mterm, lterm, rterm, state_discretization, x, xdot, u, p):
 
-	# Size of the state, contorl and parameter vector
+	# Size of the state, control and parameter vector
 
-    nx = x.size()
-    nu = u.size()
-    np = p.size()
+    nx = x.size(1)
+    nu = u.size(1)
+    np = p.size(1)
 
     # Generate, scale and initialize all the necessary functions
     # Consider as initial guess the initial conditions
     x_init = deepcopy(x0)
     u_init = deepcopy(u0)
-    up = vertcat((u,p))
+    up = vertcat(u,p)
 
     # Right hand side of the ODEs
     for i in (x0,x_ub,x_lb,x_init): i /= x_scaling
     xdot = substitute(xdot,x,x*x_scaling)/x_scaling
     for i in (u_ub,u_lb,u_init): i /= u_scaling
     xdot = substitute(xdot,u,u*u_scaling)
-    ffcn = SXFunction('ffcn',[x,up],[xdot])
+    ffcn = Function('ffcn',[x,up],[xdot])
 
     # Constraints, possibly soft
     # Epsilon for the soft constraints
@@ -65,27 +65,27 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
     if soft_constraint:
         epsilon = SX.sym ("epsilon",cons.size())
         cons = cons - epsilon
-        cfcn = SXFunction('cfcn', [x,u,p,epsilon],[cons])
+        cfcn = Function('cfcn', [x,u,p,epsilon],[cons])
     else:
-        cfcn = SXFunction('cfcn', [x,u,p],[cons])
+        cfcn = Function('cfcn', [x,u,p],[cons])
     cons_terminal = substitute(cons_terminal,x,x*x_scaling)
     cons_terminal = substitute(cons_terminal,u,u*u_scaling)
-    cfcn_terminal = SXFunction('cfcn',[x,u,p],[cons_terminal])
+    cfcn_terminal = Function('cfcn',[x,u,p],[cons_terminal])
     # Mayer term of the cost functions
     mterm = substitute(mterm,x,x*x_scaling)
     mterm = substitute(mterm,u,u*u_scaling)
-    mfcn = SXFunction('mfcn',[x,u,p],[mterm])
+    mfcn = Function('mfcn',[x,u,p],[mterm])
     # Lagrange term of the cost function
     lterm = substitute(lterm,x,x*x_scaling)
     lterm = substitute(lterm,u,u*u_scaling)
-    lfcn = SXFunction('lfcn',[x,u,p],[lterm])
+    lfcn = Function('lfcn',[x,u,p],[lterm])
     # Penalty term for the control inputs
     u_prev = SX.sym("u_prev",nu)
     du = u-u_prev
     R =  diag(SX(rterm))
     rterm = substitute(rterm,x,x*x_scaling)
     rterm = substitute(rterm,u,u*u_scaling)
-    rfcn = SXFunction('rfcn',[u_prev,u],[mul(du.T,mul(R,du))])
+    rfcn = Function('rfcn',[u_prev,u],[mtimes(du.T,mtimes(R,du))])
     """
     -----------------------------------------------------------------------------------
     Build the scenario tree given the possible values of the uncertain parmeters
@@ -172,13 +172,14 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
         for r in range(deg+1):
           if r != j:
             L *= (tau-tau_root[r])/(tau_root[j]-tau_root[r])
-        lfcn = SXFunction('lfcn',[tau],[L])
+        lfcn = Function('lfcn',[tau],[L])
 
         # Evaluate the polynomial at the final time to get the coefficients of the continuity equation
-        lfcn.setInput(1.0)
-        lfcn.evaluate()
-        D[j] = lfcn.getOutput()
-
+        #lfcn.setInput(1.0)
+        #lfcn.evaluate()
+        #D[j] = lfcn.getOutput()
+        pdb.set_trace()
+        D[j] = lfcn(1.0)
         # Evaluate the time derivative of the polynomial at all collocation points to get the coefficients of the continuity equation
         for r in range(deg+1):
 			lfcn.setInput(tau_root[r])
@@ -267,7 +268,7 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
           # Add collocation equations to the NLP
           #f_ij = ffcn.call(daeIn(x=ik_split[i,j],p=vertcat((uk,pk))))[DAE_ODE]
 	  #pdb.set_trace()
-	  [f_ij] = ffcn.call([ik_split[i,j],vertcat((uk,pk))])
+	  [f_ij] = ffcn.call([ik_split[i,j],vertcat(uk,pk)])
           gk.append(h*f_ij - xp_ij)
           lbgk.append(NP.zeros(nx)) # equality constraints
           ubgk.append(NP.zeros(nx)) # equality constraints
@@ -290,7 +291,7 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
       assert(gk.size()==ik.size())
 
       # Create the integrator function
-      ifcn = MXFunction("ifcn", [ik,xk0,pk,uk],[gk,xkf])
+      ifcn = Function("ifcn", [ik,xk0,pk,uk],[gk,xkf])
 
     elif state_discretization == 'multiple-shooting':
 
@@ -475,7 +476,7 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
           elif state_discretization == 'multiple-shooting':
 
             # Call the integrator
-            ifcn_out = ifcn.call(integratorIn(x0=X_ks,p=vertcat((U_ks,P_ksb))))
+            ifcn_out = ifcn.call(integratorIn(x0=X_ks,p=vertcat(U_ks,P_ksb)))
             xf_ksb = ifcn_out[INTEGRATOR_XF]
 
           # Add continuity equation to NLP
@@ -526,7 +527,7 @@ def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
     lbg = NP.concatenate(lbg)
     ubg = NP.concatenate(ubg)
 
-    nlp_fcn = MXFunction('nlp_fcn', nlpIn(x=V,p=uk_prev),nlpOut(f=J,g=g))
+    nlp_fcn = Function('nlp_fcn', nlpIn(x=V,p=uk_prev),nlpOut(f=J,g=g))
 
 
     return nlp_fcn, X_offset, U_offset, E_offset, vars_lb, vars_ub, vars_init, lbg, ubg, parent_scenario, child_scenario, n_branches, n_scenarios
