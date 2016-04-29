@@ -86,7 +86,7 @@ class simulator:
     """A class for the definition model equations and optimal control problem formulation"""
     def __init__(self, model_simulator, param_dict, *opt):
         # Assert for define length of param_dict
-        required_dimension = 7
+        required_dimension = 8
         if not (len(param_dict) == required_dimension): raise Exception("Simulator information is incomplete. The number of elements in the dictionary is not correct")
         dae = {'x':model_simulator.x, 'p':vertcat(model_simulator.u,model_simulator.p), 'ode':model_simulator.rhs}
         #FIXME Check the scaling factors!
@@ -99,6 +99,7 @@ class simulator:
         self.export_to_matlab = param_dict["export_to_matlab"]
         self.export_name = param_dict["export_name"]
         self.p_real = param_dic["p_real"]
+        self.t_step_simulator = param_dic["t_step_simulator"]
 
     @classmethod
     def user_simulator(cls, param_dict, *opt):

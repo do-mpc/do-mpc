@@ -30,7 +30,7 @@
 #
 
 
-def template_simulator(t_step):
+def template_simulator(model):
     # Here you can use a different model for the simulator if desired
     #x, u, xdot, p, z, x0, x_lb, x_ub, u0, u_lb, u_ub, x_scaling, u_scaling, #cons, cons_ub, cons_terminal, cons_terminal_lb, cons_terminal_ub, #soft_constraint, penalty_term_cons, maximum_violation, mterm, lterm, rterm = #template_model()
     #xdot = substitute(xdot,x,x*x_scaling)/x_scaling
@@ -39,6 +39,8 @@ def template_simulator(t_step):
 
     #f_sim = Function("f_sim", controldaeIn(x=x,p=p,u=u),daeOut(ode=xdot))
     #f_sim = Function("f_sim", [x,p,u],[xdot])
+    # TODO: should we allow for a different t_step compared to the optimizer t_step? In general is possible to have a smaller simulation t_step, but this might cause errors if people forget to change it
+    t_step = 0.005
     opts = {}
     #opts["integrator"] = "cvodes"
     # FIXME Only one step integration

@@ -64,6 +64,19 @@ execfile("template_observer.py")
 # Define the simulator
 execfile("template_simulator.py")
 
+# Here define the do-mpc configuration
+# Create a model object based on the template
+model_1 = template_model()
+# Create an optimizer object based on the template and a model
+optimizer_1 = template_optimizer(model_1)
+# Create an observer object based on the template and a model
+observer_1 = template_observer(model_1)
+# Create a simulator object based on the template and a model
+simulator_1 = template_simulator(model_1)
+# Create a configuration
+configuration_1 = core_do_mpc.do_mpc_configuration(model_1, optimizer_1, observer_1, simulator_1)
+
+
 """
 ==========================================================================
 DO-MPC: Set up of the optimization problem
