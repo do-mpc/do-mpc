@@ -28,8 +28,23 @@
 #    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #    SOFTWARE.
 #
+import matplotlib.pyplot as plt
+from casadi import *
+import numpy as NP
+import core_do_mpc
+from matplotlib.ticker import MaxNLocator
 
-def plot_mpc(mpc_states, mpc_control, mpc_time, index_mpc, plot_states, plot_control, x_scaling, u_scaling, x, u):
+def plot_mpc(configuration, mpc_data):
+	mpc_states = mpc_data.mpc_states
+	mpc_control = mpc_data.mpc_control
+	mpc_time = mpc_data.mpc_time
+	index_mpc = configuration.simulator.mpc_iteration
+	plot_states = configuration.simulator.plot_states
+	plot_control = configuration.simulator.plot_control
+	x = configuration.model.x
+	x_scaling = configuration.model.ocp.x_scaling
+	u = configuration.model.u
+	u_scaling = configuration.model.ocp.u_scaling
 	# This function plots the states and controls chosen in the variables plot_states and plot_control until a certain index (index_mpc)
 	plt.ion()
 	fig = plt.figure(1)
@@ -54,7 +69,7 @@ def plot_mpc(mpc_states, mpc_control, mpc_time, index_mpc, plot_states, plot_con
 
 
 
-def plot_state_pred(v,t0,el,lineop, n_scenarios, n_brances, nk, child_scenario, X_offset, x_scaling, t_step):
+def plot_state_pred(v,t0,el,lineop, n_scenarios, n_branches, nk, child_scenario, X_offset, x_scaling, t_step):
   # This function plots the prediction of a state
   #plt.clf()
   plt.hold(True)
@@ -75,7 +90,7 @@ def plot_state_pred(v,t0,el,lineop, n_scenarios, n_brances, nk, child_scenario, 
         plt.plot(tgrid[k:k+2],x_segment,lineop)
 
 
-def plot_control_pred(v,t0,el,lineop, n_scenarios, n_brances, nk, parent_scenario, U_offset, u_scaling, t_step, u_last_step):
+def plot_control_pred(v,t0,el,lineop, n_scenarios, n_branches, nk, parent_scenario, U_offset, u_scaling, t_step, u_last_step):
 	# This function plots the prediction of a control input
 	plt.hold(True)
 	# Time grid
@@ -101,7 +116,28 @@ def plot_control_pred(v,t0,el,lineop, n_scenarios, n_brances, nk, parent_scenari
 			plt.plot(NP.array([t_beginning,t_beginning]),NP.array([u_prev,u_this]),lineop)
 
 
-def plot_animation(mpc_states, mpc_control, mpc_time, index_mpc, plot_states, plot_control, x_scaling, u_scaling, x, u, X_offset, U_offset, n_branches, n_scenarios, nk, t0, child_scenario, parent_scenario, t_step, v_opt):
+
+def plot_animation(configuration, mpc_data):
+	mpc_states = mpc_data.mpc_states
+	mpc_control = mpc_data.mpc_control
+	mpc_time = mpc_data.mpc_time
+	index_mpc = configuration.simulator.mpc_iteration
+	plot_states = configuration.simulator.plot_states
+	plot_control = configuration.simulator.plot_control
+	x = configuration.model.x
+	x_scaling = configuration.model.ocp.x_scaling
+	u = configuration.model.u
+	u_scaling = configuration.model.ocp.u_scaling
+	X_offset = configuration.optimizer.nlp_dict_out['X_offset']
+	U_offset = configuration.optimizer.nlp_dict_out['U_offset']
+	n_branches = configuration.optimizer.nlp_dict_out['n_branches']
+	n_scenarios = configuration.optimizer.nlp_dict_out['n_scenarios']
+	child_scenario = configuration.optimizer.nlp_dict_out['child_scenario']
+	parent_scenario = configuration.optimizer.nlp_dict_out['parent_scenario']
+	nk = configuration.optimizer.n_horizon
+	t0 = configuration.simulator.t0_sim - configuration.simulator.t_step_simulator
+	t_step = configuration.simulator.t_step_simulator
+	v_opt = configuration.optimizer.opt_result_step.optimal_solution
 	plt.ion()
 	total_subplots = len(plot_states) + len(plot_control)
 	plt.figure(2)
@@ -112,7 +148,7 @@ def plot_animation(mpc_states, mpc_control, mpc_time, index_mpc, plot_states, pl
 		plot = plt.subplot(total_subplots, 1, index + 1)
 		# First plot the prediction
 		plot_state_pred(v_opt, t0, plot_states[index], '-b', n_scenarios, n_branches, nk, child_scenario, X_offset, x_scaling, t_step)
-		plt.plot(mpc_time[0:index_mpc-1], mpc_states[0:index_mpc-1,plot_states[index]] * x_scaling[plot_states[index]], '-k', linewidth=2.0)
+		plt.plot(mpc_time[0:index_mpc], mpc_states[0:index_mpc,plot_states[index]] * x_scaling[plot_states[index]], '-k', linewidth=2.0)
 		plt.ylabel(str(x[plot_states[index]]))
 		plt.xlabel("Time")
 		plt.grid()
@@ -122,8 +158,8 @@ def plot_animation(mpc_states, mpc_control, mpc_time, index_mpc, plot_states, pl
 	for index in range(len(plot_control)):
 		plot = plt.subplot(total_subplots, 1, len(plot_states) + index + 1)
 		# First plot the prediction
-		plot_control_pred(v_opt, t0, plot_control[index], '-b', n_scenarios, n_branches, nk, parent_scenario, U_offset, u_scaling, t_step, mpc_control[index_mpc-2,plot_control[index]])
-		plt.plot(mpc_time[0:index_mpc-1], mpc_control[0:index_mpc-1,plot_control[index]] * u_scaling[plot_control[index]],'-k' ,drawstyle='steps', linewidth=2.0)
+		plot_control_pred(v_opt, t0, plot_control[index], '-b', n_scenarios, n_branches, nk, parent_scenario, U_offset, u_scaling, t_step, mpc_control[index_mpc-1,plot_control[index]])
+		plt.plot(mpc_time[0:index_mpc], mpc_control[0:index_mpc,plot_control[index]] * u_scaling[plot_control[index]],'-k' ,drawstyle='steps', linewidth=2.0)
 		plt.ylabel(str(u[plot_control[index]]))
 		plt.xlabel("Time")
 		plt.grid()

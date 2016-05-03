@@ -28,8 +28,11 @@
 #    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #    SOFTWARE.
 #
+from casadi import *
+import numpy as NP
+import core_do_mpc
 
-def template_optimizer(model):
+def optimizer(model):
     """
     --------------------------------------------------------------------------
     template_optimizer: tuning parameters
@@ -37,33 +40,27 @@ def template_optimizer(model):
     """
     # Prediction horizon
     n_horizon = 20
-
-    # Sampling time
-    t_step = 0.005
-
     # Robust horizon, set to 0 for standard NMPC
     n_robust = 0
 
+    # Sampling time
+    t_step = 0.005
+    # Simulation time
+    t_end = 0.2
+
     # State discretization scheme: 'multiple-shooting' or 'collocation'
     state_discretization = 'collocation'
-
-    # Collocation-specific options
     # Degree of interpolating polynomials: 1 to 5
     poly_degree = 2
     # Collocation points: 'legendre' or 'radau'
     collocation = 'radau'
-
     # Number of finite elements per control interval
     n_fin_elem = 2
 
     # GENERATE C CODE shared libraries
     generate_code = 0
-
     # Simulate without feedback
     open_loop = 0
-
-    # Simulation Time
-    t_end = 0.2
 
     # NLP Solver and linear solver
     nlp_solver = 'ipopt'
@@ -72,7 +69,7 @@ def template_optimizer(model):
     # such as the hsl linear solver MA27, which can be downloaded as a precompiled
     # library and can be used by IPOPT on run time
 
-    linear_solver = 'mumps'
+    linear_solver = 'ma27'
 
 
     """
@@ -88,9 +85,10 @@ def template_optimizer(model):
     set_point = SX.sym('set_point')
     parameters_nlp = NP.array([set_point])
 
+
     """
     --------------------------------------------------------------------------
-    template_optimizer: return data
+    template_optimizer: pass_information
     --------------------------------------------------------------------------
     """
     # Check if the user has introduced the data correctly

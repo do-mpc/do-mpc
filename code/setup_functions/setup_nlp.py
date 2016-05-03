@@ -30,7 +30,10 @@
 #
 #   Important parts of this script were coded in colaboration with Joel Andersson.
 #   His support is gratefully acknowledged
-
+from casadi import *
+import numpy as NP
+import core_do_mpc
+from copy import deepcopy
 def setup_nlp(model, optimizer):
 # def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
 #             open_loop, uncertainty_values, parameters_NLP, x0, x_lb, x_ub,
@@ -58,7 +61,7 @@ def setup_nlp(model, optimizer):
     x_lb = model.ocp.x_lb
     x_ub = model.ocp.x_ub
     u_lb = model.ocp.u_lb
-    u_ub = model.ocp.u_lb
+    u_ub = model.ocp.u_ub
     x_scaling = model.ocp.x_scaling
     u_scaling = model.ocp.u_scaling
     cons = model.ocp.cons
@@ -580,6 +583,6 @@ def setup_nlp(model, optimizer):
 
     nlp_dict_out = {'nlp_fcn':nlp_fcn,'X_offset':X_offset,'U_offset': U_offset,
     'E_offset':E_offset,'vars_lb':vars_lb,'vars_ub':vars_ub,'vars_init': vars_init,
-    'lbg':lbg,'ubg': ubg,'parent_scenario':parent_scenario,'child_scenario': child_scenario,'n_branches': n_branches,'n_scenarios':n_scenarios}
+    'lbg':lbg,'ubg': ubg,'parent_scenario':parent_scenario,'child_scenario': child_scenario,'n_branches': n_branches,'n_scenarios':n_scenarios, 'p_scenario':p_scenario}
 
     return nlp_dict_out
