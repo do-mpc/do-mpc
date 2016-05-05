@@ -35,16 +35,6 @@ import sys
 sys.path.insert(0,path_do_mpc+'setup_functions')
 sys.path.insert(0,path_do_mpc+'aux_functions')
 sys.dont_write_bytecode = True
-# Import numpy (a matlib-like scientific toolbox)
-import numpy as NP
-# Import the pdb debugger
-import pdb
-# Import other libraries
-import time
-import math
-import random
-import scipy.io
-from os import system
 # Start CasADi
 from casadi import *
 # Import do-mpc
