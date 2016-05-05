@@ -34,6 +34,7 @@ path_do_mpc = '../../'
 import sys
 sys.path.insert(0,path_do_mpc+'setup_functions')
 sys.path.insert(0,path_do_mpc+'aux_functions')
+sys.dont_write_bytecode = True
 # Import numpy (a matlib-like scientific toolbox)
 import numpy as NP
 # Import the pdb debugger
@@ -101,10 +102,7 @@ DO-MPC: Solution of the MPC problem
 ==========================================================================
 """
 while (configuration_1.simulator.t0_sim < configuration_1.optimizer.t_end - 0.005):
-    # Define the real value of the uncertain parameters used for the simulation
-    # It can be changed as a function of time
-    # TODO Change here the parameters or define them as a function of time?
-    #p_real = real_parameters(current_time)
+
     """
     ==========================================================================
     DO-MPC: Optimizer

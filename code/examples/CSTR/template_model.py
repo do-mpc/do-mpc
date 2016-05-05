@@ -173,10 +173,10 @@ def model():
     """
     # Define the cost function
     # Lagrange term
-    lterm =  ((C_b - 0.9))**2 + ((C_a - 1.0))**2
+    lterm =  1e4*((C_b - 0.9)**2 + (C_a - 1.1)**2)
     #lterm =  - C_b
     # Mayer term
-    mterm =  ((C_b - 0.9))**2 + ((C_a - 1.0))**2
+    mterm =  1e4*((C_b - 0.9)**2 + (C_a - 1.1)**2)
     #mterm =  - C_b
     # Penalty term for the control movements
     rterm = NP.array([0.0, 0.0])

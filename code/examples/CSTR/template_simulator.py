@@ -47,13 +47,21 @@ def simulator(model):
     # Use integrator: for example 'cvodes' for ODEs or 'idas' for DAEs
     integration_tool = 'cvodes'
 
+    # Here choose the real value of the uncertain parameters that will be chosen
+    # to perform the simulation of the system. They can be constant or time-varying
+    def p_real_now(current_time):
+        if current_time >= 0:
+            p_real =  NP.array([1.0,1.0])
+        else:
+            p_real =  NP.array([1.0,1.0])
+        return p_real
     """
     --------------------------------------------------------------------------
     template_simulator: plotting options
     --------------------------------------------------------------------------
     """
     # Choose the indices of the states to plot
-    plot_states = [0, 1, 2]
+    plot_states = [1,1,2]
     # Choose the indices of the controls to plot
     plot_control = [0, 1]
     # Plot animation (False or True)
@@ -62,9 +70,7 @@ def simulator(model):
     export_to_matlab = False
     export_name = "mpc_result.mat"  # Change this name if desired
 
-    # Here choose the real value of the uncertain parameters that will be chosen
-    # to perform the simulation of the system. They can be constant or time-varying
-    p_real =  NP.array([1.0,1.0])
+
 
 
     """
@@ -73,7 +79,7 @@ def simulator(model):
     --------------------------------------------------------------------------
     """
     simulator_dict = {'integration_tool':integration_tool,'plot_states':plot_states,
-    'plot_control': plot_control,'plot_anim': plot_anim,'export_to_matlab': export_to_matlab,'export_name': export_name, 'p_real':p_real, 't_step_simulator': t_step_simulator, 'integrator_opts': opts}
+    'plot_control': plot_control,'plot_anim': plot_anim,'export_to_matlab': export_to_matlab,'export_name': export_name, 'p_real_now':p_real_now, 't_step_simulator': t_step_simulator, 'integrator_opts': opts}
 
     simulator_1 = core_do_mpc.simulator(model, simulator_dict)
 

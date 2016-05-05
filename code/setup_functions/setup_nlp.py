@@ -35,15 +35,9 @@ import numpy as NP
 import core_do_mpc
 from copy import deepcopy
 def setup_nlp(model, optimizer):
-# def setup_nlp(nk, n_robust, t_step, end_time, deg, coll, ni, generate_code,
-#             open_loop, uncertainty_values, parameters_NLP, x0, x_lb, x_ub,
-#             u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_ub,
-#             cons_terminal, cons_terminal_lb, cons_terminal_ub,
-#             soft_constraint, penalty_term_cons, maximum_violation,
-#             mterm, lterm, rterm, state_discretization, x, xdot, u, p):
 
     # Decode all the necessary parameters from the model and optimizer information
-    # TODO: we might want to change the name of some variables nk, deg, ....
+
     # Parameters from optimizer
     nk = optimizer.n_horizon # TODO change name
     n_robust = optimizer.n_robust
@@ -216,25 +210,11 @@ def setup_nlp(model, optimizer):
           if r != j:
             L *= (tau-tau_root[r])/(tau_root[j]-tau_root[r])
         lfcn = Function('lfcn',[tau],[L])
-        # TODO: clean up
-        # Evaluate the polynomial at the final time to get the coefficients of the continuity equation
-        #lfcn.setInput(1.0)
-        #lfcn.evaluate()
-        #D[j] = lfcn.getOutput()
-        #pdb.set_trace()
         D[j] = lfcn(1.0)
         # Evaluate the time derivative of the polynomial at all collocation points to get the coefficients of the continuity equation
         tfcn = lfcn.tangent()
         for r in range(deg+1):
           C[j,r], _ = tfcn(tau_root[r])
-        # for r in range(deg+1):
-		# 	lfcn.setInput(tau_root[r])
-		# 	try:
-		# 		C[j,r] = NP.array([substitute(lfcn.jac(),tau,tau_root[r]).getNZ()])
-		# 	# In case of CasADi version 2.2 instead of 2.3
-		# 	except NotImplementedError:
-		# 		jac_val = NP.array(substitute(lfcn.jac(),tau,tau_root[r]),dtype=str)
-		# 		C[j,r] = float(jac_val[0,0])
 
       # Initial condition
       xk0 = MX.sym("xk0",nx)
@@ -312,8 +292,6 @@ def setup_nlp(model, optimizer):
             xp_ij += C[r,j]*ik_split[i,r]
 
           # Add collocation equations to the NLP
-          #f_ij = ffcn.call(daeIn(x=ik_split[i,j],p=vertcat((uk,pk))))[DAE_ODE]
-	  #pdb.set_trace()
 	  [f_ij] = ffcn.call([ik_split[i,j],vertcat(uk,pk)])
           gk.append(h*f_ij - xp_ij)
           lbgk.append(NP.zeros(nx)) # equality constraints
@@ -338,7 +316,7 @@ def setup_nlp(model, optimizer):
 
       # Create the integrator function
       ifcn = Function("ifcn", [ik,xk0,pk,uk],[gk,xkf])
-
+    # TODO: update so that multiple_shooting works
     elif state_discretization == 'multiple-shooting':
 
       # Create an integrator instance
@@ -522,6 +500,7 @@ def setup_nlp(model, optimizer):
           elif state_discretization == 'multiple-shooting':
 
             # Call the integrator
+            #TODO: update so that multiple-shooting works
             ifcn_out = ifcn.call(integratorIn(x0=X_ks,p=vertcat(U_ks,P_ksb)))
             xf_ksb = ifcn_out[INTEGRATOR_XF]
 
@@ -577,8 +556,6 @@ def setup_nlp(model, optimizer):
     lbg = vertcat(*lbg)
     ubg = vertcat(*ubg)
 
-    #nlp_fcn = Function('nlp_fcn', nlpIn(x=V,p=uk_prev),nlpOut(f=J,g=g))
-    # TODO: Clean up the name of this dictionary
     nlp_fcn = {'f': J,'x': V,'p':uk_prev,'g': g}
 
     nlp_dict_out = {'nlp_fcn':nlp_fcn,'X_offset':X_offset,'U_offset': U_offset,

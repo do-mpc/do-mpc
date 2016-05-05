@@ -103,7 +103,7 @@ class simulator:
         self.plot_anim = param_dict["plot_anim"]
         self.export_to_matlab = param_dict["export_to_matlab"]
         self.export_name = param_dict["export_name"]
-        self.p_real = param_dict["p_real"]
+        self.p_real_now = param_dict["p_real_now"]
         self.t_step_simulator = param_dict["t_step_simulator"]
         self.t0_sim = 0
         self.tf_sim = param_dict["t_step_simulator"]
@@ -128,8 +128,8 @@ class simulator:
         # Extract the necessary information for the simulation
         u_mpc = configuration.optimizer.u_mpc
         # Use the real parameters
-        # TODO: This should be allow one to make time-varying changes
-        p_real = self.p_real
+        # TODO: This should allow one to make time-varying changes
+        p_real = self.p_real_now(self.t0_sim)
         result  = self.simulator(x0 = self.x0_sim, p = vertcat(u_mpc,p_real))
         self.xf_sim = NP.squeeze(result['xf'])
         # Update the initial condition for the next iteration
@@ -259,7 +259,7 @@ class mpc_data:
         self.mpc_ref[mpc_iter] = 0 # TODO: to be comppleted
         stats = configuration.optimizer.solver.stats()
         self.mpc_cpu[mpc_iter] = stats['t_wall_mainloop']
-        self.mpc_parameters[mpc_iter,:] = configuration.simulator.p_real
+        self.mpc_parameters[mpc_iter,:] = configuration.simulator.p_real_now(configuration.simulator.t0_sim )
 
 class opt_result:
     def __init__(self,res):
