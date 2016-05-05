@@ -256,7 +256,7 @@ class mpc_data:
         self.mpc_alg[mpc_iter,:] = 0 # TODO: To be completed for DAEs
         self.mpc_time[mpc_iter] = configuration.simulator.t0_sim # time already updated
         self.mpc_cost[mpc_iter] = configuration.optimizer.opt_result_step.optimal_cost
-        self.mpc_ref[mpc_iter] = 0 # TODO: to be comppleted
+        self.mpc_ref[mpc_iter] = 0 # TODO: to be completed
         stats = configuration.optimizer.solver.stats()
         self.mpc_cpu[mpc_iter] = stats['t_wall_mainloop']
         self.mpc_parameters[mpc_iter,:] = configuration.simulator.p_real_now(configuration.simulator.t0_sim )
