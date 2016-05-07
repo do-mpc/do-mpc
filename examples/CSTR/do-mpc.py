@@ -36,11 +36,12 @@ import sys
 sys.path.insert(0,path_do_mpc+'code')
 # Do not write bytecode to maintain clean directories
 sys.dont_write_bytecode = True
+
 # Start CasADi
 from casadi import *
-# Import do-mpc
+# Import do-mpc core functionalities
 import core_do_mpc
-# Import do-mpc plotting routines and data managament rountes
+# Import do-mpc plotting and data managament functions
 import data_do_mpc
 
 """
@@ -68,7 +69,7 @@ configuration_1 = core_do_mpc.configuration(model_1, optimizer_1, observer_1, si
 
 # Set up the solvers
 configuration_1.setup_solver()
-#TODO: this could be in init? but then not so general
+#NOTE: this could be in init? but then not so general
 
 """
 ----------------------------

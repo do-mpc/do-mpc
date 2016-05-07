@@ -96,7 +96,6 @@ class simulator:
         dae = {'x':model_simulator.x, 'p':vertcat(model_simulator.u,model_simulator.p), 'ode':model_simulator.rhs}
         opts = param_dict["integrator_opts"]
         #FIXME Check the scaling factors!
-        #tgrid = linspace(0,t_step,N)
         simulator_do_mpc = integrator("simulator", param_dict["integration_tool"], dae,  opts)
         self.simulator = simulator_do_mpc
         self.plot_states = param_dict["plot_states"]
@@ -108,7 +107,7 @@ class simulator:
         self.t_step_simulator = param_dict["t_step_simulator"]
         self.t0_sim = 0
         self.tf_sim = param_dict["t_step_simulator"]
-        # TODO: note that here it the same initial condition than for the optimizer is imposed
+        # NOTE:  The same initial condition than for the optimizer is imposed
         self.x0_sim = model_simulator.ocp.x0
         self.xf_sim = 0
         # This is an index to account for the MPC iteration. Starts at 1
@@ -124,21 +123,6 @@ class simulator:
         " This is open for the implementation of connection to a real plant"
         dummy = 1
         return cls(dummy)
-
-    def make_step(self, configuration):
-        # Extract the necessary information for the simulation
-        u_mpc = configuration.optimizer.u_mpc
-        # Use the real parameters
-        # TODO: This should allow one to make time-varying changes
-        p_real = self.p_real_now(self.t0_sim)
-        result  = self.simulator(x0 = self.x0_sim, p = vertcat(u_mpc,p_real))
-        self.xf_sim = NP.squeeze(result['xf'])
-        # Update the initial condition for the next iteration
-        self.x0_sim = self.xf_sim
-        # Update the mpc iteration index and the time
-        self.mpc_iteration = self.mpc_iteration + 1
-        self.t0_sim = self.tf_sim
-        self.tf_sim = self.tf_sim + self.t_step_simulator
 
 class optimizer:
     '''This is a class that defines a do-mpc optimizer. The class uses a local model, which
@@ -178,28 +162,11 @@ class optimizer:
         "This method is open for the impelmentation of a user defined optimizer"
         dummy = 1
         return cls(dummy)
-    def make_step(self):
-        arg = self.arg
-        result = self.solver(x0=arg['x0'], lbx=arg['lbx'], ubx=arg['ubx'], lbg=arg['lbg'], ubg=arg['ubg'], p = arg['p'])
-        # Store the full solution
-        self.opt_result_step = opt_result(result)
-        # Extract the optimal control input to be applied
-        nu = len(self.u_mpc)
-        U_offset = self.nlp_dict_out['U_offset']
-        v_opt = self.opt_result_step.optimal_solution
-        self.u_mpc = NP.squeeze(v_opt[U_offset[0][0]:U_offset[0][0]+nu])
 
 class observer:
     """A class for the definition model equations and optimal control problem formulation"""
     def __init__(self, model_observer, param_dict, *opt):
         self.x = param_dict['x']
-    def make_step(self, configuration):
-        self.make_measurement(configuration)
-        self.observed_states = self.measurement # TODO: this is a dummy observer
-    def make_measurement(self,configuration):
-        # TODO: Here implement the own measurement function (or load it)
-        # This is a dummy measurement
-        self.measurement = configuration.simulator.xf_sim
     @classmethod
     def user_observer(cls, param_dict, *opt):
         " This is open for the implementation of a user-defined estimator class"
@@ -217,6 +184,7 @@ class configuration:
         self.simulator = simulator
         # The data structure
         self.mpc_data = data_do_mpc.mpc_data(self)
+
     def setup_solver(self):
         # Call setup_nlp to generate the NLP
         nlp_dict_out = setup_nlp.setup_nlp(self.model, self.optimizer)
@@ -230,20 +198,17 @@ class configuration:
         # Setup the solver
         solver = nlpsol("solver", self.optimizer.nlp_solver, nlp_dict_out['nlp_fcn'], opts)
         arg = {}
-
         # Initial condition
         arg["x0"] = nlp_dict_out['vars_init']
-
         # Bounds on x
         arg["lbx"] = nlp_dict_out['vars_lb']
         arg["ubx"] = nlp_dict_out['vars_ub']
-
         # Bounds on g
         arg["lbg"] = nlp_dict_out['lbg']
         arg["ubg"] = nlp_dict_out['ubg']
         # NLP parameters
         arg["p"] = self.model.ocp.u0
-
+        # Add new attributes to the optimizer class
         self.optimizer.solver = solver
         self.optimizer.arg = arg
         self.optimizer.nlp_dict_out = nlp_dict_out
@@ -267,7 +232,6 @@ class configuration:
         # Extract the necessary information for the simulation
         u_mpc = self.optimizer.u_mpc
         # Use the real parameters
-        # TODO: This should allow one to make time-varying changes
         p_real = self.simulator.p_real_now(self.simulator.t0_sim)
         result  = self.simulator.simulator(x0 = self.simulator.x0_sim, p = vertcat(u_mpc,p_real))
         self.simulator.xf_sim = NP.squeeze(result['xf'])
@@ -305,12 +269,6 @@ class configuration:
         data.mpc_time = NP.append(data.mpc_time, [[self.simulator.t0_sim]], axis = 0)
         data.mpc_cost = NP.append(data.mpc_cost, self.optimizer.opt_result_step.optimal_cost, axis = 0)
         data.mpc_ref = NP.append(data.mpc_ref, [[0]], axis = 0) # TODO: To be completed
-        # data.mpc_alg[mpc_iteration,:] = 0
-        # data.mpc_time[mpc_iteration] = self.simulator.t0_sim # time already updated
-        # data.mpc_cost[mpc_iteration] = self.optimizer.opt_result_step.optimal_cost
-        # data.mpc_ref[mpc_iteration] = 0 # TODO: to be completed
         stats = self.optimizer.solver.stats()
         data.mpc_cpu = NP.append(data.mpc_cpu, [[stats['t_wall_mainloop']]], axis = 0)
         data.mpc_parameters = NP.append(data.mpc_parameters, [self.simulator.p_real_now(self.simulator.t0_sim)], axis = 0)
-        #self.mpc_data.mpc_cpu[mpc_iteration] = stats['t_wall_mainloop']
-        #self.mpc_data.mpc_parameters[mpc_iteration,:] = self.simulator.p_real_now(self.simulator.t0_sim)

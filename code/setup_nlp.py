@@ -37,14 +37,14 @@ from copy import deepcopy
 def setup_nlp(model, optimizer):
 
     # Decode all the necessary parameters from the model and optimizer information
-
+    # NOTE: The names of some variables are not consistent. But not critical
     # Parameters from optimizer
-    nk = optimizer.n_horizon # TODO change name
+    nk = optimizer.n_horizon
     n_robust = optimizer.n_robust
     t_step = optimizer.t_step
-    deg = optimizer.poly_degree # TODO change name
-    coll = optimizer.collocation # TODO change name
-    ni = optimizer.n_fin_elem # TODO change name
+    deg = optimizer.poly_degree
+    coll = optimizer.collocation
+    ni = optimizer.n_fin_elem
     open_loop = optimizer.open_loop
     uncertainty_values = optimizer.uncertainty_values
     parameters_nlp = optimizer.parameters_nlp
@@ -73,7 +73,7 @@ def setup_nlp(model, optimizer):
     u = model.u
     p = model.p
     z = model.z
-    xdot = model.rhs  # TODO change name
+    xdot = model.rhs
 
     # Size of the state, control and parameter vector
 
@@ -316,7 +316,7 @@ def setup_nlp(model, optimizer):
 
       # Create the integrator function
       ifcn = Function("ifcn", [ik,xk0,pk,uk],[gk,xkf])
-    # TODO: update so that multiple_shooting works
+    # FIXME: update so that multiple_shooting works
     elif state_discretization == 'multiple-shooting':
 
       # Create an integrator instance
@@ -500,7 +500,7 @@ def setup_nlp(model, optimizer):
           elif state_discretization == 'multiple-shooting':
 
             # Call the integrator
-            #TODO: update so that multiple-shooting works
+            #FIXME: update so that multiple-shooting works
             ifcn_out = ifcn.call(integratorIn(x0=X_ks,p=vertcat(U_ks,P_ksb)))
             xf_ksb = ifcn_out[INTEGRATOR_XF]
 

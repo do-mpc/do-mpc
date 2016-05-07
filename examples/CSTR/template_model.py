@@ -185,7 +185,7 @@ def model():
 
     """
     --------------------------------------------------------------------------
-    template_model: pass information
+    template_model: pass information (not necessary to edit)
     --------------------------------------------------------------------------
     """
     model_dict = {'x':_x,'u': _u, 'rhs':_xdot,'p': _p, 'z':_z,'x0': x0,'x_lb': x_lb,'x_ub': x_ub, 'u0':u0, 'u_lb':u_lb, 'u_ub':u_ub, 'x_scaling':x_scaling, 'u_scaling':u_scaling, 'cons':cons,

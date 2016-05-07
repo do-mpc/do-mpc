@@ -32,22 +32,22 @@
 from casadi import *
 import numpy as NP
 import core_do_mpc
+
 def simulator(model):
+
     """
     --------------------------------------------------------------------------
     template_simulator: integration options
     --------------------------------------------------------------------------
     """
-    # TODO: should we allow for a different t_step compared to the optimizer t_step? In general is possible to have a smaller simulation t_step, but this might cause errors if people forget to change it
+    # Choose the simulator time step
     t_step_simulator = 0.005
-    opts = {}
-    # FIXME integration not valid for time-varying systems
+    # Choose options for the integrator
     opts = {"abstol":1e-10,"reltol":1e-10, "exact_jacobian":True, 'tf':t_step_simulator}
-    #N = 2
-    # Use integrator: for example 'cvodes' for ODEs or 'idas' for DAEs
+    # Choose integrator: for example 'cvodes' for ODEs or 'idas' for DAEs
     integration_tool = 'cvodes'
 
-    # Here choose the real value of the uncertain parameters that will be chosen
+    # Choose the real value of the uncertain parameters that will be used
     # to perform the simulation of the system. They can be constant or time-varying
     def p_real_now(current_time):
         if current_time >= 0:
@@ -55,11 +55,13 @@ def simulator(model):
         else:
             p_real =  NP.array([1.0,1.0])
         return p_real
+
     """
     --------------------------------------------------------------------------
     template_simulator: plotting options
     --------------------------------------------------------------------------
     """
+
     # Choose the indices of the states to plot
     plot_states = [0,1,2]
     # Choose the indices of the controls to plot
@@ -70,14 +72,12 @@ def simulator(model):
     export_to_matlab = True
     export_name = "mpc_result.mat"  # Change this name if desired
 
-
-
-
     """
     --------------------------------------------------------------------------
-    template_simulator: pass information
+    template_simulator: pass information (not necessary to edit)
     --------------------------------------------------------------------------
     """
+
     simulator_dict = {'integration_tool':integration_tool,'plot_states':plot_states,
     'plot_control': plot_control,'plot_anim': plot_anim,'export_to_matlab': export_to_matlab,'export_name': export_name, 'p_real_now':p_real_now, 't_step_simulator': t_step_simulator, 'integrator_opts': opts}
 

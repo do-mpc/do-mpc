@@ -33,22 +33,24 @@ import numpy as NP
 import core_do_mpc
 
 def optimizer(model):
+
     """
     --------------------------------------------------------------------------
     template_optimizer: tuning parameters
     --------------------------------------------------------------------------
     """
+
     # Prediction horizon
     n_horizon = 20
     # Robust horizon, set to 0 for standard NMPC
     n_robust = 0
-
+    # open_loop robust NMPC (1) or multi-stage NMPC (0). Only important if n_robust > 0
+    open_loop = 0
     # Sampling time
     t_step = 0.005
     # Simulation time
-    t_end = 40 * t_step
-    # TODO: To avoid problems with the number of steps of the actual simulation I think we should enforce that t_end is a multiple of t_step (or make an autimatic rounding)
-    # State discretization scheme: 'multiple-shooting' or 'collocation'
+    t_end = 0.2
+    # Choose type of state discretization (collocation or multiple-shooting)
     state_discretization = 'collocation'
     # Degree of interpolating polynomials: 1 to 5
     poly_degree = 2
@@ -56,21 +58,18 @@ def optimizer(model):
     collocation = 'radau'
     # Number of finite elements per control interval
     n_fin_elem = 2
-
-    # GENERATE C CODE shared libraries
-    generate_code = 0
-    # Simulate without feedback
-    open_loop = 0
-
     # NLP Solver and linear solver
     nlp_solver = 'ipopt'
     qp_solver = 'qpoases'
+
     # It is highly recommended that you use a more efficient linear solver
     # such as the hsl linear solver MA27, which can be downloaded as a precompiled
     # library and can be used by IPOPT on run time
 
     linear_solver = 'ma27'
 
+    # GENERATE C CODE shared libraries (NOTE: Not currently supported)
+    generate_code = 0
 
     """
     --------------------------------------------------------------------------
@@ -88,7 +87,7 @@ def optimizer(model):
 
     """
     --------------------------------------------------------------------------
-    template_optimizer: pass_information
+    template_optimizer: pass_information (not necessary to edit)
     --------------------------------------------------------------------------
     """
     # Check if the user has introduced the data correctly

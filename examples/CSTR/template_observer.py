@@ -35,9 +35,14 @@ def observer(model):
 
 	# Full state feedback
 	observer_dict = {'x':1}
-	observer_1 = core_do_mpc.observer(model,observer_dict)
+	observer = core_do_mpc.observer(model,observer_dict)
 	# here some functions depending on observer_1
 
 	# Implement here your own observer
 
-	return observer_1
+    """
+    --------------------------------------------------------------------------
+    template_observer: pass information (not necessary to edit)
+    --------------------------------------------------------------------------
+    """
+	return observer
