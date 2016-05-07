@@ -222,7 +222,7 @@ class configuration:
         nu = len(self.optimizer.u_mpc)
         U_offset = self.optimizer.nlp_dict_out['U_offset']
         v_opt = self.optimizer.opt_result_step.optimal_solution
-        self.optimizer.u_mpc = NP.squeeze(v_opt[U_offset[0][0]:U_offset[0][0]+nu])
+        self.optimizer.u_mpc = NP.resize(NP.array(v_opt[U_offset[0][0]:U_offset[0][0]+nu]),(nu))
 
     def make_step_observer(self):
         self.make_measurement()

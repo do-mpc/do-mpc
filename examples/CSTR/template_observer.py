@@ -40,9 +40,9 @@ def observer(model):
 
 	# Implement here your own observer
 
-    """
-    --------------------------------------------------------------------------
-    template_observer: pass information (not necessary to edit)
-    --------------------------------------------------------------------------
-    """
+	"""
+	--------------------------------------------------------------------------
+	template_observer: pass information (not necessary to edit)
+	--------------------------------------------------------------------------
+	"""
 	return observer
