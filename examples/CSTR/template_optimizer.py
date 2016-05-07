@@ -68,7 +68,7 @@ def optimizer(model):
 
     linear_solver = 'ma27'
 
-    # GENERATE C CODE shared libraries (NOTE: Not currently supported)
+    # GENERATE C CODE shared libraries NOTE: Not currently supported
     generate_code = 0
 
     """
