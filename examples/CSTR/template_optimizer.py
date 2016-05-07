@@ -46,8 +46,8 @@ def optimizer(model):
     # Sampling time
     t_step = 0.005
     # Simulation time
-    t_end = 0.2
-
+    t_end = 40 * t_step
+    # TODO: To avoid problems with the number of steps of the actual simulation I think we should enforce that t_end is a multiple of t_step (or make an autimatic rounding)
     # State discretization scheme: 'multiple-shooting' or 'collocation'
     state_discretization = 'collocation'
     # Degree of interpolating polynomials: 1 to 5

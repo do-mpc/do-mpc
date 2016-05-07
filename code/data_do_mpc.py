@@ -35,7 +35,7 @@ from casadi import *
 import numpy as NP
 import core_do_mpc
 from matplotlib.ticker import MaxNLocator
-
+import scipy.io
 
 
 class mpc_data:
@@ -45,18 +45,21 @@ class mpc_data:
         nx = configuration.model.x.size(1)
         nu = configuration.model.u.size(1)
         np = configuration.model.p.size(1)
-        nz = configuration.model.p.size(1) # TODO: Adapt for DAEs
+        if NP.size(configuration.model.z) > 0: # If DAE
+            nz = configuration.model.z.size(1)
+        else: # Model is ODE
+            nz = 0
         t_end = configuration.optimizer.t_end
         t_step = configuration.simulator.t_step_simulator
         # Initialize the data structures
-        self.mpc_states = NP.resize(NP.array([]),(t_end/t_step + 1,nx))
-        self.mpc_control = NP.resize(NP.array([]),(t_end/t_step + 1,nu))
-        self.mpc_alg = NP.resize(NP.array([]),(t_end/t_step + 1,nz))
-        self.mpc_time = NP.resize(NP.array([]),(t_end/t_step + 1))
-        self.mpc_cost = NP.resize(NP.array([]),(t_end/t_step + 1))
-        self.mpc_ref = NP.resize(NP.array([]),(t_end/t_step + 1))
-        self.mpc_cpu = NP.resize(NP.array([]),(t_end/t_step + 1))
-        self.mpc_parameters = NP.resize(NP.array([]),(t_end/t_step + 1,np))
+        self.mpc_states = NP.resize(NP.array([]),(1 ,nx))
+        self.mpc_control = NP.resize(NP.array([]),(1 ,nu))
+        self.mpc_alg = NP.resize(NP.array([]),(1, nz))
+        self.mpc_time = NP.resize(NP.array([]),(1, 1))
+        self.mpc_cost = NP.resize(NP.array([]),(1, 1))
+        self.mpc_ref = NP.resize(NP.array([]),(1, 1))
+        self.mpc_cpu = NP.resize(NP.array([]),(1, 1))
+        self.mpc_parameters = NP.resize(NP.array([]),(1, np))
         # Initialize with initial conditions
         self.mpc_states[0,:] = configuration.model.ocp.x0
         self.mpc_control[0,:] = configuration.model.ocp.u0
@@ -74,16 +77,9 @@ class opt_result:
 def export_to_matlab(configuration):
     if configuration.simulator.export_to_matlab:
         data = configuration.mpc_data
+        export_name = configuration.simulator.export_name
         x_scaling = configuration.model.ocp.x_scaling
         u_scaling = configuration.model.ocp.u_scaling
-        # mpc_iteration = configuration.simulator.mpc_iteration
-        # mpc_states = configuration.mpc_data.mpc_states[:mpc_iteration, :] * x_scaling
-        # mpc_control = mpc_control[1:mpc_iteration, :] * u_scaling
-        # mpc_alg =
-        # mpc_time = NP.array([mpc_time[:mpc_iteration]]).T
-        # mpc_cost =
-        # mpc_ref =
-        # mpc_cpu = NP.array([mpc_cpu[1:mpc_iteration]]).T
         export_dict = {
         "mpc_states":data.mpc_states * x_scaling,
         "mpc_control":data.mpc_control * u_scaling,
@@ -93,10 +89,11 @@ def export_to_matlab(configuration):
         "mpc_ref": data.mpc_ref,
         "mpc_parameters": data.mpc_parameters,
         }
-        scipy.io.savemat(export_name, mdict={"mpc_states":mpc_states[:mpc_iteration, :] * x_scaling,"mpc_control":mpc_control, "mpc_time":mpc_time, "mpc_cpu":mpc_cpu})
+        scipy.io.savemat(export_name, mdict=export_dict)
         print("Exporting to Matlab as ''" + export_name + "''")
 
 def plot_mpc(configuration):
+    """ This function plots the states and controls chosen in the variables plot_states and plot_control until a certain index (index_mpc) """
     mpc_data = configuration.mpc_data
     mpc_states = mpc_data.mpc_states
     mpc_control = mpc_data.mpc_control
@@ -108,7 +105,7 @@ def plot_mpc(configuration):
     x_scaling = configuration.model.ocp.x_scaling
     u = configuration.model.u
     u_scaling = configuration.model.ocp.u_scaling
-    # This function plots the states and controls chosen in the variables plot_states and plot_control until a certain index (index_mpc)
+
     plt.ion()
     fig = plt.figure(1)
     total_subplots = len(plot_states) + len(plot_control)
@@ -181,6 +178,7 @@ def plot_control_pred(v,t0,el,lineop, n_scenarios, n_branches, nk, parent_scenar
 
 
 def plot_animation(configuration):
+    """This function plots the current evolution of the system together with the predicted trajectories at the current time """
     if configuration.simulator.plot_anim:
         mpc_data = configuration.mpc_data
         mpc_states = mpc_data.mpc_states

@@ -75,7 +75,7 @@ configuration_1.setup_solver()
 do-mpc: MPC loop
 ----------------------------
 """
-while (configuration_1.simulator.t0_sim < configuration_1.optimizer.t_end - 0.005):
+while (configuration_1.simulator.t0_sim + configuration_1.simulator.t_step_simulator < configuration_1.optimizer.t_end):
 
     """
     ----------------------------
@@ -129,7 +129,7 @@ do-mpc: Plot the closed-loop results
 data_do_mpc.plot_mpc(configuration_1)
 
 # Export to matlab if wanted
-#data_do_mpc.export_to_matlab(configuration_1)
+data_do_mpc.export_to_matlab(configuration_1)
 
 
 raw_input("Press Enter to exit do-mpc...")
