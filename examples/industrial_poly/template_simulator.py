@@ -67,7 +67,7 @@ def simulator(model):
     # Choose the indices of the controls to plot
     plot_control = [0, 1,2]
     # Plot animation (False or True)
-    plot_anim = True
+    plot_anim = False
     # Export to matlab (for better plotting or postprocessing)
     export_to_matlab = True
     export_name = "mpc_result.mat"  # Change this name if desired

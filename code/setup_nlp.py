@@ -34,6 +34,7 @@ from casadi import *
 import numpy as NP
 import core_do_mpc
 from copy import deepcopy
+import pdb
 def setup_nlp(model, optimizer):
 
     # Decode all the necessary parameters from the model and optimizer information
@@ -534,8 +535,10 @@ def setup_nlp(model, optimizer):
 
           # Add contribution to the cost of the soft constraints penalty term
           if soft_constraint:
-              J_ksb_soft = sum(penalty_term_cons * (EPSILON)**2)
-              J += J_ksb_soft
+              #pdb.set_trace()
+              for index_soft in range(cons.size1()):
+                  J_ksb_soft = penalty_term_cons[index_soft] * (EPSILON[index_soft])**2
+                  J += J_ksb_soft
           # Penalize deviations in u
           s_parent = parent_scenario[k][s]
           u_prev = U[k-1,s_parent] if k>0 else uk_prev
