@@ -28,17 +28,10 @@
 #    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #    SOFTWARE.
 #
-
-
-# This file describes the model and optimal control problem of an industrial
-# polymerization reactor, taken from the following publication. Plese cite
-# it if you use this model:
-
-# S. Lucia, J. Andersson, H. Brandt, M. Diehl and S. Engell. Handling Uncertainty
-# in Economic Nonlinear Model Predictive Control: a Comparative Case Study.
-# Journal of Process Control 24 (8), 1247-1259, 2014.
-
-def template_model():
+from casadi import *
+import numpy as NP
+import core_do_mpc
+def model():
 
     """
     --------------------------------------------------------------------------
@@ -128,24 +121,24 @@ def template_model():
     ddm_A 		= (m_dot_f * w_AF) - (k_R1 * (m_A-((m_A*m_AWT)/(m_W+m_A+m_P)))) - (p_1 * k_R2 * (m_A/m_ges) * m_AWT)
     ddm_P  		= (k_R1 * (m_A-((m_A*m_AWT)/(m_W+m_A+m_P)))) + (p_1 * k_R2 * (m_A/m_ges) * m_AWT)
 
-    ddT_R   	= 1/(c_pR * m_ges)   * ((m_dot_f * c_pF * (T_F - T_R)) - (k_K *A_tank* (T_R - T_S)) - (fm_AWT * c_pR * (T_R - T_EK)) + (delH_R * k_R1 * (m_A-((m_A*m_AWT)/(m_W+m_A+m_P)))))
-    ddT_S   	= 1/(c_pS * m_S)     * ((k_K *A_tank* (T_R - T_S)) - (k_K *A_tank* (T_S - Tout_M)))
-    ddTout_M    = 1/(c_pW * m_M_KW)  * ((fm_M_KW * c_pW * (T_in_M - Tout_M)) + (k_K *A_tank* (T_S - Tout_M)))
-    ddT_EK   	= 1/(c_pR * m_AWT)   * ((fm_AWT * c_pR * (T_R - T_EK)) - (alfa * (T_EK - Tout_AWT)) + (p_1 * k_R2 * (m_A/m_ges) * m_AWT * delH_R))
-    ddTout_AWT  = 1/(c_pW * m_AWT_KW)* ((fm_AWT_KW * c_pW * (T_in_EK - Tout_AWT)) - (alfa * (Tout_AWT - T_EK)))
+    ddT_R   	= 1./(c_pR * m_ges)   * ((m_dot_f * c_pF * (T_F - T_R)) - (k_K *A_tank* (T_R - T_S)) - (fm_AWT * c_pR * (T_R - T_EK)) + (delH_R * k_R1 * (m_A-((m_A*m_AWT)/(m_W+m_A+m_P)))))
+    ddT_S   	= 1./(c_pS * m_S)     * ((k_K *A_tank* (T_R - T_S)) - (k_K *A_tank* (T_S - Tout_M)))
+    ddTout_M    = 1./(c_pW * m_M_KW)  * ((fm_M_KW * c_pW * (T_in_M - Tout_M)) + (k_K *A_tank* (T_S - Tout_M)))
+    ddT_EK   	= 1./(c_pR * m_AWT)   * ((fm_AWT * c_pR * (T_R - T_EK)) - (alfa * (T_EK - Tout_AWT)) + (p_1 * k_R2 * (m_A/m_ges) * m_AWT * delH_R))
+    ddTout_AWT  = 1./(c_pW * m_AWT_KW)* ((fm_AWT_KW * c_pW * (T_in_EK - Tout_AWT)) - (alfa * (Tout_AWT - T_EK)))
 
     ddaccum_momom = m_dot_f
     ddT_adiab = delH_R/(m_ges*c_pR)*ddm_A-(ddm_A+ddm_W+ddm_P)*(m_A*delH_R/(m_ges*m_ges*c_pR))+ddT_R
 
     # Concatenate differential states, algebraic states, control inputs and right-hand-sides
 
-    _x = vertcat([m_W, m_A, m_P, T_R, T_S, Tout_M, T_EK, Tout_AWT, accum_momom, T_adiab])
+    _x = vertcat(m_W, m_A, m_P, T_R, T_S, Tout_M, T_EK, Tout_AWT, accum_momom, T_adiab)
 
-    _u = vertcat([m_dot_f,T_in_M,T_in_EK])
+    _u = vertcat(m_dot_f,T_in_M,T_in_EK)
 
-    _xdot = vertcat([ddm_W, ddm_A, ddm_P, ddT_R, ddT_S, ddTout_M, ddT_EK, ddTout_AWT, ddaccum_momom, ddT_adiab])
+    _xdot = vertcat(ddm_W, ddm_A, ddm_P, ddT_R, ddT_S, ddTout_M, ddT_EK, ddTout_AWT, ddaccum_momom, ddT_adiab)
 
-    _p = vertcat([delH_R, k_0])
+    _p = vertcat(delH_R, k_0)
 
     _z = []
 
@@ -182,7 +175,7 @@ def template_model():
     m_P_lb       	= 26.0;    					m_P_ub      = inf      # Kg
     #If tracking term for the temperature is chosen, no hard constraints
     #T_R_lb     		= -inf;   		T_R_ub   	= +inf  # K
-    T_R_lb     		= 363.15-temp_range;   		T_R_ub   	= 363.15+temp_range+10  # K
+    T_R_lb     		= 363.15-temp_range;   		T_R_ub   	= 363.15+temp_range+10 # K
     T_S_lb 			= 298.0;    				T_S_ub 		= 400.0      # K
     Tout_M_lb       = 298.0;    				Tout_M_ub   = 400.0      # K
     T_EK_lb    		= 288.0;    				T_EK_ub    	= 400.0      # K
@@ -213,7 +206,7 @@ def template_model():
 
     # Other possibly nonlinear constraints in the form cons(x,u,p) <= cons_ub
     # Define the expresion of the constraint (leave it empty if not necessary)
-    cons = vertcat([T_R])
+    cons = vertcat(T_R)
     # Define the upper bounds of the constraint (leave it empty if not necessary)
 
     cons_ub = NP.array([363.15+temp_range])
@@ -231,18 +224,31 @@ def template_model():
     cons_terminal_lb = NP.array([])
     cons_terminal_ub = NP.array([])
 
-
     """
     --------------------------------------------------------------------------
     template_model: cost function
     --------------------------------------------------------------------------
     """
     # Define the cost function
-    # Mayer term
-    mterm =  - m_P   # maximize the producion of C
     # Lagrange term
-    lterm =  0
+    lterm =  - m_P
+    #lterm =  - C_b
+    # Mayer term
+    mterm =  - m_P
+    #mterm =  - C_b
     # Penalty term for the control movements
     rterm = 0.2*0.2*NP.array([.05,.1,.05])
 
-    return (_x, _u, _xdot, _p, _z, x0, x_lb, x_ub, u0, u_lb, u_ub, x_scaling, u_scaling, cons, cons_ub, cons_terminal, cons_terminal_lb, cons_terminal_ub, soft_constraint, penalty_term_cons, maximum_violation, mterm, lterm, rterm)
+
+
+    """
+    --------------------------------------------------------------------------
+    template_model: pass information (not necessary to edit)
+    --------------------------------------------------------------------------
+    """
+    model_dict = {'x':_x,'u': _u, 'rhs':_xdot,'p': _p, 'z':_z,'x0': x0,'x_lb': x_lb,'x_ub': x_ub, 'u0':u0, 'u_lb':u_lb, 'u_ub':u_ub, 'x_scaling':x_scaling, 'u_scaling':u_scaling, 'cons':cons,
+    "cons_ub": cons_ub, 'cons_terminal':cons_terminal, 'cons_terminal_lb': cons_terminal_lb, 'cons_terminal_ub':cons_terminal_ub, 'soft_constraint': soft_constraint, 'penalty_term_cons': penalty_term_cons, 'maximum_violation': maximum_violation, 'mterm': mterm,'lterm':lterm, 'rterm':rterm}
+
+    model = core_do_mpc.model(model_dict)
+
+    return model

@@ -100,7 +100,7 @@ def setup_nlp(model, optimizer):
     cons = substitute(cons,x,x*x_scaling)
     cons = substitute(cons,u,u*u_scaling)
     if soft_constraint:
-        epsilon = SX.sym ("epsilon",cons.size())
+        epsilon = SX.sym ("epsilon",cons.size1())
         cons = cons - epsilon
         cfcn = Function('cfcn', [x,u,p,epsilon],[cons])
     else:
@@ -241,7 +241,7 @@ def setup_nlp(model, optimizer):
       first_j = 1 # Skip allocating x for the first collocation point for the first finite element
 
       # Penalty terms for the soft constraints
-      EPSILON = NP.resize(NP.array([],dtype=MX),(cons.size()))
+      EPSILON = NP.resize(NP.array([],dtype=MX),(cons.size1()))
 
       # For each finite element
       for i in range(ni):
@@ -332,7 +332,7 @@ def setup_nlp(model, optimizer):
       # No implicitly defined variables
       n_ik = 0
       # Penalty terms for the soft constraints
-      EPSILON = NP.resize(NP.array([],dtype=MX),(cons.size()))
+      EPSILON = NP.resize(NP.array([],dtype=MX),(cons.size1()))
       uk_prev = MX.sym ("uk_prev",nu)
 
     # Number of branches
@@ -371,7 +371,7 @@ def setup_nlp(model, optimizer):
 
     if soft_constraint:
 		# If soft constraints are implemented
-		NV += cons.size()
+		NV += cons.size1()
     # Weighting factor for every scenario
     omega = [1./n_scenarios[k+1] for k in range(nk)]
     omega_delta_u = [1./n_scenarios[k+1] for k in range(nk)]
@@ -454,12 +454,12 @@ def setup_nlp(model, optimizer):
       offset += nx
     if soft_constraint:
         # Last elements (epsilon) for soft constraints
-        EPSILON = V[offset:offset + cons.size()]
+        EPSILON = V[offset:offset + cons.size1()]
         E_offset = offset
-        vars_lb[offset:offset + cons.size()] = NP.zeros(cons.size())
-        vars_ub[offset:offset + cons.size()] = maximum_violation
-        vars_init[offset:offset + cons.size()] = 0
-        offset += cons.size()
+        vars_lb[offset:offset + cons.size1()] = NP.zeros(cons.size1())
+        vars_ub[offset:offset + cons.size1()] = maximum_violation
+        vars_init[offset:offset + cons.size1()] = 0
+        offset += cons.size1()
 
     # Check offset for consistency
     assert(offset == NV)
@@ -516,7 +516,7 @@ def setup_nlp(model, optimizer):
           else:
               [residual] = cfcn.call([xf_ksb,U_ks,P_ksb])
           g.append(residual)
-          lbg.append(NP.ones(cons.size())*(-inf))
+          lbg.append(NP.ones(cons.size1())*(-inf))
           ubg.append(cons_ub)
 
           # Add terminal constraints

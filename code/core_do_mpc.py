@@ -93,7 +93,10 @@ class simulator:
         # Assert for define length of param_dict
         required_dimension = 9
         if not (len(param_dict) == required_dimension): raise Exception("Simulator information is incomplete. The number of elements in the dictionary is not correct")
-        dae = {'x':model_simulator.x, 'p':vertcat(model_simulator.u,model_simulator.p), 'ode':model_simulator.rhs}
+        # Unscale the states on the rhs
+        rhs_unscaled = substitute(model_simulator.rhs, model_simulator.x, model_simulator.x * model_simulator.ocp.x_scaling)/model_simulator.ocp.x_scaling
+        rhs_unscaled = substitute(rhs_unscaled, model_simulator.u, model_simulator.u * model_simulator.ocp.u_scaling)
+        dae = {'x':model_simulator.x, 'p':vertcat(model_simulator.u,model_simulator.p), 'ode':rhs_unscaled}
         opts = param_dict["integrator_opts"]
         #FIXME Check the scaling factors!
         simulator_do_mpc = integrator("simulator", param_dict["integration_tool"], dae,  opts)
@@ -108,7 +111,7 @@ class simulator:
         self.t0_sim = 0
         self.tf_sim = param_dict["t_step_simulator"]
         # NOTE:  The same initial condition than for the optimizer is imposed
-        self.x0_sim = model_simulator.ocp.x0
+        self.x0_sim = model_simulator.ocp.x0 / model_simulator.ocp.x_scaling
         self.xf_sim = 0
         # This is an index to account for the MPC iteration. Starts at 1
         self.mpc_iteration = 1

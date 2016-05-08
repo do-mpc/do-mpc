@@ -28,45 +28,39 @@
 #    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #    SOFTWARE.
 #
+from casadi import *
+import numpy as NP
+import core_do_mpc
 
-def template_optimizer(x,u,p):
+def optimizer(model):
+
     """
     --------------------------------------------------------------------------
     template_optimizer: tuning parameters
     --------------------------------------------------------------------------
     """
+
     # Prediction horizon
-    nk = 20
-
-    # Sampling time
-    t_step = 50.0/3600.0
-
+    n_horizon = 20
     # Robust horizon, set to 0 for standard NMPC
     n_robust = 0
-
-    # State discretization scheme: 'multiple-shooting' or 'collocation'
-    state_discretization = 'collocation'
-
-    # Collocation-specific options
-    # Degree of interpolating polynomials: 1 to 5
-    deg = 2
-    # Collocation points: 'legendre' or 'radau'
-    coll = 'radau'
-
-    # Number of finite elements per control interval
-    ni = 1
-
-    # GENERATE C CODE shared libraries
-    generate_code = 0
-
-    # Simulate without feedback
+    # open_loop robust NMPC (1) or multi-stage NMPC (0). Only important if n_robust > 0
     open_loop = 0
-
-    # Simulation Time
-    end_time = 12.0
-
+    # Sampling time
+    t_step = 50.0/3600.0
+    # Simulation time
+    t_end = 2.0
+    # Choose type of state discretization (collocation or multiple-shooting)
+    state_discretization = 'collocation'
+    # Degree of interpolating polynomials: 1 to 5
+    poly_degree = 2
+    # Collocation points: 'legendre' or 'radau'
+    collocation = 'radau'
+    # Number of finite elements per control interval
+    n_fin_elem = 1
     # NLP Solver and linear solver
     nlp_solver = 'ipopt'
+    qp_solver = 'qpoases'
 
     # It is highly recommended that you use a more efficient linear solver
     # such as the hsl linear solver MA27, which can be downloaded as a precompiled
@@ -74,6 +68,8 @@ def template_optimizer(x,u,p):
 
     linear_solver = 'ma27'
 
+    # GENERATE C CODE shared libraries NOTE: Not currently supported
+    generate_code = 0
 
     """
     --------------------------------------------------------------------------
@@ -81,19 +77,25 @@ def template_optimizer(x,u,p):
     --------------------------------------------------------------------------
     """
     # Define the different possible values of the uncertain parameters in the scenario tree
-    k_0_values = NP.array([7.0*1.00, 7.0*1.30, 7.0*0.70])
     delH_R_values = NP.array([950.0, 950.0 * 1.30, 950.0 * 0.70])
+    k_0_values = NP.array([7.0*1.00, 7.0*1.30, 7.0*0.70])
     uncertainty_values = NP.array([delH_R_values, k_0_values])
     # Parameteres of the NLP which may vary along the time (For example a set point that varies at a given time)
     set_point = SX.sym('set_point')
-    parameters_NLP = NP.array([set_point])
+    parameters_nlp = NP.array([set_point])
+
 
     """
     --------------------------------------------------------------------------
-    template_optimizer: return data
+    template_optimizer: pass_information (not necessary to edit)
     --------------------------------------------------------------------------
     """
     # Check if the user has introduced the data correctly
-
-    return (nk, n_robust, t_step, end_time, deg, coll, ni, generate_code, +
-            open_loop, uncertainty_values, parameters_NLP,  state_discretization, nlp_solver, linear_solver)
+    optimizer_dict = {'n_horizon':n_horizon, 'n_robust':n_robust, 't_step': t_step,
+    't_end':t_end,'poly_degree': poly_degree, 'collocation':collocation,
+    'n_fin_elem': n_fin_elem,'generate_code':generate_code,'open_loop': open_loop,
+    'uncertainty_values':uncertainty_values,'parameters_nlp':parameters_nlp,
+    'state_discretization':state_discretization,'nlp_solver': nlp_solver,
+    'linear_solver':linear_solver, 'qp_solver':qp_solver}
+    optimizer_1 = core_do_mpc.optimizer(model,optimizer_dict)
+    return optimizer_1
