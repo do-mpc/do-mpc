@@ -21,8 +21,6 @@
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-
-
 import matplotlib.pyplot as plt
 from casadi import *
 import numpy as NP

@@ -19,6 +19,7 @@
 #
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
+#
 
 from casadi import *
 import core_do_mpc
