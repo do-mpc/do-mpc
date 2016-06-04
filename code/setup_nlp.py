@@ -83,7 +83,7 @@ def setup_nlp(model, optimizer):
     up = vertcat(u,p)
 
     # Right hand side of the ODEs
-    # FIXME look scaling
+    # NOTE: look scaling (appears to be fine)
     for i in (x0,x_ub,x_lb,x_init): i /= x_scaling
     xdot = substitute(xdot,x,x*x_scaling)/x_scaling
     for i in (u_ub,u_lb,u_init): i /= u_scaling

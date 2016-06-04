@@ -189,7 +189,7 @@ def model():
     T_in_M_0  = 363.0
     T_in_EK_0 = 323.0
 
-    u0   = NP.array([m_dot_f_0 , T_in_M_0, T_in_EK_0 ])
+    u0   = NP.array([m_dot_f_0 , T_in_M_0, T_in_EK_0])
 
     # Scaling factors for the states and control inputs. Important if the system is ill-conditioned
     x_scaling=NP.array([10.0, 10.0, 10.0, 1.0, 1.0, 1.0, 1.0, 1.0, 10,1])

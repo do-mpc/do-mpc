@@ -61,7 +61,7 @@ configuration_1 = core_do_mpc.configuration(model_1, optimizer_1, observer_1, si
 
 # Set up the solvers
 configuration_1.setup_solver()
-#NOTE: this could be in init? but then not so general
+
 
 """
 ----------------------------

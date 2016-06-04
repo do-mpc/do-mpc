@@ -222,4 +222,4 @@ def plot_animation(configuration):
 
     else:
         # nothing to be done if no animation is chosen
-        dummy = 0 # FIXME: correct way to do this?
+        pass

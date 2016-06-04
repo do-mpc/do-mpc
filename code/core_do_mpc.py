@@ -91,7 +91,7 @@ class simulator:
         rhs_unscaled = substitute(rhs_unscaled, model_simulator.u, model_simulator.u * model_simulator.ocp.u_scaling)
         dae = {'x':model_simulator.x, 'p':vertcat(model_simulator.u,model_simulator.p), 'ode':rhs_unscaled}
         opts = param_dict["integrator_opts"]
-        #FIXME Check the scaling factors!
+        #NOTE: Check the scaling factors (appear to be fine)
         simulator_do_mpc = integrator("simulator", param_dict["integration_tool"], dae,  opts)
         self.simulator = simulator_do_mpc
         self.plot_states = param_dict["plot_states"]
@@ -188,7 +188,7 @@ class configuration:
         opts = {}
         opts["expand"] = True
         opts["ipopt.linear_solver"] = self.optimizer.linear_solver
-        #TODO: this could be passed as parameters of the optimizer class
+        #NOTE: this could be passed as parameters of the optimizer class
         opts["ipopt.max_iter"] = 500
         opts["ipopt.tol"] = 1e-6
         # Setup the solver
@@ -222,7 +222,7 @@ class configuration:
 
     def make_step_observer(self):
         self.make_measurement()
-        self.observer.observed_states = self.simulator.measurement # TODO: this is a dummy observer
+        self.observer.observed_states = self.simulator.measurement # NOTE: this is a dummy observer
 
     def make_step_simulator(self):
         # Extract the necessary information for the simulation
@@ -239,7 +239,7 @@ class configuration:
         self.simulator.tf_sim = self.simulator.tf_sim + self.simulator.t_step_simulator
 
     def make_measurement(self):
-        # TODO: Here implement the own measurement function (or load it)
+        # NOTE: Here implement the own measurement function (or load it)
         # This is a dummy measurement
         self.simulator.measurement = self.simulator.xf_sim
 
