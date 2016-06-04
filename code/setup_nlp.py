@@ -315,14 +315,20 @@ def setup_nlp(model, optimizer):
     elif state_discretization == 'multiple-shooting':
 
       # Create an integrator instance
-      ifcn = Integrator('cvodes',ffcn)
-      ifcn.setOption("exact_jacobian",True)
-      ifcn.setOption("reltol",1e-8)
-      ifcn.setOption("abstol",1e-8)
+    #   ifcn = Integrator('cvodes',ffcn)
+    #   ifcn.setOption("exact_jacobian",True)
+    #   ifcn.setOption("reltol",1e-8)
+    #   ifcn.setOption("abstol",1e-8)
 
       # Set options
-      ifcn.setOption("tf",t_step)
-
+      #ifcn.setOption("tf",t_step)
+      x_ms = MX.sym('x_ms',nx)
+      u_ms = MX.sym('u_ms',nu)
+      p_ms = MX.sym('p_ms',np)
+      xdot_ms = x_ms
+      dae = {'x':x_ms, 'p':vertcat(u_ms,p_ms), 'ode':xdot_ms}
+      opts = {"abstol":1e-10,"reltol":1e-10, "exact_jacobian":True, 'tf':t_step}
+      ifcn = integrator("simulator_ms",'cvodes', dae,  opts)
 
       # No implicitly defined variables
       n_ik = 0
@@ -496,8 +502,9 @@ def setup_nlp(model, optimizer):
 
             # Call the integrator
             #FIXME: update so that multiple-shooting works
-            ifcn_out = ifcn.call(integratorIn(x0=X_ks,p=vertcat(U_ks,P_ksb)))
-            xf_ksb = ifcn_out[INTEGRATOR_XF]
+            #pdb.set_trace()
+            ifcn_out = ifcn(x0=X_ks,p=vertcat(U_ks,P_ksb))
+            xf_ksb = ifcn_out['xf']
 
           # Add continuity equation to NLP
           g.append(X[k+1,child_scenario[k][s][b]] - xf_ksb)
