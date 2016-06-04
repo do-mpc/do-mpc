@@ -35,7 +35,7 @@ def model():
     K0_ab = 1.287e12 # K0 [h^-1]
     K0_bc = 1.287e12 # K0 [h^-1]
     K0_ad = 9.043e9 # K0 [l/mol.h]
-    R_gas = 8.3144621e-3 # Universal Gas constant [kj.K^−1.mol^−1]
+    R_gas = 8.3144621e-3 # Universal gas constant
     E_A_ab = 9758.3*1.00 #* R_gas# [kj/mol]
     E_A_bc = 9758.3*1.00 #* R_gas# [kj/mol]
     E_A_ad = 8560.0*1.0 #* R_gas# [kj/mol]
@@ -48,7 +48,7 @@ def model():
     A_R = 0.215 # Area of reactor wall [m^2]
     V_R = 10.01 #0.01 # Volume of reactor [l]
     m_k = 5.0 # Coolant mass[kg]
-    T_in = 130.0 # Temp of inflow [Celcius]
+    T_in = 130.0 # Temp of inflow [Celsius]
     K_w = 4032.0 # [kj/h.m^2.K]
     C_A0 = (5.7+4.5)/2.0*1.0 # Concentration of A in input Upper bound 5.7 lower bound 4.5 [mol/l]
 
