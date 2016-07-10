@@ -336,6 +336,14 @@ def setup_nlp(model, optimizer):
       EPSILON = NP.resize(NP.array([],dtype=MX),(cons.size1()))
       uk_prev = MX.sym ("uk_prev",nu)
 
+    elif state_discretization == 'discrete-time':
+      # no need to define an integrator for the discrete-time case
+      # No implicitly defined variables
+      n_ik = 0
+      # Penalty terms for the soft constraints
+      EPSILON = NP.resize(NP.array([],dtype=MX),(cons.size1()))
+      uk_prev = MX.sym ("uk_prev",nu)
+      pass
     # Number of branches
     n_branches = [len(p_scenario) if k<n_robust else 1 for k in range(nk)]
 
@@ -505,7 +513,8 @@ def setup_nlp(model, optimizer):
             #pdb.set_trace()
             ifcn_out = ifcn(x0=X_ks,p=vertcat(U_ks,P_ksb))
             xf_ksb = ifcn_out['xf']
-
+          elif state_discretization == 'discrete-time':
+            [xf_ksb] = ffcn.call([X_ks,vertcat(U_ks,P_ksb)])
           # Add continuity equation to NLP
           g.append(X[k+1,child_scenario[k][s][b]] - xf_ksb)
           lbg.append(NP.zeros(nx))

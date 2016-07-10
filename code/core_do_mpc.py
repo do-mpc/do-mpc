@@ -229,10 +229,20 @@ class configuration:
         u_mpc = self.optimizer.u_mpc
         # Use the real parameters
         p_real = self.simulator.p_real_now(self.simulator.t0_sim)
-        result  = self.simulator.simulator(x0 = self.simulator.x0_sim, p = vertcat(u_mpc,p_real))
-        self.simulator.xf_sim = NP.squeeze(result['xf'])
+        if self.optimizer.state_discretization == 'discrete-time':
+            rhs_unscaled = substitute(self.model.rhs, self.model.x, self.model.x * self.model.ocp.x_scaling)/self.model.ocp.x_scaling
+            rhs_unscaled = substitute(rhs_unscaled, self.model.u, self.model.u * self.model.ocp.u_scaling)
+            rhs_fcn = Function('rhs_fcn',[self.model.x,vertcat(self.model.u,self.model.p)],[rhs_unscaled])
+            x_next = rhs_fcn(self.simulator.x0_sim,vertcat(u_mpc,p_real))
+            self.simulator.xf_sim = NP.squeeze(NP.array(x_next))
+        else:
+            result  = self.simulator.simulator(x0 = self.simulator.x0_sim, p = vertcat(u_mpc,p_real))
+            self.simulator.xf_sim = NP.squeeze(result['xf'])
         # Update the initial condition for the next iteration
         self.simulator.x0_sim = self.simulator.xf_sim
+        # Correction for sizes of arrays when dimension is 1
+        if self.simulator.xf_sim.shape ==  ():
+            self.simulator.xf_sim = NP.array([self.simulator.xf_sim])
         # Update the mpc iteration index and the time
         self.simulator.mpc_iteration = self.simulator.mpc_iteration + 1
         self.simulator.t0_sim = self.simulator.tf_sim
@@ -258,6 +268,7 @@ class configuration:
     def store_mpc_data(self):
         mpc_iteration = self.simulator.mpc_iteration - 1 #Because already increased in the simulator
         data = self.mpc_data
+        #pdb.set_trace()
         data.mpc_states = NP.append(data.mpc_states, [self.simulator.xf_sim], axis = 0)
         #pdb.set_trace()
         data.mpc_control = NP.append(data.mpc_control, [self.optimizer.u_mpc], axis = 0)
