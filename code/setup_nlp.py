@@ -268,11 +268,11 @@ def setup_nlp(model, optimizer):
       xkf = ik[offset:offset+nx]
 
       # Add the initial condition
-      ik_init[offset:offset+nx] = x_init
+      ik_init[offset:offset+nx] = NP.asarray(x_init)[:,0]
 
       # Add bounds
-      ik_lb[offset:offset+nx] = x_lb
-      ik_ub[offset:offset+nx] = x_ub
+      ik_lb[offset:offset+nx] = NP.asarray(x_lb)[:,0]
+      ik_ub[offset:offset+nx] = NP.asarray(x_ub)[:,0]
       offset += nx
 
       # Check offset for consistency
