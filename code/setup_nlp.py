@@ -75,6 +75,7 @@ def setup_nlp(model, optimizer):
     nx = x.size(1)
     nu = u.size(1)
     np = p.size(1)
+    nz = z.size(1)
 
     # Generate, scale and initialize all the necessary functions
     # Consider as initial guess the initial conditions
@@ -84,11 +85,18 @@ def setup_nlp(model, optimizer):
 
     # Right hand side of the ODEs
     # NOTE: look scaling (appears to be fine)
-    for i in (x0,x_ub,x_lb,x_init): i /= x_scaling
+    x_init = x_init/x_scaling
+    x_ub   = x_ub/x_scaling
+    x_lb   = x_lb/x_scaling
+    #for i in (x_ub,x_lb,x_init): i /= x_scaling
     xdot = substitute(xdot,x,x*x_scaling)/x_scaling
     for i in (u_ub,u_lb,u_init): i /= u_scaling
     xdot = substitute(xdot,u,u*u_scaling)
-    ffcn = Function('ffcn',[x,up],[xdot])
+    if nz == 0:
+        ffcn = Function('ffcn',[x,up],[xdot])
+    else:
+        ffcn = Function('ffcn',[x[0:nx-nz],z,up],[xdot[0:nx-nz],xdot[nx-nz:nx]])
+
 
     # Constraints, possibly soft
     # Epsilon for the soft constraints
@@ -246,11 +254,11 @@ def setup_nlp(model, optimizer):
           ik_split[i,j] = ik[offset:offset+nx]
 
           # Add the initial condition
-          ik_init[offset:offset+nx] = x_init
+          ik_init[offset:offset+nx] = NP.asarray(x_init)[:,0]
 
           # Add bounds
-          ik_lb[offset:offset+nx] = x_lb
-          ik_ub[offset:offset+nx] = x_ub
+          ik_lb[offset:offset+nx] = NP.asarray(x_lb)[:,0]
+          ik_ub[offset:offset+nx] = NP.asarray(x_ub)[:,0]
           offset += nx
 
         # All collocation points in subsequent finite elements
@@ -287,8 +295,19 @@ def setup_nlp(model, optimizer):
             xp_ij += C[r,j]*ik_split[i,r]
 
           # Add collocation equations to the NLP
-	  [f_ij] = ffcn.call([ik_split[i,j],vertcat(uk,pk)])
-          gk.append(h*f_ij - xp_ij)
+          if nz == 0:
+              # The ODE case: a simple function call is performed
+              [f_ij] = ffcn.call([ik_split[i,j],vertcat(uk,pk)])
+              gk.append(h*f_ij - xp_ij)
+          else:
+              # The DAE case: two calls are made and the constraint vector is updated correspondingly
+              ik_curr = ik_split[i,j];
+              ik_d = ik_curr[0:nx-nz];
+              ik_a = ik_curr[nx-nz:nx];
+              [f_ij_curr,g_ij_curr] = ffcn.call([ik_d,ik_a,vertcat(uk,pk)])#[DAE_ODE]
+              #[g_ij_curr] = ffcn.call([ik_d,ik_a,vertcat(uk,pk)])#[DAE_ALG]
+              gk.append(h*f_ij_curr - xp_ij[0:nx-nz])
+              gk.append(g_ij_curr)
           lbgk.append(NP.zeros(nx)) # equality constraints
           ubgk.append(NP.zeros(nx)) # equality constraints
 
@@ -420,15 +439,16 @@ def setup_nlp(model, optimizer):
         X_offset[k,s] = offset
 
         # Add the initial condition
-        vars_init[offset:offset+nx] = x_init
+        vars_init[offset:offset+nx] = NP.asarray(x_init)[:,0]
 
         if k==0:
-          vars_lb[offset:offset+nx] = x0
-          vars_ub[offset:offset+nx] = x0
+          vars_lb[offset:offset+nx] = NP.asarray(x0)[:,0]
+          vars_ub[offset:offset+nx] = NP.asarray(x0)[:,0]
 
         else:
-          vars_lb[offset:offset+nx] = x_lb
-          vars_ub[offset:offset+nx] = x_ub
+          vars_lb[offset:offset+nx] = NP.asarray(x_lb)[:,0]
+          vars_ub[offset:offset+nx] = NP.asarray(x_ub)[:,0]
+
         offset += nx
 
         # State trajectory if collocation
@@ -457,9 +477,9 @@ def setup_nlp(model, optimizer):
     for s in range(n_scenarios[nk]):
       X[nk,s] = V[offset:offset+nx]
       X_offset[nk,s] = offset
-      vars_lb[offset:offset+nx] = x_lb
-      vars_ub[offset:offset+nx] = x_ub
-      vars_init[offset:offset+nx] = x_init
+      vars_lb[offset:offset+nx] = NP.asarray(x_lb)[:,0]
+      vars_ub[offset:offset+nx] = NP.asarray(x_ub)[:,0]
+      vars_init[offset:offset+nx] = NP.asarray(x_init)[:,0]
       offset += nx
     if soft_constraint:
         # Last elements (epsilon) for soft constraints
