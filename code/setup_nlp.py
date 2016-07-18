@@ -25,6 +25,7 @@
 #   his support is gratefully acknowledged
 
 from casadi import *
+from casadi.tools import *
 import numpy as NP
 import core_do_mpc
 from copy import deepcopy
@@ -42,7 +43,7 @@ def setup_nlp(model, optimizer):
     ni = optimizer.n_fin_elem
     open_loop = optimizer.open_loop
     uncertainty_values = optimizer.uncertainty_values
-    parameters_nlp = optimizer.parameters_nlp
+    #parameters_nlp = optimizer.parameters_nlp
     state_discretization = optimizer.state_discretization
     # Parameters from model
     x0 = model.ocp.x0
@@ -68,6 +69,7 @@ def setup_nlp(model, optimizer):
     u = model.u
     p = model.p
     z = model.z
+    tv_p = model.tv_p
     xdot = model.rhs
 
     # Size of the state, control and parameter vector
@@ -75,6 +77,7 @@ def setup_nlp(model, optimizer):
     nx = x.size(1)
     nu = u.size(1)
     np = p.size(1)
+    ntv_p = tv_p.size(1)
     nz = z.size(1)
 
     # Generate, scale and initialize all the necessary functions
@@ -93,10 +96,9 @@ def setup_nlp(model, optimizer):
     for i in (u_ub,u_lb,u_init): i /= u_scaling
     xdot = substitute(xdot,u,u*u_scaling)
     if nz == 0:
-        ffcn = Function('ffcn',[x,up],[xdot])
+        ffcn = Function('ffcn',[x,up,tv_p],[xdot])
     else:
-        ffcn = Function('ffcn',[x[0:nx-nz],z,up],[xdot[0:nx-nz],xdot[nx-nz:nx]])
-
+        ffcn = Function('ffcn',[x[0:nx-nz],z,up, tv_p],[xdot[0:nx-nz],xdot[nx-nz:nx]])
 
     # Constraints, possibly soft
     # Epsilon for the soft constraints
@@ -224,10 +226,11 @@ def setup_nlp(model, optimizer):
 
       # Parameter
       pk = MX.sym("pk",np)
+      tv_pk = MX.sym("tv_pk",ntv_p)
 
       # Control
       uk = MX.sym("uk",nu)
-      uk_prev = MX.sym ("uk_prev",nu)
+      #uk_prev = MX.sym ("uk_prev",nu)
       # State trajectory
       n_ik = ni*(deg+1)*nx
       ik = MX.sym("ik",n_ik)
@@ -297,14 +300,14 @@ def setup_nlp(model, optimizer):
           # Add collocation equations to the NLP
           if nz == 0:
               # The ODE case: a simple function call is performed
-              [f_ij] = ffcn.call([ik_split[i,j],vertcat(uk,pk)])
+              [f_ij] = ffcn.call([ik_split[i,j],vertcat(uk,pk), tv_pk])
               gk.append(h*f_ij - xp_ij)
           else:
               # The DAE case: two calls are made and the constraint vector is updated correspondingly
               ik_curr = ik_split[i,j];
               ik_d = ik_curr[0:nx-nz];
               ik_a = ik_curr[nx-nz:nx];
-              [f_ij_curr,g_ij_curr] = ffcn.call([ik_d,ik_a,vertcat(uk,pk)])#[DAE_ODE]
+              [f_ij_curr,g_ij_curr] = ffcn.call([ik_d,ik_a,vertcat(uk,pk),tv_pk])#[DAE_ODE]
               #[g_ij_curr] = ffcn.call([ik_d,ik_a,vertcat(uk,pk)])#[DAE_ALG]
               gk.append(h*f_ij_curr - xp_ij[0:nx-nz])
               gk.append(g_ij_curr)
@@ -329,7 +332,7 @@ def setup_nlp(model, optimizer):
       assert(gk.size()==ik.size())
 
       # Create the integrator function
-      ifcn = Function("ifcn", [ik,xk0,pk,uk],[gk,xkf])
+      ifcn = Function("ifcn", [ik,xk0,pk,uk,tv_pk],[gk,xkf])
     # FIXME: update so that multiple_shooting works
     elif state_discretization == 'multiple-shooting':
 
@@ -353,7 +356,7 @@ def setup_nlp(model, optimizer):
       n_ik = 0
       # Penalty terms for the soft constraints
       EPSILON = NP.resize(NP.array([],dtype=MX),(cons.size1()))
-      uk_prev = MX.sym ("uk_prev",nu)
+      #uk_prev = MX.sym ("uk_prev",nu)
 
     elif state_discretization == 'discrete-time':
       # no need to define an integrator for the discrete-time case
@@ -361,7 +364,7 @@ def setup_nlp(model, optimizer):
       n_ik = 0
       # Penalty terms for the soft constraints
       EPSILON = NP.resize(NP.array([],dtype=MX),(cons.size1()))
-      uk_prev = MX.sym ("uk_prev",nu)
+      #uk_prev = MX.sym ("uk_prev",nu)
       pass
     # Number of branches
     n_branches = [len(p_scenario) if k<n_robust else 1 for k in range(nk)]
@@ -427,6 +430,9 @@ def setup_nlp(model, optimizer):
     if state_discretization=='collocation':
       I = NP.resize(NP.array([],dtype=MX),(nk,n_scenarios[-1],n_branches[0]))
     U = NP.resize(NP.array([],dtype=MX),(nk,n_scenarios[-1]))
+    parameters_setup_nlp = struct_symMX([entry("uk_prev",shape=(nu)), entry("TV_P",shape=(ntv_p,nk))])
+    TV_P = parameters_setup_nlp['TV_P']
+    uk_prev = parameters_setup_nlp['uk_prev']
     # The offset variables contain the position of the states and controls in the vector of opt. variables
     X_offset = NP.resize(NP.array([-1],dtype=int),X.shape)
     U_offset = NP.resize(NP.array([-1],dtype=int),U.shape)
@@ -519,7 +525,8 @@ def setup_nlp(model, optimizer):
           if state_discretization=='collocation':
 
             # Call the inlined integrator
-            [g_ksb,xf_ksb] = ifcn.call([I[k,s,b],X_ks,P_ksb,U_ks])
+            #pdb.set_trace()
+            [g_ksb,xf_ksb] = ifcn.call([I[k,s,b],X_ks,P_ksb,U_ks, TV_P[:,k]])
 
             # Add equations defining the implicitly defined variables (i.e. collocation and continuity equations) to the NLP
             g.append(g_ksb)
@@ -534,7 +541,7 @@ def setup_nlp(model, optimizer):
             ifcn_out = ifcn(x0=X_ks,p=vertcat(U_ks,P_ksb))
             xf_ksb = ifcn_out['xf']
           elif state_discretization == 'discrete-time':
-            [xf_ksb] = ffcn.call([X_ks,vertcat(U_ks,P_ksb)])
+            [xf_ksb] = ffcn.call([X_ks,vertcat(U_ks,P_ksb),TV_P])
           # Add continuity equation to NLP
           g.append(X[k+1,child_scenario[k][s][b]] - xf_ksb)
           lbg.append(NP.zeros(nx))
@@ -589,7 +596,7 @@ def setup_nlp(model, optimizer):
     lbg = vertcat(*lbg)
     ubg = vertcat(*ubg)
 
-    nlp_fcn = {'f': J,'x': V,'p':uk_prev,'g': g}
+    nlp_fcn = {'f': J,'x': V,'p':parameters_setup_nlp,'g': g}
 
     nlp_dict_out = {'nlp_fcn':nlp_fcn,'X_offset':X_offset,'U_offset': U_offset,
     'E_offset':E_offset,'vars_lb':vars_lb,'vars_ub':vars_ub,'vars_init': vars_init,
