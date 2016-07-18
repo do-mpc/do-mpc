@@ -27,7 +27,7 @@ import numpy as NP
 import core_do_mpc
 from matplotlib.ticker import MaxNLocator
 import scipy.io
-
+import pdb
 
 class mpc_data:
     "A class for the definition of the mpc data that is managed throughout the mpc loop"
@@ -70,11 +70,11 @@ def export_to_matlab(configuration):
     if configuration.simulator.export_to_matlab:
         data = configuration.mpc_data
         export_name = configuration.simulator.export_name
-        x_scaling = configuration.model.ocp.x_scaling
-        u_scaling = configuration.model.ocp.u_scaling
+        x_scaling = configuration.model.ocp.x_scaling.T
+        u_scaling = configuration.model.ocp.u_scaling.T
         export_dict = {
-        "mpc_states":data.mpc_states * x_scaling,
-        "mpc_control":data.mpc_control * u_scaling,
+        "mpc_states":NP.array(data.mpc_states) * NP.array(x_scaling),
+        "mpc_control":NP.array(data.mpc_control) * NP.array(u_scaling),
         "mpc_alg": data.mpc_alg,
         "mpc_time": data.mpc_time,
         "mpc_cost": data.mpc_cost,

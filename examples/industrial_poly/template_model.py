@@ -127,13 +127,17 @@ def model():
 
     _x = vertcat(m_W, m_A, m_P, T_R, T_S, Tout_M, T_EK, Tout_AWT, accum_momom, T_adiab)
 
+    _z = vertcat([])
+
     _u = vertcat(m_dot_f,T_in_M,T_in_EK)
 
     _xdot = vertcat(ddm_W, ddm_A, ddm_P, ddT_R, ddT_S, ddTout_M, ddT_EK, ddTout_AWT, ddaccum_momom, ddT_adiab)
 
+    _zdot = vertcat([])
+
     _p = vertcat(delH_R, k_0)
 
-    _z = []
+
 
 
     """
@@ -161,6 +165,8 @@ def model():
 
     x0   = NP.array([m_W_0, m_A_0, m_P_0, T_R_0, T_S_0, Tout_M_0, T_EK_0, Tout_AWT_0, accum_momom_0,T_adiab_0])
 
+    z0   = NP.array([])
+
     # Bounds for the states and initial guess
     temp_range = 2.0
     m_W_lb          = 0;    					m_W_ub      = inf      # Kg
@@ -175,6 +181,10 @@ def model():
     T_adiab_lb         =-inf;							T_adiab_ub	=  382.15 + 10 # (implemented as soft constraint)
     x_lb  = NP.array([m_W_lb, m_A_lb, m_P_lb, T_R_lb, T_S_lb, Tout_M_lb, T_EK_lb, Tout_AWT_lb, accum_momom_lb,T_adiab_lb])
     x_ub  = NP.array([m_W_ub, m_A_ub, m_P_ub, T_R_ub, T_S_ub, Tout_M_ub, T_EK_ub, Tout_AWT_ub, accum_momom_ub,T_adiab_ub])
+
+    # Bounds for algebraic variables
+    z_lb  = NP.array([])
+    z_ub  = NP.array([])
 
     # Bounds for inputs
     m_dot_f_lb = 0.0;  	 m_dot_f_ub = 3.0e4;
@@ -192,8 +202,9 @@ def model():
     u0   = NP.array([m_dot_f_0 , T_in_M_0, T_in_EK_0])
 
     # Scaling factors for the states and control inputs. Important if the system is ill-conditioned
-    x_scaling=NP.array([10.0, 10.0, 10.0, 1.0, 1.0, 1.0, 1.0, 1.0, 10,1])
+    x_scaling= NP.array([10.0, 10.0, 10.0, 1.0, 1.0, 1.0, 1.0, 1.0, 10,1])
     u_scaling = NP.array([100.0, 1.0, 1.0])
+    z_scaling = NP.array([])
 
     # Other possibly nonlinear constraints in the form cons(x,u,p) <= cons_ub
     # Define the expresion of the constraint (leave it empty if not necessary)
@@ -234,7 +245,7 @@ def model():
     template_model: pass information (not necessary to edit)
     --------------------------------------------------------------------------
     """
-    model_dict = {'x':_x,'u': _u, 'rhs':_xdot,'p': _p, 'z':_z,'x0': x0,'x_lb': x_lb,'x_ub': x_ub, 'u0':u0, 'u_lb':u_lb, 'u_ub':u_ub, 'x_scaling':x_scaling, 'u_scaling':u_scaling, 'cons':cons,
+    model_dict = {'x':_x,'u': _u, 'rhs':_xdot,'p': _p, 'z':_z, 'aes': _zdot,'x0': x0, 'z0':z0, 'x_lb': x_lb,'x_ub': x_ub, 'z_lb': z_lb,'z_ub': z_ub, 'u0':u0, 'u_lb':u_lb, 'u_ub':u_ub, 'x_scaling':x_scaling, 'z_scaling':z_scaling, 'u_scaling':u_scaling, 'cons':cons,
     "cons_ub": cons_ub, 'cons_terminal':cons_terminal, 'cons_terminal_lb': cons_terminal_lb, 'cons_terminal_ub':cons_terminal_ub, 'soft_constraint': soft_constraint, 'penalty_term_cons': penalty_term_cons, 'maximum_violation': maximum_violation, 'mterm': mterm,'lterm':lterm, 'rterm':rterm}
 
     model = core_do_mpc.model(model_dict)

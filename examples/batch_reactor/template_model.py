@@ -81,13 +81,17 @@ def model():
 
     _x = vertcat(X_s, S_s, P_s, V_s)
 
+    _z = vertcat([])
+
     _u = vertcat(inp)
 
     _xdot = vertcat(dX_s, dS_s, dP_s, dV_s)
 
+    _zdot = vertcat([])
+
     _p = vertcat(Y_x, S_in)
 
-    _z = []
+
 
 
 
@@ -111,6 +115,12 @@ def model():
     x_lb = NP.array([X_s_lb, S_s_lb, P_s_lb, V_s_lb])
     x_ub = NP.array([X_s_ub, S_s_ub, P_s_ub, V_s_ub])
 
+    # Initial condition algebraic variables
+    z0   = NP.array([])
+    # Bounds for algebraic variables
+    z_lb  = NP.array([])
+    z_ub  = NP.array([])
+
     # Bounds on the control inputs. Use "inf" for unconstrained inputs
     inp_lb = 0.0;                 inp_ub = 0.2;
 
@@ -120,6 +130,7 @@ def model():
 
     # Scaling factors for the states and control inputs. Important if the system is ill-conditioned
     x_scaling = NP.array([1.0, 1.0, 1.0, 1.0])
+    z_scaling = NP.array([])
     u_scaling = NP.array([1.0])
 
     # Other possibly nonlinear constraints in the form cons(x,u,p) <= cons_ub
@@ -165,8 +176,9 @@ def model():
     template_model: pass information (not necessary to edit)
     --------------------------------------------------------------------------
     """
-    model_dict = {'x':_x,'u': _u, 'rhs':_xdot,'p': _p, 'z':_z,'x0': x0,'x_lb': x_lb,'x_ub': x_ub, 'u0':u0, 'u_lb':u_lb, 'u_ub':u_ub, 'x_scaling':x_scaling, 'u_scaling':u_scaling, 'cons':cons,
+    model_dict = {'x':_x,'u': _u, 'rhs':_xdot,'p': _p, 'z':_z, 'aes': _zdot,'x0': x0, 'z0':z0, 'x_lb': x_lb,'x_ub': x_ub, 'z_lb': z_lb,'z_ub': z_ub, 'u0':u0, 'u_lb':u_lb, 'u_ub':u_ub, 'x_scaling':x_scaling, 'z_scaling':z_scaling, 'u_scaling':u_scaling, 'cons':cons,
     "cons_ub": cons_ub, 'cons_terminal':cons_terminal, 'cons_terminal_lb': cons_terminal_lb, 'cons_terminal_ub':cons_terminal_ub, 'soft_constraint': soft_constraint, 'penalty_term_cons': penalty_term_cons, 'maximum_violation': maximum_violation, 'mterm': mterm,'lterm':lterm, 'rterm':rterm}
+
 
     model = core_do_mpc.model(model_dict)
 
