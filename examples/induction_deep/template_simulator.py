@@ -48,6 +48,10 @@ def simulator(model):
             p_real =  NP.array([1.0,1.0])
         return p_real
 
+    # Choose the real value of the time-varing parameters
+    def tv_p_real_now(current_time):
+        tv_p_real = NP.array([1.0,1.0])
+        return tv_p_real
     """
     --------------------------------------------------------------------------
     template_simulator: plotting options
@@ -57,7 +61,9 @@ def simulator(model):
     # Choose the indices of the states to plot
     plot_states = [0,1,2]
     # Choose the indices of the controls to plot
-    plot_control = [0,1]
+    plot_control = [0, 1]
+    # Choose other varialbes to plot
+    plot_other = [0, 1]
     # Plot animation (False or True)
     plot_anim = False
     # Export to matlab (for better plotting or postprocessing)
@@ -71,7 +77,7 @@ def simulator(model):
     """
 
     simulator_dict = {'integration_tool':integration_tool,'plot_states':plot_states,
-    'plot_control': plot_control,'plot_anim': plot_anim,'export_to_matlab': export_to_matlab,'export_name': export_name, 'p_real_now':p_real_now, 't_step_simulator': t_step_simulator, 'integrator_opts': opts}
+    'plot_control': plot_control, 'plot_other':plot_other,'plot_anim': plot_anim,'export_to_matlab': export_to_matlab,'export_name': export_name, 'p_real_now':p_real_now, 't_step_simulator': t_step_simulator, 'integrator_opts': opts, 'tv_p_real_now':tv_p_real_now}
 
     simulator_1 = core_do_mpc.simulator(model, simulator_dict)
 

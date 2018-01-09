@@ -72,7 +72,7 @@ class model:
     """A class for the definition model equations and optimal control problem formulation"""
     def __init__(self, param_dict, *opt):
         # Assert for define length of param_dict
-        required_dimension = 30
+        required_dimension = 31
         if not (len(param_dict) == required_dimension):            raise Exception("Model / OCP information is incomplete. The number of elements in the dictionary is not correct")
         # Assign the main variables describing the model equations
         x = param_dict["x"]
@@ -93,6 +93,7 @@ class model:
         self.aes = param_dict["aes"]
         self.rhs = vertcat(ode,aes)
         self.tv_p = param_dict["tv_p"]
+        self.other = param_dict["other"]
          # Assign the main variables that describe the OCP
         self.ocp = ocp(param_dict)
 
@@ -106,7 +107,7 @@ class simulator:
     """A class for the definition model equations and optimal control problem formulation"""
     def __init__(self, model_simulator, param_dict, *opt):
         # Assert for define length of param_dict
-        required_dimension = 10
+        required_dimension = 11
         if not (len(param_dict) == required_dimension): raise Exception("Simulator information is incomplete. The number of elements in the dictionary is not correct")
         # Unscale the states on the rhs
         rhs_unscaled = substitute(model_simulator.rhs, model_simulator.x, model_simulator.x * model_simulator.ocp.x_scaling)/model_simulator.ocp.x_scaling
@@ -125,6 +126,7 @@ class simulator:
         self.simulator = simulator_do_mpc
         self.plot_states = param_dict["plot_states"]
         self.plot_control = param_dict["plot_control"]
+        self.plot_other = param_dict["plot_other"]
         self.plot_anim = param_dict["plot_anim"]
         self.export_to_matlab = param_dict["export_to_matlab"]
         self.export_name = param_dict["export_name"]
@@ -331,3 +333,7 @@ class configuration:
         stats = self.optimizer.solver.stats()
         data.mpc_cpu = NP.append(data.mpc_cpu, [[stats['t_wall_mainloop']]], axis = 0)
         data.mpc_parameters = NP.append(data.mpc_parameters, [self.simulator.p_real_now(self.simulator.t0_sim)], axis = 0)
+
+        other_subs = substitute(self.model.other, self.model.x, self.simulator.xf_sim)
+        other_subs = NP.squeeze(IM(substitute(other_subs, self.model.u, self.optimizer.u_mpc)))
+        data.mpc_other = NP.append(data.mpc_other, [other_subs], axis = 0)

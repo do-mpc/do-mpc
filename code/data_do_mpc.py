@@ -36,6 +36,7 @@ class mpc_data:
         nx = configuration.model.x.size(1)
         nu = configuration.model.u.size(1)
         np = configuration.model.p.size(1)
+        no = configuration.model.other.size(1)
         if NP.size(configuration.model.z) > 0: # If DAE
             nz = configuration.model.z.size(1)
         else: # Model is ODE
@@ -45,6 +46,7 @@ class mpc_data:
         # Initialize the data structures
         self.mpc_states = NP.resize(NP.array([]),(1 ,nx))
         self.mpc_control = NP.resize(NP.array([]),(1 ,nu))
+        self.mpc_other = NP.resize(NP.array([]),(1 ,no))
         self.mpc_alg = NP.resize(NP.array([]),(1, nz))
         self.mpc_time = NP.resize(NP.array([]),(1, 1))
         self.mpc_cost = NP.resize(NP.array([]),(1, 1))
@@ -56,6 +58,10 @@ class mpc_data:
 
         self.mpc_control[0,:] = configuration.model.ocp.u0 / configuration.model.ocp.u_scaling
         self.mpc_time[0] = 0
+        other_subs = substitute(configuration.model.other, configuration.model.x, self.mpc_states[0,:])
+        other_subs = substitute(other_subs, configuration.model.u, self.mpc_control[0,:])
+        # pdb.set_trace()
+        self.mpc_other[0,:] =  NP.squeeze(NP.array(IM(other_subs)))
 
 class opt_result:
     """ A class for the definition of the result of an optimization problem containing optimal solution, optimal cost and value of the nonlinear constraints"""
@@ -89,18 +95,21 @@ def plot_mpc(configuration):
     mpc_data = configuration.mpc_data
     mpc_states = mpc_data.mpc_states
     mpc_control = mpc_data.mpc_control
+    mpc_other = mpc_data.mpc_other
     mpc_time = mpc_data.mpc_time
     index_mpc = configuration.simulator.mpc_iteration
     plot_states = configuration.simulator.plot_states
     plot_control = configuration.simulator.plot_control
+    plot_other = configuration.simulator.plot_other
     x = configuration.model.x
     x_scaling = configuration.model.ocp.x_scaling
     u = configuration.model.u
     u_scaling = configuration.model.ocp.u_scaling
-
+    other = configuration.model.other
+    plot_other_tag = ["v_0","power"]
     plt.ion()
     fig = plt.figure(1)
-    total_subplots = len(plot_states) + len(plot_control)
+    total_subplots = len(plot_states) + len(plot_control) + len(plot_other) + 1
     # First plot the states
     for index in range(len(plot_states)):
     	plot = plt.subplot(total_subplots, 1, index + 1)
@@ -119,8 +128,31 @@ def plot_mpc(configuration):
     	plt.grid()
     	plot.yaxis.set_major_locator(MaxNLocator(4))
 
-
-
+    # Plot the other variables
+    for index in range(len(plot_other)):
+    	plot = plt.subplot(total_subplots, 1, len(plot_states) + len(plot_control) + index + 1)
+    	plt.plot(mpc_time[0:index_mpc], mpc_other[0:index_mpc,plot_other[index]])
+    	plt.ylabel(plot_other_tag[index])
+    	plt.xlabel("Time")
+    	plt.grid()
+    	plot.yaxis.set_major_locator(MaxNLocator(4))
+    # compute average power
+    t_s = configuration.simulator.t_step_simulator
+    av_power = NP.zeros((index_mpc,1))
+    # pdb.set_trace()
+    int_time =1
+    for i in range(index_mpc):
+        if i * t_s < int_time*2:
+            av_power[i,0] = 0
+        else:
+            av_power[i,0] = sum(mpc_other[i-int(int_time/t_s):i,plot_other[1]]*t_s)/int_time
+    # Plot the integrated power
+    plot = plt.subplot(total_subplots, 1, len(plot_states) + len(plot_control) + len(plot_other)+ 1)
+    plt.plot(mpc_time[0:index_mpc], av_power[0:index_mpc,0])
+    plt.ylabel("Average power")
+    plt.xlabel("Time")
+    plt.grid()
+    plot.yaxis.set_major_locator(MaxNLocator(4))
 def plot_state_pred(v,t0,el,lineop, n_scenarios, n_branches, nk, child_scenario, X_offset, x_scaling, t_step):
   # This function plots the prediction of a state
   #plt.clf()
