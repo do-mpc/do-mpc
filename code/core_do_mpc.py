@@ -54,6 +54,10 @@ class ocp:
         self.cons = param_dict["cons"]
         # Upper bounds (no lower bounds for nonlinear constraints)
         self.cons_ub = param_dict["cons_ub"]
+        # Symbolic nonlinear constraints for ZVS
+        self.cons_zvs = param_dict["cons_zvs"]
+        # Upper bounds (no lower bounds for nonlinear constraints)
+        self.cons_zvs_ub = param_dict["cons_zvs_ub"]
         # Terminal constraints
         self.cons_terminal = param_dict["cons_terminal"]
         self.cons_terminal_lb = param_dict["cons_terminal_lb"]
@@ -72,7 +76,7 @@ class model:
     """A class for the definition model equations and optimal control problem formulation"""
     def __init__(self, param_dict, *opt):
         # Assert for define length of param_dict
-        required_dimension = 31
+        required_dimension = 33
         if not (len(param_dict) == required_dimension):            raise Exception("Model / OCP information is incomplete. The number of elements in the dictionary is not correct")
         # Assign the main variables describing the model equations
         x = param_dict["x"]

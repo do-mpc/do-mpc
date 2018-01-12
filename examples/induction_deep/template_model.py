@@ -75,18 +75,20 @@ def model():
     """
     ## --- Algebraic equations ---
     # Half-bridge voltage using H harmonics
-    H = 100
+    H = 50
     v_0 = 0
-    # for index_harmonic in range(H):
-    # 	i_H = index_harmonic + 1
-    # 	v_0_ch = Vs/(i_H * pi) * sin(2 * pi * i_H * duty)
-    # 	v_0_sh = Vs/(i_H * pi) * (1 - cos(2 * pi * i_H * duty))
-    # 	v_0 += v_0_ch * cos(i_H * F*(2*pi) * my_time) + v_0_sh * sin(i_H * F*(2*pi) * my_time)
-    # #
-    # #
-    # v_0 += Vs * duty
+    for index_harmonic in range(H):
+    	i_H = index_harmonic + 1
+    	v_0_ch = Vs/(i_H * pi) * sin(2 * pi * i_H * duty)
+    	v_0_sh = Vs/(i_H * pi) * (1 - cos(2 * pi * i_H * duty))
+    	v_0 += v_0_ch * cos(i_H * F*(2*pi) * my_time) + v_0_sh * sin(i_H * F*(2*pi) * my_time)
+    #
+    #
+    v_0 += Vs * duty
     R_eq = R_eq * alpha
     v_switch = if_else(mod(my_time,1/F) > duty/F, 0, 1)
+    # v_switch = if_else(my_time > duty/F, 0, 1)
+    v_switch = -0.5*(tanh(100*(my_time*F - duty)) - 1.0)
     v_0 = Vs * v_switch
 
     power = v_0 * i_0
@@ -141,8 +143,8 @@ def model():
     z_ub = NP.array([])
 
     # Bounds on the control inputs. Use "inf" for unconstrained inputs
-    F_lb = F_max * 0.8;  	 F_ub = F_max*0.8;
-    duty_lb = 0.5; 	 duty_ub = 0.5;
+    F_lb = F_min;  	 F_ub = F_max*0.8;
+    duty_lb = 0.2; 	 duty_ub = 0.8;
 
 
     u_lb = NP.array([duty_lb, F_lb])
@@ -157,9 +159,16 @@ def model():
 
     # Other possibly nonlinear constraints in the form cons(x,u,p) <= cons_ub
     # Define the expresion of the constraint (leave it empty if not necessary)
-    cons = vertcat([])
+    cons = vertcat()
     # Define the lower and upper bounds of the constraint (leave it empty if not necessary)
     cons_ub = NP.array([])
+
+    # Define the terminal constraint (leave it empty if not necessary)
+    cons_zvs = vertcat(-power)
+    cons_zvs = vertcat()
+    # Define the lower and upper bounds of the constraint (leave it empty if not necessary)
+    cons_zvs_ub = NP.array([-1e-3])
+    cons_zvs_ub = NP.array([])
 
     # Activate if the nonlinear constraints should be implemented as soft constraints
     soft_constraint = 0
@@ -169,10 +178,11 @@ def model():
     maximum_violation = NP.array([0])
 
     # Define the terminal constraint (leave it empty if not necessary)
-    cons_terminal = vertcat()
+    cons_terminal = vertcat(i_0)
     # Define the lower and upper bounds of the constraint (leave it empty if not necessary)
-    cons_terminal_lb = NP.array([])
-    cons_terminal_ub = NP.array([])
+    cons_terminal_lb = NP.array([-50])
+    cons_terminal_ub = NP.array([0])
+
 
 
     """
@@ -182,13 +192,15 @@ def model():
     """
     # Define the cost function
     # Lagrange term
-    lterm =  (power*1e-6*F - 500)**2
-    #lterm =  - C_b
+    lterm =  power
     # Mayer term
-    mterm =  0
-    #mterm =  - C_b
+    # In this case mterm is the cost for any other goal different from power tracking
+    mterm =  0.001*F
+    #mterm =  0.00001*(F-F_min)**2
+
     # Penalty term for the control movements
-    rterm = NP.array([1., 1e-2])*0
+    rterm = NP.array([1., 0.02*1/F_max])*1
+    # rterm = NP.array([1., 0.02*1/F_max])*1
 
 
 
@@ -199,7 +211,8 @@ def model():
     """
     model_dict = {'x':_x,'u': _u, 'rhs':_xdot,'p': _p, 'z':_z, 'aes': _zdot,'x0': x0, 'z0':z0, 'x_lb': x_lb,'x_ub': x_ub, 'z_lb': z_lb,'z_ub': z_ub, 'u0':u0,
     'u_lb':u_lb, 'u_ub':u_ub, 'x_scaling':x_scaling, 'z_scaling':z_scaling, 'u_scaling':u_scaling, 'cons':cons, 'tv_p':_tv_p, 'other':_other,
-    "cons_ub": cons_ub, 'cons_terminal':cons_terminal, 'cons_terminal_lb': cons_terminal_lb, 'cons_terminal_ub':cons_terminal_ub, 'soft_constraint': soft_constraint, 'penalty_term_cons': penalty_term_cons, 'maximum_violation': maximum_violation, 'mterm': mterm,'lterm':lterm, 'rterm':rterm}
+    "cons_ub": cons_ub, 'cons_terminal':cons_terminal, 'cons_terminal_lb': cons_terminal_lb, 'cons_terminal_ub':cons_terminal_ub, 'soft_constraint': soft_constraint, 'penalty_term_cons': penalty_term_cons, 'maximum_violation': maximum_violation, 'mterm': mterm,'lterm':lterm, 'rterm':rterm,
+    'cons_zvs':cons_zvs, 'cons_zvs_ub':cons_zvs_ub}
 
     model = core_do_mpc.model(model_dict)
 

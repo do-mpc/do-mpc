@@ -40,17 +40,17 @@ def optimizer(model):
     # open_loop robust NMPC (1) or multi-stage NMPC (0). Only important if n_robust > 0
     open_loop = 0
     # Sampling time
-    t_step = 1
+    t_step = 1.0
     # Simulation time
     t_end = 10
     # Choose type of state discretization (collocation or multiple-shooting)
     state_discretization = 'collocation'
     # Degree of interpolating polynomials: 1 to 5
-    poly_degree = 1
+    poly_degree = 2
     # Collocation points: 'legendre' or 'radau'
     collocation = 'radau'
     # Number of finite elements per control interval
-    n_fin_elem = 100
+    n_fin_elem = 70
     # NLP Solver and linear solver
     nlp_solver = 'ipopt'
     qp_solver = 'qpoases'
@@ -90,7 +90,12 @@ def optimizer(model):
     n_tv_p = 2
     tv_p_values = NP.resize(NP.array([]),(number_steps,n_tv_p,n_horizon))
     for time_step in range (number_steps):
-        tv_param_1_values = NP.ones(n_horizon)
+        if time_step < 5000:
+            tv_param_1_values = 1000 * NP.ones(n_horizon)
+        elif time_step < 10000:
+            tv_param_1_values = 2000 * NP.ones(n_horizon)
+        else:
+            tv_param_1_values = 2000 * NP.ones(n_horizon)
         tv_param_2_values = NP.ones(n_horizon)
         tv_p_values[time_step] = NP.array([tv_param_1_values,tv_param_2_values])
     # Parameteres of the NLP which may vary along the time (For example a set point that varies at a given time)

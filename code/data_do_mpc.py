@@ -141,11 +141,20 @@ def plot_mpc(configuration):
     av_power = NP.zeros((index_mpc,1))
     # pdb.set_trace()
     int_time =1
-    for i in range(index_mpc):
-        if i * t_s < int_time*2:
-            av_power[i,0] = 0
-        else:
-            av_power[i,0] = sum(mpc_other[i-int(int_time/t_s):i,plot_other[1]]*t_s)/int_time
+    # index_now= 0
+    # for i in range(index_mpc-1):
+    #     if i * t_s < int_time*2:
+    #         av_power[i,0] = 0
+    #     elif mod(i,int(1/t_s)):
+    #         av_power[i,0] = sum(mpc_other[i-int(int_time/t_s):i,plot_other[1]]*t_s)/int_time
+    #         index_now = i
+    #     else:
+    #         av_power[i,0] = av_power[index_now,0]
+    # Alternative average power computation
+    steps_per_cycle = int(index_mpc/configuration.optimizer.t_end)
+    for i in range(configuration.optimizer.t_end):
+        # pdb.set_trace()
+        av_power[i*steps_per_cycle:(i+1)*steps_per_cycle,0] =  NP.mean(mpc_other[i*steps_per_cycle:(i+1)*steps_per_cycle,plot_other[1]])
     # Plot the integrated power
     plot = plt.subplot(total_subplots, 1, len(plot_states) + len(plot_control) + len(plot_other)+ 1)
     plt.plot(mpc_time[0:index_mpc], av_power[0:index_mpc,0])

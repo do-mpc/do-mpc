@@ -44,12 +44,14 @@ do-mpc: Definition of the do-mpc configuration
 
 # Import the user defined modules
 import template_model
+import template_model_sim
 import template_optimizer
 import template_observer
 import template_simulator
 
 # Create the objects for each module
 model_1 = template_model.model()
+# model_1_sim = template_model_sim.model()
 # Create an optimizer object based on the template and a model
 optimizer_1 = template_optimizer.optimizer(model_1)
 # Create an observer object based on the template and a model
@@ -75,6 +77,10 @@ while (configuration_1.simulator.t0_sim + configuration_1.simulator.t_step_simul
     do-mpc: Optimizer
     ----------------------------
     """
+    # Always reinitialize the "time" state for the optimization
+    X_offset = configuration_1.optimizer.nlp_dict_out['X_offset']
+    # configuration_1.optimizer.arg['lbx'][X_offset[0,0]+ 2] = 0
+    # configuration_1.optimizer.arg['ubx'][X_offset[0,0]+ 2] = 0
     # Make one optimizer step (solve the NLP)
     configuration_1.make_step_optimizer()
 
@@ -113,6 +119,11 @@ while (configuration_1.simulator.t0_sim + configuration_1.simulator.t_step_simul
         """
         # Plot animation if chosen in by the user
         data_do_mpc.plot_animation(configuration_1)
+
+    configuration_1.simulator.x0_sim[2] = 0
+    configuration_1.simulator.xf_sim[2] = 0
+    configuration_1.optimizer.arg['lbx'][X_offset[0,0]+ 2] = 0
+    configuration_1.optimizer.arg['ubx'][X_offset[0,0]+ 2] = 0
 
 """
 ------------------------------------------------------
