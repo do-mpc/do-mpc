@@ -595,17 +595,24 @@ def setup_nlp(model, optimizer):
 
           # Add extra constraints on all collocation points
           # Only on points where ZVS could occur (duty cycle between 0.2 and 0.8)
-          start_ni = int(ni * 0.2) # start with constraints at minimum 0.2 duty
+          start_ni = int(ni * 0.5) # start with constraints at minimum 0.2 duty
           end_ni = int(ni * 0.8) # start with constraints at minimum 0.2 duty
-          offset_ik = start_ni * (deg+1)
+          offset_ik = start_ni * (deg+1) * nx
+          offset_ik_bounds = nx + start_ni * (deg+1) * nx # skip also the initial cond.
+
           for i in range(start_ni , end_ni):
               for j in range(deg+1):
                   ik_ksbij = I[k,s,b][offset_ik : offset_ik + nx]
                   offset_ik += nx
                   [residual_zvs] = cfcn_zvs.call([ik_ksbij,U_ks,P_ksb])
-                  g.append(residual_zvs)
-                  lbg.append(NP.ones(cons_zvs.size1())*(-inf))
-                  ubg.append(cons_zvs_ub)
+                  if j == 0:
+                      g.append(residual_zvs)
+                      lbg.append(NP.ones(cons_zvs.size1())*(-inf))
+                      ubg.append(cons_zvs_ub)
+                  # Alternatively implement them as Bounds
+                  # NOTE: this does not work! because current should drop before 0.8!!
+                  # vars_lb[offset_ik_bounds] = 0 # bound only on current
+                  # offset_ik_bounds += nx
           # Add terminal constraints
           if k == nk - 1:
 			  [residual_terminal] = cfcn_terminal.call([xf_ksb,U_ks,P_ksb])

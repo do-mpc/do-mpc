@@ -164,10 +164,10 @@ def model():
     cons_ub = NP.array([])
 
     # Define the terminal constraint (leave it empty if not necessary)
-    cons_zvs = vertcat(-power)
+    # cons_zvs = vertcat(-power)
     cons_zvs = vertcat()
     # Define the lower and upper bounds of the constraint (leave it empty if not necessary)
-    cons_zvs_ub = NP.array([-1e-3])
+    # cons_zvs_ub = NP.array([50])
     cons_zvs_ub = NP.array([])
 
     # Activate if the nonlinear constraints should be implemented as soft constraints
@@ -180,7 +180,7 @@ def model():
     # Define the terminal constraint (leave it empty if not necessary)
     cons_terminal = vertcat(i_0)
     # Define the lower and upper bounds of the constraint (leave it empty if not necessary)
-    cons_terminal_lb = NP.array([-50])
+    cons_terminal_lb = NP.array([-inf])
     cons_terminal_ub = NP.array([0])
 
 
@@ -195,11 +195,12 @@ def model():
     lterm =  power
     # Mayer term
     # In this case mterm is the cost for any other goal different from power tracking
-    mterm =  0.001*F
+    mterm =  (F/F_min)**2
+    mterm =  100*(F/F_min)
     #mterm =  0.00001*(F-F_min)**2
 
     # Penalty term for the control movements
-    rterm = NP.array([1., 0.02*1/F_max])*1
+    rterm = NP.array([1., 0.001*1/F_max])*0
     # rterm = NP.array([1., 0.02*1/F_max])*1
 
 
