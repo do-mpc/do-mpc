@@ -39,9 +39,7 @@ def model():
     R_eq = 2.9   # Equivalent resistance [Ohm] Uncertainty: 50 %
     C_res = 1440e-9 # Uncertainty: 20 %
 
-    # Bounds on the frequency
-    F_min = 1.0/(2.0*pi*sqrt(L_eq*C_res))   #  [Hz]
-    F_max = 100.0e3							#  [Hz]
+
 
 
     """
@@ -75,17 +73,21 @@ def model():
     """
     ## --- Algebraic equations ---
     # Half-bridge voltage using H harmonics
-    H = 50
-    v_0 = 0
-    for index_harmonic in range(H):
-    	i_H = index_harmonic + 1
-    	v_0_ch = Vs/(i_H * pi) * sin(2 * pi * i_H * duty)
-    	v_0_sh = Vs/(i_H * pi) * (1 - cos(2 * pi * i_H * duty))
-    	v_0 += v_0_ch * cos(i_H * F*(2*pi) * my_time) + v_0_sh * sin(i_H * F*(2*pi) * my_time)
+    # H = 50
+    # v_0 = 0
+    # for index_harmonic in range(H):
+    # 	i_H = index_harmonic + 1
+    # 	v_0_ch = Vs/(i_H * pi) * sin(2 * pi * i_H * duty)
+    # 	v_0_sh = Vs/(i_H * pi) * (1 - cos(2 * pi * i_H * duty))
+    # 	v_0 += v_0_ch * cos(i_H * F*(2*pi) * my_time) + v_0_sh * sin(i_H * F*(2*pi) * my_time)
     #
     #
-    v_0 += Vs * duty
+    # v_0 += Vs * duty
+    # Bounds on the frequency
+    F_min = 1.0/(2.0*pi*sqrt(L_eq*C_res))   #  [Hz]
+    F_max = 100.0e3							#  [Hz]
     R_eq = R_eq * alpha
+    L_eq = L_eq * beta
     v_switch = if_else(mod(my_time,1/F) > duty/F, 0, 1)
     # v_switch = if_else(my_time > duty/F, 0, 1)
     v_switch = -0.5*(tanh(100*(my_time*F - duty)) - 1.0)

@@ -316,8 +316,8 @@ class configuration:
         param["uk_prev"] = self.optimizer.u_mpc
         step_index = int(self.simulator.t0_sim / self.simulator.t_step_simulator)
         # reset the value of uk_prev if the set point on the power has been changed
-        if self.optimizer.tv_p_values[step_index][0,0] != self.optimizer.tv_p_values[step_index-1][0,0]:
-            param["uk_prev"] = NP.array([0.5, self.model.ocp.u_lb[1]])
+        # if self.optimizer.tv_p_values[step_index][0,0] != self.optimizer.tv_p_values[step_index-1][0,0]:
+        #     param["uk_prev"] = NP.array([0.5, self.model.ocp.u_lb[1]])
         param["TV_P"] = self.optimizer.tv_p_values[step_index]
         # Enforce the observed states as initial point for next optimization
         self.optimizer.arg['lbx'][X_offset[0,0]:X_offset[0,0]+nx] = observed_states

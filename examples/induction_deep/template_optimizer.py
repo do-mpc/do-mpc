@@ -25,6 +25,7 @@ from casadi import *
 import numpy as NP
 import core_do_mpc
 
+
 def optimizer(model):
 
     """
@@ -50,7 +51,7 @@ def optimizer(model):
     # Collocation points: 'legendre' or 'radau'
     collocation = 'radau'
     # Number of finite elements per control interval
-    n_fin_elem = 70
+    n_fin_elem = 50
     # NLP Solver and linear solver
     nlp_solver = 'ipopt'
     qp_solver = 'qpoases'
@@ -91,9 +92,9 @@ def optimizer(model):
     tv_p_values = NP.resize(NP.array([]),(number_steps,n_tv_p,n_horizon))
     for time_step in range (number_steps):
         if time_step < 5000:
-            tv_param_1_values = 1500 * NP.ones(n_horizon)
+            tv_param_1_values = 1000 * NP.ones(n_horizon)
         elif time_step < 10000:
-            tv_param_1_values = 3500 * NP.ones(n_horizon)
+            tv_param_1_values = 2000 * NP.ones(n_horizon)
         else:
             tv_param_1_values = 2000 * NP.ones(n_horizon)
         tv_param_2_values = NP.ones(n_horizon)

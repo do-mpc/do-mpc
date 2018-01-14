@@ -158,6 +158,10 @@ def plot_mpc(configuration):
     # Plot the integrated power
     plot = plt.subplot(total_subplots, 1, len(plot_states) + len(plot_control) + len(plot_other)+ 1)
     plt.plot(mpc_time[0:index_mpc], av_power[0:index_mpc,0])
+    # Plot also the real set point in the power
+
+    set_point = configuration.optimizer.tv_p_values[0:index_mpc,0,0]
+    plt.plot(mpc_time[0:index_mpc], set_point, '--', linewidth=2)
     plt.ylabel("Average power")
     plt.xlabel("Time")
     plt.grid()
