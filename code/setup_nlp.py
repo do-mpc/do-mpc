@@ -93,7 +93,11 @@ def setup_nlp(model, optimizer):
     x_lb   = x_lb/x_scaling
     #for i in (x_ub,x_lb,x_init): i /= x_scaling
     xdot = substitute(xdot,x,x*x_scaling)/x_scaling
-    for i in (u_ub,u_lb,u_init): i /= u_scaling
+    # pdb.set_trace()
+    # for i in (u_ub,u_lb,u_init): i /= u_scaling
+    u_init = u_init/u_scaling
+    u_ub   = u_ub/u_scaling
+    u_lb   = u_lb/u_scaling
     xdot = substitute(xdot,u,u*u_scaling)
     if nz == 0:
         ffcn = Function('ffcn',[x,up,tv_p],[xdot])
@@ -541,7 +545,7 @@ def setup_nlp(model, optimizer):
             ifcn_out = ifcn(x0=X_ks,p=vertcat(U_ks,P_ksb))
             xf_ksb = ifcn_out['xf']
           elif state_discretization == 'discrete-time':
-            [xf_ksb] = ffcn.call([X_ks,vertcat(U_ks,P_ksb),TV_P])
+            [xf_ksb] = ffcn.call([X_ks,vertcat(U_ks,P_ksb),TV_P[:,k]])
           # Add continuity equation to NLP
           g.append(X[k+1,child_scenario[k][s][b]] - xf_ksb)
           lbg.append(NP.zeros(nx))
@@ -595,7 +599,6 @@ def setup_nlp(model, optimizer):
     #pdb.set_trace()
     lbg = vertcat(*lbg)
     ubg = vertcat(*ubg)
-
     nlp_fcn = {'f': J,'x': V,'p':parameters_setup_nlp,'g': g}
 
     nlp_dict_out = {'nlp_fcn':nlp_fcn,'X_offset':X_offset,'U_offset': U_offset,

@@ -272,8 +272,8 @@ class configuration:
         if self.optimizer.state_discretization == 'discrete-time':
             rhs_unscaled = substitute(self.model.rhs, self.model.x, self.model.x * self.model.ocp.x_scaling)/self.model.ocp.x_scaling
             rhs_unscaled = substitute(rhs_unscaled, self.model.u, self.model.u * self.model.ocp.u_scaling)
-            rhs_fcn = Function('rhs_fcn',[self.model.x,vertcat(self.model.u,self.model.p)],[rhs_unscaled])
-            x_next = rhs_fcn(self.simulator.x0_sim,vertcat(u_mpc,p_real))
+            rhs_fcn = Function('rhs_fcn',[self.model.x,vertcat(self.model.u,self.model.p,self.model.tv_p)],[rhs_unscaled])
+            x_next = rhs_fcn(self.simulator.x0_sim,vertcat(u_mpc,p_real,tv_p_real))
             self.simulator.xf_sim = NP.squeeze(NP.array(x_next))
         else:
         # Get sizes of the variables
