@@ -166,11 +166,11 @@ def model():
     cons_ub = NP.array([])
 
     # Define the terminal constraint (leave it empty if not necessary)
-    # cons_zvs = vertcat(-power)
-    cons_zvs = vertcat()
+    cons_zvs = vertcat(-power)
+    # cons_zvs = vertcat()
     # Define the lower and upper bounds of the constraint (leave it empty if not necessary)
-    # cons_zvs_ub = NP.array([50])
-    cons_zvs_ub = NP.array([])
+    cons_zvs_ub = NP.array([50])
+    # cons_zvs_ub = NP.array([])
 
     # Activate if the nonlinear constraints should be implemented as soft constraints
     soft_constraint = 0

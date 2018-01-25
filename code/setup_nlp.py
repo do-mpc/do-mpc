@@ -599,7 +599,7 @@ def setup_nlp(model, optimizer):
           end_ni = int(ni * 0.8) # start with constraints at minimum 0.2 duty
           offset_ik = start_ni * (deg+1) * nx
           offset_ik_bounds = nx + start_ni * (deg+1) * nx # skip also the initial cond.
-
+          # pdb.set_trace()
           for i in range(start_ni , end_ni):
               for j in range(deg+1):
                   ik_ksbij = I[k,s,b][offset_ik : offset_ik + nx]
