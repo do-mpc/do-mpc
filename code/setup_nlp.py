@@ -116,16 +116,21 @@ def setup_nlp(model, optimizer):
     cons_zvs = substitute(cons_zvs,x,x*x_scaling)
     cons_zvs = substitute(cons_zvs,u,u*u_scaling)
     if soft_constraint:
-        epsilon = SX.sym ("epsilon",cons_zvs.size1())
-        cons_zvs = cons_zvs - epsilon
-        cfcn_zvs = Function('cfcn_zvs', [x,u,p,epsilon],[cons_zvs])
+        epsilon_zvs = SX.sym ("epsilon_zvs",cons_zvs.size1())
+        cons_zvs = cons_zvs - epsilon_zvs
+        cfcn_zvs = Function('cfcn_zvs', [x,u,p,epsilon_zvs],[cons_zvs])
     else:
         cfcn_zvs = Function('cfcn_zvs', [x,u,p],[cons_zvs])
 
-
     cons_terminal = substitute(cons_terminal,x,x*x_scaling)
     cons_terminal = substitute(cons_terminal,u,u*u_scaling)
-    cfcn_terminal = Function('cfcn',[x,u,p],[cons_terminal])
+    soft_constraint_term = 0
+    if soft_constraint_term:
+        epsilon_terminal = SX.sym ("epsilon_terminal",cons_terminal.size1())
+        cons_terminal = cons_terminal - epsilon_terminal
+        cfcn_terminal = Function('cfcn_terminal',[x,u,p,epsilon_terminal],[cons_terminal])
+    else:
+        cfcn_terminal = Function('cfcn_terminal',[x,u,p],[cons_terminal])
     # Mayer term of the cost functions
     mterm = substitute(mterm,x,x*x_scaling)
     mterm = substitute(mterm,u,u*u_scaling)
@@ -188,19 +193,21 @@ def setup_nlp(model, optimizer):
 
       # Choose collocation points
       if coll=='legendre':    # Legendre collocation points
-        tau_root = (
-          [0,0.500000],
-          [0,0.211325,0.788675],
-          [0,0.112702,0.500000,0.887298],
-          [0,0.069432,0.330009,0.669991,0.930568],
-          [0,0.046910,0.230765,0.500000,0.769235,0.953090])[deg-1]
+        tau_root = [0]+collocation_points(deg, 'legendre')
+        # tau_root = (
+        #   [0,0.500000],
+        #   [0,0.211325,0.788675],
+        #   [0,0.112702,0.500000,0.887298],
+        #   [0,0.069432,0.330009,0.669991,0.930568],
+        #   [0,0.046910,0.230765,0.500000,0.769235,0.953090])[deg-1]
       elif coll=='radau':     # Radau collocation points
-        tau_root = (
-          [0,1.000000],
-          [0,0.333333,1.000000],
-          [0,0.155051,0.644949,1.000000],
-          [0,0.088588,0.409467,0.787659,1.000000],
-          [0,0.057104,0.276843,0.583590,0.860240,1.000000])[deg-1]
+        tau_root = [0]+collocation_points(deg, 'radau')
+        # tau_root = (
+        #   [0,1.000000],
+        #   [0,0.333333,1.000000],
+        #   [0,0.155051,0.644949,1.000000],
+        #   [0,0.088588,0.409467,0.787659,1.000000],
+        #   [0,0.057104,0.276843,0.583590,0.860240,1.000000])[deg-1]
       else:
         raise Exception('Unknown collocation scheme')
 
@@ -550,6 +557,8 @@ def setup_nlp(model, optimizer):
         # Initial state and control
         X_ks = X[k,s]
         U_ks = U[k,s]
+        # Control horizon = 1
+        # U_ks = U[0,s]
 
         # For all uncertainty realizations
         for b in range(n_branches[k]):
@@ -614,29 +623,32 @@ def setup_nlp(model, optimizer):
                   # vars_lb[offset_ik_bounds] = 0 # bound only on current
                   # offset_ik_bounds += nx
           # Add terminal constraints
-          if k == nk - 1:
-			  [residual_terminal] = cfcn_terminal.call([xf_ksb,U_ks,P_ksb])
-			  g.append(residual_terminal)
-			  lbg.append(cons_terminal_lb)
-			  ubg.append(cons_terminal_ub)
+          if k == nk - 1 or k < nk -1: # MODIFIED TO INCLUDE terminal constraints always
+              if soft_constraint_term:
+                  [residual_terminal] = cfcn_terminal.call([xf_ksb,U_ks,P_ksb, EPSILON])
+              else:
+                  [residual_terminal] = cfcn_terminal.call([xf_ksb,U_ks,P_ksb])
+    		  g.append(residual_terminal)
+    		  lbg.append(cons_terminal_lb)
+    		  ubg.append(cons_terminal_ub)
           # Add contribution to the cost
           if k < nk - 1:
               # Add the contribution of other costs
-              [J_ksb] = mfcn.call([xf_ksb,U_ks,P_ksb, TV_P])
+              [J_ksb] = mfcn.call([xf_ksb,U_ks,P_ksb, TV_P[:,k]])
               # Modification to include quadrature for the power computation
               J_power += ik_quad_ksb
               # [J_ksb] = lagrange_fcn.call([xf_ksb,U_ks,P_ksb, TV_P])
 
           else:
               # Add the contribution of other costs
-              [J_ksb] = mfcn.call([xf_ksb,U_ks,P_ksb, TV_P])
+              [J_ksb] = mfcn.call([xf_ksb,U_ks,P_ksb, TV_P[:,k]])
               # Modification to include quadrature for the power computation
               J_power += ik_quad_ksb
               # [J_ksb] = mfcn.call([xf_ksb,U_ks,P_ksb, TV_P])
           J += omega[k]*J_ksb
 
           # Add contribution to the cost of the soft constraints penalty term
-          if soft_constraint:
+          if soft_constraint_term:
               #pdb.set_trace()
               for index_soft in range(cons.size1()):
                   J_ksb_soft = penalty_term_cons[index_soft] * (EPSILON[index_soft])**2

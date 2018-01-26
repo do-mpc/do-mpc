@@ -306,6 +306,7 @@ class configuration:
     def prepare_next_iter(self):
         observed_states = self.observer.observed_states
         X_offset = self.optimizer.nlp_dict_out['X_offset']
+        U_offset = self.optimizer.nlp_dict_out['U_offset']
         nx = self.model.ocp.x0.size(1)
         nu = self.model.u.size(1)
         ntv_p = self.model.tv_p.size(1)
@@ -323,6 +324,7 @@ class configuration:
         self.optimizer.arg['lbx'][X_offset[0,0]:X_offset[0,0]+nx] = observed_states
         self.optimizer.arg['ubx'][X_offset[0,0]:X_offset[0,0]+nx] = observed_states
         self.optimizer.arg["x0"] = self.optimizer.opt_result_step.optimal_solution
+        # self.optimizer.arg["x0"][U_offset[0,0]:U_offset[0,0]+nu] = NP.reshape(NP.array([0.5, 70]),(-1,1))
         # Pass as parameter the used control input
         self.optimizer.arg['p'] = param
 

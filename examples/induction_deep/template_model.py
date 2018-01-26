@@ -84,21 +84,22 @@ def model():
     #
     # v_0 += Vs * duty
     # Bounds on the frequency
-    F_min = 1.0/(2.0*pi*sqrt(L_eq*C_res))   #  [Hz]
-    F_max = 100.0e3							#  [Hz]
+    F_min = 1.0/(2.0*pi*sqrt(L_eq*C_res))/1000   #  [Hz]
+    F_max = 100.0e3/1000							#  [Hz]
     R_eq = R_eq * alpha
     L_eq = L_eq * beta
-    v_switch = if_else(mod(my_time,1/F) > duty/F, 0, 1)
+    # v_switch = if_else(mod(my_time/10000,1/(F*1000)) > duty/(F*1000), 0, 1)
     # v_switch = if_else(my_time > duty/F, 0, 1)
-    v_switch = -0.5*(tanh(100*(my_time*F - duty)) - 1.0)
+    v_switch = -0.5*(tanh(100*(my_time/10000*F*1000 - duty)) - 1.0)
+    # v_switch = -0.5*(tanh(1e7*(mod(my_time/10000.0,1.0/(F*1000)) - duty/(F*1000))) - 1.0)
     v_0 = Vs * v_switch
 
     power = v_0 * i_0
     ## --- Differential equations ---
 
-    ddi_0 = 1/F * 1.0 / L_eq * (v_0 - R_eq*i_0 - v_C)
-    ddv_C = 1/F * 1.0 / C_res * (i_0)
-    ddmy_time = 1/F
+    ddi_0 = 1/(F*1000) * 1.0 / L_eq * (v_0 - R_eq*i_0 - v_C)
+    ddv_C = 1/(F*1000) * 1.0 / C_res * (i_0)
+    ddmy_time = 10000*1/(F*1000)
 
     # Concatenate differential states, algebraic states, control inputs and right-hand-sides
 
@@ -133,9 +134,9 @@ def model():
     z0 = NP.array([])
 
     # Bounds on the states. Use "inf" for unconstrained states
-    i_0_lb	= -100.0;				i_0_ub = +100.0
-    v_C_lb		= -300.0;				v_C_ub	 = +300.0
-    my_time_lb	= -0.1;						my_time_ub = 100
+    i_0_lb	= -200.0;				i_0_ub = +200.0
+    v_C_lb		= -1000.0;				v_C_ub	 = +1000.0
+    my_time_lb	= -0.0;						my_time_ub = 100
 
     x_lb  = NP.array([i_0_lb, v_C_lb, my_time_lb])
     x_ub  = NP.array([i_0_ub, v_C_ub, my_time_ub])
@@ -145,14 +146,14 @@ def model():
     z_ub = NP.array([])
 
     # Bounds on the control inputs. Use "inf" for unconstrained inputs
-    F_lb = F_min;  	 F_ub = F_max*0.8;
+    F_lb = F_min;  	 F_ub = F_max;
     duty_lb = 0.2; 	 duty_ub = 0.8;
 
 
     u_lb = NP.array([duty_lb, F_lb])
     u_ub = NP.array([duty_ub, F_ub])
 
-    u0 = NP.array([duty_lb, F_lb])
+    u0 = (u_lb + u_ub) /2.0 #NP.array([duty_lb, F_lb])
 
     # Scaling factors for the states and control inputs. Important if the system is ill-conditioned
     x_scaling = NP.array([1.0, 1.0, 1.0])
@@ -177,7 +178,7 @@ def model():
     # Penalty term to add in the cost function for the constraints (it should be the same size as cons)
     penalty_term_cons = NP.array([])
     # Maximum violation for the constraints
-    maximum_violation = NP.array([0])
+    maximum_violation = NP.array([])
 
     # Define the terminal constraint (leave it empty if not necessary)
     cons_terminal = vertcat(i_0)
@@ -197,8 +198,8 @@ def model():
     lterm =  power
     # Mayer term
     # In this case mterm is the cost for any other goal different from power tracking
-    mterm =  (F/F_min)**2
-    mterm =  100*(F/F_min)
+    # mterm =  (F/F_min)**2
+    mterm =  100*(F/F_min)*0
     #mterm =  0.00001*(F-F_min)**2
 
     # Penalty term for the control movements

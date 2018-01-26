@@ -43,7 +43,7 @@ def optimizer(model):
     # Sampling time
     t_step = 1.0
     # Simulation time
-    t_end = 10
+    t_end = 15
     # Choose type of state discretization (collocation or multiple-shooting)
     state_discretization = 'collocation'
     # Degree of interpolating polynomials: 1 to 5
@@ -71,8 +71,8 @@ def optimizer(model):
     --------------------------------------------------------------------------
     """
     # Define the different possible values of the uncertain parameters in the scenario tree
-    alpha_values = NP.array([1.0, 1.3, 0.7])
-    beta_values = NP.array([1.0, 1.1, 0.9])
+    alpha_values = NP.array([1.0, 1.0, 1.0])
+    beta_values = NP.array([1.0, 1.0, 1.0])
     uncertainty_values = NP.array([alpha_values,beta_values])
     # Parameteres of the NLP which may vary along the time (For example a set point that varies at a given time)
     set_point = SX.sym('set_point')
@@ -86,7 +86,7 @@ def optimizer(model):
     # Only necessary if time-varying paramters defined in the model
     # The length of the vector for each parameter should be the prediction horizon
     # The vectos for each parameter might chance at each sampling time
-    number_steps = int(t_end/t_step*1000.0) + 1
+    number_steps = int(t_end/t_step*10000.0) + 1
     # Number of time-varying parameters
     n_tv_p = 2
     tv_p_values = NP.resize(NP.array([]),(number_steps,n_tv_p,n_horizon))
@@ -96,7 +96,7 @@ def optimizer(model):
         elif time_step < 10000:
             tv_param_1_values = 2000 * NP.ones(n_horizon)
         else:
-            tv_param_1_values = 2000 * NP.ones(n_horizon)
+            tv_param_1_values = 1000 * NP.ones(n_horizon)
         tv_param_2_values = NP.ones(n_horizon)
         tv_p_values[time_step] = NP.array([tv_param_1_values,tv_param_2_values])
     # Parameteres of the NLP which may vary along the time (For example a set point that varies at a given time)
