@@ -67,7 +67,7 @@ configuration_1 = core_do_mpc.configuration(model_1, optimizer_1, observer_1, si
 configuration_1.setup_solver()
 index_mpc = 0
 index_stationary = 0
-
+index_transform = 0
 """
 ----------------------------
 do-mpc: MPC loop
@@ -80,17 +80,24 @@ while (configuration_1.simulator.t0_sim + configuration_1.simulator.t_step_simul
     do-mpc: Optimizer
     ----------------------------
     """
+
+
     # Always reinitialize the "time" state for the optimization
     X_offset = configuration_1.optimizer.nlp_dict_out['X_offset']
     # configuration_1.optimizer.arg['lbx'][X_offset[0,0]+ 2] = 0
     # configuration_1.optimizer.arg['ubx'][X_offset[0,0]+ 2] = 0
     # Make one optimizer step (solve the NLP)
     # if configuration_1.simulator.t0_sim == 0:
-    if index_stationary == 0 or index_stationary >= 0:
+    if mod(index_transform, 2) == 0:
+    # if index_transform == 0:
         configuration_1.make_step_optimizer()
-    if index_stationary < 0:
-        configuration_1.optimizer.u_mpc = NP.array([0.5,60])
-        index_stationary += 1
+    # configuration_1.optimizer.u_mpc = NP.array([0.5,60000])
+
+    # if index_stationary == 0 or index_stationary >= 5:
+    #     configuration_1.make_step_optimizer()
+    # if index_stationary < 5:
+    #     configuration_1.optimizer.u_mpc = NP.array([0.5,60000])
+    #     index_stationary += 1
 
     """
     ----------------------------
@@ -99,8 +106,13 @@ while (configuration_1.simulator.t0_sim + configuration_1.simulator.t_step_simul
     """
     # Simulate the system one step using the solution obtained in the optimization
     for index_sim in range(int(1/configuration_1.simulator.t_step_simulator)):
-        configuration_1.make_step_simulator()
 
+        if mod(index_transform, 2) == 1:
+            configuration_1.simulator.tv_p_real_now = NP.array([1.0,0.0])
+        else:
+            configuration_1.simulator.tv_p_real_now = NP.array([0,1.0])
+
+        configuration_1.make_step_simulator()
         """
         ----------------------------
         do-mpc: Observer
@@ -128,10 +140,11 @@ while (configuration_1.simulator.t0_sim + configuration_1.simulator.t_step_simul
         # Plot animation if chosen in by the user
         data_do_mpc.plot_animation(configuration_1)
 
-    configuration_1.simulator.x0_sim[2] = 0
-    configuration_1.simulator.xf_sim[2] = 0
-    configuration_1.optimizer.arg['lbx'][X_offset[0,0]+ 2] = 0
-    configuration_1.optimizer.arg['ubx'][X_offset[0,0]+ 2] = 0
+    # configuration_1.simulator.x0_sim[2] = 0
+    # configuration_1.simulator.xf_sim[2] = 0
+    # configuration_1.optimizer.arg['lbx'][X_offset[0,0]+ 2] = 0
+    # configuration_1.optimizer.arg['ubx'][X_offset[0,0]+ 2] = 0
+    index_transform += 1
     """
     ------------------------------------------------------
     do-mpc: Bias correction term

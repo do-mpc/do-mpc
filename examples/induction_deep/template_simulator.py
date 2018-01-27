@@ -33,7 +33,7 @@ def simulator(model):
     --------------------------------------------------------------------------
     """
     # Choose the simulator time step
-    t_step_simulator = 0.001
+    t_step_simulator = 0.005
     # Choose options for the integrator
     opts = {"abstol":1e-12,"reltol":1e-12, "exact_jacobian":True, 'tf':t_step_simulator}
     # Choose integrator: for example 'cvodes' for ODEs or 'idas' for DAEs
@@ -59,7 +59,7 @@ def simulator(model):
     """
 
     # Choose the indices of the states to plot
-    plot_states = [0,1,2]
+    plot_states = [0,1]
     # Choose the indices of the controls to plot
     plot_control = [0, 1]
     # Choose other varialbes to plot

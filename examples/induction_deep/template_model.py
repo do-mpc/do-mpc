@@ -33,7 +33,7 @@ def model():
     """
 
     # Possibly uncertain parameters (some will be overwritten) and constants
-    Vs = 230 		# Bus Voltage [V]
+    Vs = 230.0 		# Bus Voltage [V]
 
     L_eq = 19.0e-6 # Equivalent inductance [H] Uncertainty: 50 %
     R_eq = 2.9   # Equivalent resistance [Ohm] Uncertainty: 50 %
@@ -79,37 +79,39 @@ def model():
     # 	i_H = index_harmonic + 1
     # 	v_0_ch = Vs/(i_H * pi) * sin(2 * pi * i_H * duty)
     # 	v_0_sh = Vs/(i_H * pi) * (1 - cos(2 * pi * i_H * duty))
-    # 	v_0 += v_0_ch * cos(i_H * F*(2*pi) * my_time) + v_0_sh * sin(i_H * F*(2*pi) * my_time)
+    # 	v_0 += v_0_ch * cos(i_H * F*1000*(2*pi) * my_time/10000) + v_0_sh * sin(i_H * F*1000*(2*pi) * my_time/10000)
     #
-    #
+
     # v_0 += Vs * duty
     # Bounds on the frequency
-    F_min = 1.0/(2.0*pi*sqrt(L_eq*C_res))/1000   #  [Hz]
-    F_max = 100.0e3/1000							#  [Hz]
+    F_min = 1.0/(2.0*pi*sqrt(L_eq*C_res))/1000.0   #  [Hz]
+    F_max = 100.0e3 /1000.0						#  [Hz]
     R_eq = R_eq * alpha
     L_eq = L_eq * beta
     # v_switch = if_else(mod(my_time/10000,1/(F*1000)) > duty/(F*1000), 0, 1)
     # v_switch = if_else(my_time > duty/F, 0, 1)
-    v_switch = -0.5*(tanh(100*(my_time/10000*F*1000 - duty)) - 1.0)
+    v_switch = -0.5*(tanh(50*(my_time*F - duty)) - 1.0)
     # v_switch = -0.5*(tanh(1e7*(mod(my_time/10000.0,1.0/(F*1000)) - duty/(F*1000))) - 1.0)
+
+    v_switch = tv_param_2
     v_0 = Vs * v_switch
 
     power = v_0 * i_0
     ## --- Differential equations ---
 
-    ddi_0 = 1/(F*1000) * 1.0 / L_eq * (v_0 - R_eq*i_0 - v_C)
-    ddv_C = 1/(F*1000) * 1.0 / C_res * (i_0)
-    ddmy_time = 10000*1/(F*1000)
+    ddi_0 = (tv_param_2 * duty/(F*1000) + (1-tv_param_2) * (1-duty)/(F*1000))  * 1.0 / L_eq * (v_0 - R_eq*i_0 - v_C)
+    ddv_C = (tv_param_2 * duty/(F*1000) + (1-tv_param_2) * (1-duty)/(F*1000)) * 1.0 / C_res * (i_0)
+    ddmy_time = tv_param_2 * duty/(F) + (1-tv_param_2) * (1-duty)/(F)
 
     # Concatenate differential states, algebraic states, control inputs and right-hand-sides
 
-    _x = vertcat(i_0, v_C, my_time)
+    _x = vertcat(i_0, v_C)
 
     _z = vertcat([])
 
     _u = vertcat(duty, F)
 
-    _xdot = vertcat(ddi_0, ddv_C, ddmy_time)
+    _xdot = vertcat(ddi_0, ddv_C)
 
     _zdot = vertcat([])
 
@@ -129,7 +131,7 @@ def model():
     v_C_0	= 0
     my_time_0 = 0
     # Compose initial state
-    x0  = NP.array([i_0_0, v_C_0, my_time_0])
+    x0  = NP.array([i_0_0, v_C_0])
     # No algebraic states
     z0 = NP.array([])
 
@@ -138,8 +140,8 @@ def model():
     v_C_lb		= -1000.0;				v_C_ub	 = +1000.0
     my_time_lb	= -0.0;						my_time_ub = 100
 
-    x_lb  = NP.array([i_0_lb, v_C_lb, my_time_lb])
-    x_ub  = NP.array([i_0_ub, v_C_ub, my_time_ub])
+    x_lb  = NP.array([i_0_lb, v_C_lb])
+    x_ub  = NP.array([i_0_ub, v_C_ub])
 
     # No algebraic states
     z_lb = NP.array([])
@@ -147,16 +149,17 @@ def model():
 
     # Bounds on the control inputs. Use "inf" for unconstrained inputs
     F_lb = F_min;  	 F_ub = F_max;
-    duty_lb = 0.2; 	 duty_ub = 0.8;
+    # F_lb = 50.0;  	 F_ub = 50.0;
+    duty_lb = 0.5; 	 duty_ub = 0.5;
 
 
     u_lb = NP.array([duty_lb, F_lb])
     u_ub = NP.array([duty_ub, F_ub])
 
-    u0 = (u_lb + u_ub) /2.0 #NP.array([duty_lb, F_lb])
+    u0 = (u_lb + u_ub) / 2.0 #NP.array([duty_lb, F_lb])
 
     # Scaling factors for the states and control inputs. Important if the system is ill-conditioned
-    x_scaling = NP.array([1.0, 1.0, 1.0])
+    x_scaling = NP.array([1.0, 1.0])
     z_scaling = NP.array([])
     u_scaling = NP.array([1.0, 1.0])
 
@@ -167,11 +170,11 @@ def model():
     cons_ub = NP.array([])
 
     # Define the terminal constraint (leave it empty if not necessary)
-    cons_zvs = vertcat(-power)
-    # cons_zvs = vertcat()
+    # cons_zvs = vertcat(-power)
+    cons_zvs = vertcat()
     # Define the lower and upper bounds of the constraint (leave it empty if not necessary)
-    cons_zvs_ub = NP.array([50])
-    # cons_zvs_ub = NP.array([])
+    # cons_zvs_ub = NP.array([50])
+    cons_zvs_ub = NP.array([])
 
     # Activate if the nonlinear constraints should be implemented as soft constraints
     soft_constraint = 0
@@ -184,7 +187,7 @@ def model():
     cons_terminal = vertcat(i_0)
     # Define the lower and upper bounds of the constraint (leave it empty if not necessary)
     cons_terminal_lb = NP.array([-inf])
-    cons_terminal_ub = NP.array([0])
+    cons_terminal_ub = NP.array([+inf])
 
 
 
@@ -203,7 +206,7 @@ def model():
     #mterm =  0.00001*(F-F_min)**2
 
     # Penalty term for the control movements
-    rterm = NP.array([1., 0.001*1/F_max])*0
+    rterm = NP.array([1., 0.001])*0
     # rterm = NP.array([1., 0.02*1/F_max])*1
 
 

@@ -226,7 +226,7 @@ class configuration:
         opts["expand"] = True
         opts["ipopt.linear_solver"] = self.optimizer.linear_solver
         #NOTE: this could be passed as parameters of the optimizer class
-        opts["ipopt.max_iter"] = 500
+        opts["ipopt.max_iter"] = 2000
         opts["ipopt.tol"] = 1e-5
         # Setup the solver
         solver = nlpsol("solver", self.optimizer.nlp_solver, nlp_dict_out['nlp_fcn'], opts)
@@ -274,7 +274,10 @@ class configuration:
         u_mpc = self.optimizer.u_mpc
         # Use the real parameters
         p_real = self.simulator.p_real_now(self.simulator.t0_sim)
-        tv_p_real = self.simulator.tv_p_real_now(self.simulator.t0_sim)
+        # tv_p_real = self.simulator.tv_p_real_now(self.simulator.t0_sim)
+        # NOTE This has been changed to simulate 2 steps (on and off periods)
+        tv_p_real = self.simulator.tv_p_real_now
+        # pdb.set_trace()
         if self.optimizer.state_discretization == 'discrete-time':
             rhs_unscaled = substitute(self.model.rhs, self.model.x, self.model.x * self.model.ocp.x_scaling)/self.model.ocp.x_scaling
             rhs_unscaled = substitute(rhs_unscaled, self.model.u, self.model.u * self.model.ocp.u_scaling)
@@ -344,5 +347,8 @@ class configuration:
         data.mpc_parameters = NP.append(data.mpc_parameters, [self.simulator.p_real_now(self.simulator.t0_sim)], axis = 0)
 
         other_subs = substitute(self.model.other, self.model.x, self.simulator.xf_sim)
+        # pdb.set_trace()
+        other_subs = substitute(other_subs, self.model.tv_p, self.simulator.tv_p_real_now)
         other_subs = NP.squeeze(IM(substitute(other_subs, self.model.u, self.optimizer.u_mpc)))
+
         data.mpc_other = NP.append(data.mpc_other, [other_subs], axis = 0)

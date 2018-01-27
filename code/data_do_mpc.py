@@ -61,6 +61,8 @@ class mpc_data:
         other_subs = substitute(configuration.model.other, configuration.model.x, self.mpc_states[0,:])
         other_subs = substitute(other_subs, configuration.model.u, self.mpc_control[0,:])
         # pdb.set_trace()
+        other_subs = substitute(other_subs, configuration.model.tv_p, configuration.optimizer.tv_p_values[0,:,0])
+
         self.mpc_other[0,:] =  NP.squeeze(NP.array(IM(other_subs)))
 
 class opt_result:
@@ -151,8 +153,8 @@ def plot_mpc(configuration):
     #     else:
     #         av_power[i,0] = av_power[index_now,0]
     # Alternative average power computation
-    steps_per_cycle = int(index_mpc/configuration.optimizer.t_end)
-    for i in range(configuration.optimizer.t_end):
+    steps_per_cycle = int(index_mpc/configuration.optimizer.t_end)*2
+    for i in range(configuration.optimizer.t_end*2):
         # pdb.set_trace()
         av_power[i*steps_per_cycle:(i+1)*steps_per_cycle,0] =  NP.mean(mpc_other[i*steps_per_cycle:(i+1)*steps_per_cycle,plot_other[1]])
     # Plot the integrated power

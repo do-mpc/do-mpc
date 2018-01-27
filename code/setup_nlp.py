@@ -111,7 +111,7 @@ def setup_nlp(model, optimizer):
         cons = cons - epsilon
         cfcn = Function('cfcn', [x,u,p,epsilon],[cons])
     else:
-        cfcn = Function('cfcn', [x,u,p],[cons])
+        cfcn = Function('cfcn', [x,u,p, tv_p],[cons])
     # ZVS constraints
     cons_zvs = substitute(cons_zvs,x,x*x_scaling)
     cons_zvs = substitute(cons_zvs,u,u*u_scaling)
@@ -120,7 +120,7 @@ def setup_nlp(model, optimizer):
         cons_zvs = cons_zvs - epsilon_zvs
         cfcn_zvs = Function('cfcn_zvs', [x,u,p,epsilon_zvs],[cons_zvs])
     else:
-        cfcn_zvs = Function('cfcn_zvs', [x,u,p],[cons_zvs])
+        cfcn_zvs = Function('cfcn_zvs', [x,u,p, tv_p],[cons_zvs])
 
     cons_terminal = substitute(cons_terminal,x,x*x_scaling)
     cons_terminal = substitute(cons_terminal,u,u*u_scaling)
@@ -130,7 +130,7 @@ def setup_nlp(model, optimizer):
         cons_terminal = cons_terminal - epsilon_terminal
         cfcn_terminal = Function('cfcn_terminal',[x,u,p,epsilon_terminal],[cons_terminal])
     else:
-        cfcn_terminal = Function('cfcn_terminal',[x,u,p],[cons_terminal])
+        cfcn_terminal = Function('cfcn_terminal',[x,u,p, tv_p],[cons_terminal])
     # Mayer term of the cost functions
     mterm = substitute(mterm,x,x*x_scaling)
     mterm = substitute(mterm,u,u*u_scaling)
@@ -587,6 +587,14 @@ def setup_nlp(model, optimizer):
           elif state_discretization == 'discrete-time':
             [xf_ksb] = ffcn.call([X_ks,vertcat(U_ks,P_ksb),TV_P])
           # Add continuity equation to NLP
+          # NOTE: Modified to reset time at each sampling time
+          # g.append(X[k+1,child_scenario[k][s][b]][0:2] - xf_ksb[0:2])
+          # lbg.append(NP.zeros(nx-1))
+          # ubg.append(NP.zeros(nx-1))
+          # g.append(X[k+1,child_scenario[k][s][b]][2])
+          # lbg.append(NP.zeros(1))
+          # ubg.append(NP.zeros(1))
+
           g.append(X[k+1,child_scenario[k][s][b]] - xf_ksb)
           lbg.append(NP.zeros(nx))
           ubg.append(NP.zeros(nx))
@@ -597,7 +605,7 @@ def setup_nlp(model, optimizer):
               [residual] = cfcn.call([xf_ksb,U_ks,P_ksb, EPSILON])
               # FIXME constraints con collocation points should be added!
           else:
-              [residual] = cfcn.call([xf_ksb,U_ks,P_ksb])
+              [residual] = cfcn.call([xf_ksb,U_ks,P_ksb, TV_P[:,k]])
           g.append(residual)
           lbg.append(NP.ones(cons.size1())*(-inf))
           ubg.append(cons_ub)
@@ -613,7 +621,7 @@ def setup_nlp(model, optimizer):
               for j in range(deg+1):
                   ik_ksbij = I[k,s,b][offset_ik : offset_ik + nx]
                   offset_ik += nx
-                  [residual_zvs] = cfcn_zvs.call([ik_ksbij,U_ks,P_ksb])
+                  [residual_zvs] = cfcn_zvs.call([ik_ksbij,U_ks,P_ksb, TV_P[:,k]])
                   if j == 0:
                       g.append(residual_zvs)
                       lbg.append(NP.ones(cons_zvs.size1())*(-inf))
@@ -623,11 +631,11 @@ def setup_nlp(model, optimizer):
                   # vars_lb[offset_ik_bounds] = 0 # bound only on current
                   # offset_ik_bounds += nx
           # Add terminal constraints
-          if k == nk - 1 or k < nk -1: # MODIFIED TO INCLUDE terminal constraints always
+          if k == nk - 1:
               if soft_constraint_term:
                   [residual_terminal] = cfcn_terminal.call([xf_ksb,U_ks,P_ksb, EPSILON])
               else:
-                  [residual_terminal] = cfcn_terminal.call([xf_ksb,U_ks,P_ksb])
+                  [residual_terminal] = cfcn_terminal.call([xf_ksb,U_ks,P_ksb, TV_P[:,k]])
     		  g.append(residual_terminal)
     		  lbg.append(cons_terminal_lb)
     		  ubg.append(cons_terminal_ub)
@@ -636,14 +644,15 @@ def setup_nlp(model, optimizer):
               # Add the contribution of other costs
               [J_ksb] = mfcn.call([xf_ksb,U_ks,P_ksb, TV_P[:,k]])
               # Modification to include quadrature for the power computation
-              J_power += ik_quad_ksb
+              J_power += ik_quad_ksb / (1- U_ks[0])
               # [J_ksb] = lagrange_fcn.call([xf_ksb,U_ks,P_ksb, TV_P])
 
           else:
+              # pass
               # Add the contribution of other costs
               [J_ksb] = mfcn.call([xf_ksb,U_ks,P_ksb, TV_P[:,k]])
               # Modification to include quadrature for the power computation
-              J_power += ik_quad_ksb
+              J_power += ik_quad_ksb / (2.0)
               # [J_ksb] = mfcn.call([xf_ksb,U_ks,P_ksb, TV_P])
           J += omega[k]*J_ksb
 
@@ -671,6 +680,11 @@ def setup_nlp(model, optimizer):
 				g.append(U[kk,ss] - U[kk,ss+1])
 				lbg.append(NP.zeros(nu))
 				ubg.append(NP.zeros(nu))
+    # Add constraitns for control horizon
+    # for kk in range(1,nk,2):
+    #     g.append(U[kk,0] - U[kk-1,0])
+    #     lbg.append(NP.zeros(nu))
+    #     ubg.append(NP.zeros(nu))
     # Concatenate constraints
     g = vertcat(*g)
     #pdb.set_trace()
