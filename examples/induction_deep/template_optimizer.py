@@ -43,11 +43,11 @@ def optimizer(model):
     # Sampling time
     t_step = 1.0
     # Simulation time
-    t_end = 20
+    t_end = 30
     # Choose type of state discretization (collocation or multiple-shooting)
     state_discretization = 'collocation'
     # Degree of interpolating polynomials: 1 to 5
-    poly_degree = 3
+    poly_degree = 2
     # Collocation points: 'legendre' or 'radau'
     collocation = 'radau'
     # Number of finite elements per control interval
@@ -91,10 +91,10 @@ def optimizer(model):
     n_tv_p = 2
     tv_p_values = NP.resize(NP.array([]),(number_steps,n_tv_p,n_horizon))
     for time_step in range (number_steps):
-        if time_step < 5000:
-            tv_param_1_values = 2000 * NP.ones(n_horizon)
-        elif time_step < 10000:
-            tv_param_1_values = 2000 * NP.ones(n_horizon)
+        if time_step < 4000:
+            tv_param_1_values = 3000 * NP.ones(n_horizon)
+        elif time_step < 6000:
+            tv_param_1_values = 1500 * NP.ones(n_horizon)
         else:
             tv_param_1_values = 3000 * NP.ones(n_horizon)
         tv_param_2_values = NP.tile(NP.array([1.0,0.0]),int(n_horizon/2))

@@ -150,7 +150,7 @@ def model():
     # Bounds on the control inputs. Use "inf" for unconstrained inputs
     F_lb = F_min;  	 F_ub = F_max;
     # F_lb = 50.0;  	 F_ub = 50.0;
-    duty_lb = 0.5; 	 duty_ub = 0.5;
+    duty_lb = 0.2; 	 duty_ub = 0.8;
 
 
     u_lb = NP.array([duty_lb, F_lb])
@@ -187,7 +187,7 @@ def model():
     cons_terminal = vertcat(i_0)
     # Define the lower and upper bounds of the constraint (leave it empty if not necessary)
     cons_terminal_lb = NP.array([-inf])
-    cons_terminal_ub = NP.array([inf])
+    cons_terminal_ub = NP.array([0])
 
 
 
@@ -202,9 +202,9 @@ def model():
     # Mayer term
     # In this case mterm is the cost for any other goal different from power tracking
     # mterm =  (F/F_min)**2
-    mterm =  0 * 0.001*(F/F_min-1)**2
-    #mterm =  0.00001*(F-F_min)**2
-
+    mterm =  0.00001*(F/F_min-1)**2
+    # mterm =  0.00001*(F-F_min)**2
+    # mterm =  0.001*F
     # Penalty term for the control movements
     rterm = NP.array([1., 0.1])*0.0
     # rterm = NP.array([1., 0.02*1/F_max])*1

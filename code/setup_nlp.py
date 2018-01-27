@@ -308,7 +308,7 @@ def setup_nlp(model, optimizer):
       xkf = ik[offset:offset+nx]
       # Add the quadrature for the first collocation point
       [ik_quad_] = lagrange_fcn.call([ik_split[0,0],uk,pk, tv_pk])
-      # ik_quad += ik_quad_ * (T[0,0,1] - T[0,0,0])
+      ik_quad += ik_quad_ * (T[0,0,1] - T[0,0,0])
       # Add the initial condition
       ik_init[offset:offset+nx] = NP.asarray(x_init)[:,0]
 
@@ -612,20 +612,20 @@ def setup_nlp(model, optimizer):
 
           # Add extra constraints on all collocation points
           # Only on points where ZVS could occur (duty cycle between 0.2 and 0.8)
-          start_ni = int(ni * 0.5) # start with constraints at minimum 0.2 duty
-          end_ni = int(ni * 0.8) # start with constraints at minimum 0.2 duty
-          offset_ik = start_ni * (deg+1) * nx
-          offset_ik_bounds = nx + start_ni * (deg+1) * nx # skip also the initial cond.
-          # pdb.set_trace()
-          for i in range(start_ni , end_ni):
-              for j in range(deg+1):
-                  ik_ksbij = I[k,s,b][offset_ik : offset_ik + nx]
-                  offset_ik += nx
-                  [residual_zvs] = cfcn_zvs.call([ik_ksbij,U_ks,P_ksb, TV_P[:,k]])
-                  if j == 0:
-                      g.append(residual_zvs)
-                      lbg.append(NP.ones(cons_zvs.size1())*(-inf))
-                      ubg.append(cons_zvs_ub)
+          # start_ni = int(ni * 0.5) # start with constraints at minimum 0.2 duty
+          # end_ni = int(ni * 0.8) # start with constraints at minimum 0.2 duty
+          # offset_ik = start_ni * (deg+1) * nx
+          # offset_ik_bounds = nx + start_ni * (deg+1) * nx # skip also the initial cond.
+          # # pdb.set_trace()
+          # for i in range(start_ni , end_ni):
+          #     for j in range(deg+1):
+          #         ik_ksbij = I[k,s,b][offset_ik : offset_ik + nx]
+          #         offset_ik += nx
+          #         [residual_zvs] = cfcn_zvs.call([ik_ksbij,U_ks,P_ksb, TV_P[:,k]])
+          #         if j == 0:
+          #             g.append(residual_zvs)
+          #             lbg.append(NP.ones(cons_zvs.size1())*(-inf))
+          #             ubg.append(cons_zvs_ub)
                   # Alternatively implement them as Bounds
                   # NOTE: this does not work! because current should drop before 0.8!!
                   # vars_lb[offset_ik_bounds] = 0 # bound only on current
@@ -639,14 +639,15 @@ def setup_nlp(model, optimizer):
     		  g.append(residual_terminal)
     		  lbg.append(cons_terminal_lb)
     		  ubg.append(cons_terminal_ub)
+              # J_power = ((ik_quad_ksb*U[k,s][0] - 2000)/1e3)**2
           elif mod(k,2) == 0: # ON part
                 [residual_terminal] = cfcn_terminal.call([xf_ksb,U_ks,P_ksb, TV_P[:,k]])
                 g.append(residual_terminal)
-                lbg.append(NP.array([-inf]))
-                ubg.append(NP.array([inf]))
+                lbg.append(-cons_terminal_ub) # this is 0
+                ubg.append(-cons_terminal_lb) # this is +inf
                 if k == k:
                     J_power = ((ik_quad_ksb*U[k,s][0] - TV_P[0,k])/1e3)**2
-                    J_power = ((ik_quad_ksb*U[k,s][0] - 2000)/1e3)**2
+                    # J_power = ((ik_quad_ksb*U[k,s][0] - 2000)/1e3)**2
           # Add contribution to the cost
           # if k < nk - 1:
           #     # Add the contribution of other costs
@@ -692,10 +693,10 @@ def setup_nlp(model, optimizer):
 				lbg.append(NP.zeros(nu))
 				ubg.append(NP.zeros(nu))
     # Add constraitns for control horizon
-    for kk in range(1,nk):
-        g.append(U[kk,0][1] - U[kk-1,0][1])
-        lbg.append(NP.zeros(nu-1))
-        ubg.append(NP.zeros(nu-1))
+    for kk in range(1,nk,2):
+        g.append(U[kk,0][:] - U[kk-1,0][:])
+        lbg.append(NP.zeros(nu))
+        ubg.append(NP.zeros(nu))
     # Concatenate constraints
     g = vertcat(*g)
     #pdb.set_trace()

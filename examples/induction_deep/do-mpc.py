@@ -98,10 +98,10 @@ while (configuration_1.simulator.t0_sim + configuration_1.simulator.t_step_simul
         # aux_do_mpc.check_collocation_accuracy(configuration_1)
     # configuration_1.optimizer.u_mpc = NP.array([0.5,60000])
 
-    if index_stationary == 0 or index_stationary >= 5:
+    if index_stationary == 0 or index_stationary >= 0:
         # aux_do_mpc.check_collocation_accuracy(configuration_1)
         configuration_1.make_step_optimizer()
-    if index_stationary < 5:
+    if index_stationary < 0:
         configuration_1.optimizer.u_mpc = NP.array([0.5,60])
         index_stationary += 1
 
@@ -111,46 +111,47 @@ while (configuration_1.simulator.t0_sim + configuration_1.simulator.t_step_simul
     ----------------------------
     """
     # Simulate the system one step using the solution obtained in the optimization
-    for index_sim in range(int(1/configuration_1.simulator.t_step_simulator)):
+    for on_off_states in range(2):
+        for index_sim in range(int(1/configuration_1.simulator.t_step_simulator)):
 
-        if mod(index_transform, 2) == 1:
-            configuration_1.simulator.tv_p_real_now = NP.array([1.0,0.0])
-        else:
-            configuration_1.simulator.tv_p_real_now = NP.array([0,1.0])
+            if mod(index_transform, 2) == 1:
+                configuration_1.simulator.tv_p_real_now = NP.array([1.0,0.0])
+            else:
+                configuration_1.simulator.tv_p_real_now = NP.array([0,1.0])
 
-        configuration_1.make_step_simulator()
-        """
-        ----------------------------
-        do-mpc: Observer
-        ----------------------------
-        """
-        # Make one observer step
-        configuration_1.make_step_observer()
+            configuration_1.make_step_simulator()
+            """
+            ----------------------------
+            do-mpc: Observer
+            ----------------------------
+            """
+            # Make one observer step
+            configuration_1.make_step_observer()
 
-        """
-        ------------------------------------------------------
-        do-mpc: Prepare next iteration and store information
-        ------------------------------------------------------
-        """
-        # Store the information
-        configuration_1.store_mpc_data()
+            """
+            ------------------------------------------------------
+            do-mpc: Prepare next iteration and store information
+            ------------------------------------------------------
+            """
+            # Store the information
+            configuration_1.store_mpc_data()
 
-        # Set initial condition constraint for the next iteration
-        configuration_1.prepare_next_iter()
+            # Set initial condition constraint for the next iteration
+            configuration_1.prepare_next_iter()
 
-        """
-        ------------------------------------------------------
-        do-mpc: Plot MPC animation if chosen by the user
-        ------------------------------------------------------
-        """
-        # Plot animation if chosen in by the user
-        data_do_mpc.plot_animation(configuration_1)
+            """
+            ------------------------------------------------------
+            do-mpc: Plot MPC animation if chosen by the user
+            ------------------------------------------------------
+            """
+            # Plot animation if chosen in by the user
+            data_do_mpc.plot_animation(configuration_1)
 
-    # configuration_1.simulator.x0_sim[2] = 0
-    # configuration_1.simulator.xf_sim[2] = 0
-    # configuration_1.optimizer.arg['lbx'][X_offset[0,0]+ 2] = 0
-    # configuration_1.optimizer.arg['ubx'][X_offset[0,0]+ 2] = 0
-    index_transform += 1
+        # configuration_1.simulator.x0_sim[2] = 0
+        # configuration_1.simulator.xf_sim[2] = 0
+        # configuration_1.optimizer.arg['lbx'][X_offset[0,0]+ 2] = 0
+        # configuration_1.optimizer.arg['ubx'][X_offset[0,0]+ 2] = 0
+        index_transform += 1
     """
     ------------------------------------------------------
     do-mpc: Bias correction term
@@ -173,9 +174,16 @@ while (configuration_1.simulator.t0_sim + configuration_1.simulator.t_step_simul
         # load original tv_param
         tv_p_values_original = configuration_1.optimizer.tv_p_values[step_index]
         # Compute the bias term
+        # steps_per_cycle = int(index_mpc/configuration.optimizer.t_end)*2
+        # steps_active = steps_per_cycle / 2
+        # for i in range(configuration.optimizer.t_end/2):
+        #     # pdb.set_trace()
+        #     av_power[i*steps_per_cycle:(i+1)*steps_per_cycle,0] = NP.mean((mpc_control[i*steps_per_cycle,0]) * mpc_other[i*steps_per_cycle:(i)*steps_per_cycle + steps_active,plot_other[1]])
         mpc_other = configuration_1.mpc_data.mpc_other
-        steps_per_cycle = int(1/configuration_1.simulator.t_step_simulator)
-        meas_power = NP.mean(mpc_other[index_mpc*steps_per_cycle:(index_mpc+1)*steps_per_cycle,1])
+        steps_per_cycle = int(2/configuration_1.simulator.t_step_simulator)
+        steps_active = steps_per_cycle / 2
+        # meas_power = NP.mean(mpc_other[index_mpc*steps_per_cycle:(index_mpc+1)*steps_per_cycle,1])
+        meas_power = NP.mean((configuration_1.optimizer.u_mpc[0]) * mpc_other[index_mpc*steps_per_cycle:(index_mpc)*steps_per_cycle+steps_active,1])
         index_mpc += 1
         # Assume that the simulated power is the original in the cost (exact tracking)
         sim_power = tv_p_values_original[0]
