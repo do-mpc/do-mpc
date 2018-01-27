@@ -50,7 +50,7 @@ def simulator(model):
 
     # Choose the real value of the time-varing parameters
     def tv_p_real_now(current_time):
-        tv_p_real = NP.array([1.0,1.0])
+        tv_p_real = NP.array([1.0,0.0])
         return tv_p_real
     """
     --------------------------------------------------------------------------

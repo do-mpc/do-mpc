@@ -308,7 +308,7 @@ def setup_nlp(model, optimizer):
       xkf = ik[offset:offset+nx]
       # Add the quadrature for the first collocation point
       [ik_quad_] = lagrange_fcn.call([ik_split[0,0],uk,pk, tv_pk])
-      ik_quad += ik_quad_ * (T[0,0,1] - T[0,0,0])
+      # ik_quad += ik_quad_ * (T[0,0,1] - T[0,0,0])
       # Add the initial condition
       ik_init[offset:offset+nx] = NP.asarray(x_init)[:,0]
 
@@ -631,7 +631,7 @@ def setup_nlp(model, optimizer):
                   # vars_lb[offset_ik_bounds] = 0 # bound only on current
                   # offset_ik_bounds += nx
           # Add terminal constraints
-          if k == nk - 1:
+          if mod(k,2) == 1: # OFF part
               if soft_constraint_term:
                   [residual_terminal] = cfcn_terminal.call([xf_ksb,U_ks,P_ksb, EPSILON])
               else:
@@ -639,21 +639,31 @@ def setup_nlp(model, optimizer):
     		  g.append(residual_terminal)
     		  lbg.append(cons_terminal_lb)
     		  ubg.append(cons_terminal_ub)
+          elif mod(k,2) == 0: # ON part
+                [residual_terminal] = cfcn_terminal.call([xf_ksb,U_ks,P_ksb, TV_P[:,k]])
+                g.append(residual_terminal)
+                lbg.append(NP.array([-inf]))
+                ubg.append(NP.array([inf]))
+                if k == k:
+                    J_power = ((ik_quad_ksb*U[k,s][0] - TV_P[0,k])/1e3)**2
+                    J_power = ((ik_quad_ksb*U[k,s][0] - 2000)/1e3)**2
           # Add contribution to the cost
-          if k < nk - 1:
-              # Add the contribution of other costs
-              [J_ksb] = mfcn.call([xf_ksb,U_ks,P_ksb, TV_P[:,k]])
-              # Modification to include quadrature for the power computation
-              J_power += ik_quad_ksb / (1- U_ks[0])
-              # [J_ksb] = lagrange_fcn.call([xf_ksb,U_ks,P_ksb, TV_P])
+          # if k < nk - 1:
+          #     # Add the contribution of other costs
+          #     [J_ksb] = mfcn.call([xf_ksb,U_ks,P_ksb, TV_P[:,k]])
+          #     # Modification to include quadrature for the power computation
+          #     J_power += ik_quad_ksb / 1.0
+          #     # [J_ksb] = lagrange_fcn.call([xf_ksb,U_ks,P_ksb, TV_P])
+          #
+          # else:
+          #     # pass
+          #     # Add the contribution of other costs
+          #     [J_ksb] = mfcn.call([xf_ksb,U_ks,P_ksb, TV_P[:,k]])
+          #     # Modification to include quadrature for the power computation
+          #     # J_power += ik_quad_ksb / (2.0)
+          #     # [J_ksb] = mfcn.call([xf_ksb,U_ks,P_ksb, TV_P])
 
-          else:
-              # pass
-              # Add the contribution of other costs
-              [J_ksb] = mfcn.call([xf_ksb,U_ks,P_ksb, TV_P[:,k]])
-              # Modification to include quadrature for the power computation
-              J_power += ik_quad_ksb / (2.0)
-              # [J_ksb] = mfcn.call([xf_ksb,U_ks,P_ksb, TV_P])
+          [J_ksb] = mfcn.call([xf_ksb,U_ks,P_ksb, TV_P[:,k]])
           J += omega[k]*J_ksb
 
           # Add contribution to the cost of the soft constraints penalty term
@@ -664,14 +674,15 @@ def setup_nlp(model, optimizer):
                   J += J_ksb_soft
           # Penalize deviations in u
           s_parent = parent_scenario[k][s]
-          u_prev = U[k-1,s_parent] if k>0 else uk_prev
+          u_prev = U[k-2,s_parent] if k>1 else uk_prev
           [du_k] = rfcn.call([u_prev,U[k,s]])
           J += omega_delta_u[k]*n_branches[k]*du_k
           # Penalize deviations with respect to a given set point
           # pdb.set_trace()
-          J_power = (J_power-TV_P[0,0])**2
+          # if k==0 or k ==2:
+          #     J_power = (J_power-TV_P[0,k])**2
           J = J+J_power
-
+          J_power = 0
 
     # Add non-anticipativity constraints for open-loop multi-stage NMPC
     if open_loop == 1:
@@ -681,10 +692,10 @@ def setup_nlp(model, optimizer):
 				lbg.append(NP.zeros(nu))
 				ubg.append(NP.zeros(nu))
     # Add constraitns for control horizon
-    # for kk in range(1,nk,2):
-    #     g.append(U[kk,0] - U[kk-1,0])
-    #     lbg.append(NP.zeros(nu))
-    #     ubg.append(NP.zeros(nu))
+    for kk in range(1,nk):
+        g.append(U[kk,0][1] - U[kk-1,0][1])
+        lbg.append(NP.zeros(nu-1))
+        ubg.append(NP.zeros(nu-1))
     # Concatenate constraints
     g = vertcat(*g)
     #pdb.set_trace()
@@ -695,6 +706,6 @@ def setup_nlp(model, optimizer):
 
     nlp_dict_out = {'nlp_fcn':nlp_fcn,'X_offset':X_offset,'U_offset': U_offset,
     'E_offset':E_offset,'vars_lb':vars_lb,'vars_ub':vars_ub,'vars_init': vars_init,
-    'lbg':lbg,'ubg': ubg,'parent_scenario':parent_scenario,'child_scenario': child_scenario,'n_branches': n_branches,'n_scenarios':n_scenarios, 'p_scenario':p_scenario}
+    'lbg':lbg,'ubg': ubg,'parent_scenario':parent_scenario,'child_scenario': child_scenario,'n_branches': n_branches,'n_scenarios':n_scenarios, 'p_scenario':p_scenario, 'branch_offset': branch_offset}
 
     return nlp_dict_out

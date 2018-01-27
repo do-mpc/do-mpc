@@ -36,6 +36,8 @@ from casadi.tools import *
 import core_do_mpc
 # Import do-mpc plotting and data managament functions
 import data_do_mpc
+import aux_do_mpc
+
 import numpy as NP
 import pdb
 """
@@ -68,6 +70,7 @@ configuration_1.setup_solver()
 index_mpc = 0
 index_stationary = 0
 index_transform = 0
+aux_do_mpc.get_good_initialization(configuration_1)
 """
 ----------------------------
 do-mpc: MPC loop
@@ -88,16 +91,19 @@ while (configuration_1.simulator.t0_sim + configuration_1.simulator.t_step_simul
     # configuration_1.optimizer.arg['ubx'][X_offset[0,0]+ 2] = 0
     # Make one optimizer step (solve the NLP)
     # if configuration_1.simulator.t0_sim == 0:
-    if mod(index_transform, 2) == 0:
-    # if index_transform == 0:
-        configuration_1.make_step_optimizer()
+
+    # if mod(index_transform, 2) == 0:
+    #     aux_do_mpc.check_collocation_accuracy(configuration_1)
+    #     configuration_1.make_step_optimizer()
+        # aux_do_mpc.check_collocation_accuracy(configuration_1)
     # configuration_1.optimizer.u_mpc = NP.array([0.5,60000])
 
-    # if index_stationary == 0 or index_stationary >= 5:
-    #     configuration_1.make_step_optimizer()
-    # if index_stationary < 5:
-    #     configuration_1.optimizer.u_mpc = NP.array([0.5,60000])
-    #     index_stationary += 1
+    if index_stationary == 0 or index_stationary >= 5:
+        # aux_do_mpc.check_collocation_accuracy(configuration_1)
+        configuration_1.make_step_optimizer()
+    if index_stationary < 5:
+        configuration_1.optimizer.u_mpc = NP.array([0.5,60])
+        index_stationary += 1
 
     """
     ----------------------------

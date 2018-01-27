@@ -35,7 +35,7 @@ def optimizer(model):
     """
 
     # Prediction horizon
-    n_horizon = 2
+    n_horizon = 10
     # Robust horizon, set to 0 for standard NMPC
     n_robust = 0
     # open_loop robust NMPC (1) or multi-stage NMPC (0). Only important if n_robust > 0
@@ -92,12 +92,12 @@ def optimizer(model):
     tv_p_values = NP.resize(NP.array([]),(number_steps,n_tv_p,n_horizon))
     for time_step in range (number_steps):
         if time_step < 5000:
-            tv_param_1_values = 2500 * NP.ones(n_horizon)
+            tv_param_1_values = 2000 * NP.ones(n_horizon)
         elif time_step < 10000:
             tv_param_1_values = 2000 * NP.ones(n_horizon)
         else:
             tv_param_1_values = 3000 * NP.ones(n_horizon)
-        tv_param_2_values = NP.array([1.0,0.0])
+        tv_param_2_values = NP.tile(NP.array([1.0,0.0]),int(n_horizon/2))
         tv_p_values[time_step] = NP.array([tv_param_1_values,tv_param_2_values])
     # Parameteres of the NLP which may vary along the time (For example a set point that varies at a given time)
     set_point = SX.sym('set_point')
