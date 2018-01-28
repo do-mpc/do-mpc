@@ -68,7 +68,7 @@ def simulator(model):
     plot_anim = False
     # Export to matlab (for better plotting or postprocessing)
     export_to_matlab = True
-    export_name = "mpc_result.mat"  # Change this name if desired
+    export_name = "mpc_F_and_D.mat"  # Change this name if desired
 
     """
     --------------------------------------------------------------------------

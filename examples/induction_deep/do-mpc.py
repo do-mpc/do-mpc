@@ -98,11 +98,11 @@ while (configuration_1.simulator.t0_sim + configuration_1.simulator.t_step_simul
         # aux_do_mpc.check_collocation_accuracy(configuration_1)
     # configuration_1.optimizer.u_mpc = NP.array([0.5,60000])
 
-    if index_stationary == 0 or index_stationary >= 0:
+    if index_stationary == 0 or index_stationary >= 5:
         # aux_do_mpc.check_collocation_accuracy(configuration_1)
         configuration_1.make_step_optimizer()
-    if index_stationary < 0:
-        configuration_1.optimizer.u_mpc = NP.array([0.5,60])
+    if index_stationary < 5:
+        configuration_1.optimizer.u_mpc = NP.array([0.5,73])
         index_stationary += 1
 
     """
@@ -190,7 +190,7 @@ while (configuration_1.simulator.t0_sim + configuration_1.simulator.t_step_simul
         # pdb.set_trace()
         bias_term = meas_power - sim_power
 
-        if index_mpc <= 2:
+        if index_mpc <= 2 or index_stationary<=0:
             k_bias =  0.0 # The first steps the power is not correctly computed because of initial cond
         else:
             k_bias = -0.8

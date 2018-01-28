@@ -202,7 +202,7 @@ def model():
     # Mayer term
     # In this case mterm is the cost for any other goal different from power tracking
     # mterm =  (F/F_min)**2
-    mterm =  0.00001*(F/F_min-1)**2
+    mterm =  1*0.0005*(F/F_min-1)**2
     # mterm =  0.00001*(F-F_min)**2
     # mterm =  0.001*F
     # Penalty term for the control movements

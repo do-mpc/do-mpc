@@ -87,7 +87,10 @@ def export_to_matlab(configuration):
         "mpc_time": data.mpc_time,
         "mpc_cost": data.mpc_cost,
         "mpc_ref": data.mpc_ref,
+        "mpc_other":data.mpc_other,
         "mpc_parameters": data.mpc_parameters,
+        "tv_p_values": configuration.optimizer.tv_p_values,
+        "n_cycles": configuration.optimizer.t_end*2
         }
         scipy.io.savemat(export_name, mdict=export_dict)
         print("Exporting to Matlab as ''" + export_name + "''")

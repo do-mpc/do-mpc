@@ -327,7 +327,7 @@ class configuration:
         self.optimizer.arg['lbx'][X_offset[0,0]:X_offset[0,0]+nx] = observed_states
         self.optimizer.arg['ubx'][X_offset[0,0]:X_offset[0,0]+nx] = observed_states
         self.optimizer.arg["x0"] = self.optimizer.opt_result_step.optimal_solution
-        # self.optimizer.arg["x0"][U_offset[0,0]:U_offset[0,0]+nu] = NP.reshape(NP.array([0.5, 70]),(-1,1))
+        # self.optimizer.arg["x0"][U_offset[0,0]:U_offset[0,0]+nu] = NP.reshape(NP.array([0.5, 30]),(-1,1))
         # Pass as parameter the used control input
         self.optimizer.arg['p'] = param
 

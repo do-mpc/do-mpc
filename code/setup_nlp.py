@@ -636,15 +636,20 @@ def setup_nlp(model, optimizer):
                   [residual_terminal] = cfcn_terminal.call([xf_ksb,U_ks,P_ksb, EPSILON])
               else:
                   [residual_terminal] = cfcn_terminal.call([xf_ksb,U_ks,P_ksb, TV_P[:,k]])
-    		  g.append(residual_terminal)
-    		  lbg.append(cons_terminal_lb)
-    		  ubg.append(cons_terminal_ub)
+    		  # g.append(residual_terminal)
+    		  # lbg.append(cons_terminal_lb)
+    		  # ubg.append(cons_terminal_ub)
+              # Alternatively use the variable bounds for this constraints
+              vars_lb[X_offset[k+1,s]] = -inf
+              vars_ub[X_offset[k+1,s]] = 0
               # J_power = ((ik_quad_ksb*U[k,s][0] - 2000)/1e3)**2
           elif mod(k,2) == 0: # ON part
                 [residual_terminal] = cfcn_terminal.call([xf_ksb,U_ks,P_ksb, TV_P[:,k]])
-                g.append(residual_terminal)
-                lbg.append(-cons_terminal_ub) # this is 0
-                ubg.append(-cons_terminal_lb) # this is +inf
+                # g.append(residual_terminal)
+                # lbg.append(-cons_terminal_ub) # this is 0
+                # ubg.append(-cons_terminal_lb) # this is +inf
+                vars_lb[X_offset[k+1,s]] = 0
+                vars_ub[X_offset[k+1,s]] = inf
                 if k == k:
                     J_power = ((ik_quad_ksb*U[k,s][0] - TV_P[0,k])/1e3)**2
                     # J_power = ((ik_quad_ksb*U[k,s][0] - 2000)/1e3)**2
