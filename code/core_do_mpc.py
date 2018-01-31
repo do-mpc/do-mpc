@@ -183,6 +183,7 @@ class optimizer:
         self.uncertainty_values = param_dict["uncertainty_values"]
         # Defin time varying optimizer parameters
         self.tv_p_values = param_dict["tv_p_values"]
+        self.tv_p_values_original = param_dict["tv_p_values"]
         self.parameters_nlp = param_dict["parameters_nlp"]
         # Initialize empty methods for completion later
         self.solver = []

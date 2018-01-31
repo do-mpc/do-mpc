@@ -157,7 +157,7 @@ while (configuration_1.simulator.t0_sim + configuration_1.simulator.t_step_simul
     do-mpc: Bias correction term
     ------------------------------------------------------
     """
-    BIAS_CORRECTION = 0
+    BIAS_CORRECTION = 1
     if BIAS_CORRECTION:
         # Update the set-point to track the correct power
         step_index = int(configuration_1.simulator.t0_sim / configuration_1.simulator.t_step_simulator)

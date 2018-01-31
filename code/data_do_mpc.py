@@ -89,7 +89,7 @@ def export_to_matlab(configuration):
         "mpc_ref": data.mpc_ref,
         "mpc_other":data.mpc_other,
         "mpc_parameters": data.mpc_parameters,
-        "tv_p_values": configuration.optimizer.tv_p_values,
+        "tv_p_values": configuration.optimizer.tv_p_values_original,
         "n_cycles": configuration.optimizer.t_end*2
         }
         scipy.io.savemat(export_name, mdict=export_dict)
