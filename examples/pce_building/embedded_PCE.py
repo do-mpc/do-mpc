@@ -57,9 +57,9 @@ def expanded_building():
     theta_1 = SX.sym("theta_1")
     theta_2 = SX.sym("theta_2")
 
-    theta_1_class = pce.stochastic_variable(theta_1,2,"uniform")
+    theta_1_class = pce.stochastic_variable(theta_1,0,"uniform")
     # theta_1_class = stochastic_variable(theta_1,2,"beta",2,2)
-    theta_2_class = pce.stochastic_variable(theta_2,2,"uniform")
+    theta_2_class = pce.stochastic_variable(theta_2,0,"uniform")
     #theta_class_vector = [theta_1_class,theta_2_class]
     theta_class_vector = [theta_1_class]
 
