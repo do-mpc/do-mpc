@@ -95,6 +95,24 @@ def export_to_matlab(configuration):
         scipy.io.savemat(export_name, mdict=export_dict)
         print("Exporting to Matlab as ''" + export_name + "''")
 
+def export_for_learning(configuration, name):
+    if configuration.simulator.export_to_matlab:
+        data = configuration.mpc_data
+        export_name = name
+        time = data.mpc_time
+        states = data.mpc_states
+        controls = data.mpc_control
+        params = data.mpc_parameters
+        # set_point = configuration.optimizer.tv_p_values_original[:,0,0]
+        set_point = NP.reshape(configuration.optimizer.tv_p_values[0:states.shape[0],0,0],(-1,1))
+        aux = NP.append(time,states, axis = 1)
+        aux2 = NP.append(aux,controls, axis = 1)
+        # pdb.set_trace()
+        mpc_data_for_learning = NP.append(aux2,set_point, axis = 1)
+        NP.save(export_name,mpc_data_for_learning)
+        print("Exporting data for learning as ''" + export_name + "''")
+
+
 def plot_mpc(configuration):
     """ This function plots the states and controls chosen in the variables plot_states and plot_control until a certain index (index_mpc) """
     mpc_data = configuration.mpc_data
