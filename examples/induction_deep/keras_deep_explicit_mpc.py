@@ -8,7 +8,7 @@ import numpy as NP
 
 # Load data
 path_to_data = ''
-n_batches_train = 50
+n_batches_train = 170
 n_batches_test = 5
 n_batches_train_test = n_batches_train + n_batches_test
 

@@ -76,11 +76,12 @@ aux_do_mpc.get_good_initialization(configuration_1)
 do-mpc: MPC loop
 ----------------------------
 """
-n_batches = 55
-offset = 0
-power_steps = NP.random.uniform(500,3000,3)
-for i in range(offset, n_batches + offset):
+n_batches = 100
+offset = 105
 
+for i in range(offset, n_batches + offset):
+    power_steps = NP.random.uniform(500,3000,3)
+    # power_steps = NP.array([500,1500,3000])
     i_0_0 = 0
     v_C_0	= 0
     my_time_0 = 0
