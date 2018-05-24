@@ -76,8 +76,8 @@ aux_do_mpc.get_good_initialization(configuration_1)
 do-mpc: MPC loop
 ----------------------------
 """
-n_batches = 100
-offset = 105
+n_batches = 300
+offset = 100
 
 for i in range(offset, n_batches + offset):
     power_steps = NP.random.uniform(500,3000,3)
@@ -260,7 +260,7 @@ for i in range(offset, n_batches + offset):
             configuration_1.optimizer.arg['p'] = param
 
         # Export data for each batch
-    data_do_mpc.export_for_learning(configuration_1, "data_batch_" + str(i))
+    data_do_mpc.export_for_learning(configuration_1, "data_batch_v2_" + str(i))
 """
 ------------------------------------------------------
 do-mpc: Plot the closed-loop results

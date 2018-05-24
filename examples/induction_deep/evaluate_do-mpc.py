@@ -83,12 +83,12 @@ u_ub = NP.array([0.8, 100])
 x_lb = NP.array([-50, -100, 500]) # the third component is the scaling factor for the parameter
 x_ub = NP.array([50, 400, 3000])
 # load json and create model
-json_file = open('model_1.json', 'r')
+json_file = open('model_3.json', 'r')
 loaded_model_json = json_file.read()
 json_file.close()
 loaded_model = model_from_json(loaded_model_json)
 # load weights into new model
-loaded_model.load_weights("model_1.h5")
+loaded_model.load_weights("model_3.h5")
 print("Loaded model from disk")
 
 

@@ -3,13 +3,15 @@ from keras.models import Model
 from keras.layers import Dense, Dropout, Activation, Input
 from keras.optimizers import SGD
 from keras import regularizers
+from highway import *
 #from keras.utils import plot_model
 import numpy as NP
 
 # Load data
 path_to_data = ''
-n_batches_train = 170
-n_batches_test = 5
+n_batches_train = 300
+n_batches_test = 20
+train_offset = 0
 n_batches_train_test = n_batches_train + n_batches_test
 
 raw_data = []
@@ -28,16 +30,16 @@ np = 1
 nt = 1
 
 steps_real_data = int(1/0.005 * 2)
-for i in range(n_batches_train_test):
+for i in range(train_offset, train_offset + n_batches_train + n_batches_test):
     # Format is: |time|states|controls|params|
-    raw_data.append(NP.load(path_to_data+ "data_batch_" + str(i+0) + ".npy"))
+    raw_data.append(NP.load(path_to_data+ "data_batch_v2_" + str(i+0) + ".npy"))
 
 for i in range(n_batches_train_test):
     # remove the offset of one position in the state-control vector
     # Take points only every XXX steps because of accurate sampling
-    states.append(raw_data[i][0:-1:steps_real_data,nt:nt+nx])
-    controls.append(raw_data[i][1::steps_real_data,nt+nx:nt+nx+nu])
-    params.append(raw_data[i][0:-1:steps_real_data,nt+nx+nu:nt+nx+nu+np])
+    states.append(raw_data[i][steps_real_data*3:-1:steps_real_data,nt:nt+nx])
+    controls.append(raw_data[i][1+steps_real_data*3::steps_real_data,nt+nx:nt+nx+nu])
+    params.append(raw_data[i][steps_real_data*3:-1:steps_real_data,nt+nx+nu:nt+nx+nu+np])
 
 
 # Use all data without taking into account actual batches (later for RNN)
@@ -46,6 +48,11 @@ x_train = NP.vstack(states[0:n_batches_train])
 p_train = NP.vstack(params[0:n_batches_train])
 x_train = NP.append(x_train,p_train, axis = 1)
 y_train = NP.vstack(controls[0:n_batches_train])
+
+# Try including two past steps as inputs
+# for i in range(len(x_train))
+#     if i < n_recurrent:
+#         x_train_recurrent[i] =
 
 x_test = NP.vstack(states[n_batches_train:n_batches_train_test])
 p_test = NP.vstack(params[n_batches_train:n_batches_train_test])
@@ -76,6 +83,12 @@ x = Dense(10, activation = act, kernel_regularizer=regularizers.l2(l1_pen))(x)
 x = Dense(10, activation = act, kernel_regularizer=regularizers.l2(l1_pen))(x)
 x = Dense(10, activation = act, kernel_regularizer=regularizers.l2(l1_pen))(x)
 x = Dense(10, activation = act, kernel_regularizer=regularizers.l2(l1_pen))(x)
+
+# x = highway_layers(x, 5, activation="sigmoid")
+
+# x = Dense(10, activation = act, kernel_regularizer=regularizers.l2(l1_pen))(x)
+# x = Dense(10, activation = act, kernel_regularizer=regularizers.l2(l1_pen))(x)
+# x = Dense(10, activation = act, kernel_regularizer=regularizers.l2(l1_pen))(x)
 # x = Dense(10, activation = act, kernel_regularizer=regularizers.l2(l1_pen))(x)
 # x = Dense(10, activation = act)(x)
 # x = Dense(10, activation = act)(x)
@@ -95,26 +108,30 @@ model.compile(loss='mse',
               #optimizer='adam')
 
 model.fit(x_train, y_train,
-          epochs=1000,
-          batch_size=500)
+          epochs=3000,
+          batch_size=len(x_train)/5)
 score = model.evaluate(x_test, y_test, batch_size=128)
 print "The test score is: "
 print score
 
 # If wanted save model
 model_json = model.to_json()
-with open("model_2.json", "w") as json_file:
+with open("model_3.json", "w") as json_file:
     json_file.write(model_json)
 # serialize weights to HDF5
-model.save_weights("model_2.h5")
+model.save_weights("model_3.h5")
 print("Saved model to disk")
 
 
 # To load
-
-
+# y_pred = []
+# for ii in range(len(x_train)):
+#     y_pred.append(model.evaluate(x_train[ii]))
 # later...
-
+y_pred = model.predict(x_train)
+train_error = abs(y_pred - y_train)
+print('max error: ', NP.max(train_error,axis = 0))
+print('mean error: ', NP.mean(train_error,axis = 0))
 # # load json and create model
 # json_file = open('model.json', 'r')
 # loaded_model_json = json_file.read()
