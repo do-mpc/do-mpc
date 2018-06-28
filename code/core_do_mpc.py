@@ -23,6 +23,7 @@
 
 import setup_nlp
 from casadi import *
+from casadi.tools import *
 import data_do_mpc
 import numpy as NP
 import pdb
@@ -63,7 +64,7 @@ class model:
     """A class for the definition model equations and optimal control problem formulation"""
     def __init__(self, param_dict, *opt):
         # Assert for define length of param_dict
-        required_dimension = 24
+        required_dimension = 29
         if not (len(param_dict) == required_dimension):            raise Exception("Model / OCP information is incomplete. The number of elements in the dictionary is not correct")
         # Assign the main variables describing the model equations
         self.x = param_dict["x"]
@@ -71,6 +72,7 @@ class model:
         self.p = param_dict["p"]
         self.z = param_dict["z"]
         self.rhs = param_dict["rhs"] # Right hand side of the DAE equations
+        self.tv_p = param_dict["tv_p"]
          # Assign the main variables that describe the OCP
         self.ocp = ocp(param_dict)
 
@@ -84,12 +86,12 @@ class simulator:
     """A class for the definition model equations and optimal control problem formulation"""
     def __init__(self, model_simulator, param_dict, *opt):
         # Assert for define length of param_dict
-        required_dimension = 9
+        required_dimension = 10
         if not (len(param_dict) == required_dimension): raise Exception("Simulator information is incomplete. The number of elements in the dictionary is not correct")
         # Unscale the states on the rhs
         rhs_unscaled = substitute(model_simulator.rhs, model_simulator.x, model_simulator.x * model_simulator.ocp.x_scaling)/model_simulator.ocp.x_scaling
         rhs_unscaled = substitute(rhs_unscaled, model_simulator.u, model_simulator.u * model_simulator.ocp.u_scaling)
-        dae = {'x':model_simulator.x, 'p':vertcat(model_simulator.u,model_simulator.p), 'ode':rhs_unscaled}
+        dae = {'x':model_simulator.x, 'p':vertcat(model_simulator.u,model_simulator.p, model_simulator.tv_p), 'ode':rhs_unscaled}
         opts = param_dict["integrator_opts"]
         #NOTE: Check the scaling factors (appear to be fine)
         simulator_do_mpc = integrator("simulator", param_dict["integration_tool"], dae,  opts)
@@ -100,6 +102,7 @@ class simulator:
         self.export_to_matlab = param_dict["export_to_matlab"]
         self.export_name = param_dict["export_name"]
         self.p_real_now = param_dict["p_real_now"]
+        self.tv_p_real_now = param_dict["tv_p_real_now"]
         self.t_step_simulator = param_dict["t_step_simulator"]
         self.t0_sim = 0
         self.tf_sim = param_dict["t_step_simulator"]
@@ -127,7 +130,7 @@ class optimizer:
         # Set the local model to be used by the model
         self.optimizer_model = optimizer_model
         # Assert for the required size of the parameters
-        required_dimension = 15
+        required_dimension = 16
         if not (len(param_dict) == required_dimension): raise Exception("The length of the parameter dictionary is not correct!")
         # Define optimizer parameters
         self.n_horizon = param_dict["n_horizon"]
@@ -145,7 +148,8 @@ class optimizer:
         self.qp_solver = param_dict["qp_solver"]
         # Define model uncertain parameters
         self.uncertainty_values = param_dict["uncertainty_values"]
-        # Defin time varying optimizer parameters
+        # Define time varying optimizer parameters
+        self.tv_p_values = param_dict["tv_p_values"]
         self.parameters_nlp = param_dict["parameters_nlp"]
         # Initialize empty methods for completion later
         self.solver = []
@@ -203,7 +207,15 @@ class configuration:
         arg["lbg"] = nlp_dict_out['lbg']
         arg["ubg"] = nlp_dict_out['ubg']
         # NLP parameters
-        arg["p"] = self.model.ocp.u0
+        nu = self.model.u.size(1)
+        ntv_p = self.model.tv_p.size(1)
+        nk = self.optimizer.n_horizon
+        parameters_setup_nlp = struct_symMX([entry("uk_prev",shape=(nu)), entry("TV_P",shape=(ntv_p,nk))])
+        param = parameters_setup_nlp(0)
+        # First value of the nlp parameters
+        param["uk_prev"] = self.model.ocp.u0
+        param["TV_P"] = self.optimizer.tv_p_values[0]
+        arg["p"] = param
         # Add new attributes to the optimizer class
         self.optimizer.solver = solver
         self.optimizer.arg = arg
@@ -229,6 +241,7 @@ class configuration:
         u_mpc = self.optimizer.u_mpc
         # Use the real parameters
         p_real = self.simulator.p_real_now(self.simulator.t0_sim)
+        tv_p_real = self.simulator.tv_p_real_now(self.simulator.t0_sim)
         if self.optimizer.state_discretization == 'discrete-time':
             rhs_unscaled = substitute(self.model.rhs, self.model.x, self.model.x * self.model.ocp.x_scaling)/self.model.ocp.x_scaling
             rhs_unscaled = substitute(rhs_unscaled, self.model.u, self.model.u * self.model.ocp.u_scaling)
@@ -236,7 +249,7 @@ class configuration:
             x_next = rhs_fcn(self.simulator.x0_sim,vertcat(u_mpc,p_real))
             self.simulator.xf_sim = NP.squeeze(NP.array(x_next))
         else:
-            result  = self.simulator.simulator(x0 = self.simulator.x0_sim, p = vertcat(u_mpc,p_real))
+            result  = self.simulator.simulator(x0 = self.simulator.x0_sim, p = vertcat(u_mpc,p_real,tv_p_real))
             self.simulator.xf_sim = NP.squeeze(result['xf'])
         # Update the initial condition for the next iteration
         self.simulator.x0_sim = self.simulator.xf_sim
@@ -256,26 +269,33 @@ class configuration:
     def prepare_next_iter(self):
         observed_states = self.observer.observed_states
         X_offset = self.optimizer.nlp_dict_out['X_offset']
-        nx = len(self.model.ocp.x0)
+        nx = self.model.x.size(1)
+        nu = self.model.u.size(1)
+        ntv_p = self.model.tv_p.size(1)
+        nk = self.optimizer.n_horizon
+        parameters_setup_nlp = struct_symMX([entry("uk_prev",shape=(nu)), entry("TV_P",shape=(ntv_p,nk))])
+        param = parameters_setup_nlp(0)
+        # First value of the nlp parameters
+        param["uk_prev"] = self.optimizer.u_mpc
+        step_index = int(self.simulator.t0_sim / self.simulator.t_step_simulator)
+        param["TV_P"] = self.optimizer.tv_p_values[step_index]
         # Enforce the observed states as initial point for next optimization
 
         self.optimizer.arg['lbx'][X_offset[0,0]:X_offset[0,0]+nx] = observed_states
         self.optimizer.arg['ubx'][X_offset[0,0]:X_offset[0,0]+nx] = observed_states
         self.optimizer.arg["x0"] = self.optimizer.opt_result_step.optimal_solution
         # Pass as parameter the used control input
-        self.optimizer.arg['p'] = self.optimizer.u_mpc
+        self.optimizer.arg['p'] = param
 
     def store_mpc_data(self):
         mpc_iteration = self.simulator.mpc_iteration - 1 #Because already increased in the simulator
         data = self.mpc_data
         data.mpc_states = NP.append(data.mpc_states, [self.simulator.xf_sim], axis = 0)
-        #pdb.set_trace()
         data.mpc_control = NP.append(data.mpc_control, [self.optimizer.u_mpc], axis = 0)
-        data.mpc_alg = NP.append(data.mpc_alg, [NP.zeros(NP.size(self.model.z))], axis = 0) # TODO: To be completed for DAEs
+        #data.mpc_alg = NP.append(data.mpc_alg, [NP.zeros(NP.size(self.model.z))], axis = 0) # TODO: To be completed for DAEs
         data.mpc_time = NP.append(data.mpc_time, [[self.simulator.t0_sim]], axis = 0)
         data.mpc_cost = NP.append(data.mpc_cost, self.optimizer.opt_result_step.optimal_cost, axis = 0)
-        data.mpc_ref = NP.append(data.mpc_ref, [[0]], axis = 0) # TODO: To be completed
-        #pdb.set_trace()
+        #data.mpc_ref = NP.append(data.mpc_ref, [[0]], axis = 0) # TODO: To be completed
         stats = self.optimizer.solver.stats()
         data.mpc_cpu = NP.append(data.mpc_cpu, [[stats['t_wall_solver']]], axis = 0)
         data.mpc_parameters = NP.append(data.mpc_parameters, [self.simulator.p_real_now(self.simulator.t0_sim)], axis = 0)
