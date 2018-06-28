@@ -73,11 +73,28 @@ def optimizer(model):
     delH_R_values = NP.array([950.0, 950.0 * 1.30, 950.0 * 0.70])
     k_0_values = NP.array([7.0*1.00, 7.0*1.30, 7.0*0.70])
     uncertainty_values = NP.array([delH_R_values, k_0_values])
+    """
+    --------------------------------------------------------------------------
+    template_optimizer: time-varying parameters
+    --------------------------------------------------------------------------
+    """
+    # Only necessary if time-varying paramters defined in the model
+    # The length of the vector for each parameter should be the prediction horizon
+    # The vectos for each parameter might chance at each sampling time
+    number_steps = int(t_end/t_step) + 1
+    # Number of time-varying parameters
+    n_tv_p = 2
+    tv_p_values = NP.resize(NP.array([]),(number_steps,n_tv_p,n_horizon))
+    for time_step in range (number_steps):
+        if time_step < number_steps/2:
+            tv_param_1_values = 0.6*NP.ones(n_horizon)
+        else:
+            tv_param_1_values = 0.8*NP.ones(n_horizon)
+        tv_param_2_values = 0.9*NP.ones(n_horizon)
+        tv_p_values[time_step] = NP.array([tv_param_1_values,tv_param_2_values])
     # Parameteres of the NLP which may vary along the time (For example a set point that varies at a given time)
     set_point = SX.sym('set_point')
     parameters_nlp = NP.array([set_point])
-
-
     """
     --------------------------------------------------------------------------
     template_optimizer: pass_information (not necessary to edit)
@@ -89,6 +106,6 @@ def optimizer(model):
     'n_fin_elem': n_fin_elem,'generate_code':generate_code,'open_loop': open_loop,
     'uncertainty_values':uncertainty_values,'parameters_nlp':parameters_nlp,
     'state_discretization':state_discretization,'nlp_solver': nlp_solver,
-    'linear_solver':linear_solver, 'qp_solver':qp_solver}
+    'linear_solver':linear_solver, 'qp_solver':qp_solver, 'tv_p_values':tv_p_values}
     optimizer_1 = core_do_mpc.optimizer(model,optimizer_dict)
     return optimizer_1

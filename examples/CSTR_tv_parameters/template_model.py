@@ -76,7 +76,7 @@ def model():
     F      = SX.sym("F") # Vdot/V_R [h^-1]
     Q_dot  = SX.sym("Q_dot") #Q_dot second control input
 
-    # Define time-varying parameters that can chance at each step of the prediction and at each sampling time of the MPC controller. For example, future weather predictions
+    # Define time-varying parameters that can change at each step of the prediction and at each sampling time of the MPC controller. For example, future weather predictions
 
     tv_param_1 = SX.sym("tv_param_1")
     tv_param_2 = SX.sym("tv_param_2")
@@ -180,7 +180,7 @@ def model():
     """
     # Define the cost function
     # Lagrange term
-    lterm =  (C_b - tv_param_1)**2 
+    lterm =  (C_b - tv_param_1)**2
     #lterm =  - C_b
     # Mayer term
     mterm =  (C_b - tv_param_1)**2
@@ -195,8 +195,8 @@ def model():
     template_model: pass information (not necessary to edit)
     --------------------------------------------------------------------------
     """
-    model_dict = {'x':_x,'u': _u, 'rhs':_xdot,'p': _p, 'z':_z,'x0': x0, 'z0':z0, 'x_lb': x_lb,'x_ub': x_ub, 'z_lb': z_lb,'z_ub': z_ub, 'u0':u0,
-    'u_lb':u_lb, 'u_ub':u_ub, 'x_scaling':x_scaling, 'z_scaling':z_scaling, 'u_scaling':u_scaling, 'cons':cons, 'tv_p':_tv_p,
+    model_dict = {'x':_x,'u': _u, 'rhs':_xdot,'p': _p, 'z':_z,'x0': x0, 'x_lb': x_lb,'x_ub': x_ub, 'u0':u0,
+    'u_lb':u_lb, 'u_ub':u_ub, 'x_scaling':x_scaling, 'u_scaling':u_scaling, 'cons':cons, 'tv_p':_tv_p,
     "cons_ub": cons_ub, 'cons_terminal':cons_terminal, 'cons_terminal_lb': cons_terminal_lb, 'cons_terminal_ub':cons_terminal_ub, 'soft_constraint': soft_constraint, 'penalty_term_cons': penalty_term_cons, 'maximum_violation': maximum_violation, 'mterm': mterm,'lterm':lterm, 'rterm':rterm}
 
     model = core_do_mpc.model(model_dict)

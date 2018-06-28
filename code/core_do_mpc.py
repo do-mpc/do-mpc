@@ -64,7 +64,7 @@ class model:
     """A class for the definition model equations and optimal control problem formulation"""
     def __init__(self, param_dict, *opt):
         # Assert for define length of param_dict
-        required_dimension = 29
+        required_dimension = 25
         if not (len(param_dict) == required_dimension):            raise Exception("Model / OCP information is incomplete. The number of elements in the dictionary is not correct")
         # Assign the main variables describing the model equations
         self.x = param_dict["x"]

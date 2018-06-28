@@ -95,6 +95,11 @@ def model():
     m_dot_f    		=    SX.sym("m_dot_f")
     T_in_M   		=    SX.sym("T_in_M")
     T_in_EK       	=    SX.sym("T_in_EK")
+
+    # Define time-varying parameters that can change at each step of the prediction and at each sampling time of the MPC controller. For example, future weather predictions
+
+    tv_param_1 = SX.sym("tv_param_1")
+    tv_param_2 = SX.sym("tv_param_2")
     """
     --------------------------------------------------------------------------
     template_model: define algebraic and differential equations
@@ -135,6 +140,7 @@ def model():
 
     _z = []
 
+    _tv_p = vertcat(tv_param_1, tv_param_2)
 
     """
     --------------------------------------------------------------------------
@@ -235,7 +241,7 @@ def model():
     --------------------------------------------------------------------------
     """
     model_dict = {'x':_x,'u': _u, 'rhs':_xdot,'p': _p, 'z':_z,'x0': x0,'x_lb': x_lb,'x_ub': x_ub, 'u0':u0, 'u_lb':u_lb, 'u_ub':u_ub, 'x_scaling':x_scaling, 'u_scaling':u_scaling, 'cons':cons,
-    "cons_ub": cons_ub, 'cons_terminal':cons_terminal, 'cons_terminal_lb': cons_terminal_lb, 'cons_terminal_ub':cons_terminal_ub, 'soft_constraint': soft_constraint, 'penalty_term_cons': penalty_term_cons, 'maximum_violation': maximum_violation, 'mterm': mterm,'lterm':lterm, 'rterm':rterm}
+    "cons_ub": cons_ub, 'cons_terminal':cons_terminal, 'cons_terminal_lb': cons_terminal_lb,'tv_p':_tv_p, 'cons_terminal_ub':cons_terminal_ub, 'soft_constraint': soft_constraint, 'penalty_term_cons': penalty_term_cons, 'maximum_violation': maximum_violation, 'mterm': mterm,'lterm':lterm, 'rterm':rterm}
 
     model = core_do_mpc.model(model_dict)
 
