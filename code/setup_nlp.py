@@ -207,9 +207,9 @@ def setup_nlp(model, optimizer):
         lfcn = Function('lfcn',[tau],[L])
         D[j] = lfcn(1.0)
         # Evaluate the time derivative of the polynomial at all collocation points to get the coefficients of the continuity equation
-        tfcn = lfcn.tangent()
+        tfcn = Function('tfcn', [tau],[tangent(L,tau)])
         for r in range(deg+1):
-          C[j,r], _ = tfcn(tau_root[r])
+          C[j,r] = tfcn(tau_root[r])
 
       # Initial condition
       xk0 = MX.sym("xk0",nx)
