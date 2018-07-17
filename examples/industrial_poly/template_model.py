@@ -4,7 +4,7 @@
 #   do-mpc: An environment for the easy, modular and efficient implementation of
 #        robust nonlinear model predictive control
 #
-#   Copyright (c) 2014-2016 Sergio Lucia, Alexandru Tatulea-Codrean
+#   Copyright (c) 2014-2018 Sergio Lucia, Alexandru Tatulea-Codrean
 #                        TU Dortmund. All rights reserved
 #
 #   do-mpc is free software: you can redistribute it and/or modify
@@ -63,7 +63,7 @@ def model():
 
     alfa        = 5*20e4*3.6
 
-    p_1 = 1.0
+    p_1         = 1.0
 
     """
     --------------------------------------------------------------------------
@@ -73,28 +73,28 @@ def model():
     # Define the uncertainties as CasADi symbols
 
     delH_R      = SX.sym("delH_R")
-    k_0			= SX.sym("k_0")
+    k_0         = SX.sym("k_0")
     bias_term   = SX.sym("bias_term")
 
     # Define the differential states as CasADi symbols
 
     m_W             = SX.sym("m_W")
     m_A             = SX.sym("m_A")
-    m_P		        = SX.sym("m_P")
-    T_R       		= SX.sym("T_R")
-    T_S  		    = SX.sym("T_S")
+    m_P             = SX.sym("m_P")
+    T_R             = SX.sym("T_R")
+    T_S             = SX.sym("T_S")
     Tout_M          = SX.sym("Tout_M")
-    T_EK      	    = SX.sym("T_EK")
+    T_EK            = SX.sym("T_EK")
     Tout_AWT        = SX.sym("Tout_AWT")
-    accum_momom		= SX.sym("accum_monom")
-    T_adiab			= SX.sym("T_adiab")
+    accum_momom     = SX.sym("accum_monom")
+    T_adiab         = SX.sym("T_adiab")
 
     # Define the algebraic states as CasADi symbols
 
     # Define the control inputs as CasADi symbols
-    m_dot_f    		=    SX.sym("m_dot_f")
-    T_in_M   		=    SX.sym("T_in_M")
-    T_in_EK       	=    SX.sym("T_in_EK")
+    m_dot_f  		   = SX.sym("m_dot_f")
+    T_in_M          = SX.sym("T_in_M")
+    T_in_EK         = SX.sym("T_in_EK")
 
     # Define time-varying parameters that can change at each step of the prediction and at each sampling time of the MPC controller. For example, future weather predictions
 
@@ -117,16 +117,16 @@ def model():
 
     ddm_W   	= m_dot_f * w_WF
     ddm_A 		= (m_dot_f * w_AF) - (k_R1 * (m_A-((m_A*m_AWT)/(m_W+m_A+m_P)))) - (p_1 * k_R2 * (m_A/m_ges) * m_AWT)
-    ddm_P  		= (k_R1 * (m_A-((m_A*m_AWT)/(m_W+m_A+m_P)))) + (p_1 * k_R2 * (m_A/m_ges) * m_AWT)
+    ddm_P  	= (k_R1 * (m_A-((m_A*m_AWT)/(m_W+m_A+m_P)))) + (p_1 * k_R2 * (m_A/m_ges) * m_AWT)
 
     ddT_R   	= 1./(c_pR * m_ges)   * ((m_dot_f * c_pF * (T_F - T_R)) - (k_K *A_tank* (T_R - T_S)) - (fm_AWT * c_pR * (T_R - T_EK)) + (delH_R * k_R1 * (m_A-((m_A*m_AWT)/(m_W+m_A+m_P)))))
     ddT_S   	= 1./(c_pS * m_S)     * ((k_K *A_tank* (T_R - T_S)) - (k_K *A_tank* (T_S - Tout_M)))
-    ddTout_M    = 1./(c_pW * m_M_KW)  * ((fm_M_KW * c_pW * (T_in_M - Tout_M)) + (k_K *A_tank* (T_S - Tout_M)))
+    ddTout_M  = 1./(c_pW * m_M_KW)  * ((fm_M_KW * c_pW * (T_in_M - Tout_M)) + (k_K *A_tank* (T_S - Tout_M)))
     ddT_EK   	= 1./(c_pR * m_AWT)   * ((fm_AWT * c_pR * (T_R - T_EK)) - (alfa * (T_EK - Tout_AWT)) + (p_1 * k_R2 * (m_A/m_ges) * m_AWT * delH_R))
-    ddTout_AWT  = 1./(c_pW * m_AWT_KW)* ((fm_AWT_KW * c_pW * (T_in_EK - Tout_AWT)) - (alfa * (Tout_AWT - T_EK)))
+    ddTout_AWT= 1./(c_pW * m_AWT_KW)* ((fm_AWT_KW * c_pW * (T_in_EK - Tout_AWT)) - (alfa * (Tout_AWT - T_EK)))
 
-    ddaccum_momom = m_dot_f
-    ddT_adiab = delH_R/(m_ges*c_pR)*ddm_A-(ddm_A+ddm_W+ddm_P)*(m_A*delH_R/(m_ges*m_ges*c_pR))+ddT_R
+    ddaccum_momom   = m_dot_f
+    ddT_adiab       = delH_R/(m_ges*c_pR)*ddm_A-(ddm_A+ddm_W+ddm_P)*(m_A*delH_R/(m_ges*m_ges*c_pR))+ddT_R
 
     # Concatenate differential states, algebraic states, control inputs and right-hand-sides
 
