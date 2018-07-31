@@ -12,3 +12,8 @@ For detailed instructions go to the [wiki](https://github.com/do-mpc/do-mpc/wiki
 
 # FAQ
 Go [here](https://github.com/do-mpc/do-mpc/wiki/FAQ) for a list of the most frequently asked questions
+
+# Citing do-mpc
+If you use do-mpc for published work please cite it as:
+
+S. Lucia, A. Tatulea-Codrean, C. Schoppmeyer, and S. Engell. Rapid development of modular and sustainable nonlinear model predictive control solutions. Control Engineering Practice, 60:51-62, 2017
