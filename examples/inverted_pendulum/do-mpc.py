@@ -1,24 +1,32 @@
+# 	 -*- coding: utf-8 -*-
 #
-#   This file is part of do-mpc
+#    This file is part of do-mpc
 #
-#   do-mpc: An environment for the easy, modular and efficient implementation of
-#        robust nonlinear model predictive control
+#    do-mpc: An environment for the easy, modular and efficient implementation of
+#            robust nonlinear model predictive control
 #
-#   Copyright (c) 2014-2018 Sergio Lucia, Alexandru Tatulea-Codrean
-#                        TU Dortmund. All rights reserved
+#    The MIT License (MIT)
 #
-#   do-mpc is free software: you can redistribute it and/or modify
-#   it under the terms of the GNU Lesser General Public License as
-#   published by the Free Software Foundation, either version 3
-#   of the License, or (at your option) any later version.
+#    Copyright (c) 2014-2018 Sergio Lucia, Alexandru Tatulea-Codrean
+#                            TU Dortmund. All rights reserved
 #
-#   do-mpc is distributed in the hope that it will be useful,
-#   but WITHOUT ANY WARRANTY; without even the implied warranty of
-#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#   GNU Lesser General Public License for more details.
+#    Permission is hereby granted, free of charge, to any person obtaining a copy
+#    of this software and associated documentation files (the "Software"), to deal
+#    in the Software without restriction, including without limitation the rights
+#    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+#    copies of the Software, and to permit persons to whom the Software is
+#    furnished to do so, subject to the following conditions:
 #
-#   You should have received a copy of the GNU General Public License
-#   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
+#    The above copyright notice and this permission notice shall be included in all
+#    copies or substantial portions of the Software.
+#
+#    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+#    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+#    SOFTWARE.
 #
 
 # This is the main path of your do-mpc installation relative to the execution folder
@@ -47,21 +55,20 @@ import template_model
 import template_optimizer
 import template_observer
 import template_simulator
-
+import pdb 
 # Create the objects for each module
 model_1 = template_model.model()
 # Create an optimizer object based on the template and a model
 optimizer_1 = template_optimizer.optimizer(model_1)
 # Create an observer object based on the template and a model
 observer_1 = template_observer.observer(model_1)
+
 # Create a simulator object based on the template and a model
 simulator_1 = template_simulator.simulator(model_1)
 # Create a configuration
 configuration_1 = core_do_mpc.configuration(model_1, optimizer_1, observer_1, simulator_1)
-
 # Set up the solvers
 configuration_1.setup_solver()
-
 
 """
 ----------------------------
@@ -77,6 +84,7 @@ while (configuration_1.simulator.t0_sim + configuration_1.simulator.t_step_simul
     """
     # Make one optimizer step (solve the NLP)
     configuration_1.make_step_optimizer()
+    #configuration_1.optimizer.u_mpc = configuration_1.model.ocp.u0
 
     """
     ----------------------------
