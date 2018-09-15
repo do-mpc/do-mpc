@@ -71,7 +71,7 @@ configuration_1 = core_do_mpc.configuration(model_1, optimizer_1, observer_1, si
 # Set up the solvers
 configuration_1.setup_solver()
 index_mpc = 0
-index_stationary = 0
+index_stationary = -5
 index_transform = 0
 aux_do_mpc.get_good_initialization(configuration_1)
 
@@ -97,11 +97,13 @@ print("Loaded model from disk")
 do-mpc: MPC loop
 ----------------------------
 """
-n_batches = 1
+n_batches = 100
 offset = 0
-power_steps = NP.random.uniform(500,3000,3)
+#power_steps = NP.random.uniform(500,3000,3)
+power_steps = NP.array([2000,3000,1000])
 for i in range(offset, n_batches + offset):
-
+    if mod(i,2) == 0:
+        power_steps = NP.random.uniform(500,3000,3)
     i_0_0 = 0
     v_C_0	= 0
     my_time_0 = 0
@@ -124,6 +126,7 @@ for i in range(offset, n_batches + offset):
         tv_p_values[time_step] = NP.array([tv_param_1_values,tv_param_2_values])
 
     configuration_1.optimizer.tv_p_values = tv_p_values
+    configuration_1.optimizer.tv_p_values_original = tv_p_values
     nx = configuration_1.model.ocp.x0.size(1)
     # nu = configuration_1.model.u.size(1)
     # ntv_p = configuration_1.model.tv_p.size(1)
@@ -145,7 +148,7 @@ for i in range(offset, n_batches + offset):
     configuration_1.simulator.t0_sim = 0
     configuration_1.simulator.tf_sim = configuration_1.simulator.t_step_simulator
     configuration_1.mpc_data = data_do_mpc.mpc_data(configuration_1)
-
+    index_stationary = -5
     FIRST_ITER = 1
     while (configuration_1.simulator.t0_sim + configuration_1.simulator.t_step_simulator < configuration_1.optimizer.t_end):
 
@@ -184,7 +187,17 @@ for i in range(offset, n_batches + offset):
         u_mpc = nn_prediction * (u_ub - u_lb) + u_lb
         configuration_1.optimizer.u_mpc = NP.squeeze(vertcat(NP.array(u_mpc)))
         # configuration_1.optimizer.u_mpc = NP.array([0.5,73])
-        index_stationary += 1
+        if index_stationary == 0 or index_stationary >= 0:
+            if mod(i,2) == 0:
+                # Use neural network
+                configuration_1.optimizer.u_mpc = NP.squeeze(vertcat(NP.array(u_mpc)))
+            else:
+                # Use exact MPC
+                configuration_1.make_step_optimizer()
+        if index_stationary < 0:
+            configuration_1.optimizer.u_mpc = NP.array([0.5,73])
+            index_stationary += 1
+
 
         """
         ----------------------------
@@ -292,8 +305,8 @@ for i in range(offset, n_batches + offset):
 
         # Export data for each batch
     # data_do_mpc.export_for_learning(configuration_1, "data_batch_" + str(i))
-    data_do_mpc.plot_mpc(configuration_1)
-    configuration_1.simulator.export_name = "deep_mpc_validation" + str(i)
+    # data_do_mpc.plot_mpc(configuration_1)
+    configuration_1.simulator.export_name = "deep_mpc_validation_paper_table" + str(i)
     data_do_mpc.export_to_matlab(configuration_1)
 """
 ------------------------------------------------------

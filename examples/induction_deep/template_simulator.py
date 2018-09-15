@@ -35,7 +35,7 @@ def simulator(model):
     # Choose the simulator time step
     t_step_simulator = 0.005
     # Choose options for the integrator
-    opts = {"abstol":1e-12,"reltol":1e-12, "exact_jacobian":True, 'tf':t_step_simulator}
+    opts = {"abstol":1e-12,"reltol":1e-12, 'tf':t_step_simulator}
     # Choose integrator: for example 'cvodes' for ODEs or 'idas' for DAEs
     integration_tool = 'cvodes'
 

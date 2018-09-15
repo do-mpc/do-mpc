@@ -194,20 +194,8 @@ def setup_nlp(model, optimizer):
       # Choose collocation points
       if coll=='legendre':    # Legendre collocation points
         tau_root = [0]+collocation_points(deg, 'legendre')
-        # tau_root = (
-        #   [0,0.500000],
-        #   [0,0.211325,0.788675],
-        #   [0,0.112702,0.500000,0.887298],
-        #   [0,0.069432,0.330009,0.669991,0.930568],
-        #   [0,0.046910,0.230765,0.500000,0.769235,0.953090])[deg-1]
       elif coll=='radau':     # Radau collocation points
         tau_root = [0]+collocation_points(deg, 'radau')
-        # tau_root = (
-        #   [0,1.000000],
-        #   [0,0.333333,1.000000],
-        #   [0,0.155051,0.644949,1.000000],
-        #   [0,0.088588,0.409467,0.787659,1.000000],
-        #   [0,0.057104,0.276843,0.583590,0.860240,1.000000])[deg-1]
       else:
         raise Exception('Unknown collocation scheme')
 
@@ -240,9 +228,9 @@ def setup_nlp(model, optimizer):
         lfcn = Function('lfcn',[tau],[L])
         D[j] = lfcn(1.0)
         # Evaluate the time derivative of the polynomial at all collocation points to get the coefficients of the continuity equation
-        tfcn = lfcn.tangent()
+        tfcn = Function('tfcn', [tau],[tangent(L,tau)])
         for r in range(deg+1):
-          C[j,r], _ = tfcn(tau_root[r])
+          C[j,r] = tfcn(tau_root[r])
 
       # Initial condition
       xk0 = MX.sym("xk0",nx)

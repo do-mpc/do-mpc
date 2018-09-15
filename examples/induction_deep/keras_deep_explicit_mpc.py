@@ -116,10 +116,10 @@ print score
 
 # If wanted save model
 model_json = model.to_json()
-with open("model_3.json", "w") as json_file:
+with open("model_writePaper.json", "w") as json_file:
     json_file.write(model_json)
 # serialize weights to HDF5
-model.save_weights("model_3.h5")
+model.save_weights("model_writePaper.h5")
 print("Saved model to disk")
 
 
