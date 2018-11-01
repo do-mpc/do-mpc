@@ -28,7 +28,8 @@ import sys
 sys.path.insert(0,path_do_mpc+'code')
 # Do not write bytecode to maintain clean directories
 sys.dont_write_bytecode = True
-
+# Compatibility for python 2.7 and python 3.0
+from builtins import input
 # Start CasADi
 from casadi import *
 # Import do-mpc core functionalities
@@ -126,4 +127,4 @@ data_do_mpc.plot_mpc(configuration_1)
 data_do_mpc.export_to_matlab(configuration_1)
 
 
-raw_input("Press Enter to exit do-mpc...")
+input("Press Enter to exit do-mpc...")
