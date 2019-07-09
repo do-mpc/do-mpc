@@ -40,6 +40,8 @@ import aux_do_mpc
 
 import numpy as NP
 import pdb
+# Compatibility for python 2.7 and python 3.0
+from builtins import input
 
 import keras
 from keras.models import model_from_json
@@ -98,12 +100,12 @@ do-mpc: MPC loop
 ----------------------------
 """
 n_batches = 100
-offset = 0
-#power_steps = NP.random.uniform(500,3000,3)
-power_steps = NP.array([2000,3000,1000])
+offset = 100
+# power_steps = NP.array([2000,3000,1000])
 for i in range(offset, n_batches + offset):
     if mod(i,2) == 0:
         power_steps = NP.random.uniform(500,3000,3)
+        configuration_1.simulator.p_real = NP.random.uniform(0.85,1.15,2)
     i_0_0 = 0
     v_C_0	= 0
     my_time_0 = 0
@@ -116,9 +118,9 @@ for i in range(offset, n_batches + offset):
     n_horizon = configuration_1.optimizer.n_horizon
     tv_p_values = NP.resize(NP.array([]),(number_steps,n_tv_p,n_horizon))
     for time_step in range (number_steps):
-        if time_step < 4000:
+        if time_step < 6000:
             tv_param_1_values = power_steps[0] * NP.ones(n_horizon)
-        elif time_step < 6000-10:
+        elif time_step < 10000-10:
             tv_param_1_values = power_steps[1] * NP.ones(n_horizon)
         else:
             tv_param_1_values = power_steps[2] * NP.ones(n_horizon)
@@ -148,8 +150,10 @@ for i in range(offset, n_batches + offset):
     configuration_1.simulator.t0_sim = 0
     configuration_1.simulator.tf_sim = configuration_1.simulator.t_step_simulator
     configuration_1.mpc_data = data_do_mpc.mpc_data(configuration_1)
-    index_stationary = -5
+    index_stationary = 0
     FIRST_ITER = 1
+    tv_p_values_adapted = tv_p_values
+    step_index = 0
     while (configuration_1.simulator.t0_sim + configuration_1.simulator.t_step_simulator < configuration_1.optimizer.t_end):
 
         """
@@ -180,7 +184,7 @@ for i in range(offset, n_batches + offset):
         # Use the neural network
         # Scale input
         mpc_iteration = configuration_1.simulator.mpc_iteration
-        x_input = (NP.append(configuration_1.simulator.x0_sim,tv_p_values[mpc_iteration,0,0]) - x_lb) / (x_ub - x_lb)
+        x_input = (NP.append(configuration_1.simulator.x0_sim,tv_p_values_adapted[step_index,0,0]) - x_lb) / (x_ub - x_lb)
         # Predict the output
         nn_prediction = loaded_model.predict(NP.reshape(x_input,(1,-1)))
         # Unscale the output
@@ -205,6 +209,8 @@ for i in range(offset, n_batches + offset):
         ----------------------------
         """
         # Simulate the system one step using the solution obtained in the optimization
+        # configuration_1.simulator.p_real = NP.random.uniform(0.85,1.15,2)
+        # configuration_1.simulator.p_real = NP.array([1.15,1.15])
         for on_off_states in range(2):
             for index_sim in range(int(1/configuration_1.simulator.t_step_simulator)):
 
@@ -251,10 +257,11 @@ for i in range(offset, n_batches + offset):
         do-mpc: Bias correction term
         ------------------------------------------------------
         """
-        BIAS_CORRECTION = 0
+        BIAS_CORRECTION = 1
         if BIAS_CORRECTION:
             # Update the set-point to track the correct power
-            step_index = int(configuration_1.simulator.t0_sim / configuration_1.simulator.t_step_simulator)
+            # pdb.set_trace()
+            step_index = int(round(configuration_1.simulator.t0_sim / configuration_1.simulator.t_step_simulator))
             if (index_mpc == 0):
                 tv_param_1_adapted = configuration_1.optimizer.tv_p_values[step_index][0]
                 tv_param_2_adapted = configuration_1.optimizer.tv_p_values[step_index][1]
@@ -274,23 +281,30 @@ for i in range(offset, n_batches + offset):
             #     # pdb.set_trace()
             #     av_power[i*steps_per_cycle:(i+1)*steps_per_cycle,0] = NP.mean((mpc_control[i*steps_per_cycle,0]) * mpc_other[i*steps_per_cycle:(i)*steps_per_cycle + steps_active,plot_other[1]])
             mpc_other = configuration_1.mpc_data.mpc_other
-            steps_per_cycle = int(2/configuration_1.simulator.t_step_simulator)
-            steps_active = steps_per_cycle / 2
+            steps_per_cycle = int(round(2/configuration_1.simulator.t_step_simulator))
+            steps_active = int(round(steps_per_cycle / 2))
             # meas_power = NP.mean(mpc_other[index_mpc*steps_per_cycle:(index_mpc+1)*steps_per_cycle,1])
+            index_mpc = int(round(configuration_1.simulator.t0_sim / 2)) - 1
             meas_power = NP.mean((configuration_1.optimizer.u_mpc[0]) * mpc_other[index_mpc*steps_per_cycle:(index_mpc)*steps_per_cycle+steps_active,1])
-            index_mpc += 1
+            # index_mpc += 1
             # Assume that the simulated power is the original in the cost (exact tracking)
             sim_power = tv_p_values_original[0]
-            # pdb.set_trace()
-            bias_term = meas_power - sim_power
 
-            if index_mpc <= 2 or index_stationary<=0:
+            bias_term = meas_power - sim_power
+            # pdb.set_trace()
+            if index_mpc <= 0 or index_stationary<0:
                 k_bias =  0.0 # The first steps the power is not correctly computed because of initial cond
             else:
-                k_bias = -0.8
-
+                k_bias = -0.8*1.0
+            # reset the set-point to the original one when a reference change is performed
+            # if tv_p_values[step_index][0][0] != tv_p_values[step_index - 1][0][0]:
+            #     pdb.set_trace()
+            #     tv_param_1_adapted = configuration_1.optimizer.tv_p_values_original[step_index][0]
             tv_param_1_adapted = tv_param_1_adapted + k_bias * bias_term
             tv_param_2_adapted = tv_param_2_adapted
+            print('Original set-point: ', configuration_1.optimizer.tv_p_values_original[step_index][0][0])
+            print('New set-point: ', tv_param_1_adapted[0])
+            print('Current error: ', bias_term)
             tv_p_values_adapted[step_index] = NP.array([tv_param_1_adapted,tv_param_2_adapted])
             # Update in the structure of the controller
             nx = configuration_1.model.ocp.x0.size(1)
@@ -306,7 +320,7 @@ for i in range(offset, n_batches + offset):
         # Export data for each batch
     # data_do_mpc.export_for_learning(configuration_1, "data_batch_" + str(i))
     # data_do_mpc.plot_mpc(configuration_1)
-    configuration_1.simulator.export_name = "deep_mpc_validation_paper_table" + str(i)
+    configuration_1.simulator.export_name = "deep_mpc_validation_revised_paper_table" + str(i)
     data_do_mpc.export_to_matlab(configuration_1)
 """
 ------------------------------------------------------
@@ -314,10 +328,10 @@ do-mpc: Plot the closed-loop results
 ------------------------------------------------------
 """
 
-# data_do_mpc.plot_mpc(configuration_1)
+data_do_mpc.plot_mpc(configuration_1)
 #
 # # Export to matlab if wanted
 # data_do_mpc.export_to_matlab(configuration_1)
 
 
-raw_input("Press Enter to exit do-mpc...")
+input("Press Enter to exit do-mpc...")

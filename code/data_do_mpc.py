@@ -37,7 +37,7 @@ class mpc_data:
         nu = configuration.model.u.size(1)
         np = configuration.model.p.size(1)
         no = configuration.model.other.size(1)
-        if NP.size(configuration.model.z) > 0: # If DAE
+        if configuration.model.z.size(1) > 0: # If DAE
             nz = configuration.model.z.size(1)
         else: # Model is ODE
             nz = 0
@@ -174,9 +174,9 @@ def plot_mpc(configuration):
     #     else:
     #         av_power[i,0] = av_power[index_now,0]
     # Alternative average power computation
-    steps_per_cycle = int(index_mpc/configuration.optimizer.t_end)*2
-    steps_active = steps_per_cycle / 2
-    for i in range(configuration.optimizer.t_end/2):
+    steps_per_cycle = int(round(index_mpc/configuration.optimizer.t_end)*2)
+    steps_active = int(round(steps_per_cycle / 2))
+    for i in range(int(round(configuration.optimizer.t_end/2))):
         # pdb.set_trace()
         av_power[i*steps_per_cycle:(i+1)*steps_per_cycle,0] = NP.mean((mpc_control[i*steps_per_cycle,0]) * mpc_other[i*steps_per_cycle:(i)*steps_per_cycle + steps_active,plot_other[1]])
         # NP.mean(mpc_other[i*steps_per_cycle:(i+1)*steps_per_cycle,plot_other[1]])

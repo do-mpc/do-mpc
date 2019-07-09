@@ -178,8 +178,8 @@ def setup_nlp(model, optimizer):
 
     p_scenario = deepcopy(p_scenario_index)*1.0 # Initialize the vector with the real values
     for jj in range(len(p_scenario_index)):
-	for ii in range(np):
-	      p_scenario[jj,ii] = uncertainty_values[ii][p_scenario_index[jj,ii]]
+    	for ii in range(np):
+    	      p_scenario[jj,ii] = uncertainty_values[ii][p_scenario_index[jj,ii]]
 
     """
     -----------------------------------------------------------------------------------
@@ -430,8 +430,8 @@ def setup_nlp(model, optimizer):
     NV += n_scenarios[nk]*nx # End point
 
     if soft_constraint:
-		# If soft constraints are implemented
-		NV += cons.size1()
+    	# If soft constraints are implemented
+    	NV += cons.size1()
     # Weighting factor for every scenario
     omega = [1./n_scenarios[k+1] for k in range(nk)]
     omega_delta_u = [1./n_scenarios[k+1] for k in range(nk)]
@@ -680,11 +680,11 @@ def setup_nlp(model, optimizer):
 
     # Add non-anticipativity constraints for open-loop multi-stage NMPC
     if open_loop == 1:
-		for kk in range(1,nk):
-			for ss in range(n_scenarios[kk]-1):
-				g.append(U[kk,ss] - U[kk,ss+1])
-				lbg.append(NP.zeros(nu))
-				ubg.append(NP.zeros(nu))
+    	for kk in range(1,nk):
+    		for ss in range(n_scenarios[kk]-1):
+    			g.append(U[kk,ss] - U[kk,ss+1])
+    			lbg.append(NP.zeros(nu))
+    			ubg.append(NP.zeros(nu))
     # Add constraitns for control horizon
     for kk in range(1,nk,2):
         g.append(U[kk,0][:] - U[kk-1,0][:])

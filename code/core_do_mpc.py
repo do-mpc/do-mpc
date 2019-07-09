@@ -275,6 +275,7 @@ class configuration:
         u_mpc = self.optimizer.u_mpc
         # Use the real parameters
         p_real = self.simulator.p_real_now(self.simulator.t0_sim)
+        p_real = self.simulator.p_real
         # tv_p_real = self.simulator.tv_p_real_now(self.simulator.t0_sim)
         # NOTE This has been changed to simulate 2 steps (on and off periods)
         tv_p_real = self.simulator.tv_p_real_now
