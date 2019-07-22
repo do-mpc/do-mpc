@@ -79,8 +79,8 @@ aux_do_mpc.get_good_initialization(configuration_1)
 do-mpc: MPC loop
 ----------------------------
 """
-n_batches = 100
-offset = 700
+n_batches = 1
+offset = 0
 
 for i in range(offset, n_batches + offset):
     power_steps = NP.random.uniform(500,3000,3)
@@ -109,15 +109,6 @@ for i in range(offset, n_batches + offset):
 
     configuration_1.optimizer.tv_p_values = tv_p_values
     nx = configuration_1.model.ocp.x0.size(1)
-    # nu = configuration_1.model.u.size(1)
-    # ntv_p = configuration_1.model.tv_p.size(1)
-    # nk = configuration_1.optimizer.n_horizon
-    # parameters_setup_nlp = struct_symMX([entry("uk_prev",shape=(nu)), entry("TV_P",shape=(ntv_p,nk))])
-    # param = parameters_setup_nlp(0)
-    # param["TV_P"] = tv_p_values_adapted[step_index]
-    # param["uk_prev"] = configuration_1.optimizer.u_mpc
-    # configuration_1.optimizer.arg['p'] = param
-    # Update initial condition for this batch
     x_scaling = configuration_1.model.ocp.x_scaling
     X_offset = configuration_1.optimizer.nlp_dict_out['X_offset']
     # nx = len(configuration_1.model.ocp.x0)
@@ -141,19 +132,8 @@ for i in range(offset, n_batches + offset):
 
         # Always reinitialize the "time" state for the optimization
         X_offset = configuration_1.optimizer.nlp_dict_out['X_offset']
-        # configuration_1.optimizer.arg['lbx'][X_offset[0,0]+ 2] = 0
-        # configuration_1.optimizer.arg['ubx'][X_offset[0,0]+ 2] = 0
-        # Make one optimizer step (solve the NLP)
-        # if configuration_1.simulator.t0_sim == 0:
-
-        # if mod(index_transform, 2) == 0:
-        #     aux_do_mpc.check_collocation_accuracy(configuration_1)
-        #     configuration_1.make_step_optimizer()
-            # aux_do_mpc.check_collocation_accuracy(configuration_1)
-        # configuration_1.optimizer.u_mpc = NP.array([0.5,60000])
 
         if index_stationary == 0 or index_stationary >= 0:
-            # aux_do_mpc.check_collocation_accuracy(configuration_1)
             configuration_1.make_step_optimizer()
         if index_stationary < 0:
             configuration_1.optimizer.u_mpc = NP.array([0.5,73])
@@ -201,10 +181,6 @@ for i in range(offset, n_batches + offset):
                 # Plot animation if chosen in by the user
                 data_do_mpc.plot_animation(configuration_1)
 
-            # configuration_1.simulator.x0_sim[2] = 0
-            # configuration_1.simulator.xf_sim[2] = 0
-            # configuration_1.optimizer.arg['lbx'][X_offset[0,0]+ 2] = 0
-            # configuration_1.optimizer.arg['ubx'][X_offset[0,0]+ 2] = 0
             index_transform += 1
         """
         ------------------------------------------------------
@@ -227,16 +203,9 @@ for i in range(offset, n_batches + offset):
                 pass
             # load original tv_param
             tv_p_values_original = configuration_1.optimizer.tv_p_values[step_index]
-            # Compute the bias term
-            # steps_per_cycle = int(index_mpc/configuration.optimizer.t_end)*2
-            # steps_active = steps_per_cycle / 2
-            # for i in range(configuration.optimizer.t_end/2):
-            #     # pdb.set_trace()
-            #     av_power[i*steps_per_cycle:(i+1)*steps_per_cycle,0] = NP.mean((mpc_control[i*steps_per_cycle,0]) * mpc_other[i*steps_per_cycle:(i)*steps_per_cycle + steps_active,plot_other[1]])
             mpc_other = configuration_1.mpc_data.mpc_other
             steps_per_cycle = int(2/configuration_1.simulator.t_step_simulator)
             steps_active = steps_per_cycle / 2
-            # meas_power = NP.mean(mpc_other[index_mpc*steps_per_cycle:(index_mpc+1)*steps_per_cycle,1])
             meas_power = NP.mean((configuration_1.optimizer.u_mpc[0]) * mpc_other[index_mpc*steps_per_cycle:(index_mpc)*steps_per_cycle+steps_active,1])
             index_mpc += 1
             # Assume that the simulated power is the original in the cost (exact tracking)
@@ -264,14 +233,14 @@ for i in range(offset, n_batches + offset):
             configuration_1.optimizer.arg['p'] = param
 
         # Export data for each batch
-    data_do_mpc.export_for_learning(configuration_1, "data_batch_v2_" + str(i))
+    # data_do_mpc.export_for_learning(configuration_1, "data_batch_v2_" + str(i))
 """
 ------------------------------------------------------
 do-mpc: Plot the closed-loop results
 ------------------------------------------------------
 """
 
-# data_do_mpc.plot_mpc(configuration_1)
+data_do_mpc.plot_mpc(configuration_1)
 #
 # # Export to matlab if wanted
 # data_do_mpc.export_to_matlab(configuration_1)
