@@ -99,8 +99,8 @@ print("Loaded model from disk")
 do-mpc: MPC loop
 ----------------------------
 """
-n_batches = 100
-offset = 100
+n_batches = 1
+offset = 0
 # power_steps = NP.array([2000,3000,1000])
 for i in range(offset, n_batches + offset):
     if mod(i,2) == 0:
@@ -320,7 +320,7 @@ for i in range(offset, n_batches + offset):
         # Export data for each batch
     # data_do_mpc.export_for_learning(configuration_1, "data_batch_" + str(i))
     # data_do_mpc.plot_mpc(configuration_1)
-    configuration_1.simulator.export_name = "deep_mpc_validation_revised_paper_table" + str(i)
+    configuration_1.simulator.export_name = "deep_mpc_validation_revised_paper_table_2" + str(i)
     data_do_mpc.export_to_matlab(configuration_1)
 """
 ------------------------------------------------------

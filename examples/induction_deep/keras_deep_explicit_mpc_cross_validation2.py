@@ -7,9 +7,10 @@ from highway import *
 #from keras.utils import plot_model
 import numpy as NP
 import matplotlib.pyplot as plt
+
 # Load data
 path_to_data = ''
-n_batches_train = 9500
+n_batches_train = 500
 n_batches_test = 50
 train_offset = 0
 n_batches_train_test = n_batches_train + n_batches_test
@@ -30,23 +31,23 @@ np = 1
 nt = 1
 
 steps_real_data = int(1/0.005 * 2)
-index_feasible = 0
+
 for i in range(train_offset, train_offset + n_batches_train + n_batches_test):
     # Format is: |time|states|controls|params|
     # Try to load data in case the solution was feasible
-    try:
-        raw_data.append(NP.load(path_to_data+ "data_batch_v2_random" + str(i+0) + ".npy"))
-        index_feasible = index_feasible + 1
-    except:
-        pass
-n_batches_train_test = index_feasible
-n_batches_train = index_feasible - n_batches_test
+    raw_data.append(NP.load(path_to_data+ "data_batch_v2_" + str(i+0) + ".npy"))
+
+
 for i in range(n_batches_train_test):
     # remove the offset of one position in the state-control vector
     # Take points only every XXX steps because of accurate sampling
-    states.append(raw_data[i][1:-1:steps_real_data,nt:nt+nx])
-    controls.append(raw_data[i][1::steps_real_data,nt+nx:nt+nx+nu])
-    params.append(raw_data[i][1:-1:steps_real_data,nt+nx+nu:nt+nx+nu+np])
+    states.append(raw_data[i][steps_real_data*3:-1:steps_real_data,nt:nt+nx])
+    controls.append(raw_data[i][1+steps_real_data*3::steps_real_data,nt+nx:nt+nx+nu])
+    params.append(raw_data[i][steps_real_data*3:-1:steps_real_data,nt+nx+nu:nt+nx+nu+np])
+
+
+
+
 
 
 # Use all data without taking into account actual batches (later for RNN)
@@ -109,6 +110,85 @@ model = Model(inputs = main_input, outputs = main_output)
 # here, 20-dimensional vectors.
 
 
+
+
+"""
+Now load the other data from full simulations
+"""
+# Load data
+path_to_data = ''
+n_batches_train = 2000
+n_batches_test = 500
+train_offset = 0
+n_batches_train_test = n_batches_train + n_batches_test
+
+raw_data = []
+states = []
+controls = []
+params = []
+
+x_train_cross = []
+y_train_cross = []
+x_test_cross = []
+y_test_cross = []
+
+nx = 2
+nu = 2
+np = 1
+nt = 1
+
+steps_real_data = int(1/0.005 * 2)
+index_feasible = 0
+for i in range(train_offset, train_offset + n_batches_train + n_batches_test):
+    # Format is: |time|states|controls|params|
+    # Try to load data in case the solution was feasible
+    try:
+        raw_data.append(NP.load(path_to_data+ "data_batch_v2_random" + str(i+0) + ".npy"))
+        index_feasible = index_feasible + 1
+    except:
+        pass
+n_batches_train_test = index_feasible
+n_batches_train = index_feasible - n_batches_test
+for i in range(n_batches_train_test):
+    # remove the offset of one position in the state-control vector
+    # Take points only every XXX steps because of accurate sampling
+    states.append(raw_data[i][1:-1:steps_real_data,nt:nt+nx])
+    controls.append(raw_data[i][1::steps_real_data,nt+nx:nt+nx+nu])
+    params.append(raw_data[i][1:-1:steps_real_data,nt+nx+nu:nt+nx+nu+np])
+
+
+# Use all data without taking into account actual batches (later for RNN)
+
+x_train_cross = NP.vstack(states[0:n_batches_train])
+p_train_cross = NP.vstack(params[0:n_batches_train])
+x_train_cross = NP.append(x_train_cross,p_train_cross, axis = 1)
+y_train_cross = NP.vstack(controls[0:n_batches_train])
+
+# Try including two past steps as inputs
+# for i in range(len(x_train))
+#     if i < n_recurrent:
+#         x_train_recurrent[i] =
+
+x_test_cross = NP.vstack(states[n_batches_train:n_batches_train_test])
+p_test_cross = NP.vstack(params[n_batches_train:n_batches_train_test])
+x_test_cross = NP.append(x_test_cross,p_test_cross, axis = 1)
+y_test_cross = NP.vstack(controls[n_batches_train:n_batches_train_test])
+
+u_lb = NP.array([0.2, 30])
+u_ub = NP.array([0.8, 100])
+
+x_lb = NP.array([-50, -100, 500]) # the third component is the scaling factor for the parameter
+x_ub = NP.array([50, 400, 3000])
+# Scale the outputs between 0 and 1 based on input bounds for better loss management
+y_train_cross = (y_train_cross - u_lb) / (u_ub - u_lb)
+y_test_cross  = (y_test_cross  - u_lb) / (u_ub - u_lb)
+
+x_train_cross = (x_train_cross - x_lb) / (x_ub - x_lb)
+x_test_cross  = (x_test_cross  - x_lb) / (x_ub - x_lb)
+
+
+
+
 sgd = SGD(lr=0.1, decay=1e-2, momentum=0.9, nesterov=True)
 model.compile(loss='mse',
               optimizer='adam')
@@ -117,7 +197,7 @@ model.compile(loss='mse',
 history = model.fit(x_train, y_train,
           epochs=300,
           batch_size=int(len(x_train)/15),
-          validation_data=(x_test, y_test))
+          validation_data=(x_test_cross, y_test_cross))
 score = model.evaluate(x_test, y_test, batch_size=128)
 print("The test score is: ", score)
 
@@ -150,8 +230,8 @@ plt.legend(['train', 'test'], loc='upper left')
 plt.show()
 
 history_np = NP.array([history.history['loss'],history.history['val_loss']])
-NP.save("history_np_random" + str(n_batches_train), history_np)
-print("Exporting data for history as ''" + "history_np_random" + str(n_batches_train) + "''")
+NP.save("history_np_random_cross" + str(n_batches_train), history_np)
+print("Exporting data for history as ''" + "history_np_random_cross2_500" + str(n_batches_train) + "''")
 # print('max error unscaled: ', NP.max(abs((y_pred - y_train) * (u_ub - u_lb) + u_lb),axis = 0))
 # print('mean error unscaled: ', NP.mean(abs((y_pred - y_train) * (u_ub - u_lb) + u_lb),axis = 0))
 # # load json and create model

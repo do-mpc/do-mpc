@@ -9,7 +9,7 @@ import numpy as NP
 import matplotlib.pyplot as plt
 # Load data
 path_to_data = ''
-n_batches_train = 9500
+n_batches_train = 100
 n_batches_test = 50
 train_offset = 0
 n_batches_train_test = n_batches_train + n_batches_test
@@ -30,23 +30,19 @@ np = 1
 nt = 1
 
 steps_real_data = int(1/0.005 * 2)
-index_feasible = 0
+
 for i in range(train_offset, train_offset + n_batches_train + n_batches_test):
     # Format is: |time|states|controls|params|
     # Try to load data in case the solution was feasible
-    try:
-        raw_data.append(NP.load(path_to_data+ "data_batch_v2_random" + str(i+0) + ".npy"))
-        index_feasible = index_feasible + 1
-    except:
-        pass
-n_batches_train_test = index_feasible
-n_batches_train = index_feasible - n_batches_test
+    raw_data.append(NP.load(path_to_data+ "data_batch_v2_" + str(i+0) + ".npy"))
+
+
 for i in range(n_batches_train_test):
     # remove the offset of one position in the state-control vector
     # Take points only every XXX steps because of accurate sampling
-    states.append(raw_data[i][1:-1:steps_real_data,nt:nt+nx])
-    controls.append(raw_data[i][1::steps_real_data,nt+nx:nt+nx+nu])
-    params.append(raw_data[i][1:-1:steps_real_data,nt+nx+nu:nt+nx+nu+np])
+    states.append(raw_data[i][steps_real_data*3:-1:steps_real_data,nt:nt+nx])
+    controls.append(raw_data[i][1+steps_real_data*3::steps_real_data,nt+nx:nt+nx+nu])
+    params.append(raw_data[i][steps_real_data*3:-1:steps_real_data,nt+nx+nu:nt+nx+nu+np])
 
 
 # Use all data without taking into account actual batches (later for RNN)

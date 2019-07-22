@@ -40,6 +40,9 @@ import aux_do_mpc
 
 import numpy as NP
 import pdb
+
+# Compatibility for python 2.7 and python 3.0
+from builtins import input
 """
 -----------------------------------------------
 do-mpc: Definition of the do-mpc configuration
@@ -76,11 +79,12 @@ aux_do_mpc.get_good_initialization(configuration_1)
 do-mpc: MPC loop
 ----------------------------
 """
-n_batches = 300
-offset = 100
+n_batches = 100
+offset = 700
 
 for i in range(offset, n_batches + offset):
     power_steps = NP.random.uniform(500,3000,3)
+    configuration_1.simulator.p_real = NP.ones(2)
     # power_steps = NP.array([500,1500,3000])
     i_0_0 = 0
     v_C_0	= 0
@@ -272,5 +276,4 @@ do-mpc: Plot the closed-loop results
 # # Export to matlab if wanted
 # data_do_mpc.export_to_matlab(configuration_1)
 
-
-raw_input("Press Enter to exit do-mpc...")
+input("Press Enter to exit do-mpc...")
