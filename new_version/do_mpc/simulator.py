@@ -197,11 +197,17 @@ class simulator:
 
     def simulate(self):
         """This is the core function of the simulator class. Numerical values for sim_x_num and sim_p_num need to be provided beforehand in order to simulate the system for one time step:
-        - states (sim_x_num['_x'])
-        - algebraic states (sim_x_num['_z'])
-        - inputs (sim_p_num['_u'])
-        - parameter (sim_p_num['_p'])
-        - time-varying parameters (sim_p_num['_tvp'])
+
+        * states (sim_x_num['_x'])
+
+        * algebraic states (sim_x_num['_z'])
+
+        * inputs (sim_p_num['_u'])
+
+        * parameter (sim_p_num['_p'])
+
+        * time-varying parameters (sim_p_num['_tvp'])
+
         The function returns the new state of the system.
 
         :return: x_new
