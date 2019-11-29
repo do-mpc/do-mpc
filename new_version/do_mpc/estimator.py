@@ -30,6 +30,7 @@ class estimator:
     def __init__(self, model):
         self.model = model
         self._x0 = model._x(0)
+        self._t0 = np.array([0])
 
 class state_feedback(estimator):
     def __init__(self, model):

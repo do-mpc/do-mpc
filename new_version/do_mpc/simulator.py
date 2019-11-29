@@ -41,6 +41,7 @@ class simulator:
         self.data = do_mpc.data.model_data(model)
 
         self._x0 = model._x(0)
+        self._t0 = np.array([0])
 
         self.data_fields = [
             't_step'
@@ -141,6 +142,24 @@ class simulator:
         :rtype: [ReturnType]
         """
         pass
+
+
+    def get_tvp_template(self):
+        return self.model._tvp(0)
+
+
+    def set_tvp_fun(self,tvp_fun):
+        assert self.get_tvp_template().labels() == tvp_fun(0).labels(), 'Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.'
+        self.tvp_fun = tvp_fun
+
+
+    def get_p_template(self):
+        return self.model._p(0)
+
+
+    def set_p_fun(self,tvp_fun):
+        assert self.get_p_template().labels() == p_fun(0).labels(), 'Incorrect output of p_fun. Use get_p_template to obtain the required structure.'
+        self.p_fun = p_fun
 
 
     def simulate(self):
