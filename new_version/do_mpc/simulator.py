@@ -28,15 +28,17 @@ import do_mpc.data
 
 
 class simulator:
-    """[Summary]
-
-    :param [ParamName]: [ParamDescription], defaults to [DefaultParamVal]
-    :type [ParamName]: [ParamType](, optional)
-    :raises [ErrorType]: [ErrorDescription]
-    :return: [ReturnDescription]
-    :rtype: [ReturnType]
+    """A class for simulating systems. Discrete-time and continuous systems can be considered.
     """
     def __init__(self, model):
+        """ Initialize the simulator class. The model gives the basic model description and is used to build the simulator. If the model is discrete-time, the simulator is a function, if the model is continuous, the simulator is an integrator.
+
+        :param model: Simulation model
+        :type var_type: model class
+
+        :return: None
+        :rtype: None
+        """
         self.model = model
         self.data = do_mpc.data.model_data(model)
 
@@ -63,7 +65,12 @@ class simulator:
 
 
     def setup_simulator(self):
-        """Sets up simulator
+        """Sets up the simulator after the parameters were set via set_param. The simulation time step is required in order to setup the simulator for continuous and discrete-time models.
+
+        :raises assertion: t_step must be set
+
+        :return: None
+        :rtype: None
         """
         # Check if simulation time step was given
         assert self.t_step, 't_step is required in order to setup the simulator. Please set the simulation time step via set_param(**kwargs)'
@@ -115,15 +122,21 @@ class simulator:
 
 
     def set_param(self, **kwargs):
-        """[Summary]
+        """Set the parameters for the simulator. Setting the simulation time step t_step is necessary for setting up the simulator via setup_simulator.
 
-        :param integration_tool: , defaults to None
-        :type [ParamName]: [ParamType](, optional)
-        :raises [ErrorType]: [ErrorDescription]
-        :return: [ReturnDescription]
-        :rtype: [ReturnType]
+        :param integration_tool: Sets which integration tool is used, defaults to cvodes (only continuous)
+        :type integration_tool: string
+        :param abstol: gives the maximum allowed absolute tolerance for the integration, defaults to 1e-10 (only continuous)
+        :type abstol: float
+        :param reltol: gives the maximum allowed relative tolerance for the integration, defaults to 1e-10 (only continuous)
+        :type abstol: float
+        :param t_step: Sets the time step for the simulation
+        :type t_step: float
+
+        :return: None
+        :rtype: None
         """
-        # TODO: Check for continuous system
+
         for key, value in kwargs.items():
             if not (key in self.data_fields):
                 print('Warning: Key {} does not exist for {} model.'.format(key, self.model.model_type))
@@ -134,47 +147,66 @@ class simulator:
             self.setup_simulator()
 
 
-    def check_validity(self):
-        """Function to check if all necessary values for simulating a model are given.
-
-        :param [ParamName]: [ParamDescription], defaults to [DefaultParamVal]
-        :type [ParamName]: [ParamType](, optional)
-        :raises [ErrorType]: [ErrorDescription]
-        :return: [ReturnDescription]
-        :rtype: [ReturnType]
-        """
-        pass
-
-
     def get_tvp_template(self):
+        """Obtain the a numerical copy of the structure of the time-varying parameters for the simulation.
+
+        :return: numerical CasADi structure
+        :rtype: struct_SX
+        """
         return self.model._tvp(0)
 
 
     def set_tvp_fun(self,tvp_fun):
+        """Function to set the function which gives the values of the time-varying parameters.
+
+        :param tvp_fun: [ParamDescription], defaults to [DefaultParamVal]
+        :type tvp_fun: python function
+
+        :raises [ErrorType]: the output of tvp_fun must have the right structure
+
+        :return: None
+        :rtype: None
+        """
         assert self.get_tvp_template().labels() == tvp_fun(0).labels(), 'Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.'
         self.tvp_fun = tvp_fun
 
 
     def get_p_template(self):
+        """Obtain the a numerical copy of the structure of the parameters for the simulation.
+
+        :return: numerical CasADi structure
+        :rtype: struct_SX
+        """
         return self.model._p(0)
 
 
-    def set_p_fun(self,tvp_fun):
+    def set_p_fun(self,p_fun):
+        """Function to set the function which gives the values of the parameters.
+
+        :param p_fun: A function which gives the values of the parameters
+        :type p_fun: python function
+
+        :raises assert: p must have the right structure
+
+        :return: None
+        :rtype: None
+        """
         assert self.get_p_template().labels() == p_fun(0).labels(), 'Incorrect output of p_fun. Use get_p_template to obtain the required structure.'
         self.p_fun = p_fun
 
 
     def simulate(self):
-        # TODO: check in model if some variables are empty, and if given or not
-        """Function to check if all necessary values for simulating a model are given.
+        """This is the core function of the simulator class. Numerical values for sim_x_num and sim_p_num need to be provided beforehand in order to simulate the system for one time step:
+        - states (sim_x_num['_x'])
+        - algebraic states (sim_x_num['_z'])
+        - inputs (sim_p_num['_u'])
+        - parameter (sim_p_num['_p'])
+        - time-varying parameters (sim_p_num['_tvp'])
+        The function returns the new state of the system.
 
-        :param [ParamName]: [ParamDescription], defaults to [DefaultParamVal]
-        :type [ParamName]: [ParamType](, optional)
-        :raises [ErrorType]: [ErrorDescription]
-        :return: Returns
-        :rtype: [ReturnType]
+        :return: x_new
+        :rtype: numpy array
         """
-
         # extract numerical values
         sim_x_num = self.sim_x_num
         sim_p_num = self.sim_p_num
