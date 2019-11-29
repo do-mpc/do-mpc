@@ -24,6 +24,7 @@ import numpy as np
 from casadi import *
 from casadi.tools import *
 import pdb
+import do_mpc.data
 
 
 class simulator:
@@ -37,7 +38,8 @@ class simulator:
     """
     def __init__(self, model):
         self.model = model
-        # TODO: set default values for integrator
+        self.data = do_mpc.data.model_data(model)
+
         self.data_fields = [
             't_step'
         ]
@@ -67,6 +69,8 @@ class simulator:
             entry('_x', struct=self.model._x),
         ])
 
+        self.sim_x_num = self.sim_x(0)
+
         self.sim_p = sim_p = struct_symSX([
             entry('_u', struct=self.model._u),
             entry('_p', struct=self.model._p),
@@ -74,13 +78,15 @@ class simulator:
             entry('_z', struct=self.model._z)
         ])
 
+        self.sim_p_num = self.sim_p(0)
+
         if self.model.model_type == 'discrete':
 
             # Build the rhs expression with the newly created variables
             x_next = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_p['_z'],sim_p['_tvp'],sim_p['_p'])
 
             # Build the simulator function
-            self.simulator = Function('simulator',[sim_x['_x'],sim_p['_u'],sim_p['_z'],sim_p['_tvp'],sim_p['_p']],[x_next])
+            self.simulator = Function('simulator',[sim_x,sim_p],[x_next])
 
         elif self.model.model_type == 'continuous':
 
@@ -134,7 +140,7 @@ class simulator:
         pass
 
 
-    def simulate(self,_x=None,_u=None,_p=None,_tvp=None,_z=None):
+    def simulate(self):
         # TODO: check in model if some variables are empty, and if given or not
         """Function to check if all necessary values for simulating a model are given.
 
@@ -144,21 +150,14 @@ class simulator:
         :return: Returns
         :rtype: [ReturnType]
         """
-        pdb.set_trace()
-        # states
-        if _x:
-            _x = _x
-        else:
-            _x = self._x
 
-        # inputs
-        if _u:
-            _u = _u
-
-            if _p:
-                _p = _p
+        # extract numerical values
+        sim_x_num = self.sim_x_num
+        sim_p_num = self.sim_p_num
 
         if self.model.model_type == 'discrete':
-            self._x = self.simulator(_x,_u,_p,_tvp,_z)
+            x_new = self.simulator(sim_x_num,sim_p_num)
         elif self.model.model_type == 'continuous':
-            self._x = self.simulator(x0 = 0, p = 0)
+            x_new = self.simulator(x0 = sim_x_num, p = sim_p_num)['xf']
+
+        return x_new
