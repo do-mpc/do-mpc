@@ -70,6 +70,7 @@ class simulator:
 
         self.sim_x = sim_x = struct_symSX([
             entry('_x', struct=self.model._x),
+            entry('_z', struct=self.model._z),
         ])
 
         self.sim_x_num = self.sim_x(0)
@@ -86,7 +87,7 @@ class simulator:
         if self.model.model_type == 'discrete':
 
             # Build the rhs expression with the newly created variables
-            x_next = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_p['_z'],sim_p['_tvp'],sim_p['_p'])
+            x_next = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_x['_z'],sim_p['_tvp'],sim_p['_p'])
 
             # Build the simulator function
             self.simulator = Function('simulator',[sim_x,sim_p],[x_next])
@@ -96,7 +97,8 @@ class simulator:
             # Define the ODE
             xdot = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_p['_z'],sim_p['_tvp'],sim_p['_p'])
             dae = {
-                'x': sim_x,
+                'x': sim_x['_x'],
+                'z': sim_z['_z'],
                 'p': sim_p,
                 'ode': xdot
             }
