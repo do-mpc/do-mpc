@@ -62,7 +62,7 @@ def template_model():
 
     # Fixed parameters:
     _p = struct_symSX([
-        entry('dummy_1'),
+        entry('dummy_1', shape=(2, 1)),
     ])
     model.set_variables(_p=_p)
 
