@@ -105,14 +105,53 @@ class optimizer:
             self.x_next_fun = Function('x_next_fun', [_x, _u, _z, _tvp, _p], [self.model._rhs])
 
     def setup_scenario_tree(self):
-        None
+        """
+        -----------------------------------------------------------------------------------
+        Build the scenario tree given the possible values of the uncertain parmeters
+        The strategy to build the tree is by default a combination of all the possible values
+        This strategy can be modified by changing the code below
+        -----------------------------------------------------------------------------------
+        """
+        # TODO: This function can be written nicer
+        uncertainty_values = self.uncertainty_values
+        n_p = self.model.n_p
+        # Initialize some auxiliary variables
+        # pdb.set_trace()
+        current_scenario = np.resize(np.array([], dtype=int), n_p)
+        p_scenario_index = np.resize(np.array([], dtype=int), n_p)
+        p_scenario = np.resize(np.array([]), n_p)
+        number_values_per_uncertainty = np.resize(np.array([], dtype=int), n_p)
+        k = 1
+        # Get the number of different values of each parameter
+        for ii in range(n_p):
+            number_values_per_uncertainty[ii] = uncertainty_values[ii].size
+            current_scenario[ii] = 0
+        while (current_scenario != number_values_per_uncertainty - 1).any():
+            for index in range(n_p - 1, -1, -1):
+                if current_scenario[index] + \
+                        1 < number_values_per_uncertainty[index]:
+                    # If it is no the last element increase it and break the for
+                    # loop
+                    current_scenario[index] += np.array([1])
+                    break
+                else:
+                    current_scenario[index] = np.array([0])
+            # Add the current scenario to the variable p_scenario
+            p_scenario_index = np.vstack((p_scenario_index, current_scenario))
+
+        # Initialize the vector with the real values
+        p_scenario = p_scenario_index * 1.0
+        for jj in range(len(p_scenario_index)):
+            for ii in range(n_p):
+                p_scenario[jj, ii] = uncertainty_values[ii][p_scenario_index[jj, ii]]
+
+        return p_scenario
 
     def setup_nlp(self):
         self.check_validity()
 
         self.setup_discretization()
-        self.setup_scenario_tree()
-
+        p_scenario = self.setup_scenario_tree()
         # Create struct for optimization variables:
         self.opt_x = opt_x = struct_symSX([
             entry('_x', repeat=self.n_horizon+1, struct=self.model._x),
