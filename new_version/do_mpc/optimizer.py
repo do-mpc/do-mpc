@@ -217,24 +217,24 @@ class optimizer:
                     C[j, r] = tfcn(tau_root[r])
 
             # Initial condition
-            xk0 = MX.sym("xk0", n_x)
-            zk = MX.sym("zk", n_z)
+            xk0 = SX.sym("xk0", n_x)
+            zk = SX.sym("zk", n_z)
             # Parameter
-            pk = MX.sym("pk", n_p)
-            tv_pk = MX.sym("tv_pk", n_tvp)
+            pk = SX.sym("pk", n_p)
+            tv_pk = SX.sym("tv_pk", n_tvp)
             # Control
-            uk = MX.sym("uk", n_u)
-            #uk_prev = MX.sym ("uk_prev",nu)
+            uk = SX.sym("uk", n_u)
+            #uk_prev = SX.sym ("uk_prev",nu)
             # State trajectory
             n_ik = ni * (deg + 1) * n_x + n_x
-            ik = MX.sym("ik", n_ik)
-            ik_split = np.resize(np.array([], dtype=MX), (ni, deg + 1))
+            ik = SX.sym("ik", n_ik)
+            ik_split = np.resize(np.array([], dtype=SX), (ni, deg + 1))
 
             # All variables with bounds and initial guess
-            ik_lb = np.zeros((n_ik,1))
-            ik_ub = np.zeros((n_ik,1))
-            ik_init = np.zeros((n_ik,1))
-            offset = 0
+            # ik_lb = np.zeros((n_ik,1))
+            # ik_ub = np.zeros((n_ik,1))
+            # ik_init = np.zeros((n_ik,1))
+            offset = n_x
 
             # Store initial condition
             ik_split[0, 0] = ik[0 : n_x]
@@ -274,7 +274,7 @@ class optimizer:
             offset += n_x
 
             # Check offset for consistency
-            assert(offset == n_ik - n_x)
+            assert(offset == n_ik)
 
             # Constraints in the control interval
             gk = []
@@ -294,7 +294,7 @@ class optimizer:
                         xp_ij += C[r, j] * ik_split[i, r]
 
                     # Add collocation equations to the NLP
-                    [f_ij] = ffcn.call([ik_split[i, j], uk, zk, tv_pk, pk])
+                    f_ij = ffcn(ik_split[i, j], uk, zk, tv_pk, pk)
                     gk.append(h * f_ij - xp_ij)
                     lbgk.append(np.zeros(n_x))  # equality constraints
                     ubgk.append(np.zeros(n_x))  # equality constraints
@@ -528,6 +528,7 @@ class optimizer:
     def solve(self):
         r = self.S(x0=self.opt_x_num, lbx=self.lb_opt_x, ubx=self.ub_opt_x,  ubg=self.cons_ub, lbg=self.cons_lb, p=self.opt_p_num)
         self.opt_x_num = self.opt_x(r['x'])
+        self.opt_g_num = r['g']
         # Values of lagrange multipliers:
         self.lam_g_num = r['lam_g']
         self.solver_stats = self.S.stats()
