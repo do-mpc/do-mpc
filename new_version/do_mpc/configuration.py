@@ -21,36 +21,38 @@
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-import matplotlib.pyplot as plt
 from casadi import *
 from casadi.tools import *
 import pdb
-import sys
-sys.path.append('../../')
-import do_mpc
 
-from template_model import template_model
-from template_optimizer import template_optimizer
-from template_simulator import template_simulator
+class configuration:
+    def __init__(self, simulator, optimizer, estimator, x0=None):
+        self.simulator = simulator
+        self.optimizer = optimizer
+        self.estimator = estimator
 
-model = template_model()
-optimizer = template_optimizer(model)
-simulator = template_simulator(model)
-estimator = do_mpc.estimator.state_feedback(model)
+        if x0:
+            # Set global intial condition.
+            self.simulator.data.update('_x', x0)
+            self.optimizer.data.update('_x', x0)
+            self.estimator.data.update('_x', x0)
+        else:
+            # Set individual initial condition.
+            self.simulator.data.update(_x = self.simulator._x0.cat)
+            self.optimizer.data.update(_x = self.simulator._x0.cat)
+            self.estimator.data.update(_x =  self.simulator._x0.cat)
 
-configuration = do_mpc.configuration(simulator, optimizer, estimator)
 
-opt_p_num = optimizer.opt_p_num
-opt_p_num['_x0'] = optimizer._x0['x']
+    def make_step_optimizer(self):
+        None
 
-optimizer.solve()
+    def make_step_simulator(self):
+        tvp_now = self.simulator.tvp_fun(self.simulator._t0)
+        p_now = self.simulator.p_fun(self.simulator._t0)
+        x0 = self.simulator._x0
 
-# Example for storing data
-optimizer.data.update(_x=optimizer.opt_x_num['_x', 0])
-optimizer.data.update(_u=optimizer.opt_x_num['_u', 0])
-optimizer.data.update(_time=0)
 
-X = horzcat(*optimizer.opt_x_num['_x', :])
 
-plt.plot(X.T)
-plt.show()
+
+    def make_step_observer(self):
+        None
