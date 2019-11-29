@@ -78,6 +78,8 @@ class model_data:
         """
         for key, value in kwargs.items():
             assert key in self.data_fields, 'Cannot update non existing key {} in data object.'.format(key)
+            if type(value) == structure3.DMStruct:
+                value = value.cat
             if type(value) == DM:
                 # Convert to numpy
                 value = value.full()
