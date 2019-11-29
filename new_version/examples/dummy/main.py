@@ -35,10 +35,10 @@ from template_simulator import template_simulator
 
 model = template_model()
 optimizer = template_optimizer(model)
-simulator = template_simulator(model)
-estimator = do_mpc.estimator.state_feedback(model)
+# simulator = template_simulator(model)
+# estimator = do_mpc.estimator.state_feedback(model)
 
-configuration = do_mpc.configuration(simulator, optimizer, estimator)
+# configuration = do_mpc.configuration(simulator, optimizer, estimator)
 
 opt_p_num = optimizer.opt_p_num
 opt_p_num['_x0'] = optimizer._x0['x']
