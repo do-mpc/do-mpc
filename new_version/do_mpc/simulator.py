@@ -91,10 +91,11 @@ class simulator:
         elif self.model.model_type == 'continuous':
 
             # Define the ODE
+            xdot = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_p['_z'],sim_p['_tvp'],sim_p['_p'])
             dae = {
                 'x': sim_x,
                 'p': sim_p,
-                'ode': self.model._rhs
+                'ode': xdot
             }
 
             # Set the integrator options
@@ -105,7 +106,7 @@ class simulator:
             }
 
             # Build the simulator
-            simulator = integrator('simulator', self.integration_tool, dae,  opts)
+            self.simulator = integrator('simulator', self.integration_tool, dae,  opts)
 
 
     def set_param(self, **kwargs):
