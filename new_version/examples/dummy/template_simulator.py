@@ -51,7 +51,6 @@ def template_simulator(model):
     tvp_num = model._tvp(0)
 
     def tvp_fun(t_now):
-        tvp_num['dummy']
         return tvp_num
 
     simulator.set_tvp_fun(tvp_fun)
