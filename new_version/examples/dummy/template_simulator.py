@@ -47,3 +47,5 @@ def template_simulator(model):
     simulator.set_param(**params_simulator)
 
     simulator.setup_simulator()
+
+    return simulator
