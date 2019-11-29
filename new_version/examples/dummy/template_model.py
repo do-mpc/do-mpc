@@ -45,10 +45,6 @@ def template_model():
     u1 = model.set_variable(var_type='_u', var_name='u1')
     u2 = model.set_variable(var_type='_u', var_name='u2')
 
-    z = model.set_variable(var_type='_z', var_name='dummy')
-    # time-varying parameter struct (parameters for optimization problem):
-    tvp = model.set_variable(var_type='_tvp', var_name='dummy', shape=2)
-
     # Fixed parameters:
     p = model.set_variable(var_type='_p', var_name='dummy', shape=2)
 
@@ -72,6 +68,5 @@ def template_model():
     model.set_rhs('x', x_next)
 
     model.setup_model()
-    pdb.set_trace()
 
     return model
