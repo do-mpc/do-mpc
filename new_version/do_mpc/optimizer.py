@@ -114,7 +114,7 @@ class optimizer:
         self.setup_scenario_tree()
 
         # Create struct for optimization variables:
-        self.opt_x = opt_x = struct_symMX([
+        self.opt_x = opt_x = struct_symSX([
             entry('_x', repeat=self.n_horizon+1, struct=self.model._x),
             entry('_z', repeat=self.n_horizon, struct=self.model._z),
             entry('_u', repeat=self.n_horizon, struct=self.model._u),
@@ -124,7 +124,7 @@ class optimizer:
         self.n_x_optim = opt_x.shape[0]
 
         # Create struct for optimization parameters:
-        self.opt_p = opt_p = struct_symMX([
+        self.opt_p = opt_p = struct_symSX([
             entry('_x0', struct=self.model._x),
             entry('_tvp',    repeat=self.n_horizon, struct=self.model._tvp),
             entry('_p', struct=self.model._p),
