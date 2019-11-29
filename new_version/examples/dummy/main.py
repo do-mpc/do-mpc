@@ -44,7 +44,6 @@ opt_p_num = optimizer.opt_p_num
 opt_p_num['_x0'] = optimizer._x0['x']
 
 optimizer.solve()
-pdb.set_trace()
 
 # Example for storing data
 optimizer.data.update(_x=optimizer.opt_x_num['_x', 0, 0, 0])
