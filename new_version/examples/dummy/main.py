@@ -44,13 +44,14 @@ opt_p_num = optimizer.opt_p_num
 opt_p_num['_x0'] = optimizer._x0['x']
 
 optimizer.solve()
+pdb.set_trace()
 
 # Example for storing data
-optimizer.data.update(_x=optimizer.opt_x_num['_x', 0])
-optimizer.data.update(_u=optimizer.opt_x_num['_u', 0])
+optimizer.data.update(_x=optimizer.opt_x_num['_x', 0, 0, 0])
+optimizer.data.update(_u=optimizer.opt_x_num['_u', 0, 0])
 optimizer.data.update(_time=0)
 
-X = horzcat(*optimizer.opt_x_num['_x', :])
+X = horzcat(*optimizer.opt_x_num['_x', :, 0, 0])
 
 plt.plot(X.T)
 plt.show()
