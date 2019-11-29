@@ -40,16 +40,37 @@ class configuration:
             # Set individual initial condition.
             self.simulator.data.update(_x = self.simulator._x0.cat)
             self.optimizer.data.update(_x = self.simulator._x0.cat)
-            self.estimator.data.update(_x =  self.simulator._x0.cat)
+            self.estimator.data.update(_x = self.simulator._x0.cat)
 
 
     def make_step_optimizer(self):
-        None
+        x0 = self.optimizer._x0
+        u0 = self.optimizer._u0
+        tvp_now = self.optimizer.tvp_fun(self.optimizer._t0)
+        p_now = self.optimizer.p_fun(self.optimizer._t0)
+
+        self.optimizer.opt_p_num['_x0'] = x0
+        self.optimizer.opt_p_num['_u_prev'] = u0
+        self.optimizer.opt_p_num['_tvp'] = tvp_now
+        self.optimizer.opt_p_num['_p_now'] = p_now
+
+        self.optimizer.solve()
+
+        u_now = self.optimizer.opt_x_num['_u', 0, 0, 0]
+        z_now = self.optimizer.opt_x_num['_z', 0, 0, 0]
+
+        self.optimizer.data.update(_tvp = tvp_now)
+        self.optimizer.data.update(_p = p_now)
+        self.optimizer.data.update(_u = u_now)
+        self.optimizer.data.update(_z = z_now)
+
 
     def make_step_simulator(self):
         tvp_now = self.simulator.tvp_fun(self.simulator._t0)
         p_now = self.simulator.p_fun(self.simulator._t0)
         x0 = self.simulator._x0
+
+
 
 
 
