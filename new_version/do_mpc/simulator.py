@@ -40,6 +40,8 @@ class simulator:
         self.model = model
         self.data = do_mpc.data.model_data(model)
 
+        self._x0 = model._x(0)
+
         self.data_fields = [
             't_step'
         ]
