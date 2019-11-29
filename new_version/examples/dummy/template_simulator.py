@@ -48,4 +48,12 @@ def template_simulator(model):
 
     simulator.setup_simulator()
 
+    tvp_num = model._tvp(0)
+
+    def tvp_fun(t_now):
+        return tvp_num
+
+    simulator.set_tvp_fun(tvp_fun)
+
+
     return simulator
