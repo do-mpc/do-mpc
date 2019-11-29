@@ -69,14 +69,9 @@ def template_model():
     F = model.set_variable(var_type='_u', var_name='F')
     Q_dot = model.set_variable(var_type='_u', var_name='Q_dot')
 
-    # algebraic variables
-    z = model.set_variable(var_type='_z', var_name='dummy')
-
-    # time-varying parameter struct (parameters for optimization problem):
-    tvp = model.set_variable(var_type='_tvp', var_name='dummy', shape=2)
-
     # Fixed parameters:
-    p = model.set_variable(var_type='_p', var_name='dummy', shape=2)
+    alpha = model.set_variable(var_type='_p', var_name='alpha')
+    beta = model.set_variable(var_type='_p', var_name='beta')
 
     # Set expression. These can be used in the cost function, as non-linear constraints
     # or just to monitor another output.
