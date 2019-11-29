@@ -22,3 +22,4 @@
 
 from do_mpc.model import model
 from do_mpc.optimizer import optimizer
+from do_mpc.simulator import simulator
