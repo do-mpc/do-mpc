@@ -58,10 +58,10 @@ class model:
         # Initilize lists for variables, expressions and rhs to be added to the model
         self.var_list = {
             '_x': [],
-            '_u': [],
-            '_z': [],
-            '_p': [],
-            '_tvp': [],
+            '_u': [{'var_name': 'default', 'value':SX.sym('default',(0,0))}],
+            '_z': [{'var_name': 'default', 'value':SX.sym('default',(0,0))}],
+            '_p': [{'var_name': 'default', 'value':SX.sym('default',(0,0))}],
+            '_tvp': [{'var_name': 'default', 'value':SX.sym('default',(0,0))}],
         }
         self.expr_list = []
         self.rhs_list = []
