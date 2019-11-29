@@ -35,7 +35,8 @@ def template_model():
     template_model: Variables / RHS / AUX
     --------------------------------------------------------------------------
     """
-    model = do_mpc.model()
+    model_type = 'discrete' # either 'discrete' or 'continuous'
+    model = do_mpc.model(model_type)
 
     # States struct (optimization variables):
     _x = struct_symSX([
