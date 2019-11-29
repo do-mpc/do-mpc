@@ -41,36 +41,47 @@ def template_optimizer(model):
         'n_horizon': 20,
         'n_robust': 0,
         'open_loop': 0,
-        't_step': 0.1,
-        'state_discretization': 'discrete',
+        't_step': 0.005,
+        'state_discretization': 'collocation',
     }
 
     optimizer.set_param(**setup_optimizer)
 
     _x, _u, _z, _tvp, p, _aux = optimizer.model.get_variables()
 
-    mterm = _aux['x_squared']
-    lterm = sum1(_x.cat**2)
+    mterm = (_x['C_b'] - 1.0)**2
+    lterm = (_x['C_b'] - 1.0)**2
 
     optimizer.set_objective(mterm=mterm, lterm=lterm)
     rterm_factor = optimizer.get_rterm()
-    rterm_factor['u1'] = 1e-4
-    rterm_factor['u2'] = 1e-4
+    rterm_factor['F'] = 0
+    rterm_factor['Q_dot'] = 0
 
-    optimizer._x_lb['x'] = -3
-    optimizer._x_ub['x'] = 3
+    optimizer._x_lb['C_a'] = 0.1
+    optimizer._x_lb['C_b'] = 0.1
+    optimizer._x_lb['T_R'] = 50
+    optimizer._x_lb['T_K'] = 50
 
-    optimizer._u_lb['u1'] = -5
-    optimizer._u_ub['u1'] = 5
-    optimizer._u_lb['u2'] = -5
-    optimizer._u_ub['u2'] = 5
+    optimizer._x_ub['C_a'] = 2.0
+    optimizer._x_ub['C_b'] = 2.0
+    optimizer._x_ub['T_R'] = 180
+    optimizer._x_ub['T_K'] = 180
 
-    optimizer._x0['x'] = 0.5
+    optimizer._u_lb['F'] = 5
+    optimizer._u_lb['Q_dot'] = -8500
 
-    optimizer.set_nl_cons(x_max=_x['x'])
-    optimizer._nl_cons_ub['x_max'] = 100
+    optimizer._u_ub['F'] = 100
+    optimizer._u_ub['Q_dot'] = 0.0
 
-    optimizer.set_uncertainty_values(np.array([[1.0,1.2],[2.0,2.3]]))
+    optimizer._x0['C_a'] = 0.8
+    optimizer._x0['C_b'] = 0.5
+    optimizer._x0['T_R'] = 134.14
+    optimizer._x0['T_K'] = 130.0
+
+    optimizer.set_nl_cons(x_max=_u['F'])
+    optimizer._nl_cons_ub['x_max'] = 100000
+
+    optimizer.set_uncertainty_values(np.array([[1.0,1.0],[1.0,1.0]]))
     optimizer.setup_nlp()
 
     return optimizer
