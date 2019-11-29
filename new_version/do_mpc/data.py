@@ -88,7 +88,7 @@ class model_data:
             # Get current results array for the given key:
             arr = getattr(self, key)
             # Append current value to results array:
-            updated = np.append(arr, value.reshape(1,-1))
+            updated = np.append(arr, value.reshape(1,-1), axis=0)
             # Update results array:
             setattr(self, key, updated)
 
