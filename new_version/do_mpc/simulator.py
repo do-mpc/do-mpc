@@ -51,8 +51,6 @@ class simulator:
             self.integration_tool = integration_tool
         if integrator_options:
             self.integrator_options = integrator_options
-        if model_type:
-            self.model_type = model_type
 
 
     def check_validity(self):

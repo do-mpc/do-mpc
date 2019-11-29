@@ -46,7 +46,6 @@ def template_simulator(model):
     setup_simulator = {
         'integration_tool': 'cvodes',
         'integrator_options': integrator_options,
-        'model_type': 'discrete' # either 'discrete' or 'continuous'
     }
 
     simulator.set_param(**setup_simulator)
