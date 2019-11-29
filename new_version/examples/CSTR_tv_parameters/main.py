@@ -34,7 +34,7 @@ plt.ion()
 
 from template_model import template_model
 from template_optimizer import template_optimizer
-from template_simulator import template_simulator
+# from template_simulator import template_simulator
 
 C_a_0 = 0.8 # This is the initial concentration inside the tank [mol/l]
 C_b_0 = 0.5 # This is the controlled variable [mol/l]
@@ -42,17 +42,20 @@ T_R_0 = 134.14 #[C]
 T_K_0 = 130.0 #[C]
 x0 = np.array([C_a_0, C_b_0, T_R_0, T_K_0]).reshape(-1,1)
 
-data = sio.loadmat('mpc_result.mat')
-x_mpc = data['mpc_states']
-u_mpc = data['mpc_control']
+# data = sio.loadmat('mpc_result.mat')
+# x_mpc = data['mpc_states']
+# u_mpc = data['mpc_control']
 
 # Build model
 model = template_model()
-simulator = template_simulator(model)
+optimizer = template_optimizer(model)
+# simulator = template_simulator(model)
 
 x_list = []
 x_list.append(x0.reshape(1,-1))
-
+optimizer.opt_p_num['_x0'] = x0
+optimizer.solve()
+pdb.set_trace()
 for i in range(1,u_mpc.shape[0]):
     simulator.sim_x_num['_x'] = x_list[-1].reshape(-1,1)
     simulator.sim_p_num['_u'] = u_mpc[i,:].reshape(-1,1)
