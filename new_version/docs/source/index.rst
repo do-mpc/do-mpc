@@ -11,6 +11,7 @@ Welcome to the documentation of do-mpc!
    :caption: Contents:
 
    license
+   installation
    modules
 
 

@@ -1,5 +1,5 @@
-do_mpc
-======
+API
+===
 
 .. toctree::
    :maxdepth: 4
