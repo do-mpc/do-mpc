@@ -48,6 +48,7 @@ class optimizer:
         self._u0 = model._u(0)
         self._t0 = np.array([0])
 
+        self.n_robust = 0
 
     def set_param(self, n_horizon=None, n_robust=None, open_loop=None, t_step=None, state_discretization=None):
         # TODO: Add docstring.
@@ -106,12 +107,13 @@ class optimizer:
     def setup_discretization(self):
         _x, _u, _z, _tvp, _p, _aux = self.model.get_variables()
         # TODO: Now for testing
-        self.state_discretization = 'collocation'
+        # self.state_discretization = 'collocation'
         self.collocation_type = 'legendre'
         self.collocation_deg = 2
         self.collocation_ni = 2
         if self.state_discretization == 'discrete':
-            self.x_next_fun = Function('x_next_fun', [_x, _u, _z, _tvp, _p], [self.model._rhs])
+            ifcn = Function('ifcn', [_x, _u, _z, _tvp, _p], [[], self.model._rhs])
+            n_total_coll_points = 0
         if self.state_discretization == 'collocation':
             ffcn = Function('ffcn', [_x, _u, _z, _tvp, _p], [self.model._rhs])
             # Get collocation information
@@ -125,6 +127,7 @@ class optimizer:
             n_p = self.model.n_p
             n_z = self.model.n_z
             n_tvp = self.model.n_tvp
+            n_total_coll_points = (deg + 1) * ni
             # x_init = self._x0['x']
 
             # Choose collocation points
@@ -275,7 +278,7 @@ class optimizer:
             ifcn = Function("ifcn", [ik, uk, zk, tv_pk, pk], [gk, xkf])
 
             # Return the integration function and the bounds for the collocaiton equations
-        return ifcn, lbgk, ubgk
+        return ifcn, n_total_coll_points
 
     def setup_scenario_tree(self):
         """
@@ -357,9 +360,8 @@ class optimizer:
     def setup_nlp(self):
         self.check_validity()
         # Obtain an integrator (collocation, discrete-time) and the corresponding g-bounds
-        ifcn, lbgk, ubgk = self.setup_discretization()
+        ifcn, n_total_coll_points = self.setup_discretization()
         p_scenario, n_branches, n_scenarios, child_scenario, parent_scenario, branch_offset = self.setup_scenario_tree()
-        n_total_coll_points = self.collocation_ni * (self.collocation_deg + 1)
         n_max_scenarios = p_scenario.shape[0] ** self.n_robust
         # Create struct for optimization variables:
         self.opt_x = opt_x = struct_symSX([
@@ -415,7 +417,6 @@ class optimizer:
                     # Obtain the index of the parameter values that should be used for this scenario
                     current_scenario = b + branch_offset[k][s]
                     # Add constraints for state equation:
-                    # pdb.set_trace()
                     [g_ksb, xf_ksb] = ifcn(vertcat(*opt_x['_x', k, s, :]), opt_x['_u', k, s], vertcat(*opt_x['_z', k, s, :]), opt_p['_tvp', k], opt_p['_p', current_scenario])
                     # x_next = self.x_next_fun(opt_x['_x', k], opt_x['_u', k], opt_x['_z', k], opt_p['_tvp', k], opt_p['_p'])
 
