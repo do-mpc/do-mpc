@@ -105,7 +105,7 @@ class simulator:
             xdot = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_p['_z'],sim_p['_tvp'],sim_p['_p'])
             dae = {
                 'x': sim_x['_x'],
-                'z': sim_z['_z'],
+                'z': sim_x['_z'],
                 'p': sim_p,
                 'ode': xdot
             }
