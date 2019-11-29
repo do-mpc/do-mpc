@@ -46,6 +46,50 @@ class model_data:
             '_tvp'
         ]
 
+    def update(self, **kwargs):
+        """Update value(s) of the data structure with key word arguments.
+        These key word arguments must exist in the data fields of the data objective.
+        See self.data_fields for a complete list of data fields.
+
+        Example:
+        _x = np.ones((1, 3))
+        _u = np.ones((1, 2))
+        data.update('_x': _x, '_u': _u)
+
+        or:
+        data.update('_x': _x)
+        data.update('_u': _u)
+
+        Alternatively:
+        data_dict = {
+            '_x':np.ones((1, 3)),
+            '_u':np.ones((1, 2))
+        }
+
+        data.update(**data_dict)
+
+
+        :param **kwargs: Arbitrary number of key word arguments for data fields that should be updated.
+        :type casadi.DM or numpy.ndarray
+
+        :raises assertion: Keyword must be in existing data_fields.
+
+        :return: None
+        """
+        for key, value in kwargs.items():
+            assert key in self.data_fields, 'Cannot update non existing key {} in data object.'.format(key)
+            if type(value) == DM:
+                # Convert to numpy
+                value = value.full()
+            elif type(value) in [float, int]:
+                value = np.array(value)
+            # Get current results array for the given key:
+            arr = getattr(self, key)
+            # Append current value to results array:
+            updated = np.append(arr, value.reshape(1,-1))
+            # Update results array:
+            setattr(self, key, updated)
+
     def export(self):
         """The export method returns a dictionary of the stored data.
 
