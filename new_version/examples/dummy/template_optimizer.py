@@ -54,13 +54,16 @@ def template_optimizer(model):
 
     optimizer.set_objective(mterm=mterm, lterm=lterm)
     rterm_factor = optimizer.get_rterm()
-    rterm_factor['u'] = 1e-4
+    rterm_factor['u1'] = 1e-4
+    rterm_factor['u2'] = 1e-4
 
     optimizer._x_lb['x'] = -3
     optimizer._x_ub['x'] = 3
 
-    optimizer._u_lb['u'] = -5
-    optimizer._u_ub['u'] = 5
+    optimizer._u_lb['u1'] = -5
+    optimizer._u_ub['u1'] = 5
+    optimizer._u_lb['u2'] = -5
+    optimizer._u_ub['u2'] = 5
 
     optimizer._x0['x'] = 0.5
 

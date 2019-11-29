@@ -39,33 +39,23 @@ def template_model():
     model = do_mpc.model(model_type)
 
     # States struct (optimization variables):
-    _x = struct_symSX([
-        entry('x', shape=(4, 1)),
-    ])
-    model.set_variables(_x=_x)
+    _x = model.set_variable(var_type='_x', var_name='x', shape=(4,1))
 
     # Input struct (optimization variables):
-    _u = struct_symSX([
-        entry('u', shape=(2, 1)),
-    ])
-    model.set_variables(_u=_u)
+    u1 = model.set_variable(var_type='_u', var_name='u1')
+    u2 = model.set_variable(var_type='_u', var_name='u2')
 
-    _z = struct_symSX([
-        entry('dummy', shape=(1, 1))
-    ])
-    model.set_variables(_z=_z)
-
+    z = model.set_variable(var_type='_z', var_name='dummy')
     # time-varying parameter struct (parameters for optimization problem):
-    _tvp = struct_symSX([
-        entry('a', shape=(2, 1)),
-    ])
-    model.set_variables(_tvp=_tvp)
+    tvp = model.set_variable(var_type='_tvp', var_name='dummy', shape=2)
 
     # Fixed parameters:
-    _p = struct_symSX([
-        entry('dummy_1', shape=(2, 1)),
-    ])
-    model.set_variables(_p=_p)
+    p = model.set_variable(var_type='_p', var_name='dummy', shape=2)
+
+    # Set expression. These can be used in the cost function, as non-linear constraints
+    # or just to monitor another output.
+    model.set_expression(expr_name='x_squared', expr=sum1(_x**2))
+
 
     A = np.array([[0.96033209,  0.19734663,  0.01973449,  0.0013227],
                   [-0.39337056,  0.96033209,  0.19470123,  0.01973449],
@@ -77,9 +67,11 @@ def template_model():
                   [6.63119354e-05, 1.98671102e-02],
                   [1.32269963e-03, 1.97346631e-01]])
 
-    rhs = model.get_rhs()
-    rhs['x'] = A@_x['x']+B@_u['u']
 
-    model.set_aux(x_squared=sum1(_x.cat**2))
+    x_next = A@_x+B@vertcat(u1,u2)
+    model.set_rhs('x', x_next)
+
+    model.setup_model()
+    pdb.set_trace()
 
     return model
