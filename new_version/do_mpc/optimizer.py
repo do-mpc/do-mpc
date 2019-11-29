@@ -24,11 +24,13 @@ import numpy as np
 from casadi import *
 from casadi.tools import *
 import pdb
+import do_mpc.data
 
 
 class optimizer:
     def __init__(self, model):
         self.model = model
+        self.data = do_mpc.data.optimizer_data(model)
 
         self._x_lb = model._x(-np.inf)
         self._x_ub = model._x(np.inf)
@@ -44,6 +46,7 @@ class optimizer:
 
         self._x0 = model._x(0)
         self._u0 = model._u(0)
+
 
     def set_param(self, n_horizon=None, n_robust=None, open_loop=None, t_step=None, state_discretization=None):
         # TODO: Add docstring.
