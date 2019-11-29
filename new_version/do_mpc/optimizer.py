@@ -46,6 +46,7 @@ class optimizer:
 
         self._x0 = model._x(0)
         self._u0 = model._u(0)
+        self._t0 = np.array([0])
 
 
     def set_param(self, n_horizon=None, n_robust=None, open_loop=None, t_step=None, state_discretization=None):
