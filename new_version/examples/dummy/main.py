@@ -40,20 +40,14 @@ estimator = do_mpc.estimator.state_feedback(model)
 
 configuration = do_mpc.configuration(simulator, optimizer, estimator)
 
-configuration.make_step_optimizer()
 
+for k in range(100):
+    configuration.make_step_optimizer()
+    configuration.make_step_simulator()
+    configuration.make_step_estimator()
 
-opt_p_num = optimizer.opt_p_num
-opt_p_num['_x0'] = optimizer._x0['x']
+_x = simulator.data._x
+_t = simulator.data._time
 
-optimizer.solve()
-
-# Example for storing data
-optimizer.data.update(_x=optimizer.opt_x_num['_x', 0, 0, 0])
-optimizer.data.update(_u=optimizer.opt_x_num['_u', 0, 0])
-optimizer.data.update(_time=0)
-
-X = horzcat(*optimizer.opt_x_num['_x', :, 0, 0])
-
-plt.plot(X.T)
+plt.plot(_t, _x)
 plt.show()
