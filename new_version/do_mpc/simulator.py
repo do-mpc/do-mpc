@@ -219,7 +219,12 @@ class simulator:
 
         if self.model.model_type == 'discrete':
             x_new = self.simulator(sim_x_num,sim_p_num)
+            z_now = self.sim_x_num['_z']
         elif self.model.model_type == 'continuous':
-            x_new = self.simulator(x0 = sim_x_num, p = sim_p_num)['xf']
+            r = self.simulator(x0 = sim_x_num, p = sim_p_num)
+            x_new = r['xf']
+            z_now = r['zf']
+
+        self.sim_x_num = self.sim_x(vertcat(x_new,z_now))
 
         return x_new
