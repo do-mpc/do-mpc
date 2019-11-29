@@ -27,8 +27,8 @@ import pdb
 
 
 class model:
-    def __init__(self):
-        None
+    def __init__(self, model_type):
+        self.model_type = model_type
 
     def set_variables(self, _x=None, _u=None, _z=None, _tvp=None, _p=None):
         # TODO: Add docstring.
