@@ -20,7 +20,28 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
-from do_mpc.model import model
-from do_mpc.optimizer import optimizer
-from do_mpc.simulator import simulator
-import do_mpc.estimator
+import numpy as np
+from casadi import *
+from casadi.tools import *
+import pdb
+import do_mpc.data
+
+class estimator:
+    def __init__(self, model):
+        self.model = model
+        self._x0 = model._x(0)
+
+class state_feedback(estimator):
+    def __init__(self, model):
+        super().__init__(model)
+        self.data = do_mpc.data.observer_data(model)
+
+class ekf(estimator):
+    def __init__(self, model):
+        super().__init__(model)
+        self.data = do_mpc.data.observer_data(model)
+
+class mhe(estimator):
+    def __init__(self, model):
+        super().__init__(model)
+        self.data = do_mpc.data.mhe_data(model)
