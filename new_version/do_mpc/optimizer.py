@@ -46,22 +46,39 @@ class optimizer:
 
         self._x0 = model._x(0)
         self._u0 = model._u(0)
+        self._z0 = model._z(0)
         self._t0 = np.array([0])
 
-        self.n_robust = 0
+        # Parameters that can be set for the optimizer:
+        self.data_fields = [
+            'n_horizon',
+            'n_robust',
+            'open_loop',
+            't_step',
+            'state_discretization',
+            'collocation_deg',
+            'collocation_ni',
+        ]
 
-    def set_param(self, n_horizon=None, n_robust=None, open_loop=None, t_step=None, state_discretization=None):
-        # TODO: Add docstring.
-        if n_horizon:
-            self.n_horizon = n_horizon
-        if n_robust:
-            self.n_robust = n_robust
-        if open_loop:
-            self.open_loop = open_loop
-        if t_step:
-            self.t_step = t_step
-        if state_discretization:
-            self.state_discretization = state_discretization
+        # Default Parameters:
+        self.n_robust = 0
+        self.collocation_deg = 2
+        self.collocation_ni = 1
+        self.open_loop = False
+
+    def set_param(self, **kwargs):
+        """[Summary]
+
+        :param integration_tool: , defaults to None
+        :type [ParamName]: [ParamType](, optional)
+        :raises [ErrorType]: [ErrorDescription]
+        :return: [ReturnDescription]
+        :rtype: [ReturnType]
+        """
+        for key, value in kwargs.items():
+            if not (key in self.data_fields):
+                print('Warning: Key {} does not exist for optimizer.'.format(key))
+            setattr(self, key, value)
 
     def set_nl_cons(self, **kwargs):
         # TODO: Make sure kwargs are passed correctly.
@@ -90,10 +107,28 @@ class optimizer:
         self.rterm_factor = self.model._u(0)
         return self.rterm_factor
 
-    def set_tvp_fun(self, tvp_fun):
-        # TODO: Add docstring.
-        # TODO: Implement checks regarding n_horizon, n_tvp, etc.
-        None
+    def get_tvp_template(self):
+        tvp_template = struct_symSX([
+            entry('_tvp', repeat=self.n_horizon, struct=self.model._tvp)
+        ])
+        return tvp_template(0)
+
+    def set_tvp_fun(self,tvp_fun):
+        assert self.get_tvp_template().labels() == tvp_fun(0).labels(), 'Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.'
+        self.tvp_fun = tvp_fun
+
+
+    def get_p_template(self):
+        n_combinations = np.prod([uncertainties_i.size for uncertainties_i in self.uncertainty_values])**self.n_robust
+        p_template = struct_symSX([
+            entry('_p', repeat=n_combinations, struct=self.model._p)
+        ])
+        return p_template(0)
+
+
+    def set_p_fun(self,p_fun):
+        assert self.get_p_template().labels() == p_fun(0).labels(), 'Incorrect output of p_fun. Use get_p_template to obtain the required structure.'
+        self.p_fun = p_fun
 
     def set_uncertainty_values(self, uncertainty_values):
         # TODO: Check correct format.
@@ -102,7 +137,15 @@ class optimizer:
         self.uncertainty_values = uncertainty_values
 
     def check_validity(self):
-        None
+        if 'tvp_fun' not in self.__dict__:
+            _tvp = self.get_tvp_template()
+            tvp_fun = lambda t: _tvp
+            self.set_tvp_fun(tvp_fun)
+
+        if 'p_fun' not in self.__dict__:
+            _p = self.get_p_template()
+            p_fun = lambda t: _p
+            self.set_p_fun(p_fun)
 
     def setup_discretization(self):
         _x, _u, _z, _tvp, _p, _aux = self.model.get_variables()
@@ -416,6 +459,7 @@ class optimizer:
                 for b in range(n_branches[k]):
                     # Obtain the index of the parameter values that should be used for this scenario
                     current_scenario = b + branch_offset[k][s]
+
                     # Add constraints for state equation:
                     [g_ksb, xf_ksb] = ifcn(vertcat(*opt_x['_x', k, s, :]), opt_x['_u', k, s], vertcat(*opt_x['_z', k, s, :]), opt_p['_tvp', k], opt_p['_p', current_scenario])
                     # x_next = self.x_next_fun(opt_x['_x', k], opt_x['_u', k], opt_x['_z', k], opt_p['_tvp', k], opt_p['_p'])

@@ -38,9 +38,8 @@ def template_optimizer(model):
     optimizer = do_mpc.optimizer(model)
 
     setup_optimizer = {
-        'n_horizon': 20,
         'n_robust': 0,
-        'open_loop': 0,
+        'n_horizon': 20,
         't_step': 0.1,
         'state_discretization': 'discrete',
     }
