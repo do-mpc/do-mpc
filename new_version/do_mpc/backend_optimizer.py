@@ -215,53 +215,20 @@ class backend_optimizer:
         This strategy can be modified by changing the code below
         -----------------------------------------------------------------------------------
         """
-        # TODO: This function can be written nicer
         uncertainty_values = self.uncertainty_values
         n_p = self.model.n_p
         nk = self.n_horizon
         n_robust = self.n_robust
-        # Initialize some auxiliary variables
-        # pdb.set_trace()
-        current_scenario = np.resize(np.array([], dtype=int), n_p)
-        p_scenario_index = np.resize(np.array([], dtype=int), n_p)
-        p_scenario = np.resize(np.array([]), n_p)
-        number_values_per_uncertainty = np.resize(np.array([], dtype=int), n_p)
-        k = 1
-        # Get the number of different values of each parameter
-        for ii in range(n_p):
-            number_values_per_uncertainty[ii] = uncertainty_values[ii].size
-            current_scenario[ii] = 0
-        while (current_scenario != number_values_per_uncertainty - 1).any():
-            for index in range(n_p - 1, -1, -1):
-                if current_scenario[index] + \
-                        1 < number_values_per_uncertainty[index]:
-                    # If it is no the last element increase it and break the for
-                    # loop
-                    current_scenario[index] += np.array([1])
-                    break
-                else:
-                    current_scenario[index] = np.array([0])
-            # Add the current scenario to the variable p_scenario
-            p_scenario_index = np.vstack((p_scenario_index, current_scenario))
-
-        # Initialize the vector with the real values
-        p_scenario = p_scenario_index * 1.0
-        for jj in range(len(p_scenario_index)):
-            for ii in range(n_p):
-                p_scenario[jj, ii] = uncertainty_values[ii][p_scenario_index[jj, ii]]
-
-        # Build auxiliare variables that code the structure of the tree
+        # Build auxiliary variables that code the structure of the tree
         # Number of branches
-        n_branches = [len(p_scenario) if k < n_robust else 1 for k in range(nk)]
-
-        # Calculate the number of scenarios for x and u
-        n_scenarios = [len(p_scenario)**min(k, n_robust) for k in range(nk + 1)]
+        n_branches = [self.n_combinations if k < n_robust else 1 for k in range(nk)]
+        # Calculate the number of scenarios (nodes at each stage)
+        n_scenarios = [self.n_combinations**min(k, n_robust) for k in range(nk + 1)]
         # Scenaro tree structure
-        child_scenario = np.resize(
-            np.array([-1], dtype=int), (nk, n_scenarios[-1], n_branches[0]))
-        parent_scenario = np.resize(
-            np.array([-1], dtype=int), (nk + 1, n_scenarios[-1]))
-        branch_offset = np.resize(np.array([-1], dtype=int), (nk, n_scenarios[-1]))
+        child_scenario = -1 * np.ones((nk, n_scenarios[-1], n_branches [0])).astype(int)
+        parent_scenario = -1 * np.ones((nk + 1, n_scenarios[-1])).astype(int)
+        branch_offset = -1 * np.ones((nk, n_scenarios[-1])).astype(int)
+        # Fill in the auxiliary structures
         for k in range(nk):
             # Scenario counter
             scenario_counter = 0
@@ -272,7 +239,6 @@ class backend_optimizer:
                     child_scenario[k][s][b] = scenario_counter
                     parent_scenario[k + 1][scenario_counter] = s
                     scenario_counter += 1
-
                 # Store the range of branches
                 if n_robust == 0:
                     branch_offset[k][s] = 0
@@ -281,37 +247,29 @@ class backend_optimizer:
                 else:
                     branch_offset[k][s] = s % n_branches[0]
 
-
-        return p_scenario, n_branches, n_scenarios, child_scenario, parent_scenario, branch_offset
+        return n_branches, n_scenarios, child_scenario, parent_scenario, branch_offset
 
     def setup_nlp(self):
         self.check_validity()
-        # Obtain an integrator (collocation, discrete-time) and the corresponding g-bounds
+        # Obtain an integrator (collocation, discrete-time) and the amount of intermediate (collocation) points
         ifcn, n_total_coll_points = self.setup_discretization()
-        p_scenario, n_branches, n_scenarios, child_scenario, parent_scenario, branch_offset = self.setup_scenario_tree()
-        n_max_scenarios = p_scenario.shape[0] ** self.n_robust
+        n_branches, n_scenarios, child_scenario, parent_scenario, branch_offset = self.setup_scenario_tree()
+        n_max_scenarios = self.n_combinations ** self.n_robust
         # Create struct for optimization variables:
         self.opt_x = opt_x = struct_symSX([
             entry('_x', repeat=[self.n_horizon+1, n_max_scenarios, 1+n_total_coll_points], struct=self.model._x),
             entry('_z', repeat=[self.n_horizon, n_max_scenarios, 1+n_total_coll_points], struct=self.model._z),
             entry('_u', repeat=[self.n_horizon, n_max_scenarios], struct=self.model._u),
         ])
-        # FIXME: Do we need an extra state variable to model the final collocation point or the first one?
-        # Number of optimization variables:
-        # TODO: this is not the real number of variables
-        # self.n_x_optim = opt_x.shape[0]
+        # FIXME: Currently there exist dummy collocation points for the terminal state
 
         # Create struct for optimization parameters:
         self.opt_p = opt_p = struct_symSX([
             entry('_x0', struct=self.model._x),
             entry('_tvp', repeat=self.n_horizon, struct=self.model._tvp),
-            entry('_p', repeat=len(p_scenario), struct=self.model._p),
+            entry('_p', repeat=self.n_combinations, struct=self.model._p),
             entry('_u_prev', struct=self.model._u)
         ])
-
-        # self.mpc_obj_aux = struct_MX(struct_symMX([
-        #     entry('nl_cons', repeat=self.n_horizon, struct=self.nl_cons)
-        # ]))
 
         self.lb_opt_x = opt_x(-np.inf)
         self.ub_opt_x = opt_x(np.inf)
@@ -327,14 +285,12 @@ class backend_optimizer:
 
         cons_lb.append(np.zeros((self.model.n_x, 1)))
         cons_ub.append(np.zeros((self.model.n_x, 1)))
-        # Note:
-        # X = [x_0, x_1, ... , x_(N+1)]         -> n_horizon+1 elements
-        # U = [u_0, u_1, ... , u_N]             -> n_horizon elements
 
         # TODO: Weigthing factors for the tree assumed equal. They could be set from outside
         # Weighting factor for every scenario
         omega = [1. / n_scenarios[k + 1] for k in range(self.n_horizon)]
         omega_delta_u = [1. / n_scenarios[k + 1] for k in range(self.n_horizon)]
+
         # For all control intervals
         for k in range(self.n_horizon):
             # For all scenarios (grows exponentially with n_robust)
@@ -346,7 +302,6 @@ class backend_optimizer:
 
                     # Add constraints for state equation:
                     [g_ksb, xf_ksb] = ifcn(vertcat(*opt_x['_x', k, s, :]), opt_x['_u', k, s], vertcat(*opt_x['_z', k, s, :]), opt_p['_tvp', k], opt_p['_p', current_scenario])
-                    # x_next = self.x_next_fun(opt_x['_x', k], opt_x['_u', k], opt_x['_z', k], opt_p['_tvp', k], opt_p['_p'])
 
                     # Add the collocation equations
                     cons.append(g_ksb)
@@ -365,8 +320,7 @@ class backend_optimizer:
                     cons_ub.append(self._nl_cons_ub)
 
                     # Add terminal constraints
-                    # # TODO:
-
+                    # TODO: Add terminal constraints with an additional nl_cons
 
                     # Add contribution to the cost
                     obj += omega[k] * self.lterm_fun(opt_x['_x', k, s, 0], opt_x['_u', k, s], opt_x['_z', k, s, 0], opt_p['_tvp', k], opt_p['_p', current_scenario])
