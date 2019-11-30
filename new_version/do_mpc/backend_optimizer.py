@@ -31,6 +31,9 @@ class backend_optimizer:
     def __init__(self):
         None
 
+    def check_validity(self):
+        None
+
     def setup_discretization(self):
         _x, _u, _z, _tvp, _p, _aux = self.model.get_variables()
         # TODO: Now for testing
