@@ -123,6 +123,44 @@ class optimizer(backend_optimizer):
 
 
     def get_p_template(self, n_combinations):
+        """ Low level API method to set user defined scenarios for robust MPC but defining an arbitrary number
+        of combinations for the parameters defined in the model. The method returns a structured object which is
+        initialized with all zeros. Use this object to define value of the parameters for an arbitrary number of scenarios (defined by n_scenarios).
+
+        This structure (with numerical values) should be used as the output of the p_fun function which is set to the class with .set_p_fun (see doc string).
+
+        Use the combination of .get_p_template() and .set_p_template() as a more adaptable alternative to .set_uncertainty_values().
+
+        Example:
+
+        # in model definition:
+        alpha = model.set_variable(var_type='_p', var_name='alpha')
+        beta = model.set_variable(var_type='_p', var_name='beta')
+
+        ...
+        # in optimizer configuration:
+        n_combinations = 3
+        p_template = optimizer.get_p_template(n_combinations)
+        p_template['_p',0] = np.array([1,1])
+        p_template['_p',1] = np.array([0.9, 1.1])
+        p_template['_p',2] = np.array([1.1, 0.9])
+
+        def p_fun(t_now):
+            return p_template
+
+        optimizer.set_p_fun(p_fun)
+
+        Note the nominal case is now:
+        alpha = 1
+        beta = 1
+        which is determined by the order in the arrays above (first element is nominal).
+
+        :param n_combinations: Define the number of combinations for the uncertain parameters for robust MPC.
+        :type p_fun: int
+
+        :return: None
+        :rtype: None
+        """
         self.n_combinations = n_combinations
         p_template = struct_symSX([
             entry('_p', repeat=n_combinations, struct=self.model._p)
@@ -131,6 +169,46 @@ class optimizer(backend_optimizer):
 
 
     def set_p_fun(self,p_fun):
+        """ Low level API method to set user defined scenarios for robust MPC but defining an arbitrary number
+        of combinations for the parameters defined in the model. The method takes as input a function, which MUST
+        return a structured object, based on the defined parameters and the number of combinations.
+        The defined function has time as a single input.
+
+        Obtain this structured object first, by calling .get_p_template().
+
+        Use the combination of .get_p_template() and .set_p_template() as a more adaptable alternative to .set_uncertainty_values().
+
+        Example:
+
+        # in model definition:
+        alpha = model.set_variable(var_type='_p', var_name='alpha')
+        beta = model.set_variable(var_type='_p', var_name='beta')
+
+        ...
+        # in optimizer configuration:
+        n_combinations = 3
+        p_template = optimizer.get_p_template(n_combinations)
+        p_template['_p',0] = np.array([1,1])
+        p_template['_p',1] = np.array([0.9, 1.1])
+        p_template['_p',2] = np.array([1.1, 0.9])
+
+        def p_fun(t_now):
+            return p_template
+
+        optimizer.set_p_fun(p_fun)
+
+        Note the nominal case is now:
+        alpha = 1
+        beta = 1
+        which is determined by the order in the arrays above (first element is nominal).
+
+        :param p_fun: Function which returns a structure with numerical values. Must be the same structure as obtained from .get_p_template().
+        Function must have a single input (time).
+        :type p_fun: function
+
+        :return: None
+        :rtype: None
+        """
         assert self.get_p_template(self.n_combinations).labels() == p_fun(0).labels(), 'Incorrect output of p_fun. Use get_p_template to obtain the required structure.'
         self.p_fun = p_fun
 
@@ -145,7 +223,6 @@ class optimizer(backend_optimizer):
         # in model definition:
         alpha = model.set_variable(var_type='_p', var_name='alpha')
         beta = model.set_variable(var_type='_p', var_name='beta')
-
         ...
         # in optimizer configuration:
         alpha_var = np.array([1., 0.9, 1.1])
@@ -159,9 +236,9 @@ class optimizer(backend_optimizer):
 
         :param uncertainty_values: List of lists / numpy arrays with the same number of elements as number of parameters in model.
         :type uncertainty_values: list
-        ...
+
         :raises asssertion: uncertainty values must be of type list
-        ...
+
         :return: None
         :rtype: None
         """
