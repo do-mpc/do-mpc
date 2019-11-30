@@ -25,46 +25,27 @@ import matplotlib.pyplot as plt
 from casadi import *
 from casadi.tools import *
 import pdb
-import sys
-sys.path.append('../../')
-import do_mpc
-import scipy.io as sio
-import matplotlib.pyplot as plt
-import pickle
 
 
-from template_model import template_model
-from template_optimizer import template_optimizer
-from template_simulator import template_simulator
+class backend_graphics:
+    def __init__(self):
+        None
 
-C_a_0 = 0.8 # This is the initial concentration inside the tank [mol/l]
-C_b_0 = 0.5 # This is the controlled variable [mol/l]
-T_R_0 = 134.14 #[C]
-T_K_0 = 130.0 #[C]
-x0 = np.array([C_a_0, C_b_0, T_R_0, T_K_0]).reshape(-1,1)
-
-model = template_model()
-optimizer = template_optimizer(model)
-simulator = template_simulator(model)
-estimator = do_mpc.estimator.state_feedback(model)
-
-optimizer._x0 = x0
-simulator._x0 = x0
-estimator._x0 = x0
-
-configuration = do_mpc.configuration(simulator, optimizer, estimator)
-
-for k in range(100):
-    configuration.make_step_optimizer()
-    configuration.make_step_simulator()
-    configuration.make_step_estimator()
-
-_x = simulator.data._x
-_t = simulator.data._time
+        self.axes_list = []
 
 
+    def add_axes(self, var_type, var_name, **kwargs):
+        self.axes_list.append([
+            {'var_type': var_type, 'var_name': var_name, **kwargs}
+        ])
 
-plt.plot(_t, _x[:,:2])
-plt.show()
+    def setup_plot(self):
+        n_subplots = len(self.axes_list)
+        fig, ax = plt.subplots(n_subplots, sharex=True)
 
-pdb.set_trace()
+        for ax_i in ax:
+            ax_i.set_xlabel('time')
+            ax_1.set_ylabel(self.axes_list['var_name'])
+
+    def plot_prediction(self, t_now, data, opt_x_num):
+        None
