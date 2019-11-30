@@ -111,7 +111,9 @@ def template_optimizer(model):
     optimizer.set_nl_cons(dummy=_u['m_dot_f'])
     optimizer._nl_cons_ub['dummy'] = 4e4
 
-    optimizer.set_uncertainty_values(np.array([[1.0,1.0],[1.0,1.0],[1.0,1.0]]))
+    delH_R_var = np.array([950.0, 950.0 * 1.30, 950.0 * 0.70])
+    k_0_var = np.array([7.0*1.00, 7.0*1.30, 7.0*0.70])
+    optimizer.set_uncertainty_values([delH_R_var, k_0_var])
 
     optimizer.setup_nlp()
 
