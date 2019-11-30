@@ -215,7 +215,6 @@ class backend_optimizer:
         This strategy can be modified by changing the code below
         -----------------------------------------------------------------------------------
         """
-        uncertainty_values = self.uncertainty_values
         n_p = self.model.n_p
         nk = self.n_horizon
         n_robust = self.n_robust
