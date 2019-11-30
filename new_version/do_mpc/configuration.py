@@ -55,16 +55,15 @@ class configuration:
 
         self.optimizer.opt_p_num['_x0'] = x0
         self.optimizer.opt_p_num['_u_prev'] = u_prev
-        self.optimizer.opt_p_num['_tvp'] = tvp0
-        self.optimizer.opt_p_num['_p'] = p0
-
+        self.optimizer.opt_p_num['_tvp'] = tvp0['_tvp']
+        self.optimizer.opt_p_num['_p'] = p0['_p']
         self.optimizer.solve()
 
         u0 = self.optimizer.opt_x_num['_u', 0, 0]
         z0 = self.optimizer.opt_x_num['_z', 0, 0, 0]
 
-        self.optimizer.data.update(_tvp = tvp0)
-        self.optimizer.data.update(_p = p0)
+        # self.optimizer.data.update(_tvp = tvp0)
+        # self.optimizer.data.update(_p = p0)
         self.optimizer.data.update(_u = u0)
         self.optimizer.data.update(_z = z0)
 

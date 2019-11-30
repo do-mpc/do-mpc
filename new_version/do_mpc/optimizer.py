@@ -131,7 +131,7 @@ class optimizer(backend_optimizer):
 
 
     def set_p_fun(self,p_fun):
-        assert self.get_p_template().labels() == p_fun(0).labels(), 'Incorrect output of p_fun. Use get_p_template to obtain the required structure.'
+        assert self.get_p_template(self.n_combinations).labels() == p_fun(0).labels(), 'Incorrect output of p_fun. Use get_p_template to obtain the required structure.'
         self.p_fun = p_fun
 
     def set_uncertainty_values(self, uncertainty_values):
