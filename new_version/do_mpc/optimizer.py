@@ -177,17 +177,6 @@ class optimizer(backend_optimizer):
         self.set_p_fun(p_fun)
 
 
-    def check_validity(self):
-        if 'tvp_fun' not in self.__dict__:
-            _tvp = self.get_tvp_template()
-            tvp_fun = lambda t: _tvp
-            self.set_tvp_fun(tvp_fun)
-
-        if 'p_fun' not in self.__dict__:
-            _p = self.get_p_template()
-            p_fun = lambda t: _p
-            self.set_p_fun(p_fun)
-
     def solve(self):
         r = self.S(x0=self.opt_x_num, lbx=self.lb_opt_x, ubx=self.ub_opt_x,  ubg=self.cons_ub, lbg=self.cons_lb, p=self.opt_p_num)
         self.opt_x_num = self.opt_x(r['x'])
