@@ -32,7 +32,15 @@ class backend_optimizer:
         None
 
     def check_validity(self):
-        None
+        if 'tvp_fun' not in self.__dict__:
+            _tvp = self.get_tvp_template()
+            tvp_fun = lambda t: _tvp
+            self.set_tvp_fun(tvp_fun)
+
+        if 'p_fun' not in self.__dict__:
+            _p = self.get_p_template()
+            p_fun = lambda t: _p
+            self.set_p_fun(p_fun)
 
     def setup_discretization(self):
         _x, _u, _z, _tvp, _p, _aux = self.model.get_variables()
