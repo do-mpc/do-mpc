@@ -24,6 +24,7 @@ import numpy as np
 from casadi import *
 from casadi.tools import *
 import pdb
+import itertools
 import do_mpc.data
 from do_mpc import backend_optimizer
 
@@ -121,7 +122,7 @@ class optimizer(backend_optimizer):
         self.tvp_fun = tvp_fun
 
 
-    def get_p_template(self, n_combinations=1):
+    def get_p_template(self, n_combinations):
         self.n_combinations = n_combinations
         p_template = struct_symSX([
             entry('_p', repeat=n_combinations, struct=self.model._p)
@@ -134,15 +135,47 @@ class optimizer(backend_optimizer):
         self.p_fun = p_fun
 
     def set_uncertainty_values(self, uncertainty_values):
-        # TODO: Check correct format.
-        assert uncertainty_values.shape[0] == self.model.n_p, 'asdf'
-        assert uncertainty_values.ndim == 2, 'asdf'
-        self.uncertainty_values = uncertainty_values
+        """ High-level API method to conveniently set all possible scenarios for multistage MPC, given a list of uncertainty values.
+        This list must have the same number of elements as uncertain parameters in the model definition. The first element is the nominal case.
+        Each list element can be an array or list of possible values for the respective parameter.
+        Note that the order of elements determine the assignment.
 
-        # p_template = self.get_p_template()
-        # p_template[0] = np.zeros((2,1))
+        Example:
 
-        #self.p_fun =
+        # in model definition:
+        alpha = model.set_variable(var_type='_p', var_name='alpha')
+        beta = model.set_variable(var_type='_p', var_name='beta')
+
+        ...
+        # in optimizer configuration:
+        alpha_var = np.array([1., 0.9, 1.1])
+        beta_var = np.array([1., 1.05])
+        optimizer.set_uncertainty_values([alpha_var, beta_var])
+
+        Note the nominal case is now:
+        alpha = 1
+        beta = 1
+        which is determined by the order in the arrays above (first element is nominal).
+
+        :param uncertainty_values: List of lists / numpy arrays with the same number of elements as number of parameters in model.
+        :type uncertainty_values: list
+        ...
+        :raises asssertion: uncertainty values must be of type list
+        ...
+        :return: None
+        :rtype: None
+        """
+        assert isinstance(uncertainty_values, list), 'uncertainty values must be of type list, you have: {}'.format(type(uncertainty_values))
+
+        p_scenario = list(itertools.product(*uncertainty_values))
+        n_combinations = len(p_scenario)
+        p_template = self.get_p_template(n_combinations)
+        p_template['_p',:] = p_scenario
+        def p_fun(t_now):
+            return p_template
+
+        self.set_p_fun(p_fun)
+
 
     def check_validity(self):
         if 'tvp_fun' not in self.__dict__:
