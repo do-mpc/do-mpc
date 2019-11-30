@@ -39,7 +39,7 @@ def template_optimizer(model):
 
     setup_optimizer = {
         'n_horizon': 20,
-        'n_robust': 0,
+        'n_robust': 1,
         'open_loop': 0,
         't_step': 0.005,
         'state_discretization': 'collocation',
@@ -82,7 +82,7 @@ def template_optimizer(model):
     optimizer._nl_cons_ub['x_max'] = 100000
 
     alpha_var = np.array([1.])
-    beta_var = np.array([1.])
+    beta_var = np.array([1., 0.9, 1.1])
 
     optimizer.set_uncertainty_values([alpha_var, beta_var])
 
