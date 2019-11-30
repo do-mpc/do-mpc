@@ -92,7 +92,6 @@ def template_model():
     # Fixed parameters:
     delH_R = model.set_variable(var_type='_p', var_name='delH_R')
     k_0 = model.set_variable(var_type='_p', var_name='k_0')
-    bias_term = model.set_variable(var_type='_p', var_name='bias_term')
 
     # Set expression. These can be used in the cost function, as non-linear constraints
     # or just to monitor another output.
