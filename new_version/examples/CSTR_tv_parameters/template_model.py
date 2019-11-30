@@ -78,8 +78,6 @@ def template_model():
     model.set_expression(expr_name='T_dif', expr=T_R-T_K)
 
     # algebraic equations
-    alpha = 1.0
-    beta = 1.0
     K_1 = beta * K0_ab * exp((-E_A_ab)/((T_R+273.15)))
     K_2 =  K0_bc * exp((-E_A_bc)/((T_R+273.15)))
     K_3 = K0_ad * exp((-alpha*E_A_ad)/((T_R+273.15)))
