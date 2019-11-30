@@ -81,7 +81,10 @@ def template_optimizer(model):
     optimizer.set_nl_cons(x_max=_u['F'])
     optimizer._nl_cons_ub['x_max'] = 100000
 
-    optimizer.set_uncertainty_values(np.array([[1.0,1.0],[1.0,1.0]]))
+    alpha_var = np.array([1., 0.9, 1.1])
+    beta_var = np.array([1., 1.05])
+
+    optimizer.set_uncertainty_values([alpha_var, beta_var])
 
     optimizer.setup_nlp()
 
