@@ -310,7 +310,7 @@ class backend_optimizer:
                     # Obtain the index of the parameter values that should be used for this scenario
                     current_scenario = b + branch_offset[k][s]
 
-                    # Add constraints for state equation:
+                    # Compute constraints and predicted next state of the discretization scheme
                     [g_ksb, xf_ksb] = ifcn(vertcat(*opt_x['_x', k, s, :]), opt_x['_u', k, s], vertcat(*opt_x['_z', k, s, :]), opt_p['_tvp', k], opt_p['_p', current_scenario])
 
                     # Add the collocation equations
