@@ -44,7 +44,6 @@ class backend_optimizer:
 
     def setup_discretization(self):
         _x, _u, _z, _tvp, _p, _aux = self.model.get_variables()
-        self.collocation_type = 'radau'
         if self.state_discretization == 'discrete':
             ifcn = Function('ifcn', [_x, _u, _z, _tvp, _p], [[], self.model._rhs])
             n_total_coll_points = 0
