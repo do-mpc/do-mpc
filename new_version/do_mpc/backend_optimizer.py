@@ -34,21 +34,17 @@ class backend_optimizer:
     def check_validity(self):
         if 'tvp_fun' not in self.__dict__:
             _tvp = self.get_tvp_template()
-            tvp_fun = lambda t: _tvp
+            def tvp_fun(t): return _tvp
             self.set_tvp_fun(tvp_fun)
 
         if 'p_fun' not in self.__dict__:
             _p = self.get_p_template()
-            p_fun = lambda t: _p
+            def p_fun(t): return _p
             self.set_p_fun(p_fun)
 
     def setup_discretization(self):
         _x, _u, _z, _tvp, _p, _aux = self.model.get_variables()
-        # TODO: Now for testing
-        # self.state_discretization = 'collocation'
-        self.collocation_type = 'legendre'
-        self.collocation_deg = 2
-        self.collocation_ni = 2
+        self.collocation_type = 'radau'
         if self.state_discretization == 'discrete':
             ifcn = Function('ifcn', [_x, _u, _z, _tvp, _p], [[], self.model._rhs])
             n_total_coll_points = 0
@@ -66,7 +62,6 @@ class backend_optimizer:
             n_z = self.model.n_z
             n_tvp = self.model.n_tvp
             n_total_coll_points = (deg + 1) * ni
-            # x_init = self._x0['x']
 
             # Choose collocation points
             if coll == 'legendre':    # Legendre collocation points
@@ -111,47 +106,28 @@ class backend_optimizer:
                 for r in range(deg + 1):
                     C[j, r] = tfcn(tau_root[r])
 
-            # Initial condition
+            # Define symbolic variables for collocation
             xk0 = SX.sym("xk0", n_x)
             zk = SX.sym("zk", n_z)
-            # Parameter
             pk = SX.sym("pk", n_p)
             tv_pk = SX.sym("tv_pk", n_tvp)
-            # Control
             uk = SX.sym("uk", n_u)
-            #uk_prev = SX.sym ("uk_prev",nu)
+
             # State trajectory
-            n_ik = ni * (deg + 1) * n_x + n_x
+            n_ik = ni * (deg + 1) * n_x
             ik = SX.sym("ik", n_ik)
             ik_split = np.resize(np.array([], dtype=SX), (ni, deg + 1))
-
-            # All variables with bounds and initial guess
-            # ik_lb = np.zeros((n_ik,1))
-            # ik_ub = np.zeros((n_ik,1))
-            # ik_init = np.zeros((n_ik,1))
-            offset = n_x
+            offset = 0
 
             # Store initial condition
-            ik_split[0, 0] = ik[0 : n_x]
+            ik_split[0, 0] = xk0
             first_j = 1  # Skip allocating x for the first collocation point for the first finite element
-
-            # Penalty terms for the soft constraints
-            # EPSILON = np.resize(np.array([], dtype=MX), (cons.size1()))
-
             # For each finite element
             for i in range(ni):
                 # For each collocation point
                 for j in range(first_j, deg + 1):
                     # Get the expression for the state vector
                     ik_split[i, j] = ik[offset:offset + n_x]
-
-                    # Add the initial condition
-                    # pdb.set_trace()
-                    # ik_init[offset:offset + n_x] = x_init
-                    #
-                    # # Add bounds
-                    # ik_lb[offset:offset + n_x] = x_lb
-                    # ik_ub[offset:offset + n_x] = x_ub
                     offset += n_x
 
                 # All collocation points in subsequent finite elements
@@ -159,15 +135,7 @@ class backend_optimizer:
 
             # Get the state at the end of the control interval
             xkf = ik[offset:offset + n_x]
-
-            # # Add the initial condition
-            # ik_init[offset:offset + n_x] = x_init
-            #
-            # # Add bounds
-            # ik_lb[offset:offset + n_x] = x_lb
-            # ik_ub[offset:offset + n_x] = x_ub
             offset += n_x
-
             # Check offset for consistency
             assert(offset == n_ik)
 
@@ -178,12 +146,9 @@ class backend_optimizer:
 
             # For all finite elements
             for i in range(ni):
-
                 # For all collocation points
                 for j in range(1, deg + 1):
-
-                        # Get an expression for the state derivative at the
-                        # collocation point
+                    # Get an expression for the state derivative at the coll point
                     xp_ij = 0
                     for r in range(deg + 1):
                         xp_ij += C[r, j] * ik_split[i, r]
@@ -210,12 +175,12 @@ class backend_optimizer:
             lbgk = np.concatenate(lbgk)
             ubgk = np.concatenate(ubgk)
 
-            assert(gk.shape[0] == ik.shape[0] - n_x) # Because now the initial point is part of ik
+            assert(gk.shape[0] == ik.shape[0])
 
             # Create the integrator function
-            ifcn = Function("ifcn", [ik, uk, zk, tv_pk, pk], [gk, xkf])
+            ifcn = Function("ifcn", [xk0, ik, uk, zk, tv_pk, pk], [gk, xkf])
 
-            # Return the integration function and the bounds for the collocaiton equations
+            # Return the integration function and the number of collocation points
         return ifcn, n_total_coll_points
 
     def setup_scenario_tree(self):
@@ -235,7 +200,7 @@ class backend_optimizer:
         # Calculate the number of scenarios (nodes at each stage)
         n_scenarios = [self.n_combinations**min(k, n_robust) for k in range(nk + 1)]
         # Scenaro tree structure
-        child_scenario = -1 * np.ones((nk, n_scenarios[-1], n_branches [0])).astype(int)
+        child_scenario = -1 * np.ones((nk, n_scenarios[-1], n_branches[0])).astype(int)
         parent_scenario = -1 * np.ones((nk + 1, n_scenarios[-1])).astype(int)
         branch_offset = -1 * np.ones((nk, n_scenarios[-1])).astype(int)
         # Fill in the auxiliary structures
@@ -267,11 +232,15 @@ class backend_optimizer:
         n_max_scenarios = self.n_combinations ** self.n_robust
         # Create struct for optimization variables:
         self.opt_x = opt_x = struct_symSX([
-            entry('_x', repeat=[self.n_horizon+1, n_max_scenarios, 1+n_total_coll_points], struct=self.model._x),
-            entry('_z', repeat=[self.n_horizon, n_max_scenarios, 1+n_total_coll_points], struct=self.model._z),
+            entry('_x', repeat=[self.n_horizon+1, n_max_scenarios,
+                                1+n_total_coll_points], struct=self.model._x),
+            entry('_z', repeat=[self.n_horizon, n_max_scenarios,
+                                1+n_total_coll_points], struct=self.model._z),
             entry('_u', repeat=[self.n_horizon, n_max_scenarios], struct=self.model._u),
         ])
-        # FIXME: Currently there exist dummy collocation points for the terminal state
+        # NOTE: The entry _x[k,child_scenario[k,s,b],:] starts with the collocation points from s to b at time k
+        #       and the last point contains the child node
+        # NOTE: Currently there exist dummy collocation points for the initial state (for each branch)
 
         # Create struct for optimization parameters:
         self.opt_p = opt_p = struct_symSX([
@@ -296,7 +265,7 @@ class backend_optimizer:
         cons_lb.append(np.zeros((self.model.n_x, 1)))
         cons_ub.append(np.zeros((self.model.n_x, 1)))
 
-        # TODO: Weigthing factors for the tree assumed equal. They could be set from outside
+        # NOTE: Weigthing factors for the tree assumed equal. They could be set from outside
         # Weighting factor for every scenario
         omega = [1. / n_scenarios[k + 1] for k in range(self.n_horizon)]
         omega_delta_u = [1. / n_scenarios[k + 1] for k in range(self.n_horizon)]
@@ -311,7 +280,8 @@ class backend_optimizer:
                     current_scenario = b + branch_offset[k][s]
 
                     # Compute constraints and predicted next state of the discretization scheme
-                    [g_ksb, xf_ksb] = ifcn(vertcat(*opt_x['_x', k, s, :]), opt_x['_u', k, s], vertcat(*opt_x['_z', k, s, :]), opt_p['_tvp', k], opt_p['_p', current_scenario])
+                    [g_ksb, xf_ksb] = ifcn(opt_x['_x', k, s, 0], vertcat(*opt_x['_x', k+1, child_scenario[k][s][b], :-1]),
+                                           opt_x['_u', k, s], vertcat(*opt_x['_z', k, s, :]), opt_p['_tvp', k], opt_p['_p', current_scenario])
 
                     # Add the collocation equations
                     cons.append(g_ksb)
@@ -319,12 +289,13 @@ class backend_optimizer:
                     cons_ub.append(np.zeros(g_ksb.shape[0]))
 
                     # Add continuity constraints
-                    cons.append(xf_ksb - opt_x['_x', k+1, child_scenario[k][s][b], 0])
+                    cons.append(xf_ksb - opt_x['_x', k+1, child_scenario[k][s][b], -1])
                     cons_lb.append(np.zeros((self.model.n_x, 1)))
                     cons_ub.append(np.zeros((self.model.n_x, 1)))
 
                     # Add nonlinear constraints only on each control step
-                    nl_cons_k = self._nl_cons_fun(opt_x['_x', k, s, 0], opt_x['_u', k, s], opt_x['_z', k, s, 0], opt_p['_tvp', k], opt_p['_p', current_scenario])
+                    nl_cons_k = self._nl_cons_fun(
+                        opt_x['_x', k, s, 0], opt_x['_u', k, s], opt_x['_z', k, s, 0], opt_p['_tvp', k], opt_p['_p', current_scenario])
                     cons.append(nl_cons_k)
                     cons_lb.append(self._nl_cons_lb)
                     cons_ub.append(self._nl_cons_ub)
@@ -333,7 +304,8 @@ class backend_optimizer:
                     # TODO: Add terminal constraints with an additional nl_cons
 
                     # Add contribution to the cost
-                    obj += omega[k] * self.lterm_fun(opt_x['_x', k, s, 0], opt_x['_u', k, s], opt_x['_z', k, s, 0], opt_p['_tvp', k], opt_p['_p', current_scenario])
+                    obj += omega[k] * self.lterm_fun(opt_x['_x', k, s, 0], opt_x['_u', k, s],
+                                                     opt_x['_z', k, s, 0], opt_p['_tvp', k], opt_p['_p', current_scenario])
                     # In the last step add the terminal cost too
                     if k == self.n_horizon - 1:
                         obj += omega[k] * self.mterm_fun(opt_x['_x', k + 1, s, 0])
@@ -354,9 +326,9 @@ class backend_optimizer:
                 self.ub_opt_x['_u', k, s] = self._u_ub
 
                 # Bounds on the terminal state
-                if k == self.n_robust - 1:
-                    self.lb_opt_x['_x', self.n_horizon, s, 0] = self._x_lb
-                    self.ub_opt_x['_x', self.n_horizon, s, 0] = self._x_ub
+                if k == self.n_horizon - 1:
+                    self.lb_opt_x['_x', self.n_horizon, child_scenario[k][s][b], -1] = self._x_lb
+                    self.ub_opt_x['_x', self.n_horizon, child_scenario[k][s][b], -1] = self._x_ub
 
         cons = vertcat(*cons)
         self.cons_lb = vertcat(*cons_lb)
