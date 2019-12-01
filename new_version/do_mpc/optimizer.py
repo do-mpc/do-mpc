@@ -60,12 +60,14 @@ class optimizer(backend_optimizer):
             'open_loop',
             't_step',
             'state_discretization',
+            'collocation_type',
             'collocation_deg',
             'collocation_ni',
         ]
 
         # Default Parameters:
         self.n_robust = 0
+        self.collocation_type = 'radau'
         self.collocation_deg = 2
         self.collocation_ni = 1
         self.open_loop = False
