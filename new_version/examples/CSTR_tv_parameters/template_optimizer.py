@@ -43,19 +43,22 @@ def template_optimizer(model):
         'open_loop': 0,
         't_step': 0.005,
         'state_discretization': 'collocation',
+        'collocation_type': 'radau',
+        'collocation_deg': 2,
+        'collocation_ni': 1,
     }
 
     optimizer.set_param(**setup_optimizer)
 
     _x, _u, _z, _tvp, p, _aux = optimizer.model.get_variables()
 
-    mterm = (_x['C_b'] - 1.0)**2
-    lterm = (_x['C_b'] - 1.0)**2
+    mterm = (_x['C_b'] - 0.6)**2
+    lterm = (_x['C_b'] - 0.6)**2
 
     optimizer.set_objective(mterm=mterm, lterm=lterm)
     rterm_factor = optimizer.get_rterm()
-    rterm_factor['F'] = 0
-    rterm_factor['Q_dot'] = 0
+    rterm_factor['F'] = 0.001
+    rterm_factor['Q_dot'] = 0.000001
 
     optimizer._x_lb['C_a'] = 0.1
     optimizer._x_lb['C_b'] = 0.1
