@@ -87,7 +87,7 @@ class model:
         :raises assertion: shape must be tuple or int
 
         :return: Returns the newly created symbolic variable. Variables can be used to create aux expressions.
-        :rtype: [ReturnType]
+        :rtype: casadi.SX
         """
         assert isinstance(var_type, str), 'var_type must be str, you have: {}'.format(type(var_type))
         assert isinstance(var_name, str), 'var_name must be str, you have: {}'.format(type(var_name))
@@ -122,12 +122,14 @@ class model:
         :raises assertion: expr_name must be str
         :raises assertion: expr must be a casadi SX or MX type
 
-        :return: None
-        :rtype: None
+        :return: Returns the newly created expression. Expression can be used e.g. for the RHS.
+        :rtype: casadi.SX
         """
         assert isinstance(expr_name, str), 'expr_name must be str, you have: {}'.format(type(expr_name))
         assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
         self.expr_list.extend([{'expr_name': expr_name, 'expr': expr}])
+
+        return expr
 
     def set_rhs(self, var_name, expr):
         """Formulate the right hand side (rhs) of the ODE. Each defined state variable must have a respective equation (of matching dimension)
