@@ -66,6 +66,35 @@ class simulator:
             self.reltol = 1e-10
             self.integration_tool = 'cvodes'
 
+    def set_initial_state(self, x0, reset_history=False):
+        """Set the intial state of the simulator.
+        Optionally resets the history. The history is empty upon creation of the simulator.
+
+        :param x0: Initial state
+        :type x0: numpy array
+        :param reset_history: Resets the history of the simulator, defaults to False
+        :type reset_history: bool (,optional)
+
+        :return: None
+        :rtype: None
+        """
+        assert x0.size == self.model._x.size, 'Intial state cannot be set because the supplied vector has the wrong size. You have {} and the model is setup for {}'.format(x0.size, self.model._x.size)
+        assert isinstance(reset_history, bool), 'reset_history parameter must be of type bool. You have {}'.format(type(reset_history))
+        if isinstance(x0, (np.ndarray, casadi.DM)):
+            self._x0 = self.model._x(x0)
+        elif isinstance(x0, structure3.DMStruct):
+            self._x0 = x0
+        else:
+            raise Exception('x0 must be of tpye (np.ndarray, casadi.DM, structure3.DMStruct). You have: {}'.format(type(x0)))
+
+        if reset_history:
+            self.reset_history()
+
+    def reset_history(self):
+        """Reset the history of the simulator
+        """
+        self.data = do_mpc.data.optimizer_data(self.model)
+
 
     def setup_simulator(self):
         """Sets up the simulator after the parameters were set via set_param. The simulation time step is required in order to setup the simulator for continuous and discrete-time models.

@@ -31,16 +31,47 @@ class configuration:
         self.optimizer = optimizer
         self.estimator = estimator
 
-        if x0:
+        if x0 is not None:
             # Set global intial condition.
-            self.simulator.data.update('_x', x0)
-            self.optimizer.data.update('_x', x0)
-            self.estimator.data.update('_x', x0)
-        else:
-            # Set individual initial condition.
-            self.simulator.data.update(_x = self.simulator._x0)
-            self.optimizer.data.update(_x = self.optimizer._x0)
-            self.estimator.data.update(_x = self.estimator._x0)
+            self.simulator.set_initial_state(x0)
+            self.optimizer.set_initial_state(x0)
+            self.estimator.set_initial_state(x0)
+
+        self.store_initial_state()
+
+    def set_initial_state(self, x0, reset_history=False):
+        """Triggers the set_initial_state method for
+
+        * simulator
+
+        * optimizer
+
+        * estimator
+
+        to reset the intial state for all objects to the same value.
+        Optionally resets the history of all objects.
+        Note that if the intial state was not chosen explicitly for the individual objects (simulator, optimizer, estimator),
+        it defaults to zero and this value was written to the history upon creating the configuration object.
+
+        :param x0: Initial state of the configuration
+        :type x0: numpy array
+        :param reset_history: Resets the history of the configuration objects, defaults to False
+        :type reset_history: bool (,optional)
+
+        :return: None
+        :rtype: None
+        """
+        self.simulator.set_initial_state(x0, reset_history=reset_history)
+        self.optimizer.set_initial_state(x0, reset_history=reset_history)
+        self.estimator.set_initial_state(x0, reset_history=reset_history)
+
+        if reset_history:
+            self.store_initial_state()
+
+    def store_initial_state(self):
+        self.simulator.data.update(_x = self.simulator._x0)
+        self.optimizer.data.update(_x = self.optimizer._x0)
+        self.estimator.data.update(_x = self.estimator._x0)
 
         self.simulator.data.update(_time = self.simulator._t0)
         self.optimizer.data.update(_time = self.optimizer._t0)
