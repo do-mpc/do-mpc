@@ -36,7 +36,6 @@ import pickle
 from template_model import template_model
 from template_optimizer import template_optimizer
 from template_simulator import template_simulator
-
 C_a_0 = 0.8 # This is the initial concentration inside the tank [mol/l]
 C_b_0 = 0.5 # This is the controlled variable [mol/l]
 T_R_0 = 134.14 #[C]
@@ -53,21 +52,31 @@ estimator = do_mpc.estimator.state_feedback(model)
 configuration = do_mpc.configuration(simulator, optimizer, estimator)
 configuration.set_initial_state(x0, reset_history=True)
 # 2:
-configuration = do_mpc.configuration(simulator, optimizer, estimator, x0=x0)
+#configuration = do_mpc.configuration(simulator, optimizer, estimator, x0=x0)
 # The default variant is to use the initial states that were independently defined for
 # simulator, estimator and optimizer.
+
+
+fig, ax = plt.subplots(2, sharex=True)
+configuration.graphics.add_line(var_type='_x', var_name='C_a', axis=ax[0])
+configuration.graphics.add_line(var_type='_x', var_name='C_b', axis=ax[0])
+configuration.graphics.add_line(var_type='_u', var_name='Q_dot', axis=ax[1])
+ax[0].set_ylabel('c [mol/l]')
+ax[1].set_ylabel('Q_heat [kW]')
 
 for k in range(100):
     configuration.make_step_optimizer()
     configuration.make_step_simulator()
     configuration.make_step_estimator()
 
-_x = simulator.data._x
-_t = simulator.data._time
 
+opti_lines = configuration.graphics.plot_results(optimizer.data)
+simu_lines = configuration.graphics.plot_results(simulator.data)
 
-
-plt.plot(_t, _x[:,:2])
+plt.sca(ax[0])
+ax[0].add_artist(plt.legend(opti_lines[:2], ['Ca', 'Cb'], title='optimizer', loc=1))
+plt.sca(ax[0])
+ax[0].add_artist(plt.legend(simu_lines[:2], ['Ca', 'Cb'], title='Simulator', loc=2))
 plt.show()
-
-pdb.set_trace()
+# with open('test.pkl', 'wb') as f:
+#     pickle.dump(optimizer.data, f)

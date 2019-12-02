@@ -89,10 +89,12 @@ class model:
         :raises assertion: var_type must be string
         :raises assertion: var_name must be string
         :raises assertion: shape must be tuple or int
+        :raises assertion: Cannot call after .setup_model.
 
         :return: Returns the newly created symbolic variable. Variables can be used to create aux expressions.
         :rtype: casadi.SX
         """
+        assert self.flags['setup'] == False, 'Cannot call .set_variable after .setup_model.'
         assert isinstance(var_type, str), 'var_type must be str, you have: {}'.format(type(var_type))
         assert isinstance(var_name, str), 'var_name must be str, you have: {}'.format(type(var_name))
         assert isinstance(shape, (tuple,int)), 'shape must be tuple or int, you have: {}'.format(type(shape))
@@ -125,10 +127,12 @@ class model:
 
         :raises assertion: expr_name must be str
         :raises assertion: expr must be a casadi SX or MX type
+        :raises assertion: Cannot call after .setup_model.
 
         :return: Returns the newly created expression. Expression can be used e.g. for the RHS.
         :rtype: casadi.SX
         """
+        assert self.flags['setup'] == False, 'Cannot call .set_expression after .setup_model.'
         assert isinstance(expr_name, str), 'expr_name must be str, you have: {}'.format(type(expr_name))
         assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
         self.expr_list.extend([{'expr_name': expr_name, 'expr': expr}])
@@ -158,10 +162,12 @@ class model:
         :raises assertion: var_name must be str
         :raises assertion: expr must be a casadi SX or MX type
         :raises assertion: var_name must refer to the previously defined states
+        :raises assertion: Cannot call after .setup_model.
 
         :return: None
         :rtype: None
         """
+        assert self.flags['setup'] == False, 'Cannot call .set_rhs after .setup_model.'
         assert isinstance(var_name, str), 'var_name must be str, you have: {}'.format(type(var_name))
         assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
         _x_names = [_x_dict_i['var_name']  for _x_dict_i in self.var_list['_x']]
@@ -170,11 +176,11 @@ class model:
 
     def get_variables(self):
         # TODO: Add docstring.
-        try:
-            return self._x, self._u, self._z, self._tvp, self._p, self._aux_expression
-        except:
-            print('get_variables could not be called. Call setup_model first.')
-            raise
+
+        assert self.flags['setup'] == True, 'Model was not setup. Finish model creation by calling model.setup_model().'
+
+        return self._x, self._u, self._z, self._tvp, self._p, self._aux_expression
+
 
 
     def setup_model(self):
@@ -187,6 +193,7 @@ class model:
         :return: None
         :rtype: None
         """
+        self.flags['setup'] = True
 
         # Write self._x, self._u, self._z, self._tvp, self.p with the respective struct_symSX structures.
         # Use the previously defined SX.sym variables to declare shape and symbolic variable.
@@ -227,4 +234,7 @@ class model:
         self.n_p = self._p.shape[0]
         self.n_aux = self._aux_expression.shape[0]
 
-        self.flags['setup'] = True
+        # Remove temporary storage for the symbolic variables. This allows to pickle the class.
+        delattr(self, 'var_list')
+        delattr(self, 'expr_list')
+        delattr(self, 'rhs_list')
