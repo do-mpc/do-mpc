@@ -39,11 +39,11 @@ def template_model():
     model = do_mpc.model(model_type)
 
     # Certain parameters
-    mu_m	= 0.02
-    K_m	= 0.05
-    K_i	= 5.0
-    v_par	= 0.004
-    Y_p	= 1.2
+    mu_m  = 0.02
+    K_m	  = 0.05
+    K_i	  = 5.0
+    v_par = 0.004
+    Y_p	  = 1.2
 
     # States struct (optimization variables):
     X_s = model.set_variable(var_type='_x', var_name='X_s', shape=(1,1))
@@ -60,7 +60,7 @@ def template_model():
 
     # Set expression. These can be used in the cost function, as non-linear constraints
     # or just to monitor another output.
-    # model.set_expression(expr_name='T_dif', expr=T_R-T_K)
+    model.set_expression(expr_name='dif', expr=X_s-S_s)
 
     # algebraic equations
     mu_S	= mu_m*S_s/(K_m+S_s+(S_s**2/K_i))
