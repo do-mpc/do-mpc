@@ -44,7 +44,29 @@ class backend_graphics:
         for line_i in self.line_list:
             time = data._time
             res_type = getattr(data, line_i['var_type'])
+            # The .f() method returns an index of a casadi Struct, given a name.
             var_ind = getattr(data.model, line_i['var_type']).f[line_i['var_name']]
             lines.extend(line_i['ax'].plot(time, res_type[:, var_ind]))
 
         return lines
+
+    def plot_predictions(self, t_now, t_step, n_horizon, opt_x_num):
+        lines = []
+        for line_i in self.line_list:
+            if line_i['var_type'] == '_x':
+                t_end = t_now + (n_horizon+1)*t_step
+                time = np.linspace(t_now, t_end, n_horizon+1)-t_step
+            else:
+                t_end = t_now + n_horizon*t_step
+                time = np.linspace(t_now, t_end, n_horizon)-t_step
+
+            if line_i['var_type'] in ['_x', '_z']:
+                pred = vertcat(*opt_x_num[line_i['var_type'], :, 0, 0, line_i['var_name']])
+            elif line_i['var_type'] in ['_u']:
+                pred = vertcat(*opt_x_num[line_i['var_type'], :, 0, line_i['var_name']])
+
+            lines.extend(line_i['ax'].plot(time, pred))
+
+    def reset_axes(self, ax):
+        for ax_i in ax:
+            ax_i.lines = []

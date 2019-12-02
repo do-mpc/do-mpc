@@ -32,7 +32,6 @@ import scipy.io as sio
 import matplotlib.pyplot as plt
 import pickle
 
-
 from template_model import template_model
 from template_optimizer import template_optimizer
 from template_simulator import template_simulator
@@ -52,7 +51,7 @@ estimator = do_mpc.estimator.state_feedback(model)
 configuration = do_mpc.configuration(simulator, optimizer, estimator)
 configuration.set_initial_state(x0, reset_history=True)
 # 2:
-#configuration = do_mpc.configuration(simulator, optimizer, estimator, x0=x0)
+configuration = do_mpc.configuration(simulator, optimizer, estimator, x0=x0)
 # The default variant is to use the initial states that were independently defined for
 # simulator, estimator and optimizer.
 
@@ -63,11 +62,25 @@ configuration.graphics.add_line(var_type='_x', var_name='C_b', axis=ax[0])
 configuration.graphics.add_line(var_type='_u', var_name='Q_dot', axis=ax[1])
 ax[0].set_ylabel('c [mol/l]')
 ax[1].set_ylabel('Q_heat [kW]')
+plt.ion()
 
 for k in range(100):
     configuration.make_step_optimizer()
     configuration.make_step_simulator()
     configuration.make_step_estimator()
+
+
+    t_now = optimizer._t0
+    t_step = optimizer.t_step
+    n_horizon = optimizer.n_horizon
+    opt_x_num = optimizer.opt_x_num
+    configuration.graphics.reset_axes(ax)
+    configuration.graphics.plot_results(optimizer.data)
+    configuration.graphics.plot_predictions(t_now, t_step, n_horizon, opt_x_num)
+    plt.show()
+    input('next step')
+
+
 
 
 opti_lines = configuration.graphics.plot_results(optimizer.data)
