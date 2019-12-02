@@ -29,23 +29,22 @@ import pdb
 
 class backend_graphics:
     def __init__(self):
-        None
-
-        self.axes_list = []
+        self.line_list = []
 
 
-    def add_axes(self, var_type, var_name, **kwargs):
-        self.axes_list.append([
-            {'var_type': var_type, 'var_name': var_name, **kwargs}
-        ])
+    def add_line(self, var_type, var_name, axis):
+        self.line_list.append(
+            {'var_type': var_type, 'var_name': var_name, 'ax': axis}
+        )
 
-    def setup_plot(self):
-        n_subplots = len(self.axes_list)
-        fig, ax = plt.subplots(n_subplots, sharex=True)
 
-        for ax_i in ax:
-            ax_i.set_xlabel('time')
-            ax_1.set_ylabel(self.axes_list['var_name'])
+    def plot_results(self, data):
 
-    def plot_prediction(self, t_now, data, opt_x_num):
-        None
+        lines = []
+        for line_i in self.line_list:
+            time = data._time
+            res_type = getattr(data, line_i['var_type'])
+            var_ind = getattr(data.model, line_i['var_type']).f[line_i['var_name']]
+            lines.extend(line_i['ax'].plot(time, res_type[:, var_ind]))
+
+        return lines

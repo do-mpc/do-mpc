@@ -24,6 +24,7 @@ import numpy as np
 from casadi import *
 from casadi.tools import *
 import pdb
+import do_mpc
 
 class configuration:
     def __init__(self, simulator, optimizer, estimator, x0=None):
@@ -31,13 +32,15 @@ class configuration:
         self.optimizer = optimizer
         self.estimator = estimator
 
+        self.graphics = do_mpc.backend_graphics()
+
         if x0 is not None:
             # Set global intial condition.
             self.simulator.set_initial_state(x0)
             self.optimizer.set_initial_state(x0)
             self.estimator.set_initial_state(x0)
 
-        self.store_initial_state()
+        #self.store_initial_state()
 
     def set_initial_state(self, x0, reset_history=False):
         """Triggers the set_initial_state method for
@@ -65,17 +68,17 @@ class configuration:
         self.optimizer.set_initial_state(x0, reset_history=reset_history)
         self.estimator.set_initial_state(x0, reset_history=reset_history)
 
-        if reset_history:
-            self.store_initial_state()
-
-    def store_initial_state(self):
-        self.simulator.data.update(_x = self.simulator._x0)
-        self.optimizer.data.update(_x = self.optimizer._x0)
-        self.estimator.data.update(_x = self.estimator._x0)
-
-        self.simulator.data.update(_time = self.simulator._t0)
-        self.optimizer.data.update(_time = self.optimizer._t0)
-        self.estimator.data.update(_time = self.estimator._t0)
+    #     if reset_history:
+    #         self.store_initial_state()
+    #
+    # def store_initial_state(self):
+    #     self.simulator.data.update(_x = self.simulator._x0)
+    #     self.optimizer.data.update(_x = self.optimizer._x0)
+    #     self.estimator.data.update(_x = self.estimator._x0)
+    #
+    #     self.simulator.data.update(_time = self.simulator._t0)
+    #     self.optimizer.data.update(_time = self.optimizer._t0)
+    #     self.estimator.data.update(_time = self.estimator._t0)
 
 
     def make_step_optimizer(self):
@@ -83,6 +86,7 @@ class configuration:
         u_prev = self.optimizer._u0
         tvp0 = self.optimizer.tvp_fun(self.optimizer._t0)
         p0 = self.optimizer.p_fun(self.optimizer._t0)
+        t0 = self.optimizer._t0
 
         self.optimizer.opt_p_num['_x0'] = x0
         self.optimizer.opt_p_num['_u_prev'] = u_prev
@@ -90,19 +94,19 @@ class configuration:
         self.optimizer.opt_p_num['_p'] = p0['_p']
         self.optimizer.solve()
 
-        u0 = self.optimizer.opt_x_num['_u', 0, 0]
-        z0 = self.optimizer.opt_x_num['_z', 0, 0, 0]
+        u0 = self.optimizer._u0 = self.optimizer.opt_x_num['_u', 0, 0]
+        z0 = self.optimizer._z0 = self.optimizer.opt_x_num['_z', 0, 0, 0]
 
-        # self.optimizer.data.update(_tvp = tvp0)
-        # self.optimizer.data.update(_p = p0)
+        self.optimizer.data.update(_x = x0)
         self.optimizer.data.update(_u = u0)
         self.optimizer.data.update(_z = z0)
-
-        self.optimizer._u0 = u0
-        self.optimizer._z0 = z0
-
-        t0 = self.optimizer._t0 = self.optimizer._t0 + self.optimizer.t_step
+        # self.optimizer.data.update(_tvp = tvp0)
+        # self.optimizer.data.update(_p = p0)
         self.optimizer.data.update(_time = t0)
+
+
+        self.optimizer._t0 = self.optimizer._t0 + self.optimizer.t_step
+        #self.optimizer.data.update(_time = t0)
 
 
     def make_step_simulator(self):
@@ -110,7 +114,8 @@ class configuration:
         p0 = self.simulator.p_fun(self.simulator._t0)
         x0 = self.simulator._x0
         u0 = self.optimizer._u0
-        z0 = self.optimizer._z0
+        z0 = self.optimizer._z0 # This is just an initial guess.
+        t0 = self.simulator._t0
 
         self.simulator.sim_x_num['_x'] = x0
         self.simulator.sim_x_num['_z'] = z0
@@ -123,19 +128,21 @@ class configuration:
         x_next = self.simulator.sim_x_num['_x']
         z0 = self.simulator.sim_x_num['_z']
 
-        self.simulator.data.update(_tvp = tvp0)
-        self.simulator.data.update(_p = p0)
+        self.simulator.data.update(_x = x0)
         self.simulator.data.update(_u = u0)
         self.simulator.data.update(_z = z0)
-        self.simulator.data.update(_x = x_next)
+        self.simulator.data.update(_tvp = tvp0)
+        self.simulator.data.update(_p = p0)
+        self.simulator.data.update(_time = t0)
 
         self.simulator._x0 = x_next
-
-        t0 = self.simulator._t0 = self.simulator._t0 + self.simulator.t_step
-        self.simulator.data.update(_time = t0)
+        self.simulator._t0 = self.simulator._t0 + self.simulator.t_step
 
     def make_step_estimator(self):
         # Usually a more complex mapping:
         self.estimator._x0 = self.simulator._x0
 
         self.optimizer._x0 = self.estimator._x0
+
+        # t0 = self.estimator._t0 = self.estimator._t0 + self.estimator.t_step
+        # self.estimator.data.update(_time = t0)
