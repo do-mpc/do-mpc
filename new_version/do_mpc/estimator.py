@@ -29,6 +29,9 @@ import do_mpc.data
 class estimator:
     def __init__(self, model):
         self.model = model
+
+        assert model.flags['setup'] == True, 'Model for estimator was not setup. After the complete model creation call model.setup_model().'
+
         self._x0 = model._x(0)
         self._t0 = np.array([0])
 

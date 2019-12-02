@@ -40,6 +40,9 @@ class simulator:
         :rtype: None
         """
         self.model = model
+
+        assert model.flags['setup'] == True, 'Model for simulator was not setup. After the complete model creation call model.setup_model().'
+
         self.data = do_mpc.data.model_data(model)
 
         self._x0 = model._x(0)

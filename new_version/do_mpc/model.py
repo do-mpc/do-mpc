@@ -66,6 +66,10 @@ class model:
         self.expr_list = []
         self.rhs_list = []
 
+        self.flags = {
+            'setup': False
+        }
+
 
     def set_variable(self, var_type, var_name, shape=(1,1)):
         """Introduce new variables to the model class. Define variable type, name and shape (optional).
@@ -222,3 +226,5 @@ class model:
         self.n_tvp = self._tvp.shape[0]
         self.n_p = self._p.shape[0]
         self.n_aux = self._aux_expression.shape[0]
+
+        self.flags['setup'] = True

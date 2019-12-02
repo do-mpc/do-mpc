@@ -34,6 +34,9 @@ class optimizer(backend_optimizer):
         super().__init__()
 
         self.model = model
+
+        assert model.flags['setup'] == True, 'Model for optimizer was not setup. After the complete model creation call model.setup_model().'
+
         self.data = do_mpc.data.optimizer_data(model)
 
         self._x_lb = model._x(-np.inf)
