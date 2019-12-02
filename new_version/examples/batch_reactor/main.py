@@ -36,11 +36,11 @@ from template_model import template_model
 from template_optimizer import template_optimizer
 from template_simulator import template_simulator
 
-C_a_0 = 0.8 # This is the initial concentration inside the tank [mol/l]
-C_b_0 = 0.5 # This is the controlled variable [mol/l]
-T_R_0 = 134.14 #[C]
-T_K_0 = 130.0 #[C]
-x0 = np.array([C_a_0, C_b_0, T_R_0, T_K_0]).reshape(-1,1)
+X_s_0 = 1.0 # This is the initial concentration inside the tank [mol/l]
+S_s_0 = 0.5 # This is the controlled variable [mol/l]
+P_s_0 = 0.0 #[C]
+V_s_0 = 120.0 #[C]
+x0 = np.array([X_s_0, S_s_0, P_s_0, V_s_0]).reshape(-1,1)
 
 model = template_model()
 optimizer = template_optimizer(model)
@@ -53,13 +53,19 @@ estimator._x0 = x0
 
 configuration = do_mpc.configuration(simulator, optimizer, estimator)
 
-for k in range(100):
+for k in range(150):
     configuration.make_step_optimizer()
     configuration.make_step_simulator()
     configuration.make_step_estimator()
 
 _x = simulator.data._x
+_u = simulator.data._u
 _t = simulator.data._time
 
-plt.plot(_t, _x[:,:2])
-plt.show()
+for i in range(_x.shape[1]):
+    plt.figure()
+    plt.plot(_t, _x[:,i])
+
+for i in range(_u.shape[1]):
+    plt.figure()
+    plt.plot(_t[0:-1], _u[:,i])

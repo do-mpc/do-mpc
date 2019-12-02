@@ -39,52 +39,52 @@ def template_optimizer(model):
 
     setup_optimizer = {
         'n_horizon': 20,
-        'n_robust': 1,
+        'n_robust': 0,
         'open_loop': 0,
-        't_step': 0.005,
+        't_step': 1.0,
         'state_discretization': 'collocation',
+        'collocation_type': 'radau',
+        'collocation_deg': 2,
+        'collocation_ni': 2,
     }
 
     optimizer.set_param(**setup_optimizer)
 
     _x, _u, _z, _tvp, p, _aux = optimizer.model.get_variables()
 
-    mterm = (_x['C_b'] - 1.0)**2
-    lterm = (_x['C_b'] - 1.0)**2
+    mterm = -_x['P_s']
+    lterm = -_x['P_s']
 
     optimizer.set_objective(mterm=mterm, lterm=lterm)
     rterm_factor = optimizer.get_rterm()
-    rterm_factor['F'] = 0
-    rterm_factor['Q_dot'] = 0
+    rterm_factor['inp'] = 1.0
 
-    optimizer._x_lb['C_a'] = 0.1
-    optimizer._x_lb['C_b'] = 0.1
-    optimizer._x_lb['T_R'] = 50
-    optimizer._x_lb['T_K'] = 50
+    optimizer._x_lb['X_s'] = 0.0
+    optimizer._x_lb['S_s'] = -0.01
+    optimizer._x_lb['P_s'] = 0.0
+    optimizer._x_lb['V_s'] = 0.0
 
-    optimizer._x_ub['C_a'] = 2.0
-    optimizer._x_ub['C_b'] = 2.0
-    optimizer._x_ub['T_R'] = 180
-    optimizer._x_ub['T_K'] = 180
+    optimizer._x_ub['X_s'] = 3.7
+    optimizer._x_ub['S_s'] = inf
+    optimizer._x_ub['P_s'] = 3.0
+    optimizer._x_ub['V_s'] = inf
 
-    optimizer._u_lb['F'] = 5
-    optimizer._u_lb['Q_dot'] = -8500
+    optimizer._u_lb['inp'] = 0.0
 
-    optimizer._u_ub['F'] = 100
-    optimizer._u_ub['Q_dot'] = 0.0
+    optimizer._u_ub['inp'] = 0.2
 
-    optimizer._x0['C_a'] = 0.8
-    optimizer._x0['C_b'] = 0.5
-    optimizer._x0['T_R'] = 134.14
-    optimizer._x0['T_K'] = 130.0
+    optimizer._x0['X_s'] = 1.0
+    optimizer._x0['S_s'] = 0.5
+    optimizer._x0['P_s'] = 0.0
+    optimizer._x0['V_s'] = 120.0
 
-    optimizer.set_nl_cons(x_max=_u['F'])
+    optimizer.set_nl_cons(x_max=_u['inp'])
     optimizer._nl_cons_ub['x_max'] = 100000
 
-    alpha_var = np.array([1.])
-    beta_var = np.array([1., 0.9, 1.1])
+    Y_x_values = np.array([0.5, 0.4, 0.3])
+    S_in_values = np.array([200.0, 220.0, 180.0])
 
-    optimizer.set_uncertainty_values([alpha_var, beta_var])
+    optimizer.set_uncertainty_values([Y_x_values, S_in_values])
 
     optimizer.setup_nlp()
 
