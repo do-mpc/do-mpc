@@ -28,6 +28,8 @@ import pdb
 
 class model_data:
     def __init__(self, model):
+        assert model.flags['setup'] == True, 'Model was not setup. After the complete model creation call model.setup_model().'
+
         self._time = np.empty((0, 1))
         self._x = np.empty((0, model.n_x))
         self._u = np.empty((0, model.n_u))

@@ -48,11 +48,14 @@ optimizer = template_optimizer(model)
 simulator = template_simulator(model)
 estimator = do_mpc.estimator.state_feedback(model)
 
-optimizer._x0 = x0
-simulator._x0 = x0
-estimator._x0 = x0
-
+# Two alternatives to create a configuration and set the intial state:
+# 1:
 configuration = do_mpc.configuration(simulator, optimizer, estimator)
+configuration.set_initial_state(x0, reset_history=True)
+# 2:
+configuration = do_mpc.configuration(simulator, optimizer, estimator, x0=x0)
+# The default variant is to use the initial states that were independently defined for
+# simulator, estimator and optimizer.
 
 for k in range(100):
     configuration.make_step_optimizer()
