@@ -75,9 +75,10 @@ def template_model():
 
     # Set expression. These can be used in the cost function, as non-linear constraints
     # or just to monitor another output.
-    model.set_expression(expr_name='T_dif', expr=T_R-T_K)
+    T_dif = model.set_expression(expr_name='T_dif', expr=T_R-T_K)
 
-    # algebraic equations
+    # Expressions can also be formed without beeing explicitly added to the model.
+    # The main difference is that they will not be monitored and can only be used within the current file.
     K_1 = beta * K0_ab * exp((-E_A_ab)/((T_R+273.15)))
     K_2 =  K0_bc * exp((-E_A_bc)/((T_R+273.15)))
     K_3 = K0_ad * exp((-alpha*E_A_ad)/((T_R+273.15)))
@@ -85,8 +86,8 @@ def template_model():
     # Differential equations
     model.set_rhs('C_a', F*(C_A0 - C_a) -K_1*C_a - K_3*(C_a**2))
     model.set_rhs('C_b', -F*C_b + K_1*C_a - K_2*C_b)
-    model.set_rhs('T_R', ((K_1*C_a*H_R_ab + K_2*C_b*H_R_bc + K_3*(C_a**2)*H_R_ad)/(-Rou*Cp)) + F*(T_in-T_R) +(((K_w*A_R)*(T_K-T_R))/(Rou*Cp*V_R)))
-    model.set_rhs('T_K', (Q_dot + K_w*A_R*(T_R-T_K))/(m_k*Cp_k))
+    model.set_rhs('T_R', ((K_1*C_a*H_R_ab + K_2*C_b*H_R_bc + K_3*(C_a**2)*H_R_ad)/(-Rou*Cp)) + F*(T_in-T_R) +(((K_w*A_R)*(-T_dif))/(Rou*Cp*V_R)))
+    model.set_rhs('T_K', (Q_dot + K_w*A_R*(T_dif))/(m_k*Cp_k))
 
     # Build the model
     model.setup_model()
