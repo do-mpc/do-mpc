@@ -86,6 +86,6 @@ def template_optimizer(model):
 
     optimizer.set_uncertainty_values([Y_x_values, S_in_values])
 
-    optimizer.setup_nlp()
+    optimizer.setup()
 
     return optimizer

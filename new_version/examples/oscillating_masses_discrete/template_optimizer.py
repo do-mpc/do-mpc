@@ -70,6 +70,6 @@ def template_optimizer(model):
     optimizer._nl_cons_ub['x_max'] = 100
 
     optimizer.set_uncertainty_values(np.array([[1.0,1.2],[2.0,2.3]]))
-    optimizer.setup_nlp()
+    optimizer.setup()
 
     return optimizer

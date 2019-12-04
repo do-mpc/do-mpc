@@ -89,6 +89,6 @@ def template_optimizer(model):
 
     optimizer.set_uncertainty_values([alpha_var, beta_var])
 
-    optimizer.setup_nlp()
+    optimizer.setup()
 
     return optimizer
