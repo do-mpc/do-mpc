@@ -31,17 +31,6 @@ class backend_optimizer:
     def __init__(self):
         None
 
-    def check_validity(self):
-        if 'tvp_fun' not in self.__dict__:
-            _tvp = self.get_tvp_template()
-            def tvp_fun(t): return _tvp
-            self.set_tvp_fun(tvp_fun)
-
-        if 'p_fun' not in self.__dict__:
-            _p = self.get_p_template()
-            def p_fun(t): return _p
-            self.set_p_fun(p_fun)
-
     def setup_discretization(self):
         _x, _u, _z, _tvp, _p, _aux = self.model.get_variables()
         if self.state_discretization == 'discrete':
@@ -224,7 +213,6 @@ class backend_optimizer:
         return n_branches, n_scenarios, child_scenario, parent_scenario, branch_offset
 
     def setup_nlp(self):
-        self.check_validity()
         # Obtain an integrator (collocation, discrete-time) and the amount of intermediate (collocation) points
         ifcn, n_total_coll_points = self.setup_discretization()
         n_branches, n_scenarios, child_scenario, parent_scenario, branch_offset = self.setup_scenario_tree()
@@ -336,7 +324,7 @@ class backend_optimizer:
         # Create casadi optimization object:
         optim_opts = {}
         optim_opts["expand"] = False
-        optim_opts["ipopt.linear_solver"] = 'ma27'
+        optim_opts["ipopt.linear_solver"] = 'mumps'
         nlp = {'x': vertcat(opt_x), 'f': obj, 'g': cons, 'p': vertcat(opt_p)}
         self.S = nlpsol('S', 'ipopt', nlp, optim_opts)
 

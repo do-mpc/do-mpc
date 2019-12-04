@@ -75,14 +75,25 @@ class optimizer(backend_optimizer):
         self.collocation_ni = 1
         self.open_loop = False
 
-    def set_initial_state(self, x0, reset_history=False):
+        self.flags = {
+            'setup': False
+        }
+
+    def set_initial_state(self, x0, reset_history=False, set_intial_guess=True):
         """Set the intial state of the optimizer.
         Optionally resets the history. The history is empty upon creation of the optimizer.
+
+        Optionally update the initial guess. The initial guess is first created with the .setup() method
+        and uses the class attributes _x0, _u0, _z0 for all time instances, collocation points (if applicable)
+        and scenarios (if applicable). If these values were net explicitly set by the user, they default to all zeros.
+
 
         :param x0: Initial state
         :type x0: numpy array
         :param reset_history: Resets the history of the optimizer, defaults to False
         :type reset_history: bool (,optional)
+        :param set_intial_guess: Setting the initial state also updates the intial guess for the optimizer.
+        :type set_intial_guess: bool (,optional)
 
         :return: None
         :rtype: None
@@ -97,6 +108,9 @@ class optimizer(backend_optimizer):
             raise Exception('x0 must be of tpye (np.ndarray, casadi.DM, structure3.DMStruct). You have: {}'.format(type(x0)))
         if reset_history:
             self.reset_history()
+
+        if set_intial_guess:
+            self.set_intial_guess()
 
     def reset_history(self):
         """Reset the history of the optimizer
@@ -286,8 +300,65 @@ class optimizer(backend_optimizer):
 
         self.set_p_fun(p_fun)
 
+    def check_validity(self):
+        if 'tvp_fun' not in self.__dict__:
+            _tvp = self.get_tvp_template()
+            def tvp_fun(t): return _tvp
+            self.set_tvp_fun(tvp_fun)
+
+        if 'p_fun' not in self.__dict__:
+            _p = self.get_p_template()
+            def p_fun(t): return _p
+            self.set_p_fun(p_fun)
+
+    def setup(self):
+        """The setup method finalizes the optimizer creation. After this call, the .solve() method is applicable.
+        The method wraps the following calls:
+
+        * check_validity
+
+        * setup_nlp
+
+        * set_inital_guess
+
+        and sets the setup flag = True.
+
+        """
+        self.flags['setup'] = True
+
+        self.check_validity()
+        self.setup_nlp()
+        self.set_intial_guess()
+
+
+    def set_intial_guess(self):
+        """Uses the current class attributes _x0, _z0 and _u0 to create an initial guess for the optimizer.
+        The initial guess is simply the initial values for all instances of x, u and z. The method is automatically
+        evoked when calling the .setup() method.
+        However, if no initial values for x, u and z were supplied during setup, these default to zero.
+        """
+        assert self.flags['setup'] == True, 'optimizer was not setup yet. Please call optimizer.setup().'
+
+        self.opt_x_num['_x'] = self._x0
+        self.opt_x_num['_u'] = self._u0
+        self.opt_x_num['_z'] = self._z0
 
     def solve(self):
+        """Solves the optmization problem. The current time-step is defined by the parameters in the
+        self.opt_p_num CasADi structured Data. These include the initial condition, the parameters, the time-varying paramters and the previous u.
+        Typically, self.opt_p_num is prepared for the current iteration in the configuration.make_step_optimizer() method.
+        It is, however, valid and possible to directly set paramters in self.opt_p_num before calling .solve().
+
+        Solve updates the opt_x_num, and lam_g_num attributes of the class. In resetting, opt_x_num to the current solution, the method implicitly
+        enables warmstarting the optimizer for the next iteration, since this vector is always used as the initial guess.
+
+        :raises asssertion: optimizer was not setup yet.
+
+        :return: None
+        :rtype: None
+        """
+        assert self.flags['setup'] == True, 'optimizer was not setup yet. Please call optimizer.setup().'
+
         r = self.S(x0=self.opt_x_num, lbx=self.lb_opt_x, ubx=self.ub_opt_x,  ubg=self.cons_ub, lbg=self.cons_lb, p=self.opt_p_num)
         self.opt_x_num = self.opt_x(r['x'])
         self.opt_g_num = r['g']
