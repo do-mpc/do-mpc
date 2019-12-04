@@ -27,6 +27,7 @@ import pdb
 import itertools
 import do_mpc.data
 from do_mpc import backend_optimizer
+import time
 
 
 class optimizer(backend_optimizer):
@@ -76,7 +77,12 @@ class optimizer(backend_optimizer):
         self.open_loop = False
 
         self.flags = {
-            'setup': False
+            'setup': False,
+            'set_objective': False,
+            'set_rterm': False,
+            'set_tvp_fun': False,
+            'set_p_fun': False,
+
         }
 
     def set_initial_state(self, x0, reset_history=False, set_intial_guess=True):
@@ -142,6 +148,7 @@ class optimizer(backend_optimizer):
         self._nl_cons_lb = self._nl_cons(-np.inf)
 
     def set_objective(self, mterm=None, lterm=None):
+        self.flags['set_objective'] = True
         # TODO: Add docstring
         _x, _u, _z, _tvp, _p, _aux = self.model.get_variables()
 
@@ -154,18 +161,88 @@ class optimizer(backend_optimizer):
         self.lterm_fun = Function('lterm', [_x, _u, _z, _tvp, _p], [lterm])
 
     def get_rterm(self):
-        # TODO: Check if called before setup_nlp
+        self.flags['set_rterm'] = True
         self.rterm_factor = self.model._u(0)
         return self.rterm_factor
 
     def get_tvp_template(self):
+        """The method returns a structured object with n_horizon elements, and a set of time varying parameters (as defined in model)
+        for each of these instances. The structure is initialized with all zeros. Use this object to define values of the time varying parameters.
+
+        This structure (with numerical values) should be used as the output of the tvp_fun function which is set to the class with .set_tvp_fun (see doc string).
+        Use the combination of .get_tvp_template() and .set_tvp_fun().
+
+        Example:
+        ::
+            # in model definition:
+            alpha = model.set_variable(var_type='_tvp', var_name='alpha')
+            beta = model.set_variable(var_type='_tvp', var_name='beta')
+
+            ...
+            # in optimizer configuration:
+            (assume n_horizon = 5)
+            tvp_temp_1 = optimizer.get_tvp_template()
+            tvp_temp_1['_tvp', :] = np.array([1,1])
+
+            tvp_temp_2 = optimizer.get_tvp_template()
+            tvp_temp_2['_tvp', :] = np.array([0,0])
+
+            def tvp_fun(t_now):
+                if t_now<10:
+                    return tvp_temp_1
+                else:
+                    tvp_temp_2
+
+            optimizer.set_tvp_fun(tvp_fun)
+
+        :return: None
+        :rtype: None
+        """
+
         tvp_template = struct_symSX([
             entry('_tvp', repeat=self.n_horizon, struct=self.model._tvp)
         ])
         return tvp_template(0)
 
     def set_tvp_fun(self,tvp_fun):
+        """ Set the tvp_fun which is called at each optimization step to get the current prediction of the time-varying parameters.
+        The supplied function must be callable with the current time as the only input. Furthermore, the function must return
+        a CasADi structured object which is based on the horizon and on the model definition. The structure can be obtained with
+        .get_tvp_template().
+
+        ::
+            # in model definition:
+            alpha = model.set_variable(var_type='_tvp', var_name='alpha')
+            beta = model.set_variable(var_type='_tvp', var_name='beta')
+
+            ...
+            # in optimizer configuration:
+            (assume n_horizon = 5)
+            tvp_temp_1 = optimizer.get_tvp_template()
+            tvp_temp_1['_tvp', :] = np.array([1,1])
+
+            tvp_temp_2 = optimizer.get_tvp_template()
+            tvp_temp_2['_tvp', :] = np.array([0,0])
+
+            def tvp_fun(t_now):
+                if t_now<10:
+                    return tvp_temp_1
+                else:
+                    tvp_temp_2
+
+            optimizer.set_tvp_fun(tvp_fun)
+
+        The method .set_tvp_fun() must be called prior to setup IF time-varying parameters are defined in the model.
+
+        :param tvp_fun: Function that returns the predicted tvp values at each timestep. Must have single input (float) and return a structure3.DMStruct (obtained with .get_tvp_template())
+        :type tvp_fun: function
+
+        """
+        assert isinstance(tvp_fun(0), structure3.DMStruct), 'Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.'
         assert self.get_tvp_template().labels() == tvp_fun(0).labels(), 'Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.'
+
+        self.flags['set_tvp_fun'] = True
+
         self.tvp_fun = tvp_fun
 
 
@@ -179,23 +256,23 @@ class optimizer(backend_optimizer):
         Use the combination of .get_p_template() and .set_p_template() as a more adaptable alternative to .set_uncertainty_values().
 
         Example:
+        ::
+            # in model definition:
+            alpha = model.set_variable(var_type='_p', var_name='alpha')
+            beta = model.set_variable(var_type='_p', var_name='beta')
 
-        # in model definition:
-        alpha = model.set_variable(var_type='_p', var_name='alpha')
-        beta = model.set_variable(var_type='_p', var_name='beta')
+            ...
+            # in optimizer configuration:
+            n_combinations = 3
+            p_template = optimizer.get_p_template(n_combinations)
+            p_template['_p',0] = np.array([1,1])
+            p_template['_p',1] = np.array([0.9, 1.1])
+            p_template['_p',2] = np.array([1.1, 0.9])
 
-        ...
-        # in optimizer configuration:
-        n_combinations = 3
-        p_template = optimizer.get_p_template(n_combinations)
-        p_template['_p',0] = np.array([1,1])
-        p_template['_p',1] = np.array([0.9, 1.1])
-        p_template['_p',2] = np.array([1.1, 0.9])
+            def p_fun(t_now):
+                return p_template
 
-        def p_fun(t_now):
-            return p_template
-
-        optimizer.set_p_fun(p_fun)
+            optimizer.set_p_fun(p_fun)
 
         Note the nominal case is now:
         alpha = 1
@@ -203,7 +280,7 @@ class optimizer(backend_optimizer):
         which is determined by the order in the arrays above (first element is nominal).
 
         :param n_combinations: Define the number of combinations for the uncertain parameters for robust MPC.
-        :type p_fun: int
+        :type n_combinations: int
 
         :return: None
         :rtype: None
@@ -226,23 +303,23 @@ class optimizer(backend_optimizer):
         Use the combination of .get_p_template() and .set_p_template() as a more adaptable alternative to .set_uncertainty_values().
 
         Example:
+        ::
+            # in model definition:
+            alpha = model.set_variable(var_type='_p', var_name='alpha')
+            beta = model.set_variable(var_type='_p', var_name='beta')
 
-        # in model definition:
-        alpha = model.set_variable(var_type='_p', var_name='alpha')
-        beta = model.set_variable(var_type='_p', var_name='beta')
+            ...
+            # in optimizer configuration:
+            n_combinations = 3
+            p_template = optimizer.get_p_template(n_combinations)
+            p_template['_p',0] = np.array([1,1])
+            p_template['_p',1] = np.array([0.9, 1.1])
+            p_template['_p',2] = np.array([1.1, 0.9])
 
-        ...
-        # in optimizer configuration:
-        n_combinations = 3
-        p_template = optimizer.get_p_template(n_combinations)
-        p_template['_p',0] = np.array([1,1])
-        p_template['_p',1] = np.array([0.9, 1.1])
-        p_template['_p',2] = np.array([1.1, 0.9])
+            def p_fun(t_now):
+                return p_template
 
-        def p_fun(t_now):
-            return p_template
-
-        optimizer.set_p_fun(p_fun)
+            optimizer.set_p_fun(p_fun)
 
         Note the nominal case is now:
         alpha = 1
@@ -257,6 +334,7 @@ class optimizer(backend_optimizer):
         :rtype: None
         """
         assert self.get_p_template(self.n_combinations).labels() == p_fun(0).labels(), 'Incorrect output of p_fun. Use get_p_template to obtain the required structure.'
+        self.flags['set_p_fun'] = True
         self.p_fun = p_fun
 
     def set_uncertainty_values(self, uncertainty_values):
@@ -266,15 +344,15 @@ class optimizer(backend_optimizer):
         Note that the order of elements determine the assignment.
 
         Example:
-
-        # in model definition:
-        alpha = model.set_variable(var_type='_p', var_name='alpha')
-        beta = model.set_variable(var_type='_p', var_name='beta')
-        ...
-        # in optimizer configuration:
-        alpha_var = np.array([1., 0.9, 1.1])
-        beta_var = np.array([1., 1.05])
-        optimizer.set_uncertainty_values([alpha_var, beta_var])
+        ::
+            # in model definition:
+            alpha = model.set_variable(var_type='_p', var_name='alpha')
+            beta = model.set_variable(var_type='_p', var_name='beta')
+            ...
+            # in optimizer configuration:
+            alpha_var = np.array([1., 0.9, 1.1])
+            beta_var = np.array([1., 1.05])
+            optimizer.set_uncertainty_values([alpha_var, beta_var])
 
         Note the nominal case is now:
         alpha = 1
@@ -301,6 +379,25 @@ class optimizer(backend_optimizer):
         self.set_p_fun(p_fun)
 
     def check_validity(self):
+        # Objective mus be defined.
+        if self.flags['set_objective'] == False:
+            raise Exception('Objective is undefined. Please call .set_objective() prior to .setup().')
+        # rterm should have been set (throw warning if not)
+        if self.flags['set_rterm'] == False:
+            warning('rterm was not set and defaults to zero. Changes in the control inputs are not penalized. Can lead to oscillatory behavior.')
+            time.sleep(2)
+        # tvp_fun must be set, if tvp are defined in model.
+        if self.flags['set_tvp_fun'] == False and self.model._tvp.size > 0:
+            raise Exception('You have not supplied a function to obtain the time varying parameters defined in model. Use .set_tvp_fun() prior to setup.')
+        # p_fun must be set, if p are defined in model.
+        if self.flags['set_p_fun'] == False and self.model._p.size > 0:
+            raise Exception('You have not supplied a function to obtain the parameters defined in model. Use .set_p_fun() (low-level API) or .set_uncertainty_values() (high-level API) prior to setup.')
+
+        if np.any(self.rterm_factor.cat.full()<0):
+            warning('You have selected negative values for the rterm penalizing changes in the control input.')
+            time.sleep(2)
+
+        # Set dummy functions for tvp and p in case these parameters are unused.
         if 'tvp_fun' not in self.__dict__:
             _tvp = self.get_tvp_template()
             def tvp_fun(t): return _tvp
