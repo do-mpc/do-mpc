@@ -115,6 +115,6 @@ def template_optimizer(model):
     k_0_var = np.array([7.0*1.00, 7.0*1.30, 7.0*0.70])
     optimizer.set_uncertainty_values([delH_R_var, k_0_var])
 
-    optimizer.setup_nlp()
+    optimizer.setup()
 
     return optimizer
