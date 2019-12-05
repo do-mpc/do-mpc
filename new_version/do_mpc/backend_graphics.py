@@ -56,25 +56,36 @@ class backend_graphics:
 
         return lines
 
-    def plot_predictions(self, t_now, t_step, n_horizon, opt_x_num):
+    def plot_predictions(self, t_now, t_step, n_horizon, opt_x_num, structure_scenario):
         self.reset_prop_cycle()
         lines = []
         for line_i in self.line_list:
+            # Fix color for the robust trajectories according to the current state of the cycler.
+            if 'color' not in line_i['pltkwargs']:
+                color = next(line_i['ax']._get_lines.prop_cycler)['color']
+                line_i['pltkwargs'].update({'color':color})
+
+
+            # Choose time array depending on variable type (states with n+1 steps)
             if line_i['var_type'] == '_x':
                 t_end = t_now + (n_horizon+1)*t_step
                 time = np.linspace(t_now, t_end, n_horizon+1)-t_step
             else:
                 t_end = t_now + n_horizon*t_step
                 time = np.linspace(t_now, t_end, n_horizon)-t_step
+                structure_scenario = structure_scenario[:-1,:]
 
+            # Plot states etc. as continous quantities and inputs as steps.
             if line_i['var_type'] in ['_x', '_z']:
-                for s in range(3):
-                    pred = vertcat(*opt_x_num[line_i['var_type'], :, s, 0, line_i['var_name']])
-                    lines.extend(line_i['ax'].plot(time, pred, **line_i['pltkwargs']))
+                # pred is a n_horizon x n_branches array.
+                pred = vertcat(*opt_x_num[line_i['var_type'],:,lambda v: horzcat(*v),:, 0, line_i['var_name']])
+                # sort pred such that each column belongs to one scenario
+                pred = pred.full()[range(pred.shape[0]),structure_scenario.T].T
+                lines.extend(line_i['ax'].plot(time, pred, **line_i['pltkwargs']))
             elif line_i['var_type'] in ['_u']:
-                for s in range(3):
-                    pred = vertcat(*opt_x_num[line_i['var_type'], :, s, line_i['var_name']])
-                    lines.extend(line_i['ax'].step(time, pred, **line_i['pltkwargs']))
+                pred = vertcat(*opt_x_num[line_i['var_type'],:,lambda v: horzcat(*v),:,line_i['var_name']])
+                pred = pred.full()[range(pred.shape[0]),structure_scenario.T].T
+                lines.extend(line_i['ax'].step(time, pred, **line_i['pltkwargs']))
 
     def reset_axes(self):
         for ax_i in self.ax_list:
