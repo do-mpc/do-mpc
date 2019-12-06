@@ -64,7 +64,24 @@ class backend_graphics:
 
         return lines
 
-    def plot_predictions(self, t_now, t_step, n_horizon, opt_x_num, structure_scenario):
+    def plot_predictions(self, data, opt_x_num=None):
+        assert data.dtype == 'optimizer', 'Can only call plot_predictions with data object from do-mpc optimizer.'
+
+        t_now = data._time[-1]
+        # These fields only exist, if data type (dtype) os optimizer:
+        t_step = data.meta_data['t_step']
+        n_horizon = data.meta_data['n_horizon']
+        structure_scenario = data.meta_data['structure_scenario']
+
+        # Check if full solution is stored in data, or supplied as optional input. Raise error is neither is the case.
+        if opt_x_num is None and data.meta_data['store_full_solution']:
+            opt_x_num = data.opt_x(data._opt_x_num[-1])
+        elif opt_x_num is not None:
+            pass
+        else:
+            raise Exception('Cannot plot predictions if full solution is not stored or supplied when calling the method.')
+
+        # Plot predictions:
         self.reset_prop_cycle()
         lines = []
         for line_i in self.line_list:
@@ -77,10 +94,10 @@ class backend_graphics:
             # Choose time array depending on variable type (states with n+1 steps)
             if line_i['var_type'] in ['_x', '_z']:
                 t_end = t_now + (n_horizon+1)*t_step
-                time = np.linspace(t_now, t_end, n_horizon+1)-t_step
+                time = np.linspace(t_now, t_end, n_horizon+1)
             else:
                 t_end = t_now + n_horizon*t_step
-                time = np.linspace(t_now, t_end, n_horizon)-t_step
+                time = np.linspace(t_now, t_end, n_horizon)
                 structure_scenario = structure_scenario[:-1,:]
 
             # Plot states etc. as continous quantities and inputs as steps.
