@@ -25,6 +25,7 @@ from casadi import *
 from casadi.tools import *
 import pdb
 import do_mpc
+import matplotlib.pyplot as plt
 
 class configuration:
     def __init__(self, simulator, optimizer, estimator, x0=None):
@@ -137,3 +138,65 @@ class configuration:
 
         # t0 = self.estimator._t0 = self.estimator._t0 + self.estimator.t_step
         # self.estimator.data.update(_time = t0)
+
+    def setup_graphic(self, _x=[], _u=[], _z=[]):
+        """High Level API to create a graphic straight from the configuration.
+        """
+        assert isinstance(_x, list), 'param _x must be type list. You have: {}'.format(type(_x))
+        assert isinstance(_u, list), 'param _u must be type list. You have: {}'.format(type(_u))
+        assert isinstance(_z, list), 'param _z must be type list. You have: {}'.format(type(_z))
+
+        # Check if variables were selected for plotting and if they exist in the model.
+        # By default: Choose all states and inputs for plotting.
+        if not _x:
+            _x = self.optimizer.model._x.keys()
+        elif not set(_x).issubset(set(self.optimizer.model._x.keys())):
+            raise Exception('The given list for _x contains elements that were not defined in the model.')
+        if not _u:
+            _u = self.optimizer.model._u.keys()
+            # Remove "default" element.
+            _u.pop(0)
+        elif not set(_u).issubset(set(self.optimizer.model._u.keys())):
+            raise Exception('The given list for _u contains elements that were not defined in the model.')
+        if not _z:
+            #by default _z is not plotted.
+            pass
+        elif not set(_z).issubset(set(self.optimizer.model._z.keys())):
+            raise Exception('The given list for _z contains elements that were not defined in the model.')
+
+        n_plt_x = len(_x)
+        n_plt_u = len(_u)
+        n_plt_z = len(_z)
+        n_plt_tot = n_plt_x + n_plt_u + n_plt_z
+
+        fig, ax = plt.subplots(n_plt_tot, sharex=True)
+
+        for i, _x_i in enumerate(_x):
+            self.graphics.add_line(var_type='_x', var_name=_x_i, axis=ax[i])
+            ax[i].set_ylabel(_x_i)
+        for i, _u_i in enumerate(_u, n_plt_x):
+            self.graphics.add_line(var_type='_u', var_name=_u_i, axis=ax[i])
+            ax[i].set_ylabel(_u_i)
+        for i, _z_i in enumerate(_z, n_plt_x+n_plt_u):
+            self.graphics.add_line(var_type='_z', var_name=_z_i, axis=ax[i])
+            ax[i].set_ylabel(_z_i)
+
+        ax[-1].set_xlabel('time')
+
+        self.graphics.fig = fig
+        plt.ion()
+
+        return fig, ax
+
+    def plot_animation(self):
+        self.graphics.reset_axes()
+        self.graphics.plot_results(self.optimizer.data)
+        self.graphics.plot_predictions(self.optimizer.data, linestyle='--')
+        self.graphics.fig.align_ylabels()
+        self.graphics.fig.show()
+        input('Press enter to continue the loop. Press Ctrl-C followed by enter to stop.')
+
+    def plot_results(self):
+        self.graphics.plot_results(self.optimizer.data)
+        self.graphics.fig.align_ylabels()
+        self.graphics.fig.show()
