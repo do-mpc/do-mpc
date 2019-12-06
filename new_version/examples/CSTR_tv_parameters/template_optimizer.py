@@ -50,6 +50,8 @@ def template_optimizer(model):
 
     optimizer.set_param(**setup_optimizer)
 
+    optimizer.set_param(store_full_solution=True)
+
     _x, _u, _z, _tvp, p, _aux = optimizer.model.get_variables()
 
     mterm = (_x['C_b'] - 0.6)**2

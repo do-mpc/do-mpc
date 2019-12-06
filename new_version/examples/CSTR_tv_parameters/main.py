@@ -69,15 +69,9 @@ for k in range(100):
     configuration.make_step_simulator()
     configuration.make_step_estimator()
 
-
-    t_now = optimizer._t0
-    t_step = optimizer.t_step
-    n_horizon = optimizer.n_horizon
-    opt_x_num = optimizer.opt_x_num
-    structure_scenario = optimizer.scenario_tree['structure_scenario']
     configuration.graphics.reset_axes()
     configuration.graphics.plot_results(optimizer.data)
-    configuration.graphics.plot_predictions(t_now, t_step, n_horizon, opt_x_num, structure_scenario)
+    configuration.graphics.plot_predictions(optimizer.data, optimizer.opt_x_num)
     plt.show()
     input('next step')
 
