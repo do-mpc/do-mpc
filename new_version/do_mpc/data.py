@@ -30,7 +30,12 @@ class model_data:
     def __init__(self, model):
         self.dtype = 'default'
         assert model.flags['setup'] == True, 'Model was not setup. After the complete model creation call model.setup_model().'
-        self.model = model
+        self.model = model.__dict__.copy()
+        # As discussed here: https://groups.google.com/forum/#!topic/casadi-users/dqAb4tnA2ik
+        # struct_SX cannot be unpickled (seems like a bug)
+        # TODO: Find better workaround.
+        self.model.pop('_rhs')
+        self.model.pop('_aux_expression')
 
         # TODO: n_aux not existing
         #self._aux = np.empty((0, model.n_aux))

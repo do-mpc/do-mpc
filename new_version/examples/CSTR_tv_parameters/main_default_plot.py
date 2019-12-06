@@ -56,15 +56,14 @@ configuration = do_mpc.configuration(simulator, optimizer, estimator, x0=x0)
 # simulator, estimator and optimizer.
 
 # Setup default graphic
-fig, ax = configuration.setup_graphic()
+fig, ax = configuration.setup_graphic(_x=['C_a'])
 
 
 for k in range(100):
     configuration.make_step_optimizer()
     configuration.make_step_simulator()
     configuration.make_step_estimator()
-    #configuration.plot_animation()
+    configuration.plot_animation()
 
 configuration.plot_results()
-
 configuration.save_results()

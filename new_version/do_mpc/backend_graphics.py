@@ -57,7 +57,7 @@ class backend_graphics:
             time = data._time
             res_type = getattr(data, line_i['var_type'])
             # The .f() method returns an index of a casadi Struct, given a name.
-            var_ind = getattr(data.model, line_i['var_type']).f[line_i['var_name']]
+            var_ind = data.model[line_i['var_type']].f[line_i['var_name']]
             if line_i['var_type'] in ['_u']:
                 lines.extend(line_i['ax'].step(time, res_type[:, var_ind], **line_i['reskwargs']))
             else:
