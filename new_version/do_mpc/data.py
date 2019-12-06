@@ -127,12 +127,10 @@ class optimizer_data(model_data):
         super().__init__(model)
         self.dtype = 'optimizer'
 
-        self._cost = np.empty((0, 1))
-        self._cpu = np.empty((0, 1))
-
         self.data_fields.update({
             '_cost': 1,
             '_cpu':  1,
+            'opt_x_num': 0,
         })
         self.init_storage()
 
@@ -163,9 +161,6 @@ class mhe_data(observer_data):
     def __init__(self, model):
         super().__init__(model)
         self.dtype = 'mhe'
-
-        self._cost = np.empty((0, 1))
-        self._cpu = np.empty((0, 1))
 
         self.data_fields.update({
             '_cost': 1,

@@ -92,6 +92,9 @@ class configuration:
         # self.optimizer.data.update(_p = p0)
         self.optimizer.data.update(_time = t0)
 
+        if self.optimizer.store_full_solution == True:
+            opt_x_num = self.optimizer.opt_x_num
+            self.optimizer.data.update(_opt_x_num = opt_x_num)
 
         self.optimizer._t0 = self.optimizer._t0 + self.optimizer.t_step
 

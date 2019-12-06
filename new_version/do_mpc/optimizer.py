@@ -67,6 +67,7 @@ class optimizer(backend_optimizer):
             'collocation_type',
             'collocation_deg',
             'collocation_ni',
+            'store_full_solution'
         ]
 
         # Default Parameters:
@@ -75,6 +76,7 @@ class optimizer(backend_optimizer):
         self.collocation_deg = 2
         self.collocation_ni = 1
         self.open_loop = False
+        self.store_full_solution = False
 
         self.flags = {
             'setup': False,
@@ -132,6 +134,8 @@ class optimizer(backend_optimizer):
         :return: [ReturnDescription]
         :rtype: [ReturnType]
         """
+        assert self.flags['setup'] == False, 'Setting parameters after setup is prohibited.'
+
         for key, value in kwargs.items():
             if not (key in self.data_fields):
                 print('Warning: Key {} does not exist for optimizer.'.format(key))
@@ -418,6 +422,8 @@ class optimizer(backend_optimizer):
 
         * set_inital_guess
 
+        * prepare_data
+
         and sets the setup flag = True.
 
         """
@@ -426,9 +432,21 @@ class optimizer(backend_optimizer):
         self.check_validity()
         self.setup_nlp()
         self.set_intial_guess()
+        self.prepare_data()
 
+
+    def prepare_data(self):
+        """Write optimizer meta data to data object (all params set in self.data_fields).
+        If selected, initialize the container for the full solution of the optimizer.
+        """
         meta_data = {key: getattr(self, key) for key in self.data_fields}
+        meta_data.update({'structure_scenario': self.scenario_tree['structure_scenario']})
         self.data.set_meta(**meta_data)
+
+        if self.store_full_solution == True:
+            self.data.data_fields.update({'_opt_x_num': self.n_opt_x})
+            self.data.opt_x = self.opt_x
+            self.data.init_storage()
 
 
     def set_intial_guess(self):
