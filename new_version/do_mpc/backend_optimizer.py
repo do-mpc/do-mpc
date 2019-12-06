@@ -235,6 +235,7 @@ class backend_optimizer:
                                 1+n_total_coll_points], struct=self.model._z),
             entry('_u', repeat=[self.n_horizon, n_max_scenarios], struct=self.model._u),
         ])
+        self.n_opt_x = self.opt_x.shape[0]
         # NOTE: The entry _x[k,child_scenario[k,s,b],:] starts with the collocation points from s to b at time k
         #       and the last point contains the child node
         # NOTE: Currently there exist dummy collocation points for the initial state (for each branch)
