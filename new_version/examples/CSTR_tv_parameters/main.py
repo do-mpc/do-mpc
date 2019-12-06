@@ -56,12 +56,14 @@ configuration = do_mpc.configuration(simulator, optimizer, estimator, x0=x0)
 # simulator, estimator and optimizer.
 
 
-fig, ax = plt.subplots(2, sharex=True)
+fig, ax = plt.subplots(3, sharex=True)
 configuration.graphics.add_line(var_type='_x', var_name='C_a', axis=ax[0])
 configuration.graphics.add_line(var_type='_x', var_name='C_b', axis=ax[0])
 configuration.graphics.add_line(var_type='_u', var_name='Q_dot', axis=ax[1])
+configuration.graphics.add_line(var_type='_u', var_name='F', axis=ax[2])
 ax[0].set_ylabel('c [mol/l]')
 ax[1].set_ylabel('Q_heat [kW]')
+ax[2].set_ylabel('Flow [l/h]')
 plt.ion()
 
 for k in range(100):
@@ -70,8 +72,8 @@ for k in range(100):
     configuration.make_step_estimator()
 
     configuration.graphics.reset_axes()
-    configuration.graphics.plot_results(optimizer.data)
-    configuration.graphics.plot_predictions(optimizer.data, optimizer.opt_x_num)
+    configuration.graphics.plot_results(optimizer.data, linewidth=3)
+    configuration.graphics.plot_predictions(optimizer.data, linestyle='--', linewidth=1)
     plt.show()
     input('next step')
 
