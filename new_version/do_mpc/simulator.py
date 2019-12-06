@@ -93,7 +93,7 @@ class simulator:
     def reset_history(self):
         """Reset the history of the simulator
         """
-        self.data = do_mpc.data.optimizer_data(self.model)
+        self.data.init_storage()
 
 
     def setup_simulator(self):

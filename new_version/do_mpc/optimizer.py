@@ -121,7 +121,7 @@ class optimizer(backend_optimizer):
     def reset_history(self):
         """Reset the history of the optimizer
         """
-        self.data = do_mpc.data.optimizer_data(self.model)
+        self.data.init_storage()
 
     def set_param(self, **kwargs):
         """[Summary]
@@ -426,6 +426,9 @@ class optimizer(backend_optimizer):
         self.check_validity()
         self.setup_nlp()
         self.set_intial_guess()
+
+        meta_data = {key: getattr(self, key) for key in self.data_fields}
+        self.data.set_meta(**meta_data)
 
 
     def set_intial_guess(self):
