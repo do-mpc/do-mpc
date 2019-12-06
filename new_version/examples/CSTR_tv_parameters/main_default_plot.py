@@ -55,40 +55,16 @@ configuration = do_mpc.configuration(simulator, optimizer, estimator, x0=x0)
 # The default variant is to use the initial states that were independently defined for
 # simulator, estimator and optimizer.
 
+# Setup default graphic
+fig, ax = configuration.setup_graphic()
 
-fig, ax = plt.subplots(3, sharex=True)
-configuration.graphics.add_line(var_type='_x', var_name='C_a', axis=ax[0])
-configuration.graphics.add_line(var_type='_x', var_name='C_b', axis=ax[0])
-configuration.graphics.add_line(var_type='_u', var_name='Q_dot', axis=ax[1])
-configuration.graphics.add_line(var_type='_u', var_name='F', axis=ax[2])
-ax[0].set_ylabel('c [mol/l]')
-ax[1].set_ylabel('Q_heat [kW]')
-ax[2].set_ylabel('Flow [l/h]')
-
-plt.ion()
 
 for k in range(100):
     configuration.make_step_optimizer()
     configuration.make_step_simulator()
     configuration.make_step_estimator()
+    configuration.plot_animation()
 
-    configuration.graphics.reset_axes()
-    configuration.graphics.plot_results(optimizer.data, linewidth=3)
-    configuration.graphics.plot_predictions(optimizer.data, linestyle='--', linewidth=1)
-    plt.show()
-    input('next step')
-
-
-
-
-opti_lines = configuration.graphics.plot_results(optimizer.data)
-simu_lines = configuration.graphics.plot_results(simulator.data)
-
-plt.sca(ax[0])
-ax[0].add_artist(plt.legend(opti_lines[:2], ['Ca', 'Cb'], title='optimizer', loc=1))
-plt.sca(ax[0])
-ax[0].add_artist(plt.legend(simu_lines[:2], ['Ca', 'Cb'], title='Simulator', loc=2))
-plt.show()
 
 
 # with open('test.pkl', 'wb') as f:
