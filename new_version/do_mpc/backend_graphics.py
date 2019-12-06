@@ -44,27 +44,28 @@ class backend_graphics:
 
     def add_line(self, var_type, var_name, axis , **pltkwargs):
         self.line_list.append(
-            {'var_type': var_type, 'var_name': var_name, 'ax': axis, 'pltkwargs': pltkwargs}
+            {'var_type': var_type, 'var_name': var_name, 'ax': axis, 'reskwargs': pltkwargs, 'predkwargs':pltkwargs.copy()}
         )
         self.ax_list.append(axis)
 
 
-    def plot_results(self, data):
+    def plot_results(self, data, **pltkwargs):
         self.reset_prop_cycle()
         lines = []
         for line_i in self.line_list:
+            line_i['reskwargs'].update(pltkwargs)
             time = data._time
             res_type = getattr(data, line_i['var_type'])
             # The .f() method returns an index of a casadi Struct, given a name.
             var_ind = getattr(data.model, line_i['var_type']).f[line_i['var_name']]
             if line_i['var_type'] in ['_u']:
-                lines.extend(line_i['ax'].step(time, res_type[:, var_ind], **line_i['pltkwargs']))
+                lines.extend(line_i['ax'].step(time, res_type[:, var_ind], **line_i['reskwargs']))
             else:
-                lines.extend(line_i['ax'].plot(time, res_type[:, var_ind], **line_i['pltkwargs']))
+                lines.extend(line_i['ax'].plot(time, res_type[:, var_ind], **line_i['reskwargs']))
 
         return lines
 
-    def plot_predictions(self, data, opt_x_num=None):
+    def plot_predictions(self, data, opt_x_num=None, **pltkwargs):
         assert data.dtype == 'optimizer', 'Can only call plot_predictions with data object from do-mpc optimizer.'
 
         t_now = data._time[-1]
@@ -85,10 +86,11 @@ class backend_graphics:
         self.reset_prop_cycle()
         lines = []
         for line_i in self.line_list:
+            line_i['predkwargs'].update(pltkwargs)
             # Fix color for the robust trajectories according to the current state of the cycler.
-            if 'color' not in line_i['pltkwargs']:
+            if 'color' not in line_i['predkwargs']:
                 color = next(line_i['ax']._get_lines.prop_cycler)['color']
-                line_i['pltkwargs'].update({'color':color})
+                line_i['predkwargs'].update({'color':color})
 
 
             # Choose time array depending on variable type (states with n+1 steps)
@@ -98,7 +100,6 @@ class backend_graphics:
             else:
                 t_end = t_now + n_horizon*t_step
                 time = np.linspace(t_now, t_end, n_horizon)
-                structure_scenario = structure_scenario[:-1,:]
 
             # Plot states etc. as continous quantities and inputs as steps.
             if line_i['var_type'] in ['_x', '_z']:
@@ -106,8 +107,8 @@ class backend_graphics:
                 pred = vertcat(*opt_x_num[line_i['var_type'],:,lambda v: horzcat(*v),:, 0, line_i['var_name']])
                 # sort pred such that each column belongs to one scenario
                 pred = pred.full()[range(pred.shape[0]),structure_scenario.T].T
-                lines.extend(line_i['ax'].plot(time, pred, **line_i['pltkwargs']))
+                lines.extend(line_i['ax'].plot(time, pred, **line_i['predkwargs']))
             elif line_i['var_type'] in ['_u']:
                 pred = vertcat(*opt_x_num[line_i['var_type'],:,lambda v: horzcat(*v),:,line_i['var_name']])
-                pred = pred.full()[range(pred.shape[0]),structure_scenario.T].T
-                lines.extend(line_i['ax'].step(time, pred, **line_i['pltkwargs']))
+                pred = pred.full()[range(pred.shape[0]),structure_scenario[:-1,:].T].T
+                lines.extend(line_i['ax'].step(time, pred, **line_i['predkwargs']))
