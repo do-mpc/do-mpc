@@ -68,18 +68,6 @@ class configuration:
         self.optimizer.set_initial_state(x0, reset_history=reset_history)
         self.estimator.set_initial_state(x0, reset_history=reset_history)
 
-    #     if reset_history:
-    #         self.store_initial_state()
-    #
-    # def store_initial_state(self):
-    #     self.simulator.data.update(_x = self.simulator._x0)
-    #     self.optimizer.data.update(_x = self.optimizer._x0)
-    #     self.estimator.data.update(_x = self.estimator._x0)
-    #
-    #     self.simulator.data.update(_time = self.simulator._t0)
-    #     self.optimizer.data.update(_time = self.optimizer._t0)
-    #     self.estimator.data.update(_time = self.estimator._t0)
-
 
     def make_step_optimizer(self):
         x0 = self.optimizer._x0
@@ -106,7 +94,6 @@ class configuration:
 
 
         self.optimizer._t0 = self.optimizer._t0 + self.optimizer.t_step
-        #self.optimizer.data.update(_time = t0)
 
 
     def make_step_simulator(self):
@@ -139,6 +126,7 @@ class configuration:
         self.simulator._t0 = self.simulator._t0 + self.simulator.t_step
 
     def make_step_estimator(self):
+        # Should we not call the estimator prior to the optimization and simulator?
         # Usually a more complex mapping:
         self.estimator._x0 = self.simulator._x0
 
