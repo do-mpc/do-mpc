@@ -334,7 +334,7 @@ class backend_optimizer:
         # Create casadi optimization object:
         optim_opts = {}
         optim_opts["expand"] = False
-        optim_opts["ipopt.linear_solver"] = 'mumps'
+        optim_opts["ipopt.linear_solver"] = 'ma27'
         nlp = {'x': vertcat(opt_x), 'f': obj, 'g': cons, 'p': vertcat(opt_p)}
         self.S = nlpsol('S', 'ipopt', nlp, optim_opts)
 

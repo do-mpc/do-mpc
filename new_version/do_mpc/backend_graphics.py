@@ -33,6 +33,14 @@ class backend_graphics:
         self.ax_list  = []
         self.color = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
+    def reset_axes(self):
+        for ax_i in self.ax_list:
+            ax_i.lines = []
+        self.reset_prop_cycle()
+
+    def reset_prop_cycle(self):
+        for ax_i in self.ax_list:
+            ax_i.set_prop_cycle(None)
 
     def add_line(self, var_type, var_name, axis , **pltkwargs):
         self.line_list.append(
@@ -67,7 +75,7 @@ class backend_graphics:
 
 
             # Choose time array depending on variable type (states with n+1 steps)
-            if line_i['var_type'] == '_x':
+            if line_i['var_type'] in ['_x', '_z']:
                 t_end = t_now + (n_horizon+1)*t_step
                 time = np.linspace(t_now, t_end, n_horizon+1)-t_step
             else:
@@ -86,12 +94,3 @@ class backend_graphics:
                 pred = vertcat(*opt_x_num[line_i['var_type'],:,lambda v: horzcat(*v),:,line_i['var_name']])
                 pred = pred.full()[range(pred.shape[0]),structure_scenario.T].T
                 lines.extend(line_i['ax'].step(time, pred, **line_i['pltkwargs']))
-
-    def reset_axes(self):
-        for ax_i in self.ax_list:
-            ax_i.lines = []
-        self.reset_prop_cycle()
-
-    def reset_prop_cycle(self):
-        for ax_i in self.ax_list:
-            ax_i.set_prop_cycle(None)
