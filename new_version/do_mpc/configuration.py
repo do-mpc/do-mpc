@@ -26,6 +26,8 @@ from casadi.tools import *
 import pdb
 import do_mpc
 import matplotlib.pyplot as plt
+import os
+import pickle
 
 class configuration:
     def __init__(self, simulator, optimizer, estimator, x0=None):
@@ -41,7 +43,61 @@ class configuration:
             self.optimizer.set_initial_state(x0)
             self.estimator.set_initial_state(x0)
 
-        #self.store_initial_state()
+        self.flags = {
+            'setup_graphic': False
+        }
+
+    def save_results(self, result_name='results', result_path='./results/', overwrite=False):
+        """Exports the data objects for the:
+
+        * simulator
+
+        * optimizer
+
+        * estimator
+
+        in this configuration.
+        These objects can be used in post-processing to create graphics with the do-mpc graphics_backend.
+
+        :param result_name: Name of the result file, defaults to 'result'.
+        :type result_name: string (,optional)
+        :param result_path: Result path, defaults to './results/'.
+        :type result_path: string (,optional)
+        :param overwrite: Option to overwrite existing results, defaults to False. Index will be appended if file already exists.
+        :type overwrite: bool (,optional)
+
+        :raises assertion: result_name must be a string.
+        :raises assertion: results_path must be a string.
+        :raises assertion: overwrite must be boolean.
+
+        :return: None
+        :rtype: None
+        """
+
+        assert isinstance(result_name, str), 'result_name must be a string.'
+        assert isinstance(result_path, str), 'results_path must be a string.'
+        assert isinstance(overwrite, bool), 'overwrite must be boolean.'
+
+        if not os.path.exists(result_path):
+            os.makedirs(result_path)
+
+        results = {
+            'simulator': self.simulator.data,
+            'optimizer': self.optimizer.data,
+            'estimator': self.estimator.data,
+        }
+
+        # Dynamically generate new result name if name is already taken in result_path.
+        if overwrite==False:
+            ind = 1
+            ext_result_name = result_name
+            while os.path.isfile(result_path+ext_result_name+'.pkl'):
+                ext_result_name = '{ind:03d}_{name}'.format(ind=ind, name=result_name)
+                ind += 1
+            result_name = ext_result_name
+
+        with open(result_path+result_name+'.pkl', 'wb') as f:
+            pickle.dump(results, f)
 
     def set_initial_state(self, x0, reset_history=False):
         """Triggers the set_initial_state method for
@@ -186,9 +242,12 @@ class configuration:
         self.graphics.fig = fig
         plt.ion()
 
+        self.flags['setup_graphic'] = True
+
         return fig, ax
 
     def plot_animation(self):
+        assert self.flags['setup_graphic'] == True, 'Graphic is not setup. Call configuration.setup_graphic.'
         self.graphics.reset_axes()
         self.graphics.plot_results(self.optimizer.data)
         self.graphics.plot_predictions(self.optimizer.data, linestyle='--')
@@ -197,6 +256,8 @@ class configuration:
         input('Press enter to continue the loop. Press Ctrl-C followed by enter to stop.')
 
     def plot_results(self):
+        assert self.flags['setup_graphic'] == True, 'Graphic is not setup. Call configuration.setup_graphic.'
         self.graphics.plot_results(self.optimizer.data)
         self.graphics.fig.align_ylabels()
         self.graphics.fig.show()
+        input('Loop is finished. Press enter to exit.')
