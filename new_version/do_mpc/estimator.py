@@ -59,15 +59,15 @@ class estimator:
         if reset_history:
             self.reset_history()
 
+    def reset_history(self):
+        """Reset the history of the estimator
+        """
+        self.data.init_storage()
+
 
 class state_feedback(estimator):
     def __init__(self, model):
         super().__init__(model)
-        self.data = do_mpc.data.observer_data(self.model)
-
-    def reset_history(self):
-        """Reset the history of the estimator
-        """
         self.data = do_mpc.data.observer_data(self.model)
 
 class ekf(estimator):
@@ -75,17 +75,7 @@ class ekf(estimator):
         super().__init__(model)
         self.data = do_mpc.data.observer_data(self.model)
 
-    def reset_history(self):
-        """Reset the history of the estimator
-        """
-        self.data = do_mpc.data.observer_data(self.model)
-
 class mhe(estimator):
     def __init__(self, model):
         super().__init__(model)
-        self.data = do_mpc.data.mhe_data(self.model)
-
-    def reset_history(self):
-        """Reset the history of the estimator
-        """
         self.data = do_mpc.data.mhe_data(self.model)

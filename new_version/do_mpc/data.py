@@ -28,26 +28,33 @@ import pdb
 
 class model_data:
     def __init__(self, model):
+        self.dtype = 'default'
         assert model.flags['setup'] == True, 'Model was not setup. After the complete model creation call model.setup_model().'
         self.model = model
 
-        self._time = np.empty((0, 1))
-        self._x = np.empty((0, model.n_x))
-        self._u = np.empty((0, model.n_u))
-        self._z = np.empty((0, model.n_z))
-        self._p = np.empty((0, model.n_p))
-        self._tvp = np.empty((0, model.n_tvp))
         # TODO: n_aux not existing
         #self._aux = np.empty((0, model.n_aux))
+        self.data_fields = {
+            '_time': 1,
+            '_x':    model.n_x,
+            '_u':    model.n_u,
+            '_z':    model.n_z,
+            '_tvp':  model.n_tvp,
+            '_p':    model.n_p,
+        }
 
-        self.data_fields = [
-            '_time',
-            '_x',
-            '_u',
-            '_z',
-            '_p',
-            '_tvp'
-        ]
+        self.init_storage()
+        self.meta_data = {}
+
+    def init_storage(self):
+        for field_i, dim_i in self.data_fields.items():
+            setattr(self, field_i, np.empty((0, dim_i)))
+
+    def set_meta(self, **kwargs):
+        """Set meta data for the current instance of the data object.
+        """
+        for key, value in kwargs.items():
+            self.meta_data[key] = value
 
     def update(self, **kwargs):
         """Update value(s) of the data structure with key word arguments.
@@ -55,21 +62,22 @@ class model_data:
         See self.data_fields for a complete list of data fields.
 
         Example:
-        _x = np.ones((1, 3))
-        _u = np.ones((1, 2))
-        data.update('_x': _x, '_u': _u)
+        ::
+            _x = np.ones((1, 3))
+            _u = np.ones((1, 2))
+            data.update('_x': _x, '_u': _u)
 
-        or:
-        data.update('_x': _x)
-        data.update('_u': _u)
+            or:
+            data.update('_x': _x)
+            data.update('_u': _u)
 
-        Alternatively:
-        data_dict = {
-            '_x':np.ones((1, 3)),
-            '_u':np.ones((1, 2))
-        }
+            Alternatively:
+            data_dict = {
+                '_x':np.ones((1, 3)),
+                '_u':np.ones((1, 2))
+            }
 
-        data.update(**data_dict)
+            data.update(**data_dict)
 
 
         :param **kwargs: Arbitrary number of key word arguments for data fields that should be updated.
@@ -80,7 +88,7 @@ class model_data:
         :return: None
         """
         for key, value in kwargs.items():
-            assert key in self.data_fields, 'Cannot update non existing key {} in data object.'.format(key)
+            assert key in self.data_fields.keys(), 'Cannot update non existing key {} in data object.'.format(key)
             if type(value) == structure3.DMStruct:
                 value = value.cat
             if type(value) == DM:
@@ -108,36 +116,59 @@ class model_data:
 class optimizer_data(model_data):
     """Extension of the model_data class. All model specific fields are inherited and optimizer specific values are added.
     These include information about:
-    - _cost
-    - _cpu
+
+    * _cost
+
+    * _cpu
+
+    Sets dtype attribute to optimizer.
     """
     def __init__(self, model):
         super().__init__(model)
+        self.dtype = 'optimizer'
 
         self._cost = np.empty((0, 1))
         self._cpu = np.empty((0, 1))
 
-        self.data_fields.extend([
-            '_cost',
-            '_cpu'
-        ])
+        self.data_fields.update({
+            '_cost': 1,
+            '_cpu':  1,
+        })
+        self.init_storage()
 
 
 class observer_data(model_data):
+    """Extension of the model_data class. All model specific fields are inherited and observer specific values are added.
+    These include information about:
+
+    Sets dtype attribute to estimator.
+    """
     def __init__(self, model):
         super().__init__(model)
+        self.dtype = 'estimator'
 
-        self.data_fields.extend([])
+        self.data_fields.update({})
 
 
 class mhe_data(observer_data):
+    """Extension of the observer_data class. All observer_data (and model data) specific fields are inherited and MHE specific values are added.
+    These include information about:
+
+    * _cost
+
+    * _cpu
+
+    Sets dtype attribute to mhe.
+    """
     def __init__(self, model):
         super().__init__(model)
+        self.dtype = 'mhe'
 
         self._cost = np.empty((0, 1))
         self._cpu = np.empty((0, 1))
 
-        self.data_fields.extend([
-            '_cost',
-            '_cpu'
-        ])
+        self.data_fields.update({
+            '_cost': 1,
+            '_cpu':  1,
+        })
+        self.init_storage()
