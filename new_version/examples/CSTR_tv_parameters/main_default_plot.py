@@ -63,9 +63,8 @@ for k in range(100):
     configuration.make_step_optimizer()
     configuration.make_step_simulator()
     configuration.make_step_estimator()
-    configuration.plot_animation()
+    #configuration.plot_animation()
 
+configuration.plot_results()
 
-
-# with open('test.pkl', 'wb') as f:
-#     pickle.dump(optimizer.data, f)
+configuration.save_results()

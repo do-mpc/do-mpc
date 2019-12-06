@@ -89,7 +89,3 @@ ax[0].add_artist(plt.legend(opti_lines[:2], ['Ca', 'Cb'], title='optimizer', loc
 plt.sca(ax[0])
 ax[0].add_artist(plt.legend(simu_lines[:2], ['Ca', 'Cb'], title='Simulator', loc=2))
 plt.show()
-
-
-# with open('test.pkl', 'wb') as f:
-#     pickle.dump(optimizer.data, f)
