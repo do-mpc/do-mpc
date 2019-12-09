@@ -145,6 +145,7 @@ class configuration:
         self.optimizer.data.update(_x = x0)
         self.optimizer.data.update(_u = u0)
         self.optimizer.data.update(_z = z0)
+        #TODO: tvp und p support.
         # self.optimizer.data.update(_tvp = tvp0)
         # self.optimizer.data.update(_p = p0)
         self.optimizer.data.update(_time = t0)
@@ -159,9 +160,7 @@ class configuration:
         if len(self.optimizer.store_solver_stats) > 0:
             solver_stats = self.optimizer.solver_stats
             store_solver_stats = self.optimizer.store_solver_stats
-            pdb.set_trace()
             self.optimizer.data.update(**{stat_i: value for stat_i, value in solver_stats.items() if stat_i in store_solver_stats})
-
 
         self.optimizer._t0 = self.optimizer._t0 + self.optimizer.t_step
 
