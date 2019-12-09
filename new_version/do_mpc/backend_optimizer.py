@@ -332,6 +332,7 @@ class backend_optimizer:
         self.cons_lb = vertcat(*cons_lb)
         self.cons_ub = vertcat(*cons_ub)
 
+        self.n_opt_lagr = cons.shape[0]
         # Create casadi optimization object:
         optim_opts = {}
         optim_opts["expand"] = False

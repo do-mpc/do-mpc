@@ -67,7 +67,9 @@ class optimizer(backend_optimizer):
             'collocation_type',
             'collocation_deg',
             'collocation_ni',
-            'store_full_solution'
+            'store_full_solution',
+            'store_lagr_multiplier',
+            'store_solver_stats',
         ]
 
         # Default Parameters:
@@ -77,6 +79,12 @@ class optimizer(backend_optimizer):
         self.collocation_ni = 1
         self.open_loop = False
         self.store_full_solution = False
+        self.store_lagr_multiplier = True
+        self.store_solver_stats = [
+            'success',
+            't_wall_S',
+            't_wall_S',
+        ]
 
         self.flags = {
             'setup': False,
@@ -208,7 +216,7 @@ class optimizer(backend_optimizer):
         ])
         return tvp_template(0)
 
-    def set_tvp_fun(self,tvp_fun):
+    def set_tvp_fun(self, tvp_fun):
         """ Set the tvp_fun which is called at each optimization step to get the current prediction of the time-varying parameters.
         The supplied function must be callable with the current time as the only input. Furthermore, the function must return
         a CasADi structured object which is based on the horizon and on the model definition. The structure can be obtained with
@@ -248,7 +256,6 @@ class optimizer(backend_optimizer):
         self.flags['set_tvp_fun'] = True
 
         self.tvp_fun = tvp_fun
-
 
     def get_p_template(self, n_combinations):
         """ Low level API method to set user defined scenarios for robust MPC but defining an arbitrary number
@@ -295,8 +302,7 @@ class optimizer(backend_optimizer):
         ])
         return p_template(0)
 
-
-    def set_p_fun(self,p_fun):
+    def set_p_fun(self, p_fun):
         """ Low level API method to set user defined scenarios for robust MPC but defining an arbitrary number
         of combinations for the parameters defined in the model. The method takes as input a function, which MUST
         return a structured object, based on the defined parameters and the number of combinations.
@@ -376,7 +382,8 @@ class optimizer(backend_optimizer):
         p_scenario = list(itertools.product(*uncertainty_values))
         n_combinations = len(p_scenario)
         p_template = self.get_p_template(n_combinations)
-        p_template['_p',:] = p_scenario
+        p_template['_p', :] = p_scenario
+
         def p_fun(t_now):
             return p_template
 
@@ -397,18 +404,20 @@ class optimizer(backend_optimizer):
         if self.flags['set_p_fun'] == False and self.model._p.size > 0:
             raise Exception('You have not supplied a function to obtain the parameters defined in model. Use .set_p_fun() (low-level API) or .set_uncertainty_values() (high-level API) prior to setup.')
 
-        if np.any(self.rterm_factor.cat.full()<0):
+        if np.any(self.rterm_factor.cat.full() < 0):
             warning('You have selected negative values for the rterm penalizing changes in the control input.')
             time.sleep(2)
 
         # Set dummy functions for tvp and p in case these parameters are unused.
         if 'tvp_fun' not in self.__dict__:
             _tvp = self.get_tvp_template()
+
             def tvp_fun(t): return _tvp
             self.set_tvp_fun(tvp_fun)
 
         if 'p_fun' not in self.__dict__:
             _p = self.get_p_template()
+
             def p_fun(t): return _p
             self.set_p_fun(p_fun)
 
@@ -434,7 +443,6 @@ class optimizer(backend_optimizer):
         self.set_intial_guess()
         self.prepare_data()
 
-
     def prepare_data(self):
         """Write optimizer meta data to data object (all params set in self.data_fields).
         If selected, initialize the container for the full solution of the optimizer.
@@ -444,10 +452,27 @@ class optimizer(backend_optimizer):
         self.data.set_meta(**meta_data)
 
         if self.store_full_solution == True:
+            # Create data_field for the optimal solution.
             self.data.data_fields.update({'_opt_x_num': self.n_opt_x})
             self.data.opt_x = self.opt_x
-            self.data.init_storage()
+        if self.store_lagr_multiplier == True:
+            # Create data_field for the lagrange multipliers
+            self.data.data_fields.update({'_lam_g_num': self.n_opt_lagr})
+        if len(self.store_solver_stats) > 0:
+            # These are valid arguments for solver stats:
+            solver_stats = ['iter_count', 'iterations', 'n_call_S', 'n_call_callback_fun',
+                            'n_call_nlp_f', 'n_call_nlp_g', 'n_call_nlp_grad', 'n_call_nlp_grad_f',
+                            'n_call_nlp_hess_l', 'n_call_nlp_jac_g', 'return_status', 'success', 't_proc_S',
+                            't_proc_callback_fun', 't_proc_nlp_f', 't_proc_nlp_g', 't_proc_nlp_grad',
+                            't_proc_nlp_grad_f', 't_proc_nlp_hess_l', 't_proc_nlp_jac_g', 't_wall_S',
+                            't_wall_callback_fun', 't_wall_nlp_f', 't_wall_nlp_g', 't_wall_nlp_grad', 't_wall_nlp_grad_f',
+                            't_wall_nlp_hess_l', 't_wall_nlp_jac_g']
+            # Create data_field(s) for the recorded (valid) stats.
+            for stat_i in self.store_solver_stats:
+                assert stat_i in solver_stats, 'The requested {} is not a valid solver stat and cannot be recorded. Please supply one of the following (or none): {}'.format(stat_i, solver_stats)
+                self.data.data_fields.update({stat_i: 1})
 
+        self.data.init_storage()
 
     def set_intial_guess(self):
         """Uses the current class attributes _x0, _z0 and _u0 to create an initial guess for the optimizer.

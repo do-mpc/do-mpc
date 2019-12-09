@@ -39,6 +39,7 @@ class model_data:
 
         # TODO: n_aux not existing
         #self._aux = np.empty((0, model.n_aux))
+        # Dictionary with possible data_fields in the class and their respective dimension. All data is numpy ndarray.
         self.data_fields = {
             '_time': 1,
             '_x':    model.n_x,
@@ -99,7 +100,7 @@ class model_data:
             if type(value) == DM:
                 # Convert to numpy
                 value = value.full()
-            elif type(value) in [float, int]:
+            elif type(value) in [float, int, bool]:
                 value = np.array(value)
             # Get current results array for the given key:
             arr = getattr(self, key)
