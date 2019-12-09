@@ -149,9 +149,19 @@ class configuration:
         # self.optimizer.data.update(_p = p0)
         self.optimizer.data.update(_time = t0)
 
+        # Store additional information
         if self.optimizer.store_full_solution == True:
             opt_x_num = self.optimizer.opt_x_num
             self.optimizer.data.update(_opt_x_num = opt_x_num)
+        if self.optimizer.store_lagr_multiplier == True:
+            lam_g_num = self.optimizer.lam_g_num
+            self.optimizer.data.update(_lam_g_num = lam_g_num)
+        if len(self.optimizer.store_solver_stats) > 0:
+            solver_stats = self.optimizer.solver_stats
+            store_solver_stats = self.optimizer.store_solver_stats
+            pdb.set_trace()
+            self.optimizer.data.update(**{stat_i: value for stat_i, value in solver_stats.items() if stat_i in store_solver_stats})
+
 
         self.optimizer._t0 = self.optimizer._t0 + self.optimizer.t_step
 
