@@ -49,26 +49,30 @@ class backend_graphics:
         self.ax_list.append(axis)
 
 
-    def plot_results(self, data, **pltkwargs):
+    def plot_results(self, data, t_ind=None, **pltkwargs):
         self.reset_prop_cycle()
+        # Make index "inclusive", if it is passed. This means that for index 1, the elements at 0 AND 1 are plotted.
+        if t_ind is not None:
+            t_ind+=1
+
         lines = []
         for line_i in self.line_list:
             line_i['reskwargs'].update(pltkwargs)
-            time = data._time
+            time = data._time[:t_ind]
             res_type = getattr(data, line_i['var_type'])
             # The .f() method returns an index of a casadi Struct, given a name.
             var_ind = data.model[line_i['var_type']].f[line_i['var_name']]
             if line_i['var_type'] in ['_u']:
-                lines.extend(line_i['ax'].step(time, res_type[:, var_ind], **line_i['reskwargs']))
+                lines.extend(line_i['ax'].step(time, res_type[:t_ind, var_ind], **line_i['reskwargs']))
             else:
-                lines.extend(line_i['ax'].plot(time, res_type[:, var_ind], **line_i['reskwargs']))
+                lines.extend(line_i['ax'].plot(time, res_type[:t_ind, var_ind], **line_i['reskwargs']))
 
         return lines
 
-    def plot_predictions(self, data, opt_x_num=None, **pltkwargs):
+    def plot_predictions(self, data, opt_x_num=None, t_ind=-1, **pltkwargs):
         assert data.dtype == 'optimizer', 'Can only call plot_predictions with data object from do-mpc optimizer.'
 
-        t_now = data._time[-1]
+        t_now = data._time[t_ind]
         # These fields only exist, if data type (dtype) os optimizer:
         t_step = data.meta_data['t_step']
         n_horizon = data.meta_data['n_horizon']
@@ -76,7 +80,7 @@ class backend_graphics:
 
         # Check if full solution is stored in data, or supplied as optional input. Raise error is neither is the case.
         if opt_x_num is None and data.meta_data['store_full_solution']:
-            opt_x_num = data.opt_x(data._opt_x_num[-1])
+            opt_x_num = data.opt_x(data._opt_x_num[t_ind])
         elif opt_x_num is not None:
             pass
         else:
