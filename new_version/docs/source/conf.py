@@ -13,7 +13,7 @@
 # import os
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
-import sphinx_rtd_theme
+import pdb
 import sys
 sys.path.append('../')
 
@@ -51,6 +51,13 @@ exclude_patterns = []
 # a list of builtin themes.
 #
 html_theme = 'sphinx_rtd_theme'
+
+html_theme_options = {
+    'logo_only': True
+}
+html_theme_path = ["../.."]
+html_logo = "static/dompc_var_02_white.svg"
+html_show_sourcelink = True
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
