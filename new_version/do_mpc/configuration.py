@@ -141,6 +141,7 @@ class configuration:
 
         u0 = self.optimizer._u0 = self.optimizer.opt_x_num['_u', 0, 0]
         z0 = self.optimizer._z0 = self.optimizer.opt_x_num['_z', 0, 0, 0]
+        aux0 = self.optimizer.opt_aux_num['_aux', 0, 0]
 
         self.optimizer.data.update(_x = x0)
         self.optimizer.data.update(_u = u0)
@@ -149,11 +150,14 @@ class configuration:
         # self.optimizer.data.update(_tvp = tvp0)
         # self.optimizer.data.update(_p = p0)
         self.optimizer.data.update(_time = t0)
+        self.optimizer.data.update(_aux_expression = aux0)
 
         # Store additional information
         if self.optimizer.store_full_solution == True:
             opt_x_num = self.optimizer.opt_x_num
+            opt_aux_num = self.optimizer.opt_aux_num
             self.optimizer.data.update(_opt_x_num = opt_x_num)
+            self.optimizer.data.update(_opt_aux_num = opt_aux_num)
         if self.optimizer.store_lagr_multiplier == True:
             lam_g_num = self.optimizer.lam_g_num
             self.optimizer.data.update(_lam_g_num = lam_g_num)
@@ -183,13 +187,16 @@ class configuration:
 
         x_next = self.simulator.sim_x_num['_x']
         z0 = self.simulator.sim_x_num['_z']
+        aux0 = self.simulator.sim_aux_num
 
         self.simulator.data.update(_x = x0)
         self.simulator.data.update(_u = u0)
         self.simulator.data.update(_z = z0)
         self.simulator.data.update(_tvp = tvp0)
         self.simulator.data.update(_p = p0)
+        self.simulator.data.update(_aux_expression = aux0)
         self.simulator.data.update(_time = t0)
+
 
         self.simulator._x0 = x_next
         self.simulator._t0 = self.simulator._t0 + self.simulator.t_step
@@ -204,7 +211,7 @@ class configuration:
         # t0 = self.estimator._t0 = self.estimator._t0 + self.estimator.t_step
         # self.estimator.data.update(_time = t0)
 
-    def setup_graphic(self, _x=[], _u=[], _z=[]):
+    def setup_graphic(self, _x=[], _u=[], _z=[], _aux=[]):
         """High Level API to create a graphic straight from the configuration.
         """
         assert isinstance(_x, list), 'param _x must be type list. You have: {}'.format(type(_x))
@@ -228,11 +235,16 @@ class configuration:
             pass
         elif not set(_z).issubset(set(self.optimizer.model._z.keys())):
             raise Exception('The given list for _z contains elements that were not defined in the model.')
+        if not _aux:
+            _aux = self.optimizer.model._aux_expression.keys()
+        elif not set(_aux).issubset(set(self.optimizer.model._aux_expression.keys())):
+            raise Exception('The given list for _aux contains elements that were not defined in the model.')
 
         n_plt_x = len(_x)
         n_plt_u = len(_u)
         n_plt_z = len(_z)
-        n_plt_tot = n_plt_x + n_plt_u + n_plt_z
+        n_plt_aux = len(_aux)
+        n_plt_tot = n_plt_x + n_plt_u + n_plt_z + n_plt_aux
 
         fig, ax = plt.subplots(n_plt_tot, sharex=True)
 
@@ -245,6 +257,9 @@ class configuration:
         for i, _z_i in enumerate(_z, n_plt_x+n_plt_u):
             self.graphics.add_line(var_type='_z', var_name=_z_i, axis=ax[i])
             ax[i].set_ylabel(_z_i)
+        for i, _aux_i in enumerate(_aux, n_plt_x+n_plt_u+n_plt_z):
+            self.graphics.add_line(var_type='_aux_expression', var_name=_aux_i, axis=ax[i])
+            ax[i].set_ylabel(_aux_i)
 
         ax[-1].set_xlabel('time')
 
