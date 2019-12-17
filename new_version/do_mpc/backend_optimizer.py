@@ -191,7 +191,7 @@ class backend_optimizer:
         child_scenario = -1 * np.ones((nk, n_scenarios[-1], n_branches[0])).astype(int)
         parent_scenario = -1 * np.ones((nk + 1, n_scenarios[-1])).astype(int)
         branch_offset = -1 * np.ones((nk, n_scenarios[-1])).astype(int)
-        structure_scenario =  np.zeros((nk + 1, n_scenarios[-1])).astype(int)
+        structure_scenario = np.zeros((nk + 1, n_scenarios[-1])).astype(int)
         # Fill in the auxiliary structures
         for k in range(nk):
             # Scenario counter
@@ -214,7 +214,7 @@ class backend_optimizer:
                     branch_offset[k][s] = s % n_branches[0]
 
         self.scenario_tree = {
-            'structure_scenario' : structure_scenario,
+            'structure_scenario': structure_scenario,
             'n_branches': n_branches,
             'n_scenarios': n_scenarios,
             'parent_scenario': parent_scenario,
