@@ -118,7 +118,6 @@ class simulator:
             entry('_u', struct=self.model._u),
             entry('_p', struct=self.model._p),
             entry('_tvp', struct=self.model._tvp),
-            entry('_z', struct=self.model._z)
         ])
 
         self.sim_p_num = self.sim_p(0)
@@ -134,7 +133,7 @@ class simulator:
         elif self.model.model_type == 'continuous':
 
             # Define the ODE
-            xdot = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_p['_z'],sim_p['_tvp'],sim_p['_p'])
+            xdot = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_x['_z'],sim_p['_tvp'],sim_p['_p'])
             dae = {
                 'x': sim_x['_x'],
                 'z': sim_x['_z'],
