@@ -35,7 +35,7 @@ class model_data:
         # TODO: Find better workaround.
         self.model = model.__dict__.copy()
         self.model.pop('_rhs')
-        self.model.pop('_aux_expression')
+        #self.model.pop('_aux_expression')
 
         # TODO: n_aux not existing
         #self._aux = np.empty((0, model.n_aux))
@@ -47,6 +47,7 @@ class model_data:
             '_z':    model.n_z,
             '_tvp':  model.n_tvp,
             '_p':    model.n_p,
+            '_aux_expression':  model.n_aux,
         }
 
         self.init_storage()

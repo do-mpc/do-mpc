@@ -151,6 +151,10 @@ class simulator:
             # Build the simulator
             self.simulator = integrator('simulator', self.integration_tool, dae,  opts)
 
+        sim_aux = self.model._aux_expression_fun(sim_x['_x'],sim_p['_u'],sim_x['_z'],sim_p['_tvp'],sim_p['_p'])
+        # Create function to caculate all auxiliary expressions:
+        self.sim_aux_expression_fun = Function('sim_aux_expression_fun', [sim_x, sim_p], [sim_aux])
+
 
     def set_param(self, **kwargs):
         """Set the parameters for the simulator. Setting the simulation time step t_step is necessary for setting up the simulator via setup_simulator.
@@ -255,7 +259,9 @@ class simulator:
             r = self.simulator(x0 = sim_x_num, p = sim_p_num)
             x_new = r['xf']
             z_now = r['zf']
+        aux_now = self.sim_aux_expression_fun(sim_x_num, sim_p_num)
 
         self.sim_x_num = self.sim_x(vertcat(x_new,z_now))
+        self.sim_aux_num = self.model._aux_expression(aux_now)
 
         return x_new

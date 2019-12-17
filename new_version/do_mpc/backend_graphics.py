@@ -85,7 +85,7 @@ class backend_graphics:
         """
         assert isinstance(var_type, str), 'var_type argument must be a string. You have: {}'.format(type(var_type))
         assert isinstance(var_name, str), 'var_name argument must be a string. You have: {}'.format(type(var_name))
-        assert var_type in ['_x', '_u', '_z', '_tvp', '_p'], 'var_type argument must reference to the valid var_types of do-mpc models.'
+        assert var_type in ['_x', '_u', '_z', '_tvp', '_p', '_aux_expression'], 'var_type argument must reference to the valid var_types of do-mpc models.'
         assert isinstance(axis, maxes.Axes), 'axis argument must be matplotlib axes object.'
 
         self.line_list.append(
@@ -137,7 +137,7 @@ class backend_graphics:
 
         return lines
 
-    def plot_predictions(self, data, opt_x_num=None, t_ind=-1, **pltkwargs):
+    def plot_predictions(self, data, opt_x_num=None, opt_aux_num=None, t_ind=-1, **pltkwargs):
         """Plots the predicted trajectories for the plot configuration.
         The predicted trajectories are part of the optimal solution at each timestep and can be passed either as the optional
         argument (opt_x_num) or they are part of the data structure, if the optimizer was set to store the optimal solution.
@@ -176,6 +176,12 @@ class backend_graphics:
             pass
         else:
             raise Exception('Cannot plot predictions if full solution is not stored or supplied when calling the method.')
+        if opt_aux_num is None and data.meta_data['store_full_solution']:
+            opt_aux_num = data.opt_aux(data._opt_aux_num[t_ind])
+        elif opt_aux_num is not None:
+            pass
+        else:
+            raise Exception('Cannot plot predictions if full solution is not stored or supplied when calling the method.')
 
         # Plot predictions:
         self.reset_prop_cycle()
@@ -207,5 +213,10 @@ class backend_graphics:
                 pred = vertcat(*opt_x_num[line_i['var_type'],:,lambda v: horzcat(*v),:,line_i['var_name']])
                 pred = pred.full()[range(pred.shape[0]),structure_scenario[:-1,:].T].T
                 lines.extend(line_i['ax'].step(time, pred, **line_i['predkwargs']))
+            elif line_i['var_type'] in ['_aux_expression']:
+                pred = vertcat(*opt_aux_num['_aux',:,lambda v: horzcat(*v),:,line_i['var_name']])
+                pred = pred.full()[range(pred.shape[0]),structure_scenario[:-1,:].T].T
+                lines.extend(line_i['ax'].plot(time, pred, **line_i['predkwargs']))
+
 
         return lines

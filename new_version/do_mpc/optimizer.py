@@ -454,7 +454,9 @@ class optimizer(backend_optimizer):
         if self.store_full_solution == True:
             # Create data_field for the optimal solution.
             self.data.data_fields.update({'_opt_x_num': self.n_opt_x})
+            self.data.data_fields.update({'_opt_aux_num': self.n_opt_aux})
             self.data.opt_x = self.opt_x
+            self.data.opt_aux = self.opt_aux
         if self.store_lagr_multiplier == True:
             # Create data_field for the lagrange multipliers
             self.data.data_fields.update({'_lam_g_num': self.n_opt_lagr})
@@ -508,3 +510,10 @@ class optimizer(backend_optimizer):
         # Values of lagrange multipliers:
         self.lam_g_num = r['lam_g']
         self.solver_stats = self.S.stats()
+
+        # Calculate values of auxiliary expressions (defined in model)
+        self.opt_aux_num = self.opt_aux(
+            self.opt_aux_expression_fun(
+                self.opt_x_num,
+                self.opt_p_num
+            ))

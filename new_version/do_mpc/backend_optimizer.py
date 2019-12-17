@@ -248,6 +248,15 @@ class backend_optimizer:
             entry('_u_prev', struct=self.model._u)
         ])
 
+        # Dummy struct with symbolic variables
+        aux_struct = struct_symSX([
+            entry('_aux', repeat=[self.n_horizon, n_max_scenarios], struct=self.model._aux_expression)
+        ])
+        # Create mutable symbolic expression from the struct defined above.
+        self.opt_aux = opt_aux = struct_SX(aux_struct)
+
+        self.n_opt_aux = self.opt_aux.shape[0]
+
         self.lb_opt_x = opt_x(-np.inf)
         self.ub_opt_x = opt_x(np.inf)
 
@@ -315,6 +324,10 @@ class backend_optimizer:
                     else:
                         obj += self.rterm_factor.cat.T@((opt_x['_u', k, s]-opt_x['_u', k-1, parent_scenario[k][s]])**2)
 
+                    # Calculate the auxiliary expressions for the current scenario:
+                    opt_aux['_aux', k, s] = self.model._aux_expression_fun(
+                        opt_x['_x', k, s, 0], opt_x['_u', k, s], opt_x['_z', k, s, 0], opt_p['_tvp', k], opt_p['_p', current_scenario])
+
                 # Bounds for the states on all discretize values along the horizon
                 self.lb_opt_x['_x', k, s, :] = self._x_lb
                 self.ub_opt_x['_x', k, s, :] = self._x_ub
@@ -343,3 +356,7 @@ class backend_optimizer:
         # Create copies of these structures with numerical values (all zero):
         self.opt_x_num = self.opt_x(0)
         self.opt_p_num = self.opt_p(0)
+        self.opt_aux_num = self.opt_aux(0)
+
+        # Create function to caculate all auxiliary expressions:
+        self.opt_aux_expression_fun = Function('opt_aux_expression_fun', [opt_x, opt_p], [opt_aux])
