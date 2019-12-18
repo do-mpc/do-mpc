@@ -237,6 +237,8 @@ class configuration:
             raise Exception('The given list for _z contains elements that were not defined in the model.')
         if not _aux:
             _aux = self.optimizer.model._aux_expression.keys()
+            # Remove "default" element.
+            _aux.pop(0)
         elif not set(_aux).issubset(set(self.optimizer.model._aux_expression.keys())):
             raise Exception('The given list for _aux contains elements that were not defined in the model.')
 
