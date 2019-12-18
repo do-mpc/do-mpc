@@ -63,7 +63,9 @@ class model:
             '_p': [{'var_name': 'default', 'value':SX.sym('default',(0,0))}],
             '_tvp': [{'var_name': 'default', 'value':SX.sym('default',(0,0))}],
         }
-        self.expr_list = []
+        self.expr_list = [
+            {'expr_name': 'default', 'expr': DM()}
+        ]
         self.rhs_list = []
 
         self.flags = {
@@ -208,6 +210,8 @@ class model:
         self._aux_expression = struct_SX([
             entry(expr_i['expr_name'], expr=expr_i['expr']) for expr_i in self.expr_list
         ])
+
+
 
         # Create mutable struct_SX with identical structure as self._x to hold the right hand side.
         self._rhs = struct_SX(self._x)
