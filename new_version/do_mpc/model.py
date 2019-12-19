@@ -27,6 +27,17 @@ import pdb
 
 
 class model:
+    """The do_mpc model class. This class holds the full model description and is at the core of
+    simulator, optimizer and estimator. The model class is created with setting the model_type (continuous or discrete).
+    The final model is created with the method :py:func:`model.setup_model`.
+    Prior to that call the model variables have to be declared (with :py:func:`model.set_variable`)
+    as well as auxiliary expressions with :py:func:`model.set_expression` (optional)
+    and finally the right hand side (rhs) of the ODE with :py:func:`model.set_rhs`.
+
+    :param model_type: Set if the model is ``discrete`` or ``continuous``.
+    :type var_type: str
+
+    """
     def __init__(self, model_type=None):
         """Initiate the do_mpc model class. This class holds the full model description and is at the core of
         simulator, optimizer and estimator. The model class is created with setting the model_type (continuous or discrete).
@@ -88,29 +99,29 @@ class model:
             # Fixed parameters:
             alpha = model.set_variable(var_type='_p', var_name='alpha')
 
-        .. note:: ``var_type`` allows a shorthand notation e.g. ``_x`` which is equivalent to ``states``. 
+        .. note:: ``var_type`` allows a shorthand notation e.g. ``_x`` which is equivalent to ``states``.
 
         :param var_type: Declare the type of the variable. The following types are valid (long or short name is possible):
 
-            * states (_x)
-
-            * inputs (_u)
-
-            * algebraic (_z)
-
-            * parameter (_p)
-
-            * timevarying_parameter (_tvp)
+            ===========================  ===========  ============================
+            Long name                    short name   Remark
+            ===========================  ===========  ============================
+            ``states``                   ``_x``       Required
+            ``inputs``                   ``_u``       Required
+            ``algebraic``                ``_z``       Optional
+            ``parameter``                ``_p``       Optional
+            ``timevarying_parameter``    ``_tvp``     Optional
+            ===========================  ===========  ============================
         :type var_type: string
         :param var_name: Set a user-defined name for the parameter. The names are reused throughout do_mpc.
         :type var_type: string
-        :param shape: Shape of the current variable (optional), default is scalar variable.
+        :param shape: Shape of the current variable (optional), defaults to ``1``.
         :type shape: int or tuple of length 2.
 
         :raises assertion: var_type must be string
         :raises assertion: var_name must be string
         :raises assertion: shape must be tuple or int
-        :raises assertion: Cannot call after .setup_model.
+        :raises assertion: Cannot call after :py:func:`model.setup_model`.
 
         :return: Returns the newly created symbolic variable. Variables can be used to create aux expressions.
         :rtype: casadi.SX
@@ -163,21 +174,22 @@ class model:
     def set_rhs(self, var_name, expr):
         """Formulate the right hand side (rhs) of the ODE. Each defined state variable must have a respective equation (of matching dimension)
         for the rhs. Match the rhs with the state by choosing the corresponding names.
-        RHS must be formulated with respect to _x, _u, _z, _tvp, _p.
+        RHS must be formulated with respect to ``_x``, ``_u``, ``_z``, _tvp, ``_p``.
 
-        Example:
-        tank_level = model.set_variable('states', 'tank_level')
-        tank_temp = model.set_variable('states', 'tank_temp')
+        **Example**:
+        ::
+            tank_level = model.set_variable('states', 'tank_level')
+            tank_temp = model.set_variable('states', 'tank_temp')
 
-        tank_level_next = 0.5*tank_level
-        tank_temp_next = ...
+            tank_level_next = 0.5*tank_level
+            tank_temp_next = ...
 
-        model.set_rhs('tank_level', tank_level_next)
-        model.set_rhs('tank_temp', tank_temp_next)
+            model.set_rhs('tank_level', tank_level_next)
+            model.set_rhs('tank_temp', tank_temp_next)
 
         :param var_name: Name of any of the previously defined states with: model.set_variable('states', [NAME])
         :type var_name: string
-        :param expr: CasADi SX or MX function depending on _x, _u, _z, _tvp, _p.
+        :param expr: CasADi SX or MX function depending on ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
         :type expr: CasADi SX or MX
 
         :raises assertion: var_name must be str
@@ -206,8 +218,8 @@ class model:
 
     def setup_model(self):
         """Setup method must be called to finalize the modelling process.
-        All model variables _x, _u, _z, _tvp, _p must be declared.
-        The right hand side expression for _x must have been set.
+        All required model variables ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p`` must be declared.
+        The right hand side expression for ``_x`` must have been set with :py:func:`model.set_rhs`.
 
         :raises assertion: Definition of right hand side (rhs) is incomplete
 
