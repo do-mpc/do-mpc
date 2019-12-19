@@ -76,7 +76,7 @@ class backend_graphics:
         :type axis: matplotlib.axes.Axes object.
 
         :param pltkwargs: Valid matplotlib pyplot keyword arguments (e.g.: 'linewidth', 'color', 'alpha')
-        :type pltkwargs: (, optional)
+        :type pltkwargs: , optional
 
         :raises assertion: var_type argument must be a string
         :raises assertion: var_name argument must be a string
@@ -107,7 +107,7 @@ class backend_graphics:
         :type t_ind: int
 
         :param pltkwargs: Valid matplotlib pyplot keyword arguments (e.g.: 'linewidth', 'color', 'alpha')
-        :type pltkwargs: (, optional)
+        :type pltkwargs: , optional
 
         :raises assertion: t_ind argument must be a int
         :raises assertion: t_ind argument must not exceed the length of the results
@@ -152,7 +152,7 @@ class backend_graphics:
         :type t_ind: int
 
         :param pltkwargs: Valid matplotlib pyplot keyword arguments (e.g.: 'linewidth', 'color', 'alpha')
-        :type pltkwargs: (, optional)
+        :type pltkwargs: , optional
 
         :raises assertion: Can only call plot_predictions with data object from do-mpc optimizer
         :raises Exception: Cannot plot predictions if full solution is not stored or supplied when calling the method

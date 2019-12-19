@@ -127,6 +127,8 @@ class configuration:
 
 
     def make_step_optimizer(self):
+        """Wrapper method to prepare and call the optimizer.solve() method as well as store the optimizer data.
+        """
         x0 = self.optimizer._x0
         u_prev = self.optimizer._u0
         tvp0 = self.optimizer.tvp_fun(self.optimizer._t0)
@@ -170,6 +172,8 @@ class configuration:
 
 
     def make_step_simulator(self):
+        """Wrapper method to prepare and call the simulator.simulate() method as well as store the simulate data.
+        """
         tvp0 = self.simulator.tvp_fun(self.simulator._t0)
         p0 = self.simulator.p_fun(self.simulator._t0)
         x0 = self.simulator._x0

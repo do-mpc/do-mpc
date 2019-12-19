@@ -1,18 +1,8 @@
 do\_mpc package
 ===============
 
-Submodules
-----------
 
-do\_mpc.data module
--------------------
-
-.. automodule:: do_mpc.data
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-do\_mpc.model module
+do\_mpc.model
 --------------------
 
 .. automodule:: do_mpc.model
@@ -20,18 +10,36 @@ do\_mpc.model module
    :undoc-members:
    :show-inheritance:
 
-do\_mpc.optimizer module
+do\_mpc.optimizer
 ------------------------
 
 .. automodule:: do_mpc.optimizer
+   :exclude-members: check_validity, prepare_data
    :members:
    :undoc-members:
    :show-inheritance:
 
-do\_mpc.simulator module
+do\_mpc.simulator
 ------------------------
 
 .. automodule:: do_mpc.simulator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+do\_mpc.data
+-------------------
+
+.. automodule:: do_mpc.data
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
+do\_mpc.configuration
+-------------------
+
+.. automodule:: do_mpc.configuration
    :members:
    :undoc-members:
    :show-inheritance:
