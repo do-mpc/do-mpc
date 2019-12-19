@@ -2,6 +2,6 @@ API
 ===
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 5
 
    do_mpc

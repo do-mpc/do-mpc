@@ -7,7 +7,7 @@ Welcome to the documentation of do-mpc!
 =======================================
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 5
    :caption: Contents:
 
    license

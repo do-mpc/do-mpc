@@ -31,6 +31,30 @@ import time
 
 
 class optimizer(backend_optimizer):
+    """This is where the magic happens. The optimizer class is used to configure, setup and solve the MPC optimization problem
+    for robust optimal control. The ocp is constructed based on the supplied instance of :py:class:`do_mpc.model`, which must be configured beforehand.
+
+    **Configuration and setup:**
+
+    Configuring and setting up the optimizer involves the following steps:
+
+    1. Use :py:func:`optimizer.set_param` to configure the :py:class:`optimizer`. See docstring for details.
+
+    2. Use :py:meth:`do_mpc.model.get_variables` to obtain the variables defined in :py:class:`do_mpc.model` and express the objective of the optimization problem in terms of these variables.
+
+    3. Set the objective of the control problem with :py:func:`optimizer.set_objective`.
+
+    4. Use :py:func:`optimizer.get_rterm` to obtain the structure of weighting parameters to penalize changes in the input and set appropriate values.  See docstring for details.
+
+    5. Set upper and lower bounds.
+
+    6. Optionally, set further (non-linear) constraints with :py:func:`optimizer.set_nl_cons`. See docstring for details.
+
+    7. Use the low-level API (:py:func:`optimizer.get_p_template` and :py:func:`optimizer.set_p_fun`) or high level API ():py:func:`optimizer.set_uncertainty_values`) to create scenarios for robust MPC. See docstrings for details.
+
+    8. Finally, call :py:func:`optimizer.setup`.
+
+    """
     def __init__(self, model):
         super().__init__()
 
@@ -74,6 +98,7 @@ class optimizer(backend_optimizer):
 
         # Default Parameters:
         self.n_robust = 0
+        self.state_discretization = 'collocation'
         self.collocation_type = 'radau'
         self.collocation_deg = 2
         self.collocation_ni = 1
@@ -134,13 +159,55 @@ class optimizer(backend_optimizer):
         self.data.init_storage()
 
     def set_param(self, **kwargs):
-        """[Summary]
+        """Method to set the parameters of the optimizer class. Parameters must be passed as pairs of valid keywords and respective argument.
+        For example:
+        ::
+            optimizer.set_param(n_horizon = 20)
 
-        :param integration_tool: , defaults to None
-        :type [ParamName]: [ParamType](, optional)
-        :raises [ErrorType]: [ErrorDescription]
-        :return: [ReturnDescription]
-        :rtype: [ReturnType]
+        It is also possible and convenient to pass a dictionary with multiple parameters simultaneously as shown in the following example:
+        ::
+            setup_optimizer = {
+                'n_horizon': 20,
+                't_step': 0.5,
+            }
+            optimizer.set_param(**setup_optimizer)
+
+        .. note:: The given code snipped gives a full parametrization and can be used as a template.
+
+        The following parameters are available:
+
+        :param n_horizon: Prediction horizon of the optimal control problem. Parameter must be set by user.
+        :type n_horizon: int
+
+        :param n_robust: Robust horizon for robust scenario-tree MPC, defaults to ``0``. Optimization problem grows exponentially with ``n_robust``.
+        :type n_robust: int , optional
+
+        :param open_loop: Setting for scenario-tree MPC: If the parameter is ``False``, for each timestep **AND** scenario an individual control input is computed. If set to ``True``, the same control input is used for each scenario. Defaults to False.
+        :type open_loop: bool , optional
+
+        :param t_step: Timestep of the optimizer.
+        :type t_step: float
+
+        :param state_discretization: Choose the state discretization for continuous models. Currently only ``'collocation'`` is available. Defaults to ``'collocation'``.
+        :type state_discretization: str
+
+        :param collocation_type: Choose the collocation type for continuous models with collocation as state discretization. Currently only ``'radau'`` is available. Defaults to ``'radau'``.
+        :type collocation_type: str
+
+        :param collocation_deg: Choose the collocation degree for continuous models with collocation as state discretization. Defaults to ``2``.
+        :type collocation_deg: int
+
+        :param collocation_ni: Choose the collocation ni for continuous models with collocation as state discretization. Defaults to ``1``.
+        :type collocation_ni: int
+
+        :param store_full_solution: Choose whether to store the full solution of the optimization problem. This is required for animating the predictions in post processing. However, it drastically increases the required storage. Defaults to False.
+        :type store_full_solution: bool
+
+        :param store_lagr_multiplier: Choose whether to store the lagrange multipliers of the optimization problem. Increases the required storage. Defaults to ``True``.
+        :type store_lagr_multiplier: bool
+
+        :param store_solver_stats: Choose which solver statistics to store. Must be a list of valid statistics. Defaults to ``['success','t_wall_S','t_wall_S']``.
+        :type store_solver_stats: list
         """
         assert self.flags['setup'] == False, 'Setting parameters after setup is prohibited.'
 
@@ -221,7 +288,6 @@ class optimizer(backend_optimizer):
         The supplied function must be callable with the current time as the only input. Furthermore, the function must return
         a CasADi structured object which is based on the horizon and on the model definition. The structure can be obtained with
         .get_tvp_template().
-
         ::
             # in model definition:
             alpha = model.set_variable(var_type='_tvp', var_name='alpha')

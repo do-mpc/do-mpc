@@ -17,6 +17,7 @@ import pdb
 import sys
 sys.path.append('../')
 
+
 # -- Project information -----------------------------------------------------
 
 project = 'do-mpc'
@@ -34,6 +35,7 @@ release = '4.0.0'
 # ones.
 extensions = ['sphinx.ext.autodoc',
               'sphinx_rtd_theme',
+	      'sphinx.ext.intersphinx'
               ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -44,7 +46,6 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
 
-
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -53,7 +54,8 @@ exclude_patterns = []
 html_theme = 'sphinx_rtd_theme'
 
 html_theme_options = {
-    'logo_only': True
+    'logo_only': True,
+    'navigation_depth': 4,
 }
 html_theme_path = ["../.."]
 html_logo = "static/dompc_var_02_white.svg"

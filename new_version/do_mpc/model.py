@@ -76,17 +76,36 @@ class model:
     def set_variable(self, var_type, var_name, shape=(1,1)):
         """Introduce new variables to the model class. Define variable type, name and shape (optional).
 
+        **Example:**
+        ::
+            # States struct (optimization variables):
+            C_a = model.set_variable(var_type='_x', var_name='C_a', shape=(1,1))
+            T_K = model.set_variable(var_type='_x', var_name='T_K', shape=(1,1))
+
+            # Input struct (optimization variables):
+            Q_dot = model.set_variable(var_type='_u', var_name='Q_dot')
+
+            # Fixed parameters:
+            alpha = model.set_variable(var_type='_p', var_name='alpha')
+
+        .. note:: ``var_type`` allows a shorthand notation e.g. ``_x`` which is equivalent to ``states``. 
+
         :param var_type: Declare the type of the variable. The following types are valid (long or short name is possible):
-        - states (_x)
-        - inputs (_u)
-        - algebraic (_z)
-        - parameter (_p)
-        - timevarying_parameter (_tvp)
+
+            * states (_x)
+
+            * inputs (_u)
+
+            * algebraic (_z)
+
+            * parameter (_p)
+
+            * timevarying_parameter (_tvp)
         :type var_type: string
         :param var_name: Set a user-defined name for the parameter. The names are reused throughout do_mpc.
         :type var_type: string
         :param shape: Shape of the current variable (optional), default is scalar variable.
-        :type var_type: int or tuple of length 2.
+        :type shape: int or tuple of length 2.
 
         :raises assertion: var_type must be string
         :raises assertion: var_name must be string
