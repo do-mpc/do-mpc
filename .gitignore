@@ -6,3 +6,5 @@
 *.gif
 
 */docs/build/
+
+*/.ipynb_checkpoints/
