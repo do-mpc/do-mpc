@@ -101,6 +101,7 @@ class optimizer(backend_optimizer):
             'store_full_solution',
             'store_lagr_multiplier',
             'store_solver_stats',
+            'nlpsol_opts'
         ]
 
         # Default Parameters:
@@ -117,6 +118,7 @@ class optimizer(backend_optimizer):
             't_wall_S',
             't_wall_S',
         ]
+        self.nlpsol_opts = {} # Will update default options with this dict.
 
         self.flags = {
             'setup': False,
@@ -215,6 +217,9 @@ class optimizer(backend_optimizer):
 
         :param store_solver_stats: Choose which solver statistics to store. Must be a list of valid statistics. Defaults to ``['success','t_wall_S','t_wall_S']``.
         :type store_solver_stats: list
+
+        :param nlpsol_opts: Dictionary with options for the CasADi solver call ``nlpsol`` with plugin ``ipopt``. All options are listed `here <http://casadi.sourceforge.net/api/internal/d4/d89/group__nlpsol.html>`_.
+
         """
         assert self.flags['setup'] == False, 'Setting parameters after setup is prohibited.'
 
