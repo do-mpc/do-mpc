@@ -46,6 +46,7 @@ def template_optimizer(model):
         'collocation_type': 'radau',
         'collocation_deg': 2,
         'collocation_ni': 1,
+        #'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
     }
 
     optimizer.set_param(**setup_optimizer)
@@ -58,9 +59,8 @@ def template_optimizer(model):
     lterm = (_x['C_b'] - 0.6)**2
 
     optimizer.set_objective(mterm=mterm, lterm=lterm)
-    rterm_factor = optimizer.get_rterm()
-    rterm_factor['F'] = 0.001
-    rterm_factor['Q_dot'] = 0.000001
+
+    optimizer.set_rterm(F=0.001, Q_dot = 1e-6)
 
     optimizer._x_lb['C_a'] = 0.1
     optimizer._x_lb['C_b'] = 0.1
@@ -83,8 +83,7 @@ def template_optimizer(model):
     optimizer._x0['T_R'] = 134.14
     optimizer._x0['T_K'] = 130.0
 
-    optimizer.set_nl_cons(x_max=_u['F'])
-    optimizer._nl_cons_ub['x_max'] = 100000
+    optimizer.set_nl_cons('nl_cons_01', expr=-_u['F'], lb=-1000)
 
     alpha_var = np.array([1., 1.1, 0.9])
     beta_var = np.array([1., 1.1, 0.9])
