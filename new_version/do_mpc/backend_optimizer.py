@@ -347,11 +347,12 @@ class backend_optimizer:
 
         self.n_opt_lagr = cons.shape[0]
         # Create casadi optimization object:
-        optim_opts = {}
-        optim_opts["expand"] = False
-        optim_opts["ipopt.linear_solver"] = 'ma27'
+        nlpsol_opts = {
+            'expand': False,
+            'ipopt.linear_solver': 'mumps',
+        }.update(self.nlpsol_opts)
         nlp = {'x': vertcat(opt_x), 'f': obj, 'g': cons, 'p': vertcat(opt_p)}
-        self.S = nlpsol('S', 'ipopt', nlp, optim_opts)
+        self.S = nlpsol('S', 'ipopt', nlp, self.nlpsol_opts)
 
         # Create copies of these structures with numerical values (all zero):
         self.opt_x_num = self.opt_x(0)
