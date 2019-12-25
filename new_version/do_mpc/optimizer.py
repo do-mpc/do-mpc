@@ -76,6 +76,13 @@ class optimizer(backend_optimizer):
         self._x_scaling = model._x(1)
         self._u_scaling = model._u(1)
 
+        self.rterm_factor = self.model._u(0)
+
+        # Lists for further non-linear constraints (optional). Constraints are formulated as lb < cons < 0
+        self.nl_cons_list = [
+            {'expr_name': 'default', 'expr': DM(), 'lb': DM()}
+        ]
+
         self._x0 = model._x(0)
         self._u0 = model._u(0)
         self._z0 = model._z(0)
@@ -216,17 +223,35 @@ class optimizer(backend_optimizer):
                 print('Warning: Key {} does not exist for optimizer.'.format(key))
             setattr(self, key, value)
 
-    def set_nl_cons(self, **kwargs):
-        # TODO: Make sure kwargs are passed correctly.
-        self._nl_cons = struct_SX([
-            entry(name, expr=expr) for name, expr in kwargs.items()
-        ])
-        _x, _u, _z, _tvp, _p, _aux = self.model.get_variables()
-        self._nl_cons_fun = Function('nl_cons_fun', [_x, _u, _z, _tvp, _p], [self._nl_cons])
-        self._nl_cons_ub = self._nl_cons(0)
-        self._nl_cons_lb = self._nl_cons(-np.inf)
+    def set_nl_cons(self, expr_name, expr, lb=-np.inf):
+        """Introduce new constraint to the optimizer class. Further constraints are optional.
+        Expressions must be formulated with respect to _x, _u, _z, _tvp, _p.
+
+        :param expr_name: Arbitrary name for the given expression. Names are used for key word indexing.
+        :type expr_name: string
+        :param expr: CasADi SX or MX function depending on _x, _u, _z, _tvp, _p.
+        :type expr: CasADi SX or MX
+
+        :raises assertion: expr_name must be str
+        :raises assertion: expr must be a casadi SX or MX type
+
+        :return: Returns the newly created expression. Expression can be used e.g. for the RHS.
+        :rtype: casadi.SX
+        """
+        assert self.flags['setup'] == False, 'Cannot call .set_expression after .setup_model.'
+        assert isinstance(expr_name, str), 'expr_name must be str, you have: {}'.format(type(expr_name))
+        assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have: {}'.format(type(expr))
+        assert isinstance(lb, (int, float, np.ndarray)), 'lb must be float, int or numpy.ndarray, you have: {}'.format(type(lb))
+
+        self.nl_cons_list.extend([{'expr_name': expr_name, 'expr': expr, 'lb' : lb}])
+
+        return expr
+
 
     def set_objective(self, mterm=None, lterm=None):
+        assert mterm.shape == (1,1), 'mterm must have shape=(1,1). You have {}'.format(mterm.shape)
+        assert lterm.shape == (1,1), 'lterm must have shape=(1,1). You have {}'.format(lterm.shape)
+
         self.flags['set_objective'] = True
         # TODO: Add docstring
         _x, _u, _z, _tvp, _p, _aux = self.model.get_variables()
@@ -527,6 +552,21 @@ class optimizer(backend_optimizer):
 
         """
         self.flags['setup'] = True
+
+        # Create struct for _nl_cons:
+        # Use the previously defined SX.sym variables to declare shape and symbolic variable.
+        self._nl_cons = struct_SX([
+            entry(expr_i['expr_name'], expr=expr_i['expr']) for expr_i in self.nl_cons_list
+        ])
+        # Make function from these expressions:
+        _x, _u, _z, _tvp, _p, _aux = self.model.get_variables()
+        self._nl_cons_fun = Function('nl_cons_fun', [_x, _u, _z, _tvp, _p], [self._nl_cons])
+        # Create bounds:
+        self._nl_cons_ub = self._nl_cons(0)
+        self._nl_cons_lb = self._nl_cons(-np.inf)
+        # Set bounds:
+        for nl_cons_i in self.nl_cons_list:
+            self._nl_cons_lb[nl_cons_i['expr_name']] = nl_cons_i['lb']
 
         self.check_validity()
         self.setup_nlp()
