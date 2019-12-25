@@ -240,9 +240,33 @@ class optimizer(backend_optimizer):
         self.lterm_fun = Function('lterm', [_x, _u, _z, _tvp, _p], [lterm])
 
     def get_rterm(self):
+        # TODO: Remove!
         self.flags['set_rterm'] = True
-        self.rterm_factor = self.model._u(0)
         return self.rterm_factor
+
+    def set_rterm(self, **kwargs):
+        """Set the penality factor for the inputs. Call this function with keyword argument refering to the input names in
+        :py:class:`model` and the penalty factor as the respective value.
+
+        Example:
+        ::
+            # in model definition:
+            Q_heat = model.set_variable(var_type='_u', var_name='Q_heat')
+            F_flow = model.set_variable(var_type='_u', var_name='F_flow')
+
+            ...
+            # in optimizer configuration:
+            optimizer.set_rterm(Q_heat = 10)
+            optimizer.set_rterm(F_flow = 10)
+            # or alternatively:
+            optimizer.set_rterm(Q_heat = 10, F_flow = 10)
+        """
+        self.flags['set_rterm'] = True
+        for key, val in kwargs.items():
+            assert key in self.model._u.keys(), 'Must pass keywords that refer to input names defined in model. Valid is: {}. You have: {}'.format(self.model._u.keys(), key)
+            assert isinstance(val, (int, float, np.ndarray)), 'Value for {} must be int, float or numpy.ndarray. You have: {}'.format(key, type(val))
+            self.rterm_factor[key] = val
+
 
     def get_tvp_template(self):
         """The method returns a structured object with n_horizon elements, and a set of time varying parameters (as defined in model)
