@@ -72,9 +72,9 @@ fig.align_ylabels()
 plt.ion()
 
 for k in range(100):
-    configuration.make_step_optimizer()
-    configuration.make_step_simulator()
-    configuration.make_step_estimator()
+    u0 = optimizer.make_step(x0)
+    y_next = simulator.make_step(u0)
+    x0 = estimator.make_step(y_next)
 
     configuration.graphics.reset_axes()
     configuration.graphics.plot_results(optimizer.data, linewidth=3)

@@ -70,6 +70,9 @@ class state_feedback(estimator):
         super().__init__(model)
         self.data = do_mpc.data.observer_data(self.model)
 
+    def make_step(self, y0):
+        return y0
+
 class ekf(estimator):
     def __init__(self, model):
         super().__init__(model)

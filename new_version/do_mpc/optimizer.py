@@ -652,3 +652,59 @@ class optimizer(backend_optimizer):
                 self.opt_x_num,
                 self.opt_p_num
             ))
+
+    def make_step(self, x0):
+        """Main method of the optimizer class during control runtime. This method is called at each timestep
+        and returns the control input for the current initial state ``x0``.
+
+        The method prepares the optimizer by setting the current parameters, calls :py:func:`optimizer.solve`
+        and updates the :py:class:`do_mpc.data` object.
+
+        :param x0: Current state of the system.
+        :type x0: numpy.ndarray
+
+        :return: u0
+        :rtype: numpy.ndarray
+        """
+
+        u_prev = self._u0
+        tvp0 = self.tvp_fun(self._t0)
+        p0 = self.p_fun(self._t0)
+        t0 = self._t0
+
+        self.opt_p_num['_x0'] = x0
+        self.opt_p_num['_u_prev'] = u_prev
+        self.opt_p_num['_tvp'] = tvp0['_tvp']
+        self.opt_p_num['_p'] = p0['_p']
+        self.solve()
+
+        u0 = self._u0 = self.opt_x_num['_u', 0, 0]
+        z0 = self._z0 = self.opt_x_num['_z', 0, 0, 0]
+        aux0 = self.opt_aux_num['_aux', 0, 0]
+
+        self.data.update(_x = x0)
+        self.data.update(_u = u0)
+        self.data.update(_z = z0)
+        #TODO: tvp und p support.
+        # self.data.update(_tvp = tvp0)
+        # self.data.update(_p = p0)
+        self.data.update(_time = t0)
+        self.data.update(_aux_expression = aux0)
+
+        # Store additional information
+        if self.store_full_solution == True:
+            opt_x_num = self.opt_x_num
+            opt_aux_num = self.opt_aux_num
+            self.data.update(_opt_x_num = opt_x_num)
+            self.data.update(_opt_aux_num = opt_aux_num)
+        if self.store_lagr_multiplier == True:
+            lam_g_num = self.lam_g_num
+            self.data.update(_lam_g_num = lam_g_num)
+        if len(self.store_solver_stats) > 0:
+            solver_stats = self.solver_stats
+            store_solver_stats = self.store_solver_stats
+            self.data.update(**{stat_i: value for stat_i, value in solver_stats.items() if stat_i in store_solver_stats})
+
+        self._t0 = self._t0 + self.t_step
+
+        return u0.full()

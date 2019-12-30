@@ -73,7 +73,7 @@ class simulator:
         :param x0: Initial state
         :type x0: numpy array
         :param reset_history: Resets the history of the simulator, defaults to False
-        :type reset_history: bool (,optional)
+        :type reset_history: bool (optional)
 
         :return: None
         :rtype: None
@@ -265,3 +265,68 @@ class simulator:
         self.sim_aux_num = self.model._aux_expression(aux_now)
 
         return x_new
+
+    def make_step(self, u0, x0=None, z0=None):
+        """Main method of the simulator class during control runtime. This method is called at each timestep
+        and returns the next state for the current control input ``u0``.
+        The initial state ``x0`` is stored as a class attribute but can optionally be supplied.
+        The algebraic states ``z0`` can also be supplied, if they are defined in the model but are only used as an intial guess.
+
+        The method prepares the simulator by setting the current parameters, calls :py:func:`simulator.simulate`
+        and updates the :py:class:`do_mpc.data` object.
+
+        :param u0: Current input to the system.
+        :type u0: numpy.ndarray
+
+        :param x0: Current state of the system.
+        :type x0: numpy.ndarray (optional)
+
+        :param z0: Initial guess for current algebraic states
+        :type z0: numpy.ndarray (optional)
+
+        :return: x_nsext
+        :rtype: numpy.ndarray
+        """
+        assert isinstance(u0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'u0 is wrong input type. You have: {}'.format(type(u0))
+        assert u0.shape == self.model._u.shape, 'u0 has incorrect shape. You have: {}, expected: {}'.format(u0.shape, self.model._u.shape)
+        assert isinstance(u0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'u0 is wrong input type. You have: {}'.format(type(u0))
+        assert u0.shape == self.model._u.shape, 'u0 has incorrect shape. You have: {}, expected: {}'.format(u0.shape, self.model._u.shape)
+
+        if x0 is None:
+            x0 = self._x0
+        else:
+            assert isinstance(x0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'x0 is wrong input type. You have: {}'.format(type(x0))
+            assert x0.shape == self.model._x.shape, 'x0 has incorrect shape. You have: {}, expected: {}'.format(x0.shape, self.model._x.shape)
+
+        if z0 is not None:
+            assert isinstance(z0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'z0 is wrong input type. You have: {}'.format(type(z0))
+            assert z0.shape == self.model._z.shape, 'z0 has incorrect shape. You have: {}, expected: {}'.format(z0.shape, self.model._z.shape)
+            # Just an initial guess.
+            self.sim_x_num['_z'] = z0
+
+        tvp0 = self.tvp_fun(self._t0)
+        p0 = self.p_fun(self._t0)
+        t0 = self._t0
+        self.sim_x_num['_x'] = x0
+        self.sim_p_num['_u'] = u0
+        self.sim_p_num['_p'] = p0
+        self.sim_p_num['_tvp'] = tvp0
+
+        self.simulate()
+
+        x_next = self.sim_x_num['_x']
+        z0 = self.sim_x_num['_z']
+        aux0 = self.sim_aux_num
+
+        self.data.update(_x = x0)
+        self.data.update(_u = u0)
+        self.data.update(_z = z0)
+        self.data.update(_tvp = tvp0)
+        self.data.update(_p = p0)
+        self.data.update(_aux_expression = aux0)
+        self.data.update(_time = t0)
+
+        self._x0 = x_next
+        self._t0 = self._t0 + self.t_step
+
+        return x_next.full()
