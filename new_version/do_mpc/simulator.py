@@ -99,6 +99,7 @@ class simulator:
     def reset_history(self):
         """Reset the history of the simulator
         """
+        self._t0 = np.array([0])
         self.data.init_storage()
 
     def check_validity(self):

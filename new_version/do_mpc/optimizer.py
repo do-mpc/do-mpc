@@ -166,6 +166,7 @@ class optimizer(backend_optimizer):
         """Reset the history of the optimizer
         """
         self.data.init_storage()
+        self._t0 = np.array([0])
 
     def set_param(self, **kwargs):
         """Method to set the parameters of the optimizer class. Parameters must be passed as pairs of valid keywords and respective argument.
@@ -256,6 +257,7 @@ class optimizer(backend_optimizer):
     def set_objective(self, mterm=None, lterm=None):
         assert mterm.shape == (1,1), 'mterm must have shape=(1,1). You have {}'.format(mterm.shape)
         assert lterm.shape == (1,1), 'lterm must have shape=(1,1). You have {}'.format(lterm.shape)
+        assert self.flags['setup'] == False, 'Cannot call .set_objective after .setup_model.'
 
         self.flags['set_objective'] = True
         # TODO: Add docstring
@@ -291,6 +293,8 @@ class optimizer(backend_optimizer):
             # or alternatively:
             optimizer.set_rterm(Q_heat = 10, F_flow = 10)
         """
+        assert self.flags['setup'] == False, 'Cannot call .set_rterm after .setup_model.'
+
         self.flags['set_rterm'] = True
         for key, val in kwargs.items():
             assert key in self.model._u.keys(), 'Must pass keywords that refer to input names defined in model. Valid is: {}. You have: {}'.format(self.model._u.keys(), key)
@@ -679,7 +683,7 @@ class optimizer(backend_optimizer):
         self.solve()
 
         u0 = self._u0 = self.opt_x_num['_u', 0, 0]
-        z0 = self._z0 = self.opt_x_num['_z', 0, 0, 0]
+        z0 = self._z0 = self.opt_x_num['_z', 0, 0, -1]
         aux0 = self.opt_aux_num['_aux', 0, 0]
 
         self.data.update(_x = x0)
