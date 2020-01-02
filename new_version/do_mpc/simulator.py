@@ -66,6 +66,12 @@ class simulator:
             self.reltol = 1e-10
             self.integration_tool = 'cvodes'
 
+            self.flags = {
+                'setup': False,
+                'set_tvp_fun': False,
+                'set_p_fun': False,
+            }
+
     def set_initial_state(self, x0, reset_history=False):
         """Set the intial state of the simulator.
         Optionally resets the history. The history is empty upon creation of the simulator.
@@ -95,8 +101,29 @@ class simulator:
         """
         self.data.init_storage()
 
+    def check_validity(self):
+        # tvp_fun must be set, if tvp are defined in model.
+        if self.flags['set_tvp_fun'] == False and self.model._tvp.size > 0:
+            raise Exception('You have not supplied a function to obtain the time varying parameters defined in model. Use .set_tvp_fun() prior to setup.')
+        # p_fun must be set, if p are defined in model.
+        if self.flags['set_p_fun'] == False and self.model._p.size > 0:
+            raise Exception('You have not supplied a function to obtain the parameters defined in model. Use .set_p_fun() (low-level API) or .set_uncertainty_values() (high-level API) prior to setup.')
 
-    def setup_simulator(self):
+        # Set dummy functions for tvp and p in case these parameters are unused.
+        if not self.flags['set_tvp_fun']:
+            _tvp = self.get_tvp_template()
+            def tvp_fun(t): return _tvp
+            self.set_tvp_fun(tvp_fun)
+
+        if not self.flags['set_p_fun']:
+            _p = self.get_p_template()
+            def p_fun(t): return _p
+            self.set_p_fun(p_fun)
+
+        assert self.t_step, 't_step is required in order to setup the simulator. Please set the simulation time step via set_param(**kwargs)'
+
+
+    def setup(self):
         """Sets up the simulator after the parameters were set via set_param. The simulation time step is required in order to setup the simulator for continuous and discrete-time models.
 
         :raises assertion: t_step must be set
@@ -104,8 +131,8 @@ class simulator:
         :return: None
         :rtype: None
         """
-        # Check if simulation time step was given
-        assert self.t_step, 't_step is required in order to setup the simulator. Please set the simulation time step via set_param(**kwargs)'
+
+        self.check_validity()
 
         self.sim_x = sim_x = struct_symSX([
             entry('_x', struct=self.model._x),
@@ -155,6 +182,8 @@ class simulator:
         # Create function to caculate all auxiliary expressions:
         self.sim_aux_expression_fun = Function('sim_aux_expression_fun', [sim_x, sim_p], [sim_aux])
 
+        self.flags['setup'] = True
+
 
     def set_param(self, **kwargs):
         """Set the parameters for the simulator. Setting the simulation time step t_step is necessary for setting up the simulator via setup_simulator.
@@ -171,15 +200,12 @@ class simulator:
         :return: None
         :rtype: None
         """
+        assert self.flags['setup'] == False, 'Cannot call set_param after simulator was setup.'
 
         for key, value in kwargs.items():
             if not (key in self.data_fields):
                 print('Warning: Key {} does not exist for {} model.'.format(key, self.model.model_type))
             setattr(self, key, value)
-
-        # if any settings were changed for a continuous model, update the simulator
-        if any([kw in self.data_fields for kw in kwargs.keys()]) and (self.model.model_type == 'continuous'):
-            self.setup_simulator()
 
 
     def get_tvp_template(self):
@@ -202,8 +228,11 @@ class simulator:
         :return: None
         :rtype: None
         """
+        assert isinstance(tvp_fun(0), structure3.DMStruct), 'tvp_fun has incorrect return type.'
         assert self.get_tvp_template().labels() == tvp_fun(0).labels(), 'Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.'
         self.tvp_fun = tvp_fun
+
+        self.flags['set_tvp_fun'] = True
 
 
     def get_p_template(self):
@@ -226,8 +255,10 @@ class simulator:
         :return: None
         :rtype: None
         """
+        assert isinstance(p_fun(0), structure3.DMStruct), 'p_fun has incorrect return type.'
         assert self.get_p_template().labels() == p_fun(0).labels(), 'Incorrect output of p_fun. Use get_p_template to obtain the required structure.'
         self.p_fun = p_fun
+        self.flags['set_p_fun'] = True
 
 
     def simulate(self):
