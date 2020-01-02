@@ -46,8 +46,6 @@ def template_simulator(model):
 
     simulator.set_param(**params_simulator)
 
-    simulator.setup_simulator()
-
     tvp_num = simulator.get_tvp_template()
     def tvp_fun(t_now):
         return tvp_num
@@ -60,7 +58,8 @@ def template_simulator(model):
 
     def p_fun(t_now):
         return p_num
-        
     simulator.set_p_fun(p_fun)
+
+    simulator.setup()
 
     return simulator
