@@ -160,7 +160,7 @@ class optimizer(backend_optimizer):
             self.reset_history()
 
         if set_intial_guess:
-            self.set_intial_guess()
+            self.set_initial_guess()
 
     def reset_history(self):
         """Reset the history of the optimizer
@@ -575,7 +575,7 @@ class optimizer(backend_optimizer):
 
         self.check_validity()
         self.setup_nlp()
-        self.set_intial_guess()
+        self.set_initial_guess()
         self.prepare_data()
 
     def prepare_data(self):
@@ -611,7 +611,7 @@ class optimizer(backend_optimizer):
 
         self.data.init_storage()
 
-    def set_intial_guess(self):
+    def set_initial_guess(self):
         """Uses the current class attributes _x0, _z0 and _u0 to create an initial guess for the optimizer.
         The initial guess is simply the initial values for all instances of x, u and z. The method is automatically
         evoked when calling the .setup() method.
