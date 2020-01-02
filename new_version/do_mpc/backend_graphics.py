@@ -205,7 +205,7 @@ class backend_graphics:
             # Plot states etc. as continous quantities and inputs as steps.
             if line_i['var_type'] in ['_x', '_z']:
                 # pred is a n_horizon x n_branches array.
-                pred = vertcat(*opt_x_num[line_i['var_type'],:,lambda v: horzcat(*v),:, 0, line_i['var_name']])
+                pred = vertcat(*opt_x_num[line_i['var_type'],:,lambda v: horzcat(*v),:, -1, line_i['var_name']])
                 # sort pred such that each column belongs to one scenario
                 pred = pred.full()[range(pred.shape[0]),structure_scenario.T].T
                 lines.extend(line_i['ax'].plot(time, pred, **line_i['predkwargs']))
