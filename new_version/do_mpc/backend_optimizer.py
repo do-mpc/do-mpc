@@ -267,7 +267,7 @@ class backend_optimizer:
         cons_ub = []
 
         # Initial condition:
-        cons.append(opt_x['_x', 0, 0, 0]-opt_p['_x0'])
+        cons.append(opt_x['_x', 0, 0, -1]-opt_p['_x0'])
 
         cons_lb.append(np.zeros((self.model.n_x, 1)))
         cons_ub.append(np.zeros((self.model.n_x, 1)))
@@ -287,7 +287,7 @@ class backend_optimizer:
                     current_scenario = b + branch_offset[k][s]
 
                     # Compute constraints and predicted next state of the discretization scheme
-                    [g_ksb, xf_ksb] = ifcn(opt_x['_x', k, s, 0], vertcat(*opt_x['_x', k+1, child_scenario[k][s][b], :-1]),
+                    [g_ksb, xf_ksb] = ifcn(opt_x['_x', k, s, -1], vertcat(*opt_x['_x', k+1, child_scenario[k][s][b], :-1]),
                                            opt_x['_u', k, s], vertcat(*opt_x['_z', k, s, :]), opt_p['_tvp', k], opt_p['_p', current_scenario])
 
                     # Add the collocation equations
@@ -302,7 +302,7 @@ class backend_optimizer:
 
                     # Add nonlinear constraints only on each control step
                     nl_cons_k = self._nl_cons_fun(
-                        opt_x['_x', k, s, 0], opt_x['_u', k, s], opt_x['_z', k, s, 0], opt_p['_tvp', k], opt_p['_p', current_scenario])
+                        opt_x['_x', k, s, -1], opt_x['_u', k, s], opt_x['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
                     cons.append(nl_cons_k)
                     cons_lb.append(self._nl_cons_lb)
                     cons_ub.append(self._nl_cons_ub)
@@ -311,11 +311,11 @@ class backend_optimizer:
                     # TODO: Add terminal constraints with an additional nl_cons
 
                     # Add contribution to the cost
-                    obj += omega[k] * self.lterm_fun(opt_x['_x', k, s, 0], opt_x['_u', k, s],
-                                                     opt_x['_z', k, s, 0], opt_p['_tvp', k], opt_p['_p', current_scenario])
+                    obj += omega[k] * self.lterm_fun(opt_x['_x', k, s, -1], opt_x['_u', k, s],
+                                                     opt_x['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
                     # In the last step add the terminal cost too
                     if k == self.n_horizon - 1:
-                        obj += omega[k] * self.mterm_fun(opt_x['_x', k + 1, s, 0])
+                        obj += omega[k] * self.mterm_fun(opt_x['_x', k + 1, s, -1])
 
                     # U regularization:
                     if k == 0:
@@ -326,7 +326,7 @@ class backend_optimizer:
 
                     # Calculate the auxiliary expressions for the current scenario:
                     opt_aux['_aux', k, s] = self.model._aux_expression_fun(
-                        opt_x['_x', k, s, 0], opt_x['_u', k, s], opt_x['_z', k, s, 0], opt_p['_tvp', k], opt_p['_p', current_scenario])
+                        opt_x['_x', k, s, -1], opt_x['_u', k, s], opt_x['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
 
                 # Bounds for the states on all discretize values along the horizon
                 self.lb_opt_x['_x', k, s, :] = self._x_lb
