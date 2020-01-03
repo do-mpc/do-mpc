@@ -10,6 +10,7 @@ Welcome to the documentation of do-mpc!
    :maxdepth: 5
    :caption: Contents:
 
+   overview
    getting_started
    license
    installation
