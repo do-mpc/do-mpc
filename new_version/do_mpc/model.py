@@ -150,11 +150,11 @@ class model:
     def set_expression(self, expr_name, expr):
         """Introduce new expression to the model class. Expressions are not required but can be used
         to extract further information from the model. They can also be use for the objective function or constraints.
-        Expressions must be formulated with respect to _x, _u, _z, _tvp, _p.
+        Expressions must be formulated with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
 
         :param expr_name: Arbitrary name for the given expression. Names are used for key word indexing.
         :type expr_name: string
-        :param expr: CasADi SX or MX function depending on _x, _u, _z, _tvp, _p.
+        :param expr: CasADi SX or MX function depending on ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
         :type expr: CasADi SX or MX
 
         :raises assertion: expr_name must be str
@@ -174,7 +174,7 @@ class model:
     def set_rhs(self, var_name, expr):
         """Formulate the right hand side (rhs) of the ODE. Each defined state variable must have a respective equation (of matching dimension)
         for the rhs. Match the rhs with the state by choosing the corresponding names.
-        RHS must be formulated with respect to ``_x``, ``_u``, ``_z``, _tvp, ``_p``.
+        RHS must be formulated with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
 
         **Example**:
         ::

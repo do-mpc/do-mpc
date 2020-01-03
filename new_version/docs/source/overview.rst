@@ -20,6 +20,12 @@ Among others, "**do mpc**" has the following features:
 
 * comprehensible python code for easy customizability
 
+.. note::
+
+	We suggest you start by skimming over the selected examples below to get an first impression of the above mentionned features.
+	A great further read for interested viewers is the :ref:`getting_started` page, where we show how to setup "**do mpc**" for the 
+	robust control task of a triple-mass-spring system.
+
 Robust Multi-stage MPC
 **********************
 We showcase an example, where the control task is to regulate the rotating triple-mass-spring system as shown below:
@@ -29,7 +35,7 @@ Once excited, the uncontrolled system takes a long time to come to a rest.
 To incluence the system, two steper motors are connected to the outermost discs via springs.
 The designed controller will result in something like this:
 
-.. image:: anim_discs_3d.gif
+.. image:: anim_disc_3d_ctrl_motor.gif
 Assume, we have modeled the system from first principles and identified the parameters in an experiment.
 We are especially unsure about the exact value of the inertia of the masses. 
 With Multi-stage MPC, we can define different scenarios e.g. :math:`\pm 10\%` for each mass and predict as well as optimize multiple state and input trajectories.

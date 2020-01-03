@@ -40,6 +40,15 @@ extensions = ['sphinx.ext.autodoc',
           'sphinx.ext.mathjax',
               ]
 
+mathjax_config = {
+    'extensions': ['tex2jax.js'],
+    'jax': ['input/TeX', 'output/HTML-CSS'],
+}
+
+# Order methods in documentation by their appearence in the sourcecode:
+autodoc_member_order = 'bysource'
+# Delete this previous line, to order by alphabet.
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
@@ -67,3 +76,8 @@ html_show_sourcelink = True
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+
+# -- Options for LaTeX output ---------------------------------------------
+latex_engine ='pdflatex'
+
