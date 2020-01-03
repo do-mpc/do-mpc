@@ -182,7 +182,7 @@ class optimizer(backend_optimizer):
             }
             optimizer.set_param(**setup_optimizer)
 
-        .. note:: The given code snipped gives a full parametrization and can be used as a template.
+        .. note:: :py:func:`optimizer.set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
 
         The following parameters are available:
 
@@ -220,7 +220,15 @@ class optimizer(backend_optimizer):
         :type store_solver_stats: list
 
         :param nlpsol_opts: Dictionary with options for the CasADi solver call ``nlpsol`` with plugin ``ipopt``. All options are listed `here <http://casadi.sourceforge.net/api/internal/d4/d89/group__nlpsol.html>`_.
+        :type store_solver_stats: dict
 
+        .. note:: We highly suggest to change the linear solver for IPOPT from `mumps` to `MA27`. In many cases this will drastically boost the speed of **do mpc**. Change the linear solver with:
+            ::
+                optimizer.set_param(nlpsol_opts = {'ipopt.linear_solver': 'MA27'})
+        .. note:: To surpress the output of IPOPT, please use:
+            ::
+                surpress_ipopt = {'ipopt.print_level':0, 'ipopt.sb': 'yes', 'print_time':0}
+                optimizer.set_param(nlpsol_opts = surpress_ipopt)
         """
         assert self.flags['setup'] == False, 'Setting parameters after setup is prohibited.'
 
@@ -255,6 +263,26 @@ class optimizer(backend_optimizer):
 
 
     def set_objective(self, mterm=None, lterm=None):
+        """Sets the objective of the optimal control problem (OCP). We introduce the following notation:
+
+        .. math::
+
+           \min_{x,u,z}\quad \sum_{k=0}^{n-1} ( l(x_k,u_k,z_k,p) + \Delta u_k^T R \Delta u_k ) + m(x_n)
+
+        :py:func:`optimizer.set_objective` is used to set the :math:`l(x_k,u_k,z_k,p)` (``lterm``) and :math:`m(x_N)` (``lterm``), where ``N`` is the prediction horizon.
+        Please see :py:func:`optimizer.set_rterm` for the ``rterm``.
+
+        :param lterm: Stage cost - **scalar** symbolic expression with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``
+        :type lterm:  CasADi SX or MX
+        :param mterm: Terminal cost - **scalar** symbolic expression with respect to ``_x``
+        :type mterm: CasADi SX or MX
+
+        :raises assertion: mterm must have shape=(1,1) (scalar expression)
+        :raises assertion: lterm must have shape=(1,1) (scalar expression)
+
+        :return: None
+        :rtype: None
+        """
         assert mterm.shape == (1,1), 'mterm must have shape=(1,1). You have {}'.format(mterm.shape)
         assert lterm.shape == (1,1), 'lterm must have shape=(1,1). You have {}'.format(lterm.shape)
         assert self.flags['setup'] == False, 'Cannot call .set_objective after .setup_model.'
@@ -270,11 +298,6 @@ class optimizer(backend_optimizer):
 
         self.lterm = lterm
         self.lterm_fun = Function('lterm', [_x, _u, _z, _tvp, _p], [lterm])
-
-    def get_rterm(self):
-        # TODO: Remove!
-        self.flags['set_rterm'] = True
-        return self.rterm_factor
 
     def set_rterm(self, **kwargs):
         """Set the penality factor for the inputs. Call this function with keyword argument refering to the input names in
@@ -432,9 +455,9 @@ class optimizer(backend_optimizer):
         return a structured object, based on the defined parameters and the number of combinations.
         The defined function has time as a single input.
 
-        Obtain this structured object first, by calling .get_p_template().
+        Obtain this structured object first, by calling :py:func:`optimizer.get_p_template`.
 
-        Use the combination of .get_p_template() and .set_p_template() as a more adaptable alternative to .set_uncertainty_values().
+        Use the combination of :py:func:`optimizer.get_p_template` and :py:func:`optimizer.set_p_fun` as a more adaptable alternative to :py:func:`optimizer.set_uncertainty_values`.
 
         Example:
         ::
@@ -460,7 +483,7 @@ class optimizer(backend_optimizer):
         beta = 1
         which is determined by the order in the arrays above (first element is nominal).
 
-        :param p_fun: Function which returns a structure with numerical values. Must be the same structure as obtained from .get_p_template().
+        :param p_fun: Function which returns a structure with numerical values. Must be the same structure as obtained from :py:func:`optimizer.get_p_template`.
         Function must have a single input (time).
         :type p_fun: function
 
