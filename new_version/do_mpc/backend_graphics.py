@@ -196,11 +196,9 @@ class backend_graphics:
 
             # Choose time array depending on variable type (states with n+1 steps)
             if line_i['var_type'] in ['_x', '_z']:
-                t_end = t_now + (n_horizon+1)*t_step
-                time = np.linspace(t_now, t_end, n_horizon+1)
+                time = t_now + np.arange(n_horizon+1)*t_step
             else:
-                t_end = t_now + n_horizon*t_step
-                time = np.linspace(t_now, t_end, n_horizon)
+                time = t_now + np.arange(n_horizon)*t_step
 
             # Plot states etc. as continous quantities and inputs as steps.
             if line_i['var_type'] in ['_x', '_z']:
