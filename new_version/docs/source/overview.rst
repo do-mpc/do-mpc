@@ -20,11 +20,24 @@ Among others, "**do mpc**" has the following features:
 
 * comprehensible python code for easy customizability
 
-.. note::
+Structure
+*********
+One of the main features of "**do mpc**" is the modular structure. The tool consists of the the MPC optimizer, the simulator and the estimator 
+building blocks, which are all derived from a previously configured model. 
+In many cases the user will be using all three elements, the optimizer, simulator and estimator in a setup as depicted below:
 
-	We suggest you start by skimming over the selected examples below to get an first impression of the above mentionned features.
-	A great further read for interested viewers is the :ref:`getting_started` page, where we show how to setup "**do mpc**" for the 
-	robust control task of a triple-mass-spring system.
+.. image:: static/do_mpc_flow_sheet.png
+
+It is, however, also possible to use blocks individually, e.g. when dealing with Hardware-in-the-Loop (HiL) or pure estimation tasks.
+
+Next steps
+**********
+
+We suggest you start by skimming over the selected examples below to get an first impression of the above mentionned features.
+A great further read for interested viewers is the `getting started`_ page, where we show how to setup "**do mpc**" for the 
+robust control task of a triple-mass-spring system.
+
+.. _getting started: getting_started.ipynb
 
 Robust Multi-stage MPC
 **********************
