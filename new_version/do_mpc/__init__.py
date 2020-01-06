@@ -24,6 +24,8 @@ from do_mpc.model import model
 from do_mpc.backend_optimizer import backend_optimizer
 from do_mpc.optimizer import optimizer
 from do_mpc.simulator import simulator
+from do_mpc.estimator import state_feedback, ekf, mhe
 from do_mpc.configuration import configuration
 from do_mpc.backend_graphics import backend_graphics
 import do_mpc.estimator
+import do_mpc.data

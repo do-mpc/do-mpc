@@ -249,11 +249,11 @@ class backend_optimizer:
         ])
 
         # Dummy struct with symbolic variables
-        aux_struct = struct_symSX([
+        self.aux_struct = struct_symSX([
             entry('_aux', repeat=[self.n_horizon, n_max_scenarios], struct=self.model._aux_expression)
         ])
         # Create mutable symbolic expression from the struct defined above.
-        self.opt_aux = opt_aux = struct_SX(aux_struct)
+        self.opt_aux = opt_aux = struct_SX(self.aux_struct)
 
         self.n_opt_aux = self.opt_aux.shape[0]
 

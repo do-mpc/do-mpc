@@ -24,6 +24,8 @@ import numpy as np
 from casadi import *
 from casadi.tools import *
 import pdb
+import do_mpc
+import pickle
 
 
 class model_data:
@@ -35,7 +37,8 @@ class model_data:
         # TODO: Find better workaround.
         self.model = model.__dict__.copy()
         self.model.pop('_rhs')
-        #self.model.pop('_aux_expression')
+        self.model.pop('_aux_expression')
+
 
         # TODO: n_aux not existing
         #self._aux = np.empty((0, model.n_aux))
@@ -174,3 +177,85 @@ class mhe_data(observer_data):
             '_cpu':  1,
         })
         self.init_storage()
+
+
+def save_results(save_list, result_name='results', result_path='./results/', overwrite=False):
+    """Exports the data objects from the **do mpc** modules in ``save_list`` as a pickled file. Supply any, all or a selection of (as a list):
+
+    * :py:class:`do_mpc.optimizer`
+
+    * :py:class:`do_mpc.simulator`
+
+    * :py:class:`do_mpc.estimator`
+
+    These objects can be used in post-processing to create graphics with the :py:class:`do_mpc.graphics_backend`.
+
+    :param save_list: List of the objects to be stored.
+    :type save_list: list
+    :param result_name: Name of the result file, defaults to 'result'.
+    :type result_name: string, optional
+    :param result_path: Result path, defaults to './results/'.
+    :type result_path: string, optional
+    :param overwrite: Option to overwrite existing results, defaults to False. Index will be appended if file already exists.
+    :type overwrite: bool, optional
+
+    :raises assertion: save_list must be a list.
+    :raises assertion: result_name must be a string.
+    :raises assertion: results_path must be a string.
+    :raises assertion: overwrite must be boolean.
+    :raises Exception: save_list contains object which is neither do_mpc simulator, optimizizer nor estimator.
+
+    :return: None
+    :rtype: None
+    """
+
+    assert isinstance(save_list, list), 'save_list must be a string.'
+    assert isinstance(result_name, str), 'result_name must be a string.'
+    assert isinstance(result_path, str), 'results_path must be a string.'
+    assert isinstance(overwrite, bool), 'overwrite must be boolean.'
+
+    if not os.path.exists(result_path):
+        os.makedirs(result_path)
+
+    results = {}
+
+    for obj_i in save_list:
+        if isinstance(obj_i, do_mpc.optimizer):
+            results.update({'optimizer': obj_i.data})
+        elif isinstance(obj_i, do_mpc.simulator):
+            results.update({'simulator': obj_i.data})
+        elif isinstance(obj_i, (do_mpc.state_feedback, do_mpc.ekf, do_mpc.mhe)):
+            results.update({'estimator': obj_i.data})
+        else:
+            raise Exception('save_list contains object which is neither do_mpc simulator, optimizizer nor estimator.')
+
+    # Dynamically generate new result name if name is already taken in result_path.
+    if overwrite==False:
+        ind = 1
+        ext_result_name = result_name
+        while os.path.isfile(result_path+ext_result_name+'.pkl'):
+            ext_result_name = '{ind:03d}_{name}'.format(ind=ind, name=result_name)
+            ind += 1
+        result_name = ext_result_name
+
+    with open(result_path+result_name+'.pkl', 'wb') as f:
+        pickle.dump(results, f)
+
+def load_results(file_name):
+    """ Simple wrapper to open and unpickle a file.
+    If used for **do mpc** results, this will return a dictionary with the stored **do mpc** modules:
+
+    * :py:class:`do_mpc.optimizer`
+
+    * :py:class:`do_mpc.simulator`
+
+    * :py:class:`do_mpc.estimator`
+
+    :param file_name: File name (including path) for the file to be opened and unpickled.
+    :type file_name: str
+    """
+
+    with open(file_name, 'rb') as f:
+        results = pickle.load(f)
+
+    return results
