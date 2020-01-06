@@ -38,6 +38,7 @@ class model_data:
         self.model = model.__dict__.copy()
         self.model.pop('_rhs')
         self.model.pop('_aux_expression')
+        self.model.pop('_y')
 
 
         # TODO: n_aux not existing
@@ -46,6 +47,7 @@ class model_data:
         self.data_fields = {
             '_time': 1,
             '_x':    model.n_x,
+            '_y':    model.n_y,
             '_u':    model.n_u,
             '_z':    model.n_z,
             '_tvp':  model.n_tvp,

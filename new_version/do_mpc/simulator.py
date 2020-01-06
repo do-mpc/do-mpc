@@ -350,6 +350,9 @@ class simulator:
         z0 = self.sim_x_num['_z']
         aux0 = self.sim_aux_num
 
+        # Call measurement function
+        y_next = self.model._meas_fun(x_next, u0, z0, tvp0, p0)
+
         self.data.update(_x = x0)
         self.data.update(_u = u0)
         self.data.update(_z = z0)
@@ -361,4 +364,4 @@ class simulator:
         self._x0 = x_next
         self._t0 = self._t0 + self.t_step
 
-        return x_next.full()
+        return y_next.full()
