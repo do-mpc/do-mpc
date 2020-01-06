@@ -618,7 +618,9 @@ class optimizer(backend_optimizer):
             self.data.data_fields.update({'_opt_x_num': self.n_opt_x})
             self.data.data_fields.update({'_opt_aux_num': self.n_opt_aux})
             self.data.opt_x = self.opt_x
-            self.data.opt_aux = self.opt_aux
+            # aux_struct is the struct_symSX variant of opt_aux (which is struct_SX). struct_SX cannot be unpickled (bug).
+            # See: https://groups.google.com/forum/#!topic/casadi-users/dqAb4tnA2ik
+            self.data.opt_aux = self.aux_struct
         if self.store_lagr_multiplier == True:
             # Create data_field for the lagrange multipliers
             self.data.data_fields.update({'_lam_g_num': self.n_opt_lagr})
