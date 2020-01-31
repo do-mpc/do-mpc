@@ -85,7 +85,7 @@ class graphics:
         """
         assert isinstance(var_type, str), 'var_type argument must be a string. You have: {}'.format(type(var_type))
         assert isinstance(var_name, str), 'var_name argument must be a string. You have: {}'.format(type(var_name))
-        assert var_type in ['_x', '_u', '_z', '_tvp', '_p', '_aux_expression'], 'var_type argument must reference to the valid var_types of do-mpc models.'
+        assert var_type in ['_x', '_u', '_z', '_tvp', '_p'], 'var_type argument must reference to the valid var_types of do-mpc models. Note that _aux_expression are currently not supported for plotting.'
         assert isinstance(axis, maxes.Axes), 'axis argument must be matplotlib axes object.'
 
         self.line_list.append(
