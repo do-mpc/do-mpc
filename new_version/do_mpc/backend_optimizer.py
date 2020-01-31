@@ -240,10 +240,12 @@ class backend_optimizer:
         #       and the last point contains the child node
         # NOTE: Currently there exist dummy collocation points for the initial state (for each branch)
 
+        # Create scaling struct as assign values for _x, _u, _z.
         self.opt_x_scaling = opt_x_scaling = opt_x(1)
         opt_x_scaling['_x'] = self._x_scaling
         opt_x_scaling['_z'] = self._z_scaling
         opt_x_scaling['_u'] = self._u_scaling
+        # opt_x are unphysical (scaled) variables. opt_x_unscaled are physical (unscaled) variables.
         self.opt_x_unscaled = opt_x_unscaled = opt_x(opt_x.cat * opt_x_scaling)
 
 

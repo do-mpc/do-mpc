@@ -31,6 +31,7 @@ import do_mpc
 import scipy.io as sio
 import matplotlib.pyplot as plt
 import pickle
+import time
 
 from template_model import template_model
 from template_optimizer import template_optimizer
@@ -70,18 +71,24 @@ ax[3].set_ylabel('Flow [l/h]')
 fig.align_ylabels()
 plt.ion()
 
+time_list = []
 for k in range(100):
+    tic = time.time()
     u0 = optimizer.make_step(x0)
     y_next = simulator.make_step(u0)
     x0 = estimator.make_step(y_next)
+    toc = time.time()
+    time_list.append(toc-tic)
 
-    if True:
+    if False:
         graphics.reset_axes()
         graphics.plot_results(optimizer.data, linewidth=3)
         graphics.plot_predictions(optimizer.data, linestyle='--', linewidth=1)
         plt.show()
         input('next step')
 
+time_arr = np.array(time_list)
+print('Total run-time: {tot:5.2f} s, step-time {mean:.3f}+-{std:.3f} s.'.format(tot=np.sum(time_arr), mean=np.mean(time_arr), std=np.sqrt(np.var(time_arr))))
 
 opti_lines = graphics.plot_results(optimizer.data)
 simu_lines = graphics.plot_results(simulator.data)
