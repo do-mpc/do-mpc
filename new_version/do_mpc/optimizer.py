@@ -50,7 +50,7 @@ class optimizer(backend_optimizer):
 
     6. Optionally, set further (non-linear) constraints with :py:func:`optimizer.set_nl_cons`. See docstring for details.
 
-    7. Use the low-level API (:py:func:`optimizer.get_p_template` and :py:func:`optimizer.set_p_fun`) or high level API ():py:func:`optimizer.set_uncertainty_values`) to create scenarios for robust MPC. See docstrings for details.
+    7. Use the low-level API (:py:func:`optimizer.get_p_template` and :py:func:`optimizer.set_p_fun`) or high level API (:py:func:`optimizer.set_uncertainty_values`) to create scenarios for robust MPC. See docstrings for details.
 
     8. Finally, call :py:func:`optimizer.setup`.
 

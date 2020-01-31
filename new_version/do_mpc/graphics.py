@@ -28,7 +28,7 @@ from casadi.tools import *
 import pdb
 
 
-class backend_graphics:
+class graphics:
     """Graphics module to present the results of do-mpc. The module is independent of all other modules but is incorporated in the configuration.
     This allows for a high-level API which is triggered through the configuration.
     At the same time, the module can be used with pickled result files in post-processing for flexible and custom graphics.
