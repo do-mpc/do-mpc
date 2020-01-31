@@ -670,19 +670,21 @@ class optimizer(backend_optimizer):
         assert self.flags['setup'] == True, 'optimizer was not setup yet. Please call optimizer.setup().'
 
         r = self.S(x0=self.opt_x_num, lbx=self.lb_opt_x, ubx=self.ub_opt_x,  ubg=self.cons_ub, lbg=self.cons_lb, p=self.opt_p_num)
-        self.opt_x_num = self.opt_x(r['x'])
-        self.opt_x_num_unscaled = self.opt_x(r['x']*self.opt_x_scaling)
+        # Note: .master accesses the underlying vector of the structure.
+        self.opt_x_num.master = r['x']
+        self.opt_x_num_unscaled.master = r['x']*self.opt_x_scaling
         self.opt_g_num = r['g']
         # Values of lagrange multipliers:
         self.lam_g_num = r['lam_g']
         self.solver_stats = self.S.stats()
 
         # Calculate values of auxiliary expressions (defined in model)
-        self.opt_aux_num = self.opt_aux(
-            self.opt_aux_expression_fun(
+        self.opt_aux_num.master = self.opt_aux_expression_fun(
                 self.opt_x_num,
                 self.opt_p_num
-            ))
+            )
+
+
 
     def make_step(self, x0):
         """Main method of the optimizer class during control runtime. This method is called at each timestep

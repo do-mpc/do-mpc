@@ -89,7 +89,7 @@ def template_optimizer(model):
     optimizer._x0['T_K'] = 130.0
 
     alpha_var = np.array([1., 1.05, 0.95])
-    beta_var = np.array([1.])
+    beta_var = np.array([1., 1.1, 0.9])
 
     optimizer.set_uncertainty_values([alpha_var, beta_var])
 
