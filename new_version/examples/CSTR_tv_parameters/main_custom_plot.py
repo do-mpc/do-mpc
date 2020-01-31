@@ -46,29 +46,27 @@ optimizer = template_optimizer(model)
 simulator = template_simulator(model)
 estimator = do_mpc.estimator.state_feedback(model)
 
-# Two alternatives to create a configuration and set the intial state:
-# 1:
-configuration = do_mpc.configuration(simulator, optimizer, estimator)
-configuration.set_initial_state(x0, reset_history=True)
-# 2:
-configuration = do_mpc.configuration(simulator, optimizer, estimator, x0=x0)
-# The default variant is to use the initial states that were independently defined for
-# simulator, estimator and optimizer.
+# Set the initial state of optimizer and simulator:
+optimizer.set_initial_state(x0, reset_history=True)
+simulator.set_initial_state(x0, reset_history=True)
+
+# Initialize graphic:
+graphics = do_mpc.graphics()
 
 
 fig, ax = plt.subplots(4, sharex=True)
-configuration.graphics.add_line(var_type='_x', var_name='C_a', axis=ax[0])
-configuration.graphics.add_line(var_type='_x', var_name='C_b', axis=ax[0])
-configuration.graphics.add_line(var_type='_aux_expression', var_name='T_dif', axis=ax[1])
-configuration.graphics.add_line(var_type='_u', var_name='Q_dot', axis=ax[2])
-configuration.graphics.add_line(var_type='_u', var_name='F', axis=ax[3])
+# Configure plot:
+graphics.add_line(var_type='_x', var_name='C_a', axis=ax[0])
+graphics.add_line(var_type='_x', var_name='C_b', axis=ax[0])
+graphics.add_line(var_type='_aux_expression', var_name='T_dif', axis=ax[1])
+graphics.add_line(var_type='_u', var_name='Q_dot', axis=ax[2])
+graphics.add_line(var_type='_u', var_name='F', axis=ax[3])
 ax[0].set_ylabel('c [mol/l]')
 ax[1].set_ylabel('Temp. diff [K]')
 ax[2].set_ylabel('Q_heat [kW]')
 ax[3].set_ylabel('Flow [l/h]')
 
 fig.align_ylabels()
-
 plt.ion()
 
 for k in range(100):
@@ -76,17 +74,15 @@ for k in range(100):
     y_next = simulator.make_step(u0)
     x0 = estimator.make_step(y_next)
 
-    configuration.graphics.reset_axes()
-    configuration.graphics.plot_results(optimizer.data, linewidth=3)
-    configuration.graphics.plot_predictions(optimizer.data, linestyle='--', linewidth=1)
+    graphics.reset_axes()
+    graphics.plot_results(optimizer.data, linewidth=3)
+    graphics.plot_predictions(optimizer.data, linestyle='--', linewidth=1)
     plt.show()
     input('next step')
 
 
-
-
-opti_lines = configuration.graphics.plot_results(optimizer.data)
-simu_lines = configuration.graphics.plot_results(simulator.data)
+opti_lines = graphics.plot_results(optimizer.data)
+simu_lines = graphics.plot_results(simulator.data)
 
 plt.sca(ax[0])
 ax[0].add_artist(plt.legend(opti_lines[:2], ['Ca', 'Cb'], title='optimizer', loc=1))
