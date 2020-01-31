@@ -55,9 +55,9 @@ def template_simulator(model):
     p_num = simulator.get_p_template()
     p_num['alpha'] = 1
     p_num['beta'] = 1
-
     def p_fun(t_now):
         return p_num
+
     simulator.set_p_fun(p_fun)
 
     simulator.setup()
