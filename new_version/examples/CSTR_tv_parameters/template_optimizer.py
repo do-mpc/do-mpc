@@ -53,6 +53,11 @@ def template_optimizer(model):
 
     optimizer.set_param(store_full_solution=True)
 
+    optimizer._x_scaling['T_R'] = 100
+    optimizer._x_scaling['T_K'] = 100
+    optimizer._u_scaling['Q_dot'] = 2000
+    optimizer._u_scaling['F'] = 100
+
     _x, _u, _z, _tvp, p, _aux = optimizer.model.get_variables()
 
     mterm = (_x['C_b'] - 0.6)**2
@@ -60,7 +65,7 @@ def template_optimizer(model):
 
     optimizer.set_objective(mterm=mterm, lterm=lterm)
 
-    optimizer.set_rterm(F=0.001, Q_dot = 1e-6)
+    optimizer.set_rterm(F=0.1, Q_dot = 1e-3)
 
     optimizer._x_lb['C_a'] = 0.1
     optimizer._x_lb['C_b'] = 0.1
@@ -69,8 +74,8 @@ def template_optimizer(model):
 
     optimizer._x_ub['C_a'] = 2.0
     optimizer._x_ub['C_b'] = 2.0
-    optimizer._x_ub['T_R'] = 180
-    optimizer._x_ub['T_K'] = 180
+    optimizer._x_ub['T_R'] = 140
+    optimizer._x_ub['T_K'] = 140
 
     optimizer._u_lb['F'] = 5
     optimizer._u_lb['Q_dot'] = -8500
@@ -83,8 +88,8 @@ def template_optimizer(model):
     optimizer._x0['T_R'] = 134.14
     optimizer._x0['T_K'] = 130.0
 
-    alpha_var = np.array([1., 1.1, 0.9])
-    beta_var = np.array([1., 1.1, 0.9])
+    alpha_var = np.array([1., 1.05, 0.95])
+    beta_var = np.array([1.])
 
     optimizer.set_uncertainty_values([alpha_var, beta_var])
 

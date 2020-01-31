@@ -54,15 +54,18 @@ simulator.set_initial_state(x0, reset_history=True)
 graphics = do_mpc.graphics()
 
 
-fig, ax = plt.subplots(3, sharex=True)
+fig, ax = plt.subplots(4, sharex=True)
 # Configure plot:
 graphics.add_line(var_type='_x', var_name='C_a', axis=ax[0])
 graphics.add_line(var_type='_x', var_name='C_b', axis=ax[0])
-graphics.add_line(var_type='_u', var_name='Q_dot', axis=ax[1])
-graphics.add_line(var_type='_u', var_name='F', axis=ax[2])
+graphics.add_line(var_type='_x', var_name='T_R', axis=ax[1])
+graphics.add_line(var_type='_x', var_name='T_K', axis=ax[1])
+graphics.add_line(var_type='_u', var_name='Q_dot', axis=ax[2])
+graphics.add_line(var_type='_u', var_name='F', axis=ax[3])
 ax[0].set_ylabel('c [mol/l]')
-ax[1].set_ylabel('Q_heat [kW]')
-ax[2].set_ylabel('Flow [l/h]')
+ax[1].set_ylabel('Temperature [K]')
+ax[2].set_ylabel('Q_heat [kW]')
+ax[3].set_ylabel('Flow [l/h]')
 
 fig.align_ylabels()
 plt.ion()
@@ -72,11 +75,12 @@ for k in range(100):
     y_next = simulator.make_step(u0)
     x0 = estimator.make_step(y_next)
 
-    graphics.reset_axes()
-    graphics.plot_results(optimizer.data, linewidth=3)
-    graphics.plot_predictions(optimizer.data, linestyle='--', linewidth=1)
-    plt.show()
-    input('next step')
+    if True:
+        graphics.reset_axes()
+        graphics.plot_results(optimizer.data, linewidth=3)
+        graphics.plot_predictions(optimizer.data, linestyle='--', linewidth=1)
+        plt.show()
+        input('next step')
 
 
 opti_lines = graphics.plot_results(optimizer.data)
@@ -87,3 +91,4 @@ ax[0].add_artist(plt.legend(opti_lines[:2], ['Ca', 'Cb'], title='optimizer', loc
 plt.sca(ax[0])
 ax[0].add_artist(plt.legend(simu_lines[:2], ['Ca', 'Cb'], title='Simulator', loc=2))
 plt.show()
+input('Press any key to exit.')
