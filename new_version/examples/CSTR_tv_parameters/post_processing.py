@@ -41,7 +41,7 @@ with open('./results/results.pkl', 'rb') as f:
 """
 Static plot Example
 """
-graphics = do_mpc.backend_graphics()
+graphics = do_mpc.graphics()
 
 fig, ax = plt.subplots(3, sharex=True)
 graphics.add_line(var_type='_x', var_name='C_a', axis=ax[0])
@@ -68,7 +68,7 @@ plt.show()
 """
 Animation
 """
-graphics = do_mpc.backend_graphics()
+graphics = do_mpc.graphics()
 
 fig, ax = plt.subplots(3, sharex=True)
 graphics.add_line(var_type='_x', var_name='C_a', axis=ax[0])

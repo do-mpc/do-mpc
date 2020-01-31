@@ -325,7 +325,7 @@ class model:
         _x, _u, _z, _tvp, _p, _aux = self.get_variables()
         self._rhs_fun = Function('rhs_fun', [_x, _u, _z, _tvp, _p], [self._rhs])
         self._aux_expression_fun = Function('aux_expression_fun', [_x, _u, _z, _tvp, _p], [self._aux_expression])
-        self._meas_fun = Function('meas_fun', [_x, _u, _z, _tvp, _p]], [self._y])
+        self._meas_fun = Function('meas_fun', [_x, _u, _z, _tvp, _p], [self._y])
 
         # Create and store some information about the model regarding number of variables for
         # _x, _y, _u, _z, _tvp, _p, _aux
