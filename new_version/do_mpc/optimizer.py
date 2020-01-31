@@ -75,6 +75,7 @@ class optimizer(backend_optimizer):
 
         self._x_scaling = model._x(1)
         self._u_scaling = model._u(1)
+        self._z_scaling = model._z(1)
 
         self.rterm_factor = self.model._u(0)
 
@@ -648,9 +649,9 @@ class optimizer(backend_optimizer):
         """
         assert self.flags['setup'] == True, 'optimizer was not setup yet. Please call optimizer.setup().'
 
-        self.opt_x_num['_x'] = self._x0
-        self.opt_x_num['_u'] = self._u0
-        self.opt_x_num['_z'] = self._z0
+        self.opt_x_num['_x'] = self._x0.cat/self._x_scaling
+        self.opt_x_num['_u'] = self._u0.cat/self._u_scaling
+        self.opt_x_num['_z'] = self._z0.cat/self._z_scaling
 
     def solve(self):
         """Solves the optmization problem. The current time-step is defined by the parameters in the
@@ -670,6 +671,7 @@ class optimizer(backend_optimizer):
 
         r = self.S(x0=self.opt_x_num, lbx=self.lb_opt_x, ubx=self.ub_opt_x,  ubg=self.cons_ub, lbg=self.cons_lb, p=self.opt_p_num)
         self.opt_x_num = self.opt_x(r['x'])
+        self.opt_x_num_unscaled = self.opt_x(r['x']*self.opt_x_scaling)
         self.opt_g_num = r['g']
         # Values of lagrange multipliers:
         self.lam_g_num = r['lam_g']
@@ -707,8 +709,8 @@ class optimizer(backend_optimizer):
         self.opt_p_num['_p'] = p0['_p']
         self.solve()
 
-        u0 = self._u0 = self.opt_x_num['_u', 0, 0]
-        z0 = self._z0 = self.opt_x_num['_z', 0, 0, -1]
+        u0 = self._u0 = self.opt_x_num['_u', 0, 0]*self._u_scaling
+        z0 = self._z0 = self.opt_x_num['_z', 0, 0, -1]*self._z_scaling
         aux0 = self.opt_aux_num['_aux', 0, 0]
 
         self.data.update(_x = x0)
@@ -722,9 +724,9 @@ class optimizer(backend_optimizer):
 
         # Store additional information
         if self.store_full_solution == True:
-            opt_x_num = self.opt_x_num
+            opt_x_num_unscaled = self.opt_x_num_unscaled
             opt_aux_num = self.opt_aux_num
-            self.data.update(_opt_x_num = opt_x_num)
+            self.data.update(_opt_x_num = opt_x_num_unscaled)
             self.data.update(_opt_aux_num = opt_aux_num)
         if self.store_lagr_multiplier == True:
             lam_g_num = self.lam_g_num

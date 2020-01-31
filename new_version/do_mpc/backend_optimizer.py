@@ -240,6 +240,13 @@ class backend_optimizer:
         #       and the last point contains the child node
         # NOTE: Currently there exist dummy collocation points for the initial state (for each branch)
 
+        self.opt_x_scaling = opt_x_scaling = opt_x(1)
+        opt_x_scaling['_x'] = self._x_scaling
+        opt_x_scaling['_z'] = self._z_scaling
+        opt_x_scaling['_u'] = self._u_scaling
+        self.opt_x_unscaled = opt_x_unscaled = opt_x(opt_x.cat * opt_x_scaling)
+
+
         # Create struct for optimization parameters:
         self.opt_p = opt_p = struct_symSX([
             entry('_x0', struct=self.model._x),
@@ -267,7 +274,7 @@ class backend_optimizer:
         cons_ub = []
 
         # Initial condition:
-        cons.append(opt_x['_x', 0, 0, -1]-opt_p['_x0'])
+        cons.append(opt_x['_x', 0, 0, -1]-opt_p['_x0']/self._x_scaling)
 
         cons_lb.append(np.zeros((self.model.n_x, 1)))
         cons_ub.append(np.zeros((self.model.n_x, 1)))
@@ -287,8 +294,8 @@ class backend_optimizer:
                     current_scenario = b + branch_offset[k][s]
 
                     # Compute constraints and predicted next state of the discretization scheme
-                    [g_ksb, xf_ksb] = ifcn(opt_x['_x', k, s, -1], vertcat(*opt_x['_x', k+1, child_scenario[k][s][b], :-1]),
-                                           opt_x['_u', k, s], vertcat(*opt_x['_z', k, s, :]), opt_p['_tvp', k], opt_p['_p', current_scenario])
+                    [g_ksb, xf_ksb] = ifcn(opt_x_unscaled['_x', k, s, -1], vertcat(*opt_x_unscaled['_x', k+1, child_scenario[k][s][b], :-1]),
+                                           opt_x_unscaled['_u', k, s], vertcat(*opt_x_unscaled['_z', k, s, :]), opt_p['_tvp', k], opt_p['_p', current_scenario])
 
                     # Add the collocation equations
                     cons.append(g_ksb)
@@ -296,13 +303,13 @@ class backend_optimizer:
                     cons_ub.append(np.zeros(g_ksb.shape[0]))
 
                     # Add continuity constraints
-                    cons.append(xf_ksb - opt_x['_x', k+1, child_scenario[k][s][b], -1])
+                    cons.append(xf_ksb - opt_x_unscaled['_x', k+1, child_scenario[k][s][b], -1])
                     cons_lb.append(np.zeros((self.model.n_x, 1)))
                     cons_ub.append(np.zeros((self.model.n_x, 1)))
 
                     # Add nonlinear constraints only on each control step
                     nl_cons_k = self._nl_cons_fun(
-                        opt_x['_x', k, s, -1], opt_x['_u', k, s], opt_x['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
+                        opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s], opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
                     cons.append(nl_cons_k)
                     cons_lb.append(self._nl_cons_lb)
                     cons_ub.append(self._nl_cons_ub)
@@ -311,35 +318,34 @@ class backend_optimizer:
                     # TODO: Add terminal constraints with an additional nl_cons
 
                     # Add contribution to the cost
-                    obj += omega[k] * self.lterm_fun(opt_x['_x', k, s, -1], opt_x['_u', k, s],
-                                                     opt_x['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
+                    obj += omega[k] * self.lterm_fun(opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s],
+                                                     opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
                     # In the last step add the terminal cost too
                     if k == self.n_horizon - 1:
-                        obj += omega[k] * self.mterm_fun(opt_x['_x', k + 1, s, -1])
+                        obj += omega[k] * self.mterm_fun(opt_x_unscaled['_x', k + 1, s, -1])
 
                     # U regularization:
                     if k == 0:
-                        # pdb.set_trace()
-                        obj += self.rterm_factor.cat.T@((opt_x['_u', 0, s]-opt_p['_u_prev'])**2)
+                        obj += self.rterm_factor.cat.T@((opt_x['_u', 0, s]-opt_p['_u_prev']/self._u_scaling)**2)
                     else:
                         obj += self.rterm_factor.cat.T@((opt_x['_u', k, s]-opt_x['_u', k-1, parent_scenario[k][s]])**2)
 
                     # Calculate the auxiliary expressions for the current scenario:
                     opt_aux['_aux', k, s] = self.model._aux_expression_fun(
-                        opt_x['_x', k, s, -1], opt_x['_u', k, s], opt_x['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
+                        opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s], opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
 
                 # Bounds for the states on all discretize values along the horizon
-                self.lb_opt_x['_x', k, s, :] = self._x_lb
-                self.ub_opt_x['_x', k, s, :] = self._x_ub
+                self.lb_opt_x['_x', k, s, :] = self._x_lb.cat/self._x_scaling
+                self.ub_opt_x['_x', k, s, :] = self._x_ub.cat/self._x_scaling
 
                 # Bounds for the inputs along the horizon
-                self.lb_opt_x['_u', k, s] = self._u_lb
-                self.ub_opt_x['_u', k, s] = self._u_ub
+                self.lb_opt_x['_u', k, s] = self._u_lb.cat/self._u_scaling
+                self.ub_opt_x['_u', k, s] = self._u_ub.cat/self._u_scaling
 
                 # Bounds on the terminal state
                 if k == self.n_horizon - 1:
-                    self.lb_opt_x['_x', self.n_horizon, child_scenario[k][s][b], -1] = self._x_lb
-                    self.ub_opt_x['_x', self.n_horizon, child_scenario[k][s][b], -1] = self._x_ub
+                    self.lb_opt_x['_x', self.n_horizon, child_scenario[k][s][b], -1] = self._x_lb.cat/self._x_scaling
+                    self.ub_opt_x['_x', self.n_horizon, child_scenario[k][s][b], -1] = self._x_ub.cat/self._x_scaling
 
         cons = vertcat(*cons)
         self.cons_lb = vertcat(*cons_lb)
@@ -356,6 +362,7 @@ class backend_optimizer:
 
         # Create copies of these structures with numerical values (all zero):
         self.opt_x_num = self.opt_x(0)
+        self.opt_x_num_unscaled = self.opt_x(0)
         self.opt_p_num = self.opt_p(0)
         self.opt_aux_num = self.opt_aux(0)
 
