@@ -67,21 +67,22 @@ def template_optimizer(model):
 
     optimizer.set_rterm(F=0.1, Q_dot = 1e-3)
 
-    optimizer._x_lb['C_a'] = 0.1
-    optimizer._x_lb['C_b'] = 0.1
-    optimizer._x_lb['T_R'] = 50
-    optimizer._x_lb['T_K'] = 50
+    optimizer.bounds['lower', '_x', 'C_a'] = 0.1
+    optimizer.bounds['lower', '_x', 'C_b'] = 0.1
+    optimizer.bounds['lower', '_x', 'T_R'] = 50
+    optimizer.bounds['lower', '_x', 'T_K'] = 50
 
-    optimizer._x_ub['C_a'] = 2.0
-    optimizer._x_ub['C_b'] = 2.0
-    optimizer._x_ub['T_R'] = 140
-    optimizer._x_ub['T_K'] = 140
+    optimizer.bounds['upper', '_x', 'C_a'] = 2
+    optimizer.bounds['upper', '_x', 'C_b'] = 2
+    optimizer.bounds['upper', '_x', 'T_R'] = 140
+    optimizer.bounds['upper', '_x', 'T_K'] = 140
 
-    optimizer._u_lb['F'] = 5
-    optimizer._u_lb['Q_dot'] = -8500
+    optimizer.bounds['lower', '_u', 'F'] = 5
+    optimizer.bounds['lower', '_u', 'Q_dot'] = -8500
 
-    optimizer._u_ub['F'] = 100
-    optimizer._u_ub['Q_dot'] = 0.0
+    optimizer.bounds['upper', '_u', 'F'] = 100
+    optimizer.bounds['upper', '_u', 'Q_dot'] = 0.0
+
 
     optimizer._x0['C_a'] = 0.8
     optimizer._x0['C_b'] = 0.5
