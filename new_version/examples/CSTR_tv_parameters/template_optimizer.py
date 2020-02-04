@@ -58,7 +58,7 @@ def template_optimizer(model):
     optimizer._u_scaling['Q_dot'] = 2000
     optimizer._u_scaling['F'] = 100
 
-    _x, _u, _z, _tvp, p, _aux = optimizer.model.get_variables()
+    _x, _u, _z, _tvp, p, _aux,  *_ = optimizer.model.get_variables()
 
     mterm = (_x['C_b'] - 0.6)**2
     lterm = (_x['C_b'] - 0.6)**2
