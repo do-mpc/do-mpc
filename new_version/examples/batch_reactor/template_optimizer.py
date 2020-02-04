@@ -50,7 +50,7 @@ def template_optimizer(model):
 
     optimizer.set_param(**setup_optimizer)
 
-    _x, _u, _z, _tvp, p, _aux = optimizer.model.get_variables()
+    _x, _u, _z, _tvp, p, _aux,  *_ = optimizer.model.get_variables()
 
     mterm = -_x['P_s']
     lterm = -_x['P_s']

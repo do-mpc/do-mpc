@@ -82,6 +82,7 @@ class model:
             '_x': [],
             '_u': [{'var_name': 'default', 'value':SX.sym('default',(0,0))}],
             '_z': [{'var_name': 'default', 'value':SX.sym('default',(0,0))}],
+            '_y': [{'var_name': 'default', 'value':SX.sym('default',(0,0))}],
             '_p': [{'var_name': 'default', 'value':SX.sym('default',(0,0))}],
             '_tvp': [{'var_name': 'default', 'value':SX.sym('default',(0,0))}],
         }
@@ -183,7 +184,7 @@ class model:
 
         return expr
 
-    def set_meas(meas_name, expr):
+    def set_meas(self, meas_name, expr):
         """Introduce new measurable output to the model class. By default, the model assumes state-feedback (all states are measured outputs).
         Expressions must be formulated with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
 
@@ -203,6 +204,7 @@ class model:
         assert isinstance(meas_name, str), 'meas_name must be str, you have: {}'.format(type(meas_name))
         assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
         self.meas_list.extend([{'meas_name': meas_name, 'expr': expr}])
+        self.var_list['_y'].extend([{'var_name': meas_name, 'value':SX.sym(meas_name,expr.shape)}])
 
         return expr
 
@@ -258,6 +260,10 @@ class model:
 
         * ``_aux`` (auxiliary expressions)
 
+        * ``_y`` (measurements, measured)
+
+        * ``_y_expression`` (measurements, calculated)
+
         The method cannot be called prior to :py:func:`model.setup`.
 
         :raises assertion: Model was not setup. Finish model creation by calling model.setup_model().
@@ -267,7 +273,7 @@ class model:
         """
         assert self.flags['setup'] == True, 'Model was not setup. Finish model creation by calling model.setup_model().'
 
-        return self._x, self._u, self._z, self._tvp, self._p, self._aux_expression
+        return self._x, self._u, self._z, self._tvp, self._p, self._aux_expression, self._y, self._y_expression
 
 
 
@@ -283,7 +289,7 @@ class model:
         """
         self.flags['setup'] = True
 
-        # Write self._x, self._u, self._z, self._tvp, self.p with the respective struct_symSX structures.
+        # Write self._x, self._u, self._z, self._y, self._tvp, self.p with the respective struct_symSX structures.
         # Use the previously defined SX.sym variables to declare shape and symbolic variable.
         for var_type_i, var_list_i in self.var_list.items():
             struct_i  = struct_symSX([
@@ -297,18 +303,18 @@ class model:
             entry(expr_i['expr_name'], expr=expr_i['expr']) for expr_i in self.expr_list
         ])
 
-        # Write self._y (measurement equations) as struct_SX symbolic expression structures.
+        # Write self._y_expression (measurement equations) as struct_SX symbolic expression structures.
         # Use the previously defined SX.sym variables to declare shape and symbolic variable.
         # If no measurement expressions are declared, use state-feedback as default measurement.
         if not self.meas_list:
-            self._y = struct_SX([
+            self._y_expression = struct_SX([
                 entry(var_k['var_name'], expr=var_k['value']) for var_k in self.var_list['_x']
             ])
         else:
-            self._y = struct_SX([
+            self._y_expression = struct_SX([
                 entry(meas_i['meas_name'], expr=meas_i['expr']) for meas_i in self.meas_list
             ])
-        assert set(symvar(self._y)).issubset(set(symvar(self._x))), 'Measurement equation must be solely depending on states (_x).'
+        #assert set(symvar(self._y_expression)).issubset(set(symvar(self._x))), 'Measurement equation must be solely depending on states (_x).'
 
         # Create mutable struct_SX with identical structure as self._x to hold the right hand side.
         self._rhs = struct_SX(self._x)
@@ -322,10 +328,10 @@ class model:
         assert len(_x_names) == 0, 'Definition of right hand side (rhs) is incomplete. Missing: {}. Use: set_rhs to define expressions.'.format(_x_names)
 
         # Declare functions for the right hand side and the aux_expressions.
-        _x, _u, _z, _tvp, _p, _aux = self.get_variables()
+        _x, _u, _z, _tvp, _p, _aux,  *_ = self.get_variables()
         self._rhs_fun = Function('rhs_fun', [_x, _u, _z, _tvp, _p], [self._rhs])
         self._aux_expression_fun = Function('aux_expression_fun', [_x, _u, _z, _tvp, _p], [self._aux_expression])
-        self._meas_fun = Function('meas_fun', [_x, _u, _z, _tvp, _p], [self._y])
+        self._meas_fun = Function('meas_fun', [_x, _u, _z, _tvp, _p], [self._y_expression])
 
         # Create and store some information about the model regarding number of variables for
         # _x, _y, _u, _z, _tvp, _p, _aux

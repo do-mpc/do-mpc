@@ -32,7 +32,7 @@ class backend_optimizer:
         None
 
     def setup_discretization(self):
-        _x, _u, _z, _tvp, _p, _aux = self.model.get_variables()
+        _x, _u, _z, _tvp, _p, *_ = self.model.get_variables()
 
         rhs = substitute(self.model._rhs, _x, _x*self._x_scaling.cat)
         rhs = substitute(rhs, _u, _u*self._u_scaling.cat)
@@ -353,6 +353,132 @@ class backend_optimizer:
                 if k == self.n_horizon - 1:
                     self.lb_opt_x['_x', self.n_horizon, child_scenario[k][s][b], -1] = self._x_lb.cat/self._x_scaling
                     self.ub_opt_x['_x', self.n_horizon, child_scenario[k][s][b], -1] = self._x_ub.cat/self._x_scaling
+
+        cons = vertcat(*cons)
+        self.cons_lb = vertcat(*cons_lb)
+        self.cons_ub = vertcat(*cons_ub)
+
+        self.n_opt_lagr = cons.shape[0]
+        # Create casadi optimization object:
+        nlpsol_opts = {
+            'expand': False,
+            'ipopt.linear_solver': 'mumps',
+        }.update(self.nlpsol_opts)
+        nlp = {'x': vertcat(opt_x), 'f': obj, 'g': cons, 'p': vertcat(opt_p)}
+        self.S = nlpsol('S', 'ipopt', nlp, self.nlpsol_opts)
+
+        # Create copies of these structures with numerical values (all zero):
+        self.opt_x_num = self.opt_x(0)
+        self.opt_x_num_unscaled = self.opt_x(0)
+        self.opt_p_num = self.opt_p(0)
+        self.opt_aux_num = self.opt_aux(0)
+
+        # Create function to caculate all auxiliary expressions:
+        self.opt_aux_expression_fun = Function('opt_aux_expression_fun', [opt_x, opt_p], [opt_aux])
+
+
+    def setup_mhe(self):
+        # Obtain an integrator (collocation, discrete-time) and the amount of intermediate (collocation) points
+        ifcn, n_total_coll_points = self.setup_discretization()
+        # Create struct for optimization variables:
+        self.opt_x = opt_x = struct_symSX([
+            entry('_x', repeat=[self.n_horizon+1, 1+n_total_coll_points], struct=self.model._x),
+            entry('_z', repeat=[self.n_horizon,   1+n_total_coll_points], struct=self.model._z),
+            entry('_u', repeat=[self.n_horizon], struct=self.model._u),
+            entry('_p', struct=self.model._p),
+        ])
+        self.n_opt_x = self.opt_x.shape[0]
+        # NOTE: The entry _x[k,:] starts with the collocation points from s to b at time k
+        #       and the last point contains the child node
+        # NOTE: Currently there exist dummy collocation points for the initial state (for each branch)
+
+        # Create scaling struct as assign values for _x, _u, _z.
+        self.opt_x_scaling = opt_x_scaling = opt_x(1)
+        opt_x_scaling['_x'] = self._x_scaling
+        opt_x_scaling['_z'] = self._z_scaling
+        opt_x_scaling['_u'] = self._u_scaling
+        # opt_x are unphysical (scaled) variables. opt_x_unscaled are physical (unscaled) variables.
+        self.opt_x_unscaled = opt_x_unscaled = opt_x(opt_x.cat * opt_x_scaling)
+
+
+        # Create struct for optimization parameters:
+        self.opt_p = opt_p = struct_symSX([
+            entry('_x0', struct=self.model._x),
+            entry('_p0', struct=self.model._p),
+            entry('_tvp', repeat=self.n_horizon, struct=self.model._tvp),
+            entry('_u_meas', repeat=self.n_horizon, struct=self.model._u),
+            entry('_y_meas', repeat=self.n_horizon, struct=self.model._y),
+        ])
+
+        # Dummy struct with symbolic variables
+        self.aux_struct = struct_symSX([
+            entry('_aux', repeat=[self.n_horizon, n_max_scenarios], struct=self.model._aux_expression)
+        ])
+        # Create mutable symbolic expression from the struct defined above.
+        self.opt_aux = opt_aux = struct_SX(self.aux_struct)
+
+        self.n_opt_aux = self.opt_aux.shape[0]
+
+        self.lb_opt_x = opt_x(-np.inf)
+        self.ub_opt_x = opt_x(np.inf)
+
+        # Initialize objective function and constraints
+        obj = 0
+        cons = []
+        cons_lb = []
+        cons_ub = []
+
+        # Arrival cost:
+        dx = opt_x['_x', 0, -1]-opt_p['_x0']/self._x_scaling
+        obj += dx.T@dx
+        dp = opt_x['_p', 0, -1]-opt_p['_p0']
+        obj += dp.T@dp
+
+
+        # For all control intervals
+        for k in range(self.n_horizon):
+            # Compute constraints and predicted next state of the discretization scheme
+            [g_ksb, xf_ksb] = ifcn(opt_x['_x', k, -1], vertcat(*opt_x['_x', k+1, :-1]),
+                                   opt_x['_u', k], vertcat(*opt_x['_z', k, :]), opt_p['_tvp', k], opt_x['_p'])
+
+            # Add the collocation equations
+            cons.append(g_ksb)
+            cons_lb.append(np.zeros(g_ksb.shape[0]))
+            cons_ub.append(np.zeros(g_ksb.shape[0]))
+
+            # Add continuity constraints
+            cons.append(xf_ksb - opt_x['_x', k+1, child_scenario[k][s][b], -1])
+            cons_lb.append(np.zeros((self.model.n_x, 1)))
+            cons_ub.append(np.zeros((self.model.n_x, 1)))
+
+            # Add nonlinear constraints only on each control step
+            nl_cons_k = self._nl_cons_fun(
+                opt_x_unscaled['_x', k, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1], opt_p['_tvp', k], opt_x['_p'])
+            cons.append(nl_cons_k)
+            cons_lb.append(self._nl_cons_lb)
+            cons_ub.append(self._nl_cons_ub)
+
+
+            du = opt_x['_u', k ] - opt_p['_u_meas', k]
+            # Add contribution to the cost
+            obj += du.T @ du
+
+            dy = opt_x['_y', k ] - opt_p['_y_meas', k]
+            # Add contribution to the cost
+            obj += dy.T @ dy
+
+            # Calculate the auxiliary expressions for the current scenario:
+            opt_aux['_aux', k] = self.model._aux_expression_fun(
+                opt_x_unscaled['_x', k, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1], opt_p['_tvp', k], opt_x['_p'])
+
+            # Bounds for the states on all discretize values along the horizon
+            self.lb_opt_x['_x', k] = self._x_lb.cat/self._x_scaling
+            self.ub_opt_x['_x', k] = self._x_ub.cat/self._x_scaling
+
+            # Bounds for the inputs along the horizon
+            self.lb_opt_x['_u', k] = self._u_lb.cat/self._u_scaling
+            self.ub_opt_x['_u', k] = self._u_ub.cat/self._u_scaling
+
 
         cons = vertcat(*cons)
         self.cons_lb = vertcat(*cons_lb)

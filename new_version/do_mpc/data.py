@@ -38,7 +38,7 @@ class model_data:
         self.model = model.__dict__.copy()
         self.model.pop('_rhs')
         self.model.pop('_aux_expression')
-        self.model.pop('_y')
+        self.model.pop('_y_expression')
 
 
         # TODO: n_aux not existing

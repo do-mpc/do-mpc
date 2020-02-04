@@ -307,7 +307,7 @@ class optimizer(backend_optimizer):
             assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._u_scaling.keys(), msg.format(ind, self._u_scaling.keys())
         if var_type in ('_z', 'algebraic'):
             assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._z_scaling.keys(), msg.format(ind, self._z_scaling.keys())
-            
+
 
         if var_type in ('_x', 'states'):
             self._x_scaling[var_name] = val
@@ -426,11 +426,11 @@ class optimizer(backend_optimizer):
 
     def set_nl_cons(self, expr_name, expr, lb=-np.inf):
         """Introduce new constraint to the optimizer class. Further constraints are optional.
-        Expressions must be formulated with respect to _x, _u, _z, _tvp, _p.
+        Expressions must be formulated with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
 
         :param expr_name: Arbitrary name for the given expression. Names are used for key word indexing.
         :type expr_name: string
-        :param expr: CasADi SX or MX function depending on _x, _u, _z, _tvp, _p.
+        :param expr: CasADi SX or MX function depending on ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
         :type expr: CasADi SX or MX
 
         :raises assertion: expr_name must be str
@@ -476,7 +476,7 @@ class optimizer(backend_optimizer):
 
         self.flags['set_objective'] = True
         # TODO: Add docstring
-        _x, _u, _z, _tvp, _p, _aux = self.model.get_variables()
+        _x, _u, _z, _tvp, _p, _aux,  *_ = self.model.get_variables()
 
         # TODO: Check if this is only a function of x
         self.mterm = mterm
@@ -785,7 +785,7 @@ class optimizer(backend_optimizer):
             entry(expr_i['expr_name'], expr=expr_i['expr']) for expr_i in self.nl_cons_list
         ])
         # Make function from these expressions:
-        _x, _u, _z, _tvp, _p, _aux = self.model.get_variables()
+        _x, _u, _z, _tvp, _p, _aux, *_ = self.model.get_variables()
         self._nl_cons_fun = Function('nl_cons_fun', [_x, _u, _z, _tvp, _p], [self._nl_cons])
         # Create bounds:
         self._nl_cons_ub = self._nl_cons(0)
