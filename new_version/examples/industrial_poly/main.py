@@ -30,57 +30,83 @@ sys.path.append('../../')
 import do_mpc
 import scipy.io as sio
 import matplotlib.pyplot as plt
-plt.ion()
+import pickle
+import time
 
 
 from template_model import template_model
 from template_optimizer import template_optimizer
 from template_simulator import template_simulator
 
-# set initial value
-c_pR = 5.0
-m_W_0 = 10000.0
-m_A_0 = 853.0*1.0  #3700.0
-m_P_0 = 26.5
-T_R_0  = 90 + 273.15
-T_S_0  = 90 + 273.15
-Tout_M_0  = 90 + 273.15
-T_EK_0 = 35 + 273.15
-Tout_AWT_0= 35 + 273.15
-
-accum_momom_0   = 300.0
-
-# This value is used here only to compute the initial condition of this state
-# This should be changed in case the real value is different
-delH_R_real = 950.0*1.00
-T_adiab_0		= m_A_0*delH_R_real/((m_W_0+m_A_0+m_P_0)*c_pR)+T_R_0
-
-x0   = np.array([m_W_0, m_A_0, m_P_0, T_R_0, T_S_0, Tout_M_0, T_EK_0, Tout_AWT_0, accum_momom_0,T_adiab_0]).reshape(-1,1)
-
 model = template_model()
 optimizer = template_optimizer(model)
 simulator = template_simulator(model)
 estimator = do_mpc.estimator.state_feedback(model)
 
-optimizer._x0 = x0
-simulator._x0 = x0
-estimator._x0 = x0
+# Set the initial state of optimizer and simulator:
+x0 = model._x(0)
 
-configuration = do_mpc.configuration(simulator, optimizer, estimator)
+delH_R_real = 950.0
+c_pR = 5.0
 
-for k in range(123):
-    configuration.make_step_optimizer()
-    configuration.make_step_simulator()
-    configuration.make_step_estimator()
+x0['m_W'] = 10000.0
+x0['m_A'] = 853.0
+x0['m_P'] = 26.5
 
-_x = simulator.data._x
-_u = simulator.data._u
-_t = simulator.data._time
+x0['T_R'] = 90.0 + 273.15
+x0['T_S'] = 90.0 + 273.15
+x0['Tout_M'] = 90.0 + 273.15
+x0['T_EK'] = 35.0 + 273.15
+x0['Tout_AWT'] = 35.0 + 273.15
+x0['accum_monom'] = 300.0
+x0['T_adiab'] = x0['m_A']*delH_R_real/((x0['m_W'] + x0['m_A'] + x0['m_P']) * c_pR) + x0['T_R']
 
-for i in range(_x.shape[1]):
-    plt.figure()
-    plt.plot(_t, _x[:,i])
 
-for i in range(_u.shape[1]):
-    plt.figure()
-    plt.plot(_t[0:-1], _u[:,i])
+
+optimizer.set_initial_state(x0, reset_history=True)
+simulator.set_initial_state(x0, reset_history=True)
+
+# Initialize graphic:
+graphics = do_mpc.graphics()
+
+
+fig, ax = plt.subplots(5, sharex=True)
+plt.ion()
+# Configure plot:
+graphics.add_line(var_type='_x', var_name='T_R', axis=ax[0])
+graphics.add_line(var_type='_x', var_name='accum_monom', axis=ax[1])
+graphics.add_line(var_type='_u', var_name='m_dot_f', axis=ax[2])
+graphics.add_line(var_type='_u', var_name='T_in_M', axis=ax[3])
+graphics.add_line(var_type='_u', var_name='T_in_EK', axis=ax[4])
+
+ax[0].set_ylabel('T_R [K]')
+ax[1].set_ylabel('acc. monom')
+ax[2].set_ylabel('m_dot_f')
+ax[3].set_ylabel('T_in_M [K]')
+ax[4].set_ylabel('T_in_EK [K]')
+
+fig.align_ylabels()
+plt.ion()
+
+time_list = []
+for k in range(100):
+    tic = time.time()
+    u0 = optimizer.make_step(x0)
+    y_next = simulator.make_step(u0)
+    x0 = estimator.make_step(y_next)
+    toc = time.time()
+    time_list.append(toc-tic)
+
+    if True:
+        graphics.reset_axes()
+        graphics.plot_results(optimizer.data, linewidth=3)
+        graphics.plot_predictions(optimizer.data, linestyle='--', linewidth=1)
+        plt.show()
+        input('next step')
+
+time_arr = np.array(time_list)
+print('Total run-time: {tot:5.2f} s, step-time {mean:.3f}+-{std:.3f} s.'.format(tot=np.sum(time_arr), mean=np.mean(time_arr), std=np.sqrt(np.var(time_arr))))
+
+simu_lines = graphics.plot_results(simulator.data)
+plt.show()
+input('Press any key to exit.')
