@@ -33,11 +33,16 @@ class backend_optimizer:
 
     def setup_discretization(self):
         _x, _u, _z, _tvp, _p, _aux = self.model.get_variables()
+
+        rhs = substitute(self.model._rhs, _x, _x*self._x_scaling.cat)
+        rhs = substitute(rhs, _u, _u*self._u_scaling.cat)
+        rhs = substitute(rhs, _z, _z*self._z_scaling.cat)
+
         if self.state_discretization == 'discrete':
-            ifcn = Function('ifcn', [_x, _u, _z, _tvp, _p], [[], self.model._rhs])
+            ifcn = Function('ifcn', [_x, _u, _z, _tvp, _p], [[], rhs/self._x_scaling.cat])
             n_total_coll_points = 0
         if self.state_discretization == 'collocation':
-            ffcn = Function('ffcn', [_x, _u, _z, _tvp, _p], [self.model._rhs])
+            ffcn = Function('ffcn', [_x, _u, _z, _tvp, _p], [rhs/self._x_scaling.cat])
             # Get collocation information
             coll = self.collocation_type
             deg = self.collocation_deg
@@ -296,8 +301,8 @@ class backend_optimizer:
                     current_scenario = b + branch_offset[k][s]
 
                     # Compute constraints and predicted next state of the discretization scheme
-                    [g_ksb, xf_ksb] = ifcn(opt_x_unscaled['_x', k, s, -1], vertcat(*opt_x_unscaled['_x', k+1, child_scenario[k][s][b], :-1]),
-                                           opt_x_unscaled['_u', k, s], vertcat(*opt_x_unscaled['_z', k, s, :]), opt_p['_tvp', k], opt_p['_p', current_scenario])
+                    [g_ksb, xf_ksb] = ifcn(opt_x['_x', k, s, -1], vertcat(*opt_x['_x', k+1, child_scenario[k][s][b], :-1]),
+                                           opt_x['_u', k, s], vertcat(*opt_x['_z', k, s, :]), opt_p['_tvp', k], opt_p['_p', current_scenario])
 
                     # Add the collocation equations
                     cons.append(g_ksb)
@@ -305,7 +310,7 @@ class backend_optimizer:
                     cons_ub.append(np.zeros(g_ksb.shape[0]))
 
                     # Add continuity constraints
-                    cons.append(xf_ksb - opt_x_unscaled['_x', k+1, child_scenario[k][s][b], -1])
+                    cons.append(xf_ksb - opt_x['_x', k+1, child_scenario[k][s][b], -1])
                     cons_lb.append(np.zeros((self.model.n_x, 1)))
                     cons_ub.append(np.zeros((self.model.n_x, 1)))
 
