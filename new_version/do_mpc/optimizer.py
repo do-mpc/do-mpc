@@ -27,6 +27,7 @@ import pdb
 import itertools
 import do_mpc.data
 from do_mpc import backend_optimizer
+from indexedproperty import IndexedProperty
 import time
 
 
@@ -72,6 +73,9 @@ class optimizer(backend_optimizer):
 
         self._u_lb = model._u(-np.inf)
         self._u_ub = model._u(np.inf)
+
+        self._z_lb = model._z(-np.inf)
+        self._z_ub = model._z(np.inf)
 
         self._x_scaling = model._x(1)
         self._u_scaling = model._u(1)
@@ -129,6 +133,131 @@ class optimizer(backend_optimizer):
             'set_p_fun': False,
 
         }
+
+    @IndexedProperty
+    def bounds(self, ind):
+        """Queries and sets the bounds of the optimization variables for the optimizer.
+        The :py:func:`optimizer.bounds` method is an indexed property, meaning
+        getting and setting this property requires an index and calls this function.
+        The power index (elements are seperated by comas) must contain atleast the following elements:
+
+        1. ``bound_type``: Valid options are ``lower`` and ``upper``.
+
+        2. ``var_type``: Valid options are ``_x``, ``_u`` and ``_z`` or their aliases ``states``, ``inputs``, ``algebraic``.
+
+        3. ``var_name``: Variable names that were previously defined in the :py:class:`do_mpc.model`.
+
+        Further indices are possible (but not neccessary) when the referenced variable is a vector or matrix.
+
+        :param ind: power index with elements mentioned above.
+        :type ind: tuple
+        """
+
+        assert len(ind)>=3, 'Power index must at least contain three elements.'
+        bound_type = ind[0]
+        var_type   = ind[1]
+        var_name   = ind[2:]
+
+        assert isinstance(bound_type, str), 'Invalid power index {} for bound_type. Must be a string.'.format(bound_type)
+        assert bound_type in ('lower', 'upper'), 'Invalid power index {} for bound_type. Must be from (lower, upper).'.format(bound_type)
+        assert isinstance(var_type, str), 'Invalid power index {} for var_type. Must be a string.'.format(var_type)
+        assert var_type in ('_x', 'states', '_u', 'inputs', '_z', 'algebraic'), 'Invalid power index {} for var_type. Must be from (_x, states, _u, inputs, _z, algebraic).'.format(var_type)
+
+        if bound_type == 'lower':
+            if var_type in ('_x', 'states'):
+                rval = self._x_lb[var_name]
+            if var_type in ('_u', 'inputs'):
+                rval = self._u_lb[var_name]
+            if var_type in ('_z', 'algebraic'):
+                rval = self._z_lb[var_name]
+        if bound_type == 'upper':
+            if var_type in ('_x', 'states'):
+                rval = self._x_ub[var_name]
+            if var_type in ('_u', 'inputs'):
+                rval = self._u_ub[var_name]
+            if var_type in ('_z', 'algebraic'):
+                rval = self._z_ub[var_name]
+        return rval
+
+
+    @bounds.setter
+    def bounds(self, ind, val):
+        """See Docstring for bounds getter method"""
+
+        assert len(ind)>=3, 'Power index must at least contain three elements.'
+        bound_type = ind[0]
+        var_type   = ind[1]
+        var_name   = ind[2:]
+
+        assert isinstance(bound_type, str), 'Invalid power index {} for bound_type. Must be a string.'.format(bound_type)
+        assert bound_type in ('lower', 'upper'), 'Invalid power index {} for bound_type. Must be from (lower, upper).'.format(bound_type)
+        assert isinstance(var_type, str), 'Invalid power index {} for var_type. Must be a string.'.format(var_type)
+        assert var_type in ('_x', 'states', '_u', 'inputs', '_z', 'algebraic'), 'Invalid power index {} for var_type. Must be from (_x, states, _u, inputs, _z, algebraic).'.format(var_type)
+
+        if bound_type == 'lower':
+            if var_type in ('_x', 'states'):
+                self._x_lb[var_name] = val
+            if var_type in ('_u', 'inputs'):
+                self._u_lb[var_name] = val
+            if var_type in ('_z', 'algebraic'):
+                self._z_lb[var_name] = val
+        if bound_type == 'upper':
+            if var_type in ('_x', 'states'):
+                self._x_ub[var_name] = val
+            if var_type in ('_u', 'inputs'):
+                self._u_ub[var_name] = val
+            if var_type in ('_z', 'algebraic'):
+                self._z_ub[var_name] = val
+
+
+    @IndexedProperty
+    def scaling(self, ind):
+        """Queries and sets the scaling of the optimization variables for the optimizer.
+        The :py:func:`optimizer.scaling` method is an indexed property, meaning
+        getting and setting this property requires an index and calls this function.
+        The power index (elements are seperated by comas) must contain atleast the following elements:
+
+        1. ``var_type``: Valid options are ``_x``, ``_u`` and ``_z`` or their aliases ``states``, ``inputs``, ``algebraic``.
+
+        2. ``var_name``: Variable names that were previously defined in the :py:class:`do_mpc.model`.
+
+        Further indices are possible (but not neccessary) when the referenced variable is a vector or matrix.
+
+        :param ind: power index with elements mentioned above.
+        :type ind: tuple
+        """
+        assert len(ind)>=2, 'Power index must at least contain two elements.'
+        var_type   = ind[0]
+        var_name   = ind[1:]
+
+        assert isinstance(var_type, str), 'Invalid power index {} for var_type. Must be a string.'.format(var_type)
+        assert var_type in ('_x', 'states', '_u', 'inputs', '_z', 'algebraic'), 'Invalid power index {} for var_type. Must be from (_x, states, _u, inputs, _z, algebraic).'.format(var_type)
+
+        if var_type in ('_x', 'states'):
+            rval = self._x_scaling[var_name]
+        if var_type in ('_u', 'inputs'):
+            rval = self._u_scaling[var_name]
+        if var_type in ('_z', 'algebraic'):
+            rval = self._z_scaling[var_name]
+
+        return rval
+
+    @scaling.setter
+    def scaling(self, ind, val):
+        """See Docstring for scaling getter method"""
+        assert len(ind)>=2, 'Power index must at least contain two elements.'
+        var_type   = ind[0]
+        var_name   = ind[1:]
+
+        assert isinstance(var_type, str), 'Invalid power index {} for var_type. Must be a string.'.format(var_type)
+        assert var_type in ('_x', 'states', '_u', 'inputs', '_z', 'algebraic'), 'Invalid power index {} for var_type. Must be from (_x, states, _u, inputs, _z, algebraic).'.format(var_type)
+
+        if var_type in ('_x', 'states'):
+            self._x_scaling[var_name] = val
+        if var_type in ('_u', 'inputs'):
+            self._u_scaling[var_name] = val
+        if var_type in ('_z', 'algebraic'):
+            self._z_scaling[var_name] = val
 
     def set_initial_state(self, x0, reset_history=False, set_intial_guess=True):
         """Set the intial state of the optimizer.
@@ -555,6 +684,13 @@ class optimizer(backend_optimizer):
         if np.any(self.rterm_factor.cat.full() < 0):
             warning('You have selected negative values for the rterm penalizing changes in the control input.')
             time.sleep(2)
+
+        # Lower bounds should be lower than upper bounds:
+        for lb, ub in zip([self._x_lb, self._u_lb, self._z_lb], [self._x_ub, self._u_ub, self._z_ub]):
+            bound_check = lb.cat > ub.cat
+            bound_fail = [label_i for i,label_i in enumerate(lb.labels()) if bound_check[i]]
+            if np.any(bound_check):
+                raise Exception('Your bounds are inconsistent. For {} you have lower bound > upper bound.'.format(bound_fail))
 
         # Set dummy functions for tvp and p in case these parameters are unused.
         if 'tvp_fun' not in self.__dict__:
