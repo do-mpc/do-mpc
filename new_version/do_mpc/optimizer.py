@@ -166,8 +166,8 @@ class optimizer(backend_optimizer):
         :param ind: power index with elements mentioned above.
         :type ind: tuple
         """
-        assert isinstance(ind, tuple), 'Power index must include bound_type, var_type, var_name (as a tuple)'
-        assert len(ind)>=3, 'Power index must at least contain three elements.'
+        assert isinstance(ind, tuple), 'Power index must include bound_type, var_type, var_name (as a tuple).'
+        assert len(ind)>=3, 'Power index must include bound_type, var_type, var_name (as a tuple).'
         bound_type = ind[0]
         var_type   = ind[1]
         var_name   = ind[2:]
@@ -176,6 +176,14 @@ class optimizer(backend_optimizer):
         assert bound_type in ('lower', 'upper'), 'Invalid power index {} for bound_type. Must be from (lower, upper).'.format(bound_type)
         assert isinstance(var_type, str), 'Invalid power index {} for var_type. Must be a string.'.format(var_type)
         assert var_type in ('_x', 'states', '_u', 'inputs', '_z', 'algebraic'), 'Invalid power index {} for var_type. Must be from (_x, states, _u, inputs, _z, algebraic).'.format(var_type)
+
+        msg = 'Calling optimizer.bounds with {} is not valid. Possible keys are {}.'
+        if var_type in ('_x', 'states'):
+            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._x_lb.keys(), msg.format(ind, self._x_lb.keys())
+        if var_type in ('_u', 'inputs'):
+            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._u_lb.keys(), msg.format(ind, self._u_lb.keys())
+        if var_type in ('_z', 'algebraic'):
+            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._z_lb.keys(), msg.format(ind, self._z_lb.keys())
 
         if bound_type == 'lower':
             if var_type in ('_x', 'states'):
@@ -207,6 +215,14 @@ class optimizer(backend_optimizer):
         assert bound_type in ('lower', 'upper'), 'Invalid power index {} for bound_type. Must be from (lower, upper).'.format(bound_type)
         assert isinstance(var_type, str), 'Invalid power index {} for var_type. Must be a string.'.format(var_type)
         assert var_type in ('_x', 'states', '_u', 'inputs', '_z', 'algebraic'), 'Invalid power index {} for var_type. Must be from (_x, states, _u, inputs, _z, algebraic).'.format(var_type)
+
+        msg = 'Calling optimizer.bounds with {} is not valid. Possible keys are {}.'
+        if var_type in ('_x', 'states'):
+            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._x_lb.keys(), msg.format(ind, self._x_lb.keys())
+        if var_type in ('_u', 'inputs'):
+            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._u_lb.keys(), msg.format(ind, self._u_lb.keys())
+        if var_type in ('_z', 'algebraic'):
+            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._z_lb.keys(), msg.format(ind, self._z_lb.keys())
 
         if bound_type == 'lower':
             if var_type in ('_x', 'states'):
@@ -257,6 +273,14 @@ class optimizer(backend_optimizer):
         assert isinstance(var_type, str), 'Invalid power index {} for var_type. Must be a string.'.format(var_type)
         assert var_type in ('_x', 'states', '_u', 'inputs', '_z', 'algebraic'), 'Invalid power index {} for var_type. Must be from (_x, states, _u, inputs, _z, algebraic).'.format(var_type)
 
+        msg = 'Calling optimizer.scaling with {} is not valid. Possible keys are {}.'
+        if var_type in ('_x', 'states'):
+            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._x_scaling.keys(), msg.format(ind, self._x_scaling.keys())
+        if var_type in ('_u', 'inputs'):
+            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._u_scaling.keys(), msg.format(ind, self._u_scaling.keys())
+        if var_type in ('_z', 'algebraic'):
+            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._z_scaling.keys(), msg.format(ind, self._z_scaling.keys())
+
         if var_type in ('_x', 'states'):
             rval = self._x_scaling[var_name]
         if var_type in ('_u', 'inputs'):
@@ -275,6 +299,15 @@ class optimizer(backend_optimizer):
 
         assert isinstance(var_type, str), 'Invalid power index {} for var_type. Must be a string.'.format(var_type)
         assert var_type in ('_x', 'states', '_u', 'inputs', '_z', 'algebraic'), 'Invalid power index {} for var_type. Must be from (_x, states, _u, inputs, _z, algebraic).'.format(var_type)
+
+        msg = 'Calling optimizer.scaling with {} is not valid. Possible keys are {}.'
+        if var_type in ('_x', 'states'):
+            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._x_scaling.keys(), msg.format(ind, self._x_scaling.keys())
+        if var_type in ('_u', 'inputs'):
+            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._u_scaling.keys(), msg.format(ind, self._u_scaling.keys())
+        if var_type in ('_z', 'algebraic'):
+            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._z_scaling.keys(), msg.format(ind, self._z_scaling.keys())
+            
 
         if var_type in ('_x', 'states'):
             self._x_scaling[var_name] = val
