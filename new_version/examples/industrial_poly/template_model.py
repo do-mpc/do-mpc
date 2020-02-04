@@ -73,29 +73,26 @@ def template_model():
     p_1         = 1.0
 
     # States struct (optimization variables):
-    m_W = model.set_variable(var_type='_x', var_name='m_W', shape=(1,1))
-    m_A = model.set_variable(var_type='_x', var_name='m_A', shape=(1,1))
-    m_P = model.set_variable(var_type='_x', var_name='m_P', shape=(1,1))
-    T_R = model.set_variable(var_type='_x', var_name='T_R', shape=(1,1))
-    T_S = model.set_variable(var_type='_x', var_name='T_S', shape=(1,1))
-    Tout_M = model.set_variable(var_type='_x', var_name='Tout_M', shape=(1,1))
-    T_EK = model.set_variable(var_type='_x', var_name='T_EK', shape=(1,1))
-    Tout_AWT = model.set_variable(var_type='_x', var_name='Tout_AWT', shape=(1,1))
-    accum_monom = model.set_variable(var_type='_x', var_name='accum_monom', shape=(1,1))
-    T_adiab = model.set_variable(var_type='_x', var_name='T_adiab', shape=(1,1))
+    m_W =         model.set_variable('_x', 'm_W')
+    m_A =         model.set_variable('_x', 'm_A')
+    m_P =         model.set_variable('_x', 'm_P')
+    T_R =         model.set_variable('_x', 'T_R')
+    T_S =         model.set_variable('_x', 'T_S')
+    Tout_M =      model.set_variable('_x', 'Tout_M')
+    T_EK =        model.set_variable('_x', 'T_EK')
+    Tout_AWT =    model.set_variable('_x', 'Tout_AWT')
+    accum_monom = model.set_variable('_x', 'accum_monom')
+    T_adiab =     model.set_variable('_x', 'T_adiab')
 
     # Input struct (optimization variables):
-    m_dot_f = model.set_variable(var_type='_u', var_name='m_dot_f')
-    T_in_M = model.set_variable(var_type='_u', var_name='T_in_M')
-    T_in_EK = model.set_variable(var_type='_u', var_name='T_in_EK')
+    m_dot_f = model.set_variable('_u', 'm_dot_f')
+    T_in_M =  model.set_variable('_u', 'T_in_M')
+    T_in_EK = model.set_variable('_u', 'T_in_EK')
 
     # Fixed parameters:
-    delH_R = model.set_variable(var_type='_p', var_name='delH_R')
-    k_0 = model.set_variable(var_type='_p', var_name='k_0')
+    delH_R = model.set_variable('_p', 'delH_R')
+    k_0 =    model.set_variable('_p', 'k_0')
 
-    # Set expression. These can be used in the cost function, as non-linear constraints
-    # or just to monitor another output.
-    # model.set_expression(expr_name='T_dif', expr=T_R-T_K)
 
     # algebraic equations
     U_m    = m_P / (m_A + m_P)

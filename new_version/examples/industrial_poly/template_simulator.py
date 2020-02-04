@@ -46,17 +46,13 @@ def template_simulator(model):
 
     simulator.set_param(**params_simulator)
 
-    simulator.setup_simulator()
-
-    tvp_num = simulator.get_tvp_template()
-    def tvp_fun(t_now):
-        return tvp_num
-
-    simulator.set_tvp_fun(tvp_fun)
-
     p_num = simulator.get_p_template()
+    p_num['delH_R'] = 950
+    p_num['k_0'] = 7
     def p_fun(t_now):
         return p_num
     simulator.set_p_fun(p_fun)
+
+    simulator.setup()
 
     return simulator
