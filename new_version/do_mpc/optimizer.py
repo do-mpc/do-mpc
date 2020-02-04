@@ -65,6 +65,11 @@ class optimizer(backend_optimizer):
 
         self.data = do_mpc.data.optimizer_data(self.model)
 
+
+        # Initialize structures for bounds, scaling, initial values by calling the symbolic structures defined in the model
+        # with the default numerical value.
+        # This returns an identical numerical structure with all values set to the passed value.
+
         self._x_lb = model._x(-np.inf)
         self._x_ub = model._x(np.inf)
 
@@ -77,21 +82,21 @@ class optimizer(backend_optimizer):
         self._z_lb = model._z(-np.inf)
         self._z_ub = model._z(np.inf)
 
-        self._x_scaling = model._x(1)
-        self._u_scaling = model._u(1)
-        self._z_scaling = model._z(1)
+        self._x_scaling = model._x(1.0)
+        self._u_scaling = model._u(1.0)
+        self._z_scaling = model._z(1.0)
 
-        self.rterm_factor = self.model._u(0)
+        self.rterm_factor = self.model._u(0.0)
+
+        self._x0 = model._x(0.0)
+        self._u0 = model._u(0.0)
+        self._z0 = model._z(0.0)
+        self._t0 = np.array([0.0])
 
         # Lists for further non-linear constraints (optional). Constraints are formulated as lb < cons < 0
         self.nl_cons_list = [
             {'expr_name': 'default', 'expr': DM(), 'lb': DM()}
         ]
-
-        self._x0 = model._x(0)
-        self._u0 = model._u(0)
-        self._z0 = model._z(0)
-        self._t0 = np.array([0])
 
         # Parameters that can be set for the optimizer:
         self.data_fields = [
@@ -125,13 +130,13 @@ class optimizer(backend_optimizer):
         ]
         self.nlpsol_opts = {} # Will update default options with this dict.
 
+        # Flags are checked when calling .setup_optimizer.
         self.flags = {
             'setup': False,
             'set_objective': False,
             'set_rterm': False,
             'set_tvp_fun': False,
             'set_p_fun': False,
-
         }
 
     @IndexedProperty
@@ -149,10 +154,19 @@ class optimizer(backend_optimizer):
 
         Further indices are possible (but not neccessary) when the referenced variable is a vector or matrix.
 
+        **Example**:
+        ::
+            # Set with:
+            optimizer.bounds['lower','_x', 'phi_1'] = -2*np.pi
+            optimizer.bounds['upper','_x', 'phi_1'] = 2*np.pi
+
+            # Query with:
+            optimizer.bounds['lower','_x', 'phi_1']
+
         :param ind: power index with elements mentioned above.
         :type ind: tuple
         """
-
+        assert isinstance(ind, tuple), 'Power index must include bound_type, var_type, var_name (as a tuple)'
         assert len(ind)>=3, 'Power index must at least contain three elements.'
         bound_type = ind[0]
         var_type   = ind[1]
@@ -223,9 +237,19 @@ class optimizer(backend_optimizer):
 
         Further indices are possible (but not neccessary) when the referenced variable is a vector or matrix.
 
+        **Example**:
+        ::
+            # Set with:
+            optimizer.scaling['_x', 'phi_1'] = 2
+            optimizer.scaling['_x', 'phi_2'] = 2
+
+            # Query with:
+            optimizer.scaling['_x', 'phi_1']
+
         :param ind: power index with elements mentioned above.
         :type ind: tuple
         """
+        assert isinstance(ind, tuple), 'Power index must include var_type and var_name (as a tuple)'
         assert len(ind)>=2, 'Power index must at least contain two elements.'
         var_type   = ind[0]
         var_name   = ind[1:]
