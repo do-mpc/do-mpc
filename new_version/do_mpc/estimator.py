@@ -26,6 +26,9 @@ from casadi.tools import *
 import pdb
 import do_mpc.data
 import do_mpc.optimizer
+import copy
+from indexedproperty import IndexedProperty
+
 
 class estimator:
     def __init__(self, model):
@@ -83,7 +86,7 @@ class ekf(estimator):
         self.data = do_mpc.data.observer_data(self.model)
 
 class mhe(do_mpc.optimizer):
-    def __init__(self, model):
+    def __init__(self, model, p_est_list=[]):
         super().__init__(model)
 
         # Initialize structures for bounds, scaling, initial values by calling the symbolic structures defined in the model
@@ -119,29 +122,102 @@ class mhe(do_mpc.optimizer):
         ]
         self.nlpsol_opts = {} # Will update default options with this dict.
 
+
+        # Create seperate structs for the estimated and the set parameters (the union of both are all parameters of the model.)
+        _p = model._p
+        self._p_est  = struct_symSX([
+            entry(p_i, sym=_p[p_i]) for p_i in _p.keys() if p_i in p_est_list
+        ])
+        self._p_set  = struct_symSX([
+            entry(p_i, sym=_p[p_i]) for p_i in _p.keys() if p_i not in p_est_list
+        ])
+        # Function to obtain full set of parameters from the seperate structs (while obeying the order):
+        self._p_cat_fun = Function('p_cat_fun', [self._p_est, self._p_set], [_p])
+
+        # Initialize structures for bounds, scaling, initial values by calling the symbolic structures defined above
+        # with the default numerical value.
+        # This returns an identical numerical structure with all values set to the passed value.
+        self._p_est_scaling = self._p_est(1.0)
+
+        self._p_est_lb = self._p_est(-np.inf)
+        self._p_est_ub = self._p_est(np.inf)
+
+        self._p_est0 = self._p_est(0.0)
+
+        # Introduce aliases / new variables to smoothly and intuitively formulate
+        # the MHE objective function.
+        self.y_meas = self.model._y
+        self.y_calc = self.model._y_expression
+
+        self.x_prev = copy.copy(self.model._x)
+        self.x_0 = self.model._x
+
+        self.p_prev = copy.copy(self._p_est)
+        self.p_0 = self._p_est
+
         # Flags are checked when calling .setup.
         self.flags = {
             'setup': False,
             'set_tvp_fun': False,
             'set_objective': False,
+            'set_rterm': True
         }
 
-    def set_objective(self, objective):
-        assert objective.shape == (1,1), 'objective must have shape=(1,1). You have {}'.format(objective.shape)
+    @IndexedProperty
+    def vars(self, ind):
+        if isinstance(ind, tuple):
+            assert ind[0] in self.__dict__.keys(), '{} is not a MHE variable.'.format(ind[0])
+            rval = self.__dict__[ind[0]][ind[1:]]
+        elif isinstance(ind, str):
+            assert ind in self.__dict__.keys(), '{} is not a MHE variable.'.format(ind)
+            rval = self.__dict__[ind]
+        else:
+            raise Exception('Index {} is not valid.'.format(ind))
+        return rval
+
+    @vars.setter
+    def vars(self, ind, val):
+        raise Exception('Setting MHE variables is not allowed.')
+
+    def set_objective(self, obj, arrival_cost):
+        assert obj.shape == (1,1), 'obj must have shape=(1,1). You have {}'.format(obj.shape)
+        assert arrival_cost.shape == (1,1), 'arrival_cost must have shape=(1,1). You have {}'.format(arrival_cost.shape)
         assert self.flags['setup'] == False, 'Cannot call .set_objective after .setup.'
 
-        self.flags['set_objective'] = True
-        # TODO: Add docstring
+
         _x, _u, _z, _tvp, _p, _aux, _y_meas, _y_calc = self.model.get_variables()
+        self.obj_fun = Function('obj_fun', [_x, _u, _z, _tvp, _p, _y_meas], [obj])
 
-        self.mhe_obj_fun = Function('mhe_obj_fun', [_x, _u, _z, _tvp, _p, _y_meas], [objective])
+        arrival_cost_input = self.vars['x_0'], self.vars['x_prev'], self.vars['p_0'], self.vars['p_prev']
+        assert set(symvar(arrival_cost)).issubset(set(symvar(vertcat(*arrival_cost_input)))), 'Arrival cost equation must be solely depending on x_0, x_prev, p_0, p_prev.'
+        self.arrival_cost_fun = Function('arrival_cost_fun', arrival_cost_input, [arrival_cost])
 
-    def get_arrival_weight_template(self):
-        return self.model._x(0)
+        self.flags['set_objective'] = True
 
+    def get_p_template(self):
+        """
+        :param n_combinations: Define the number of combinations for the uncertain parameters for robust MPC.
+        :type n_combinations: int
 
-    def set_arrival_weight_fun(self, fun):
-        self.arrival_weight_fun = fun
+        :return: None
+        :rtype: None
+        """
+        return self._p_set(0)
+
+    def set_p_fun(self, p_fun):
+        """docstring
+        """
+        self.p_fun = p_fun
+        self.flags['set_p_fun'] = True
+
+    def get_y_template(self):
+        y_template = struct_symSX([
+            entry('y_meas', repeat=self.n_horizon, struct=self.y_meas)
+        ])
+        return y_template(0)
+
+    def set_y_fun(self, y_fun):
+        None
 
 
     def setup(self):
@@ -151,7 +227,7 @@ class mhe(do_mpc.optimizer):
             entry(expr_i['expr_name'], expr=expr_i['expr']) for expr_i in self.nl_cons_list
         ])
         # Make function from these expressions:
-        _x, _u, _z, _tvp, _p, _aux, _y = self.model.get_variables()
+        _x, _u, _z, _tvp, _p, _aux, _y, _ = self.model.get_variables()
         self._nl_cons_fun = Function('nl_cons_fun', [_x, _u, _z, _tvp, _p], [self._nl_cons])
         # Create bounds:
         self._nl_cons_ub = self._nl_cons(0)
@@ -160,4 +236,9 @@ class mhe(do_mpc.optimizer):
         for nl_cons_i in self.nl_cons_list:
             self._nl_cons_lb[nl_cons_i['expr_name']] = nl_cons_i['lb']
 
+        self.check_validity()
+
         self.setup_mhe()
+
+    def make_step(self, y0):
+        None
