@@ -422,7 +422,8 @@ class optimizer(backend_optimizer):
         for key, value in kwargs.items():
             if not (key in self.data_fields):
                 print('Warning: Key {} does not exist for optimizer.'.format(key))
-            setattr(self, key, value)
+            else:
+                setattr(self, key, value)
 
     def set_nl_cons(self, expr_name, expr, lb=-np.inf):
         """Introduce new constraint to the optimizer class. Further constraints are optional.
