@@ -36,11 +36,7 @@ import time
 from template_model import template_model
 from template_optimizer import template_optimizer
 from template_simulator import template_simulator
-C_a_0 = 0.8 # This is the initial concentration inside the tank [mol/l]
-C_b_0 = 0.5 # This is the controlled variable [mol/l]
-T_R_0 = 134.14 #[C]
-T_K_0 = 130.0 #[C]
-x0 = np.array([C_a_0, C_b_0, T_R_0, T_K_0]).reshape(-1,1)
+
 
 model = template_model()
 optimizer = template_optimizer(model)
@@ -48,6 +44,12 @@ simulator = template_simulator(model)
 estimator = do_mpc.estimator.state_feedback(model)
 
 # Set the initial state of optimizer and simulator:
+C_a_0 = 0.8 # This is the initial concentration inside the tank [mol/l]
+C_b_0 = 0.5 # This is the controlled variable [mol/l]
+T_R_0 = 134.14 #[C]
+T_K_0 = 130.0 #[C]
+x0 = np.array([C_a_0, C_b_0, T_R_0, T_K_0]).reshape(-1,1)
+
 optimizer.set_initial_state(x0, reset_history=True)
 simulator.set_initial_state(x0, reset_history=True)
 
