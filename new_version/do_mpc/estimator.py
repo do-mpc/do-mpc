@@ -89,15 +89,11 @@ class mhe(do_mpc.optimizer):
     def __init__(self, model, p_est_list=[]):
         super().__init__(model)
 
-        # Initialize structures for bounds, scaling, initial values by calling the symbolic structures defined in the model
-        # with the default numerical value.
-        # This returns an identical numerical structure with all values set to the passed value.
-        self._p_scaling = model._p(1.0)
-
-        # Parameters that can be set for the MHE:
+            # Parameters that can be set for the MHE:
         self.data_fields = [
             'n_horizon',
             't_step',
+            'meas_from_data',
             'state_discretization',
             'collocation_type',
             'collocation_deg',
@@ -109,6 +105,7 @@ class mhe(do_mpc.optimizer):
         ]
 
         # Default Parameters:
+        self.meas_from_data = False
         self.state_discretization = 'collocation'
         self.collocation_type = 'radau'
         self.collocation_deg = 2
@@ -144,23 +141,25 @@ class mhe(do_mpc.optimizer):
 
         self._p_est0 = self._p_est(0.0)
 
+
         # Introduce aliases / new variables to smoothly and intuitively formulate
         # the MHE objective function.
-        self.y_meas = self.model._y
-        self.y_calc = self.model._y_expression
+        self._y_meas = self.model._y
+        self._y_calc = self.model._y_expression
 
-        self.x_prev = copy.copy(self.model._x)
-        self.x_0 = self.model._x
+        self._x_prev = copy.copy(self.model._x)
+        self._x = self.model._x
 
-        self.p_prev = copy.copy(self._p_est)
-        self.p_0 = self._p_est
+        self._p_prev = copy.copy(self._p_est)
+        self._p_est = self._p_est
 
         # Flags are checked when calling .setup.
         self.flags = {
             'setup': False,
             'set_tvp_fun': False,
+            'set_p_fun': False,
+            'set_y_fun': False,
             'set_objective': False,
-            'set_rterm': True
         }
 
     @IndexedProperty
@@ -185,40 +184,103 @@ class mhe(do_mpc.optimizer):
         assert self.flags['setup'] == False, 'Cannot call .set_objective after .setup.'
 
 
-        _x, _u, _z, _tvp, _p, _aux, _y_meas, _y_calc = self.model.get_variables()
-        self.obj_fun = Function('obj_fun', [_x, _u, _z, _tvp, _p, _y_meas], [obj])
+        obj_input = self.model._x, self.model._u, self.model._z, self.model._tvp, self.model._p, self._y_meas
+        assert set(symvar(obj)).issubset(set(symvar(vertcat(*obj_input)))), 'objective cost equation must be solely depending on x, u, z, p, tvp, y_meas.'
+        self.obj_fun = Function('obj_fun', [*obj_input], [obj])
 
-        arrival_cost_input = self.vars['x_0'], self.vars['x_prev'], self.vars['p_0'], self.vars['p_prev']
+        arrival_cost_input = self._x, self._x_prev, self._p_est, self._p_prev
         assert set(symvar(arrival_cost)).issubset(set(symvar(vertcat(*arrival_cost_input)))), 'Arrival cost equation must be solely depending on x_0, x_prev, p_0, p_prev.'
         self.arrival_cost_fun = Function('arrival_cost_fun', arrival_cost_input, [arrival_cost])
 
         self.flags['set_objective'] = True
 
     def get_p_template(self):
-        """
-        :param n_combinations: Define the number of combinations for the uncertain parameters for robust MPC.
-        :type n_combinations: int
-
-        :return: None
-        :rtype: None
+        """docstring
         """
         return self._p_set(0)
 
     def set_p_fun(self, p_fun):
         """docstring
         """
+        assert self.get_p_template().labels() == p_fun(0).labels(), 'Incorrect output of p_fun. Use get_p_template to obtain the required structure.'
         self.p_fun = p_fun
         self.flags['set_p_fun'] = True
 
     def get_y_template(self):
         y_template = struct_symSX([
-            entry('y_meas', repeat=self.n_horizon, struct=self.y_meas)
+            entry('y_meas', repeat=self.n_horizon, struct=self._y_meas)
         ])
         return y_template(0)
 
     def set_y_fun(self, y_fun):
-        None
+        assert self.get_y_template().labels() == y_fun(0).labels(), 'Incorrect output of y_fun. Use get_y_template to obtain the required structure.'
+        self.y_fun = y_fun
+        self.flags['set_y_fun'] = True
 
+
+    def check_validity(self):
+        # Objective mus be defined.
+        if self.flags['set_objective'] == False:
+            raise Exception('Objective is undefined. Please call .set_objective() prior to .setup().')
+
+        # tvp_fun must be set, if tvp are defined in model.
+        if self.flags['set_tvp_fun'] == False and self.model._tvp.size > 0:
+            raise Exception('You have not supplied a function to obtain the time varying parameters defined in model. Use .set_tvp_fun() prior to setup.')
+        # p_fun must be set, if p are defined in model.
+        if self.flags['set_p_fun'] == False and self._p_set.size > 0:
+            raise Exception('You have not supplied a function to obtain the parameters defined in model. Use .set_p_fun() (low-level API) or .set_uncertainty_values() (high-level API) prior to setup.')
+
+
+        # Lower bounds should be lower than upper bounds:
+        for lb, ub in zip([self._x_lb, self._u_lb, self._z_lb], [self._x_ub, self._u_ub, self._z_ub]):
+            bound_check = lb.cat > ub.cat
+            bound_fail = [label_i for i,label_i in enumerate(lb.labels()) if bound_check[i]]
+            if np.any(bound_check):
+                raise Exception('Your bounds are inconsistent. For {} you have lower bound > upper bound.'.format(bound_fail))
+
+        # Set dummy functions for tvp and p in case these parameters are unused.
+        if 'tvp_fun' not in self.__dict__:
+            _tvp = self.get_tvp_template()
+
+            def tvp_fun(t): return _tvp
+            self.set_tvp_fun(tvp_fun)
+
+        if 'p_fun' not in self.__dict__:
+            _p = self.get_p_template()
+
+            def p_fun(t): return _p
+            self.set_p_fun(p_fun)
+
+        if self.flags['set_y_fun'] == False and self.meas_from_data:
+            y_template = self.get_y_template()
+
+            def y_fun(t_now):
+                n_steps = min(self.data._y.shape[0], self.n_horizon)
+                for k in range(-n_steps,0):
+                    y_template['y_meas',k] = self.data._y[k]
+                try:
+                    for k in range(self.n_horizon-n_steps):
+                        y_template['y_meas',k] = self.data._y[-n_steps]
+                except:
+                    None
+                return y_template
+            self.set_y_fun(y_fun)
+        else:
+            raise Exception('You have not suppplied a measurement function. Use .set_y_fun or set parameter meas_from_data to True for default function.')
+
+
+    def set_initial_guess(self):
+        """Uses the current class attributes _x0, _z0 and _u0, _p_est0 to create an initial guess for the mhe.
+        The initial guess is simply the initial values for all instances of x, u and z, p_est. The method is automatically
+        evoked when calling the .setup() method.
+        However, if no initial values for x, u and z were supplied during setup, these default to zero.
+        """
+        assert self.flags['setup'] == True, 'mhe was not setup yet. Please call mhe.setup().'
+
+        self.opt_x_num['_x'] = self._x0.cat/self._x_scaling
+        self.opt_x_num['_u'] = self._u0.cat/self._u_scaling
+        self.opt_x_num['_z'] = self._z0.cat/self._z_scaling
+        self.opt_x_num['_p_est'] = self._p_est0.cat/self._p_est_scaling
 
     def setup(self):
         # Create struct for _nl_cons:
@@ -239,6 +301,45 @@ class mhe(do_mpc.optimizer):
         self.check_validity()
 
         self.setup_mhe()
+        self.flags['setup'] = True
 
     def make_step(self, y0):
-        None
+
+        self.data.update(_y = y0)
+
+
+        p_est_prev = self._p_est0
+        x_prev = self._x0
+
+
+        t0 = self._t0
+        tvp0 = self.tvp_fun(t0)
+        p_set0 = self.p_fun(t0)
+
+        y_traj = self.y_fun(t0)
+
+        self.opt_p_num['_x_prev'] = x_prev
+        self.opt_p_num['_p_prev'] = p_est_prev
+        self.opt_p_num['_p_set'] = p_set0
+        self.opt_p_num['_tvp'] = tvp0['_tvp']
+        self.opt_p_num['_y_meas'] = y_traj['y_meas']
+
+        self.solve()
+
+        x0 = self._x0 = self.opt_x_num['_x', -1, -1]*self._x_scaling
+        u0 = self._u0 = self.opt_x_num['_u', -1]*self._u_scaling
+        z0 = self._z0 = self.opt_x_num['_z', -1, -1]*self._z_scaling
+        p_est0 = self._p_est0 = self.opt_x_num['_p_est']*self._p_est_scaling
+        aux0 = self.opt_aux_num['_aux', -1]
+        p0 = self._p_cat_fun(p_est0, p_set0)
+
+        self.data.update(_x = x0)
+        self.data.update(_u = u0)
+        self.data.update(_z = z0)
+        self.data.update(_p = p0)
+        self.data.update(_time = t0)
+        self.data.update(_aux_expression = aux0)
+
+        self._t0 = self._t0 + self.t_step
+
+        return x0

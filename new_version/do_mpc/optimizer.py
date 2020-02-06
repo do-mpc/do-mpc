@@ -316,8 +316,8 @@ class optimizer(backend_optimizer):
         if var_type in ('_z', 'algebraic'):
             self._z_scaling[var_name] = val
 
-    def set_initial_state(self, x0, reset_history=False, set_intial_guess=True):
-        """Set the intial state of the optimizer.
+    def set_initial_state(self, x0, p_est0=None, reset_history=False, set_intial_guess=True):
+        """Set the intial state of the optimizer/estimator.
         Optionally resets the history. The history is empty upon creation of the optimizer.
 
         Optionally update the initial guess. The initial guess is first created with the .setup() method
@@ -343,6 +343,15 @@ class optimizer(backend_optimizer):
             self._x0 = x0
         else:
             raise Exception('x0 must be of tpye (np.ndarray, casadi.DM, structure3.DMStruct). You have: {}'.format(type(x0)))
+
+        if p_est0 is not None:
+            if isinstance(p_est0, (np.ndarray, casadi.DM)):
+                self._p_est0 = self._p_est(p_est0)
+            elif isinstance(p_est0, structure3.DMStruct):
+                self._p_est0 = p_est0
+            else:
+                raise Exception('p_est0 must be of tpye (np.ndarray, casadi.DM, structure3.DMStruct). You have: {}'.format(type(p_est0)))
+
         if reset_history:
             self.reset_history()
 

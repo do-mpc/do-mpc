@@ -405,7 +405,7 @@ class backend_optimizer:
         # Create struct for optimization parameters:
         self.opt_p = opt_p = struct_symSX([
             entry('_x_prev', struct=self.model._x),
-            entry('_p_prev', struct=self.p_prev),
+            entry('_p_prev', struct=self._p_prev),
             entry('_p_set', struct=self._p_set),
             entry('_tvp', repeat=self.n_horizon, struct=self.model._tvp),
             entry('_y_meas', repeat=self.n_horizon, struct=self.model._y),
