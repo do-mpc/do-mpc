@@ -41,6 +41,8 @@ class estimator:
         self._z0 = model._z(0.0)
         self._t0 = np.array([0.0])
 
+        self.data = do_mpc.data.Data(model)
+
 
     def set_initial_state(self, x0, reset_history=False):
         """Set the intial state of the estimator.
@@ -75,15 +77,17 @@ class estimator:
 class state_feedback(estimator):
     def __init__(self, model):
         super().__init__(model)
-        self.data = do_mpc.data.observer_data(self.model)
 
     def make_step(self, y0):
         return y0
 
 class ekf(estimator):
     def __init__(self, model):
+        raise Exception('EKF is not currently supported. This is a placeholder.')
         super().__init__(model)
-        self.data = do_mpc.data.observer_data(self.model)
+
+    def make_step(self, y0):
+        None
 
 class mhe(do_mpc.optimizer):
     def __init__(self, model, p_est_list=[]):
