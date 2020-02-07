@@ -122,12 +122,13 @@ class mhe(do_mpc.optimizer):
 
         # Create seperate structs for the estimated and the set parameters (the union of both are all parameters of the model.)
         _p = model._p
-        self._p_est  = struct_symSX([
-            entry(p_i, sym=_p[p_i]) for p_i in _p.keys() if p_i in p_est_list
-        ])
-        self._p_set  = struct_symSX([
-            entry(p_i, sym=_p[p_i]) for p_i in _p.keys() if p_i not in p_est_list
-        ])
+        self._p_est  = struct_symSX(
+            [entry('default', shape=(0,0))]+
+            [entry(p_i, sym=_p[p_i]) for p_i in _p.keys() if p_i in p_est_list]
+        )
+        self._p_set  = struct_symSX(
+            [entry(p_i, sym=_p[p_i]) for p_i in _p.keys() if p_i not in p_est_list]
+        )
         # Function to obtain full set of parameters from the seperate structs (while obeying the order):
         self._p_cat_fun = Function('p_cat_fun', [self._p_est, self._p_set], [_p])
 
@@ -308,9 +309,8 @@ class mhe(do_mpc.optimizer):
         self.data.update(_y = y0)
 
 
-        p_est_prev = self._p_est0
-        x_prev = self._x0
-
+        p_est0 = self._p_est0
+        x0 = self._x0
 
         t0 = self._t0
         tvp0 = self.tvp_fun(t0)
@@ -318,18 +318,18 @@ class mhe(do_mpc.optimizer):
 
         y_traj = self.y_fun(t0)
 
-        self.opt_p_num['_x_prev'] = x_prev
-        self.opt_p_num['_p_prev'] = p_est_prev
+        self.opt_p_num['_x_prev'] = x0
+        self.opt_p_num['_p_prev'] = p_est0
         self.opt_p_num['_p_set'] = p_set0
         self.opt_p_num['_tvp'] = tvp0['_tvp']
         self.opt_p_num['_y_meas'] = y_traj['y_meas']
 
         self.solve()
 
-        x0 = self._x0 = self.opt_x_num['_x', -1, -1]*self._x_scaling
+        x_next = self._x0 = self.opt_x_num['_x', -1, -1]*self._x_scaling
+        p_est_next = self._p_est0 = self.opt_x_num['_p_est']*self._p_est_scaling
         u0 = self._u0 = self.opt_x_num['_u', -1]*self._u_scaling
         z0 = self._z0 = self.opt_x_num['_z', -1, -1]*self._z_scaling
-        p_est0 = self._p_est0 = self.opt_x_num['_p_est']*self._p_est_scaling
         aux0 = self.opt_aux_num['_aux', -1]
         p0 = self._p_cat_fun(p_est0, p_set0)
 
@@ -340,6 +340,9 @@ class mhe(do_mpc.optimizer):
         self.data.update(_time = t0)
         self.data.update(_aux_expression = aux0)
 
+        # Update initial
         self._t0 = self._t0 + self.t_step
+        self._x0 = x_next
+        self._p_est0 = p_est_next
 
         return x0
