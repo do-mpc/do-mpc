@@ -43,7 +43,7 @@ class simulator:
 
         assert model.flags['setup'] == True, 'Model for simulator was not setup. After the complete model creation call model.setup_model().'
 
-        self.data = do_mpc.data.model_data(model)
+        self.data = do_mpc.data.Data(model)
 
         self._x0 = model._x(0)
         self._t0 = np.array([0])
