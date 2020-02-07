@@ -63,7 +63,7 @@ class optimizer(backend_optimizer):
 
         assert model.flags['setup'] == True, 'Model for optimizer was not setup. After the complete model creation call model.setup_model().'
 
-        self.data = do_mpc.data.optimizer_data(self.model)
+        self.data = do_mpc.data.Data(self.model)
 
 
         # Initialize structures for bounds, scaling, initial values by calling the symbolic structures defined in the model
@@ -148,7 +148,7 @@ class optimizer(backend_optimizer):
 
         1. ``bound_type``: Valid options are ``lower`` and ``upper``.
 
-        2. ``var_type``: Valid options are ``_x``, ``_u`` and ``_z`` or their aliases ``states``, ``inputs``, ``algebraic``.
+        2. ``var_type``: Valid options are ``_x``, ``_u`` and ``_z`` (and ``_p_est`` for MHE).
 
         3. ``var_name``: Variable names that were previously defined in the :py:class:`do_mpc.model`.
 
@@ -172,72 +172,54 @@ class optimizer(backend_optimizer):
         var_type   = ind[1]
         var_name   = ind[2:]
 
-        assert isinstance(bound_type, str), 'Invalid power index {} for bound_type. Must be a string.'.format(bound_type)
-        assert bound_type in ('lower', 'upper'), 'Invalid power index {} for bound_type. Must be from (lower, upper).'.format(bound_type)
-        assert isinstance(var_type, str), 'Invalid power index {} for var_type. Must be a string.'.format(var_type)
-        assert var_type in ('_x', 'states', '_u', 'inputs', '_z', 'algebraic'), 'Invalid power index {} for var_type. Must be from (_x, states, _u, inputs, _z, algebraic).'.format(var_type)
-
-        msg = 'Calling optimizer.bounds with {} is not valid. Possible keys are {}.'
-        if var_type in ('_x', 'states'):
-            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._x_lb.keys(), msg.format(ind, self._x_lb.keys())
-        if var_type in ('_u', 'inputs'):
-            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._u_lb.keys(), msg.format(ind, self._u_lb.keys())
-        if var_type in ('_z', 'algebraic'):
-            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._z_lb.keys(), msg.format(ind, self._z_lb.keys())
+        err_msg = 'Invalid power index {} for bound_type. Must be from (lower, upper).'
+        assert bound_type in ('lower', 'upper'), err_msg.format(bound_type)
+        err_msg = 'Invalid power index {} for var_type. Must be from (_x, states, _u, inputs, _z, algebraic).'
+        assert var_type in ('_x', '_u', '_z', '_p_est'), err_msg.format(var_type)
 
         if bound_type == 'lower':
-            if var_type in ('_x', 'states'):
-                rval = self._x_lb[var_name]
-            if var_type in ('_u', 'inputs'):
-                rval = self._u_lb[var_name]
-            if var_type in ('_z', 'algebraic'):
-                rval = self._z_lb[var_name]
-        if bound_type == 'upper':
-            if var_type in ('_x', 'states'):
-                rval = self._x_ub[var_name]
-            if var_type in ('_u', 'inputs'):
-                rval = self._u_ub[var_name]
-            if var_type in ('_z', 'algebraic'):
-                rval = self._z_ub[var_name]
-        return rval
+            query = '{var_type}_{bound_type}'.format(var_type=var_type, bound_type='lb')
+        elif bound_type == 'upper':
+            query = '{var_type}_{bound_type}'.format(var_type=var_type, bound_type='ub')
+        # query results string e.g. _x_lb, _x_ub, _u_lb, u_ub ....
 
+        # Get the desired struct:
+        var_struct = getattr(self, query)
+
+        err_msg = 'Calling .bounds with {} is not valid. Possible keys are {}.'
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
+
+        return var_struct[var_name]
 
     @bounds.setter
     def bounds(self, ind, val):
         """See Docstring for bounds getter method"""
 
-        assert len(ind)>=3, 'Power index must at least contain three elements.'
+        assert isinstance(ind, tuple), 'Power index must include bound_type, var_type, var_name (as a tuple).'
+        assert len(ind)>=3, 'Power index must include bound_type, var_type, var_name (as a tuple).'
         bound_type = ind[0]
         var_type   = ind[1]
         var_name   = ind[2:]
 
-        assert isinstance(bound_type, str), 'Invalid power index {} for bound_type. Must be a string.'.format(bound_type)
-        assert bound_type in ('lower', 'upper'), 'Invalid power index {} for bound_type. Must be from (lower, upper).'.format(bound_type)
-        assert isinstance(var_type, str), 'Invalid power index {} for var_type. Must be a string.'.format(var_type)
-        assert var_type in ('_x', 'states', '_u', 'inputs', '_z', 'algebraic'), 'Invalid power index {} for var_type. Must be from (_x, states, _u, inputs, _z, algebraic).'.format(var_type)
-
-        msg = 'Calling optimizer.bounds with {} is not valid. Possible keys are {}.'
-        if var_type in ('_x', 'states'):
-            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._x_lb.keys(), msg.format(ind, self._x_lb.keys())
-        if var_type in ('_u', 'inputs'):
-            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._u_lb.keys(), msg.format(ind, self._u_lb.keys())
-        if var_type in ('_z', 'algebraic'):
-            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._z_lb.keys(), msg.format(ind, self._z_lb.keys())
+        err_msg = 'Invalid power index {} for bound_type. Must be from (lower, upper).'
+        assert bound_type in ('lower', 'upper'), err_msg.format(bound_type)
+        err_msg = 'Invalid power index {} for var_type. Must be from (_x, states, _u, inputs, _z, algebraic).'
+        assert var_type in ('_x', '_u', '_z', '_p_est'), err_msg.format(var_type)
 
         if bound_type == 'lower':
-            if var_type in ('_x', 'states'):
-                self._x_lb[var_name] = val
-            if var_type in ('_u', 'inputs'):
-                self._u_lb[var_name] = val
-            if var_type in ('_z', 'algebraic'):
-                self._z_lb[var_name] = val
-        if bound_type == 'upper':
-            if var_type in ('_x', 'states'):
-                self._x_ub[var_name] = val
-            if var_type in ('_u', 'inputs'):
-                self._u_ub[var_name] = val
-            if var_type in ('_z', 'algebraic'):
-                self._z_ub[var_name] = val
+            query = '{var_type}_{bound_type}'.format(var_type=var_type, bound_type='lb')
+        elif bound_type == 'upper':
+            query = '{var_type}_{bound_type}'.format(var_type=var_type, bound_type='ub')
+        # query results string e.g. _x_lb, _x_ub, _u_lb, u_ub ....
+
+        # Get the desired struct:
+        var_struct = getattr(self, query)
+
+        err_msg = 'Calling .bounds with {} is not valid. Possible keys are {}.'
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
+
+        # Set value on struct:
+        var_struct[var_name] = val
 
 
     @IndexedProperty
@@ -247,7 +229,7 @@ class optimizer(backend_optimizer):
         getting and setting this property requires an index and calls this function.
         The power index (elements are seperated by comas) must contain atleast the following elements:
 
-        1. ``var_type``: Valid options are ``_x``, ``_u`` and ``_z`` or their aliases ``states``, ``inputs``, ``algebraic``.
+        1. ``var_type``: Valid options are ``_x``, ``_u`` and ``_z`` (and ``_p_est`` for MHE).
 
         2. ``var_name``: Variable names that were previously defined in the :py:class:`do_mpc.model`.
 
@@ -265,56 +247,47 @@ class optimizer(backend_optimizer):
         :param ind: power index with elements mentioned above.
         :type ind: tuple
         """
-        assert isinstance(ind, tuple), 'Power index must include var_type and var_name (as a tuple)'
-        assert len(ind)>=2, 'Power index must at least contain two elements.'
+        assert isinstance(ind, tuple), 'Power index must include bound_type, var_type, var_name (as a tuple).'
+        assert len(ind)>=2, 'Power index must include bound_type, var_type, var_name (as a tuple).'
         var_type   = ind[0]
         var_name   = ind[1:]
 
-        assert isinstance(var_type, str), 'Invalid power index {} for var_type. Must be a string.'.format(var_type)
-        assert var_type in ('_x', 'states', '_u', 'inputs', '_z', 'algebraic'), 'Invalid power index {} for var_type. Must be from (_x, states, _u, inputs, _z, algebraic).'.format(var_type)
+        err_msg = 'Invalid power index {} for var_type. Must be from (_x, states, _u, inputs, _z, algebraic).'
+        assert var_type in ('_x', '_u', '_z', '_p_est'), err_msg.format(var_type)
 
-        msg = 'Calling optimizer.scaling with {} is not valid. Possible keys are {}.'
-        if var_type in ('_x', 'states'):
-            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._x_scaling.keys(), msg.format(ind, self._x_scaling.keys())
-        if var_type in ('_u', 'inputs'):
-            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._u_scaling.keys(), msg.format(ind, self._u_scaling.keys())
-        if var_type in ('_z', 'algebraic'):
-            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._z_scaling.keys(), msg.format(ind, self._z_scaling.keys())
+        query = '{var_type}_scaling'.format(var_type=var_type)
+        # query results string e.g. _x_scaling, _u_scaling
 
-        if var_type in ('_x', 'states'):
-            rval = self._x_scaling[var_name]
-        if var_type in ('_u', 'inputs'):
-            rval = self._u_scaling[var_name]
-        if var_type in ('_z', 'algebraic'):
-            rval = self._z_scaling[var_name]
+        # Get the desired struct:
+        var_struct = getattr(self, query)
 
-        return rval
+        err_msg = 'Calling .scaling with {} is not valid. Possible keys are {}.'
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
+
+        return var_struct[var_name]
+
 
     @scaling.setter
     def scaling(self, ind, val):
         """See Docstring for scaling getter method"""
-        assert len(ind)>=2, 'Power index must at least contain two elements.'
+        assert isinstance(ind, tuple), 'Power index must include bound_type, var_type, var_name (as a tuple).'
+        assert len(ind)>=2, 'Power index must include bound_type, var_type, var_name (as a tuple).'
         var_type   = ind[0]
         var_name   = ind[1:]
 
-        assert isinstance(var_type, str), 'Invalid power index {} for var_type. Must be a string.'.format(var_type)
-        assert var_type in ('_x', 'states', '_u', 'inputs', '_z', 'algebraic'), 'Invalid power index {} for var_type. Must be from (_x, states, _u, inputs, _z, algebraic).'.format(var_type)
+        err_msg = 'Invalid power index {} for var_type. Must be from (_x, states, _u, inputs, _z, algebraic).'
+        assert var_type in ('_x', '_u', '_z', '_p_est'), err_msg.format(var_type)
 
-        msg = 'Calling optimizer.scaling with {} is not valid. Possible keys are {}.'
-        if var_type in ('_x', 'states'):
-            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._x_scaling.keys(), msg.format(ind, self._x_scaling.keys())
-        if var_type in ('_u', 'inputs'):
-            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._u_scaling.keys(), msg.format(ind, self._u_scaling.keys())
-        if var_type in ('_z', 'algebraic'):
-            assert (var_name[0] if isinstance(var_name, tuple) else var_name) in self._z_scaling.keys(), msg.format(ind, self._z_scaling.keys())
+        query = '{var_type}_scaling'.format(var_type=var_type)
+        # query results string e.g. _x_scaling, _u_scaling
 
+        # Get the desired struct:
+        var_struct = getattr(self, query)
 
-        if var_type in ('_x', 'states'):
-            self._x_scaling[var_name] = val
-        if var_type in ('_u', 'inputs'):
-            self._u_scaling[var_name] = val
-        if var_type in ('_z', 'algebraic'):
-            self._z_scaling[var_name] = val
+        err_msg = 'Calling .scaling with {} is not valid. Possible keys are {}.'
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
+
+        var_struct[var_name] = val
 
     def set_initial_state(self, x0, p_est0=None, reset_history=False, set_intial_guess=True):
         """Set the intial state of the optimizer/estimator.
