@@ -787,7 +787,8 @@ class optimizer(backend_optimizer):
         If selected, initialize the container for the full solution of the optimizer.
         """
         meta_data = {key: getattr(self, key) for key in self.data_fields}
-        meta_data.update({'structure_scenario': self.scenario_tree['structure_scenario']})
+        if not isinstance(self, do_mpc.estimator.mhe):
+            meta_data.update({'structure_scenario': self.scenario_tree['structure_scenario']})
         self.data.set_meta(**meta_data)
 
         if self.store_full_solution == True:

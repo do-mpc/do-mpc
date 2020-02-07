@@ -308,7 +308,7 @@ class mhe(do_mpc.optimizer):
         self.flags['setup'] = True
 
         self.set_initial_guess()
-        #self.prepare_data()
+        self.prepare_data()
 
     def make_step(self, y0):
 
