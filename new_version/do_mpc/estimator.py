@@ -300,9 +300,11 @@ class mhe(do_mpc.optimizer):
             self._nl_cons_lb[nl_cons_i['expr_name']] = nl_cons_i['lb']
 
         self.check_validity()
-
         self.setup_mhe()
         self.flags['setup'] = True
+
+        self.set_initial_guess()
+        #self.prepare_data()
 
     def make_step(self, y0):
 
@@ -345,4 +347,4 @@ class mhe(do_mpc.optimizer):
         self._x0 = x_next
         self._p_est0 = p_est_next
 
-        return x0
+        return x_next
