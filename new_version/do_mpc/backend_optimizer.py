@@ -430,10 +430,12 @@ class backend_optimizer:
         cons_ub = []
 
         # Arrival cost:
-        arrival_cost = self.arrival_cost_fun(opt_x['_x', 0, -1],
+        arrival_cost = self.arrival_cost_fun(
+            opt_x['_x', 0, -1],
             opt_p['_x_prev']/self._x_scaling,
             opt_x['_p_est'],
-            opt_p['_p_prev']/self._p_est_scaling)
+            opt_p['_p_prev']/self._p_est_scaling
+            )
 
         obj += arrival_cost
 
@@ -465,7 +467,7 @@ class backend_optimizer:
 
 
             obj += self.obj_fun(
-                opt_x_unscaled['_x', k, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1],
+                opt_x_unscaled['_x', k+1, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1],
                 opt_p['_tvp', k], _p, opt_p['_y_meas', k]
             )
 
