@@ -28,7 +28,7 @@ import do_mpc
 import pickle
 
 
-class model_data:
+class Data:
     def __init__(self, model):
         self.dtype = 'default'
         assert model.flags['setup'] == True, 'Model was not setup. After the complete model creation call model.setup_model().'
@@ -123,62 +123,6 @@ class model_data:
         """
         export_dict = {field_name: getattr(self, field_name) for field_name in self.data_fields}
         return export_dict
-
-
-class optimizer_data(model_data):
-    """Extension of the model_data class. All model specific fields are inherited and optimizer specific values are added.
-    These include information about:
-
-    * _cost
-
-    * _cpu
-
-    Sets dtype attribute to optimizer.
-    """
-    def __init__(self, model):
-        super().__init__(model)
-        self.dtype = 'optimizer'
-
-        self.data_fields.update({
-            '_cost': 1,
-            '_cpu':  1,
-            'opt_x_num': 0,
-        })
-        self.init_storage()
-
-
-class observer_data(model_data):
-    """Extension of the model_data class. All model specific fields are inherited and observer specific values are added.
-    These include information about:
-
-    Sets dtype attribute to estimator.
-    """
-    def __init__(self, model):
-        super().__init__(model)
-        self.dtype = 'estimator'
-
-        self.data_fields.update({})
-
-
-class mhe_data(observer_data):
-    """Extension of the observer_data class. All observer_data (and model data) specific fields are inherited and MHE specific values are added.
-    These include information about:
-
-    * _cost
-
-    * _cpu
-
-    Sets dtype attribute to mhe.
-    """
-    def __init__(self, model):
-        super().__init__(model)
-        self.dtype = 'mhe'
-
-        self.data_fields.update({
-            '_cost': 1,
-            '_cpu':  1,
-        })
-        self.init_storage()
 
 
 def save_results(save_list, result_name='results', result_path='./results/', overwrite=False):
