@@ -484,6 +484,10 @@ class backend_optimizer:
             self.lb_opt_x['_u', k] = self._u_lb.cat/self._u_scaling
             self.ub_opt_x['_u', k] = self._u_ub.cat/self._u_scaling
 
+        # Bounds for the inputs along the horizon
+        self.lb_opt_x['_p_est'] = self._p_est_lb.cat/self._p_est_scaling
+        self.ub_opt_x['_p_est'] = self._p_est_ub.cat/self._p_est_scaling
+
 
         cons = vertcat(*cons)
         self.cons_lb = vertcat(*cons_lb)
