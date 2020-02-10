@@ -24,13 +24,14 @@ import numpy as np
 from casadi import *
 from casadi.tools import *
 import pdb
-import do_mpc.data
-import do_mpc.optimizer
 import copy
 from indexedproperty import IndexedProperty
 
+import do_mpc.optimizer
+import do_mpc.data
 
-class estimator:
+
+class Estimator:
     def __init__(self, model):
         self.model = model
 
@@ -42,6 +43,7 @@ class estimator:
         self._t0 = np.array([0.0])
 
         self.data = do_mpc.data.Data(model)
+        self.data.dtype = 'Estimator'
 
 
     def set_initial_state(self, x0, reset_history=False):
@@ -74,14 +76,14 @@ class estimator:
         self.data.init_storage()
 
 
-class state_feedback(estimator):
+class StateFeedback(Estimator):
     def __init__(self, model):
         super().__init__(model)
 
     def make_step(self, y0):
         return y0
 
-class ekf(estimator):
+class EKF(Estimator):
     def __init__(self, model):
         raise Exception('EKF is not currently supported. This is a placeholder.')
         super().__init__(model)
@@ -89,9 +91,10 @@ class ekf(estimator):
     def make_step(self, y0):
         None
 
-class mhe(do_mpc.optimizer):
+class MHE(do_mpc.optimizer.Optimizer, Estimator):
     def __init__(self, model, p_est_list=[]):
-        super().__init__(model)
+        Estimator.__init__(self, model)
+        do_mpc.optimizer.Optimizer.__init__(self, model)
 
             # Parameters that can be set for the MHE:
         self.data_fields = [
@@ -182,6 +185,75 @@ class mhe(do_mpc.optimizer):
     @vars.setter
     def vars(self, ind, val):
         raise Exception('Setting MHE variables is not allowed.')
+
+
+    def set_param(self, **kwargs):
+        """Method to set the parameters of the mhe class. Parameters must be passed as pairs of valid keywords and respective argument.
+        For example:
+        ::
+            mhe.set_param(n_horizon = 20)
+
+        It is also possible and convenient to pass a dictionary with multiple parameters simultaneously as shown in the following example:
+        ::
+            setup_optimizer = {
+                'n_horizon': 20,
+                't_step': 0.5,
+            }
+            mhe.set_param(**setup_optimizer)
+
+        .. note:: :py:func:`mhe.set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
+
+        The following parameters are available:
+
+        :param n_horizon: Prediction horizon of the optimal control problem. Parameter must be set by user.
+        :type n_horizon: int
+
+        :param t_step: Timestep of the mhe.
+        :type t_step: float
+
+        :param meas_from_data: Default option to retrieve past measurements for the MHE optimization problem.
+        :type meas_from_data: bool
+
+        :param state_discretization: Choose the state discretization for continuous models. Currently only ``'collocation'`` is available. Defaults to ``'collocation'``.
+        :type state_discretization: str
+
+        :param collocation_type: Choose the collocation type for continuous models with collocation as state discretization. Currently only ``'radau'`` is available. Defaults to ``'radau'``.
+        :type collocation_type: str
+
+        :param collocation_deg: Choose the collocation degree for continuous models with collocation as state discretization. Defaults to ``2``.
+        :type collocation_deg: int
+
+        :param collocation_ni: Choose the collocation ni for continuous models with collocation as state discretization. Defaults to ``1``.
+        :type collocation_ni: int
+
+        :param store_full_solution: Choose whether to store the full solution of the optimization problem. This is required for animating the predictions in post processing. However, it drastically increases the required storage. Defaults to False.
+        :type store_full_solution: bool
+
+        :param store_lagr_multiplier: Choose whether to store the lagrange multipliers of the optimization problem. Increases the required storage. Defaults to ``True``.
+        :type store_lagr_multiplier: bool
+
+        :param store_solver_stats: Choose which solver statistics to store. Must be a list of valid statistics. Defaults to ``['success','t_wall_S','t_wall_S']``.
+        :type store_solver_stats: list
+
+        :param nlpsol_opts: Dictionary with options for the CasADi solver call ``nlpsol`` with plugin ``ipopt``. All options are listed `here <http://casadi.sourceforge.net/api/internal/d4/d89/group__nlpsol.html>`_.
+        :type store_solver_stats: dict
+
+        .. note:: We highly suggest to change the linear solver for IPOPT from `mumps` to `MA27`. In many cases this will drastically boost the speed of **do mpc**. Change the linear solver with:
+            ::
+                optimizer.set_param(nlpsol_opts = {'ipopt.linear_solver': 'MA27'})
+        .. note:: To surpress the output of IPOPT, please use:
+            ::
+                surpress_ipopt = {'ipopt.print_level':0, 'ipopt.sb': 'yes', 'print_time':0}
+                optimizer.set_param(nlpsol_opts = surpress_ipopt)
+
+        """
+        assert self.flags['setup'] == False, 'Setting parameters after setup is prohibited.'
+
+        for key, value in kwargs.items():
+            if not (key in self.data_fields):
+                print('Warning: Key {} does not exist for optimizer.'.format(key))
+            else:
+                setattr(self, key, value)
 
     def set_objective(self, obj, arrival_cost):
         assert obj.shape == (1,1), 'obj must have shape=(1,1). You have {}'.format(obj.shape)
@@ -303,8 +375,12 @@ class mhe(do_mpc.optimizer):
         for nl_cons_i in self.nl_cons_list:
             self._nl_cons_lb[nl_cons_i['expr_name']] = nl_cons_i['lb']
 
+        # Gather meta information:
+        meta_data = {key: getattr(self, key) for key in self.data_fields}
+        self.data.set_meta(**meta_data)
+
         self.check_validity()
-        self.setup_mhe()
+        self._setup_mhe_optim_problem()
         self.flags['setup'] = True
 
         self.set_initial_guess()
@@ -332,13 +408,15 @@ class mhe(do_mpc.optimizer):
 
         self.solve()
 
-        x_next = self._x0 = self.opt_x_num['_x', -1, -1]*self._x_scaling
+        # Extract solution:
+        x_next = self.opt_x_num['_x', -1, -1]*self._x_scaling
         p_est_next = self._p_est0 = self.opt_x_num['_p_est']*self._p_est_scaling
-        u0 = self._u0 = self.opt_x_num['_u', -1]*self._u_scaling
-        z0 = self._z0 = self.opt_x_num['_z', -1, -1]*self._z_scaling
+        u0 = self.opt_x_num['_u', -1]*self._u_scaling
+        z0  = self.opt_x_num['_z', -1, -1]*self._z_scaling
         aux0 = self.opt_aux_num['_aux', -1]
         p0 = self._p_cat_fun(p_est0, p_set0)
 
+        # Update data object:
         self.data.update(_x = x0)
         self.data.update(_u = u0)
         self.data.update(_z = z0)
@@ -348,7 +426,143 @@ class mhe(do_mpc.optimizer):
 
         # Update initial
         self._t0 = self._t0 + self.t_step
-        self._x0 = x_next
-        self._p_est0 = p_est_next
+        self._x0.master = x_next
+        self._p_est0.master = p_est_next
+        self._u0.master = u0
+        self._z0.master = z0
 
-        return x_next
+        return x_next.full()
+
+    def _setup_mhe_optim_problem(self):
+        # Obtain an integrator (collocation, discrete-time) and the amount of intermediate (collocation) points
+        ifcn, n_total_coll_points = self._setup_discretization()
+        # Create struct for optimization variables:
+        self.opt_x = opt_x = struct_symSX([
+            entry('_x', repeat=[self.n_horizon+1, 1+n_total_coll_points], struct=self.model._x),
+            entry('_z', repeat=[self.n_horizon,   1+n_total_coll_points], struct=self.model._z),
+            entry('_u', repeat=[self.n_horizon], struct=self.model._u),
+            entry('_p_est', struct=self._p_est),
+        ])
+        self.n_opt_x = self.opt_x.shape[0]
+        # NOTE: The entry _x[k,:] starts with the collocation points from s to b at time k
+        #       and the last point contains the child node
+        # NOTE: Currently there exist dummy collocation points for the initial state (for each branch)
+
+        # Create scaling struct as assign values for _x, _u, _z.
+        self.opt_x_scaling = opt_x_scaling = opt_x(1)
+        opt_x_scaling['_x'] = self._x_scaling
+        opt_x_scaling['_z'] = self._z_scaling
+        opt_x_scaling['_u'] = self._u_scaling
+        opt_x_scaling['_p_est'] = self._p_est_scaling
+        # opt_x are unphysical (scaled) variables. opt_x_unscaled are physical (unscaled) variables.
+        self.opt_x_unscaled = opt_x_unscaled = opt_x(opt_x.cat * opt_x_scaling)
+
+
+        # Create struct for optimization parameters:
+        self.opt_p = opt_p = struct_symSX([
+            entry('_x_prev', struct=self.model._x),
+            entry('_p_prev', struct=self._p_prev),
+            entry('_p_set', struct=self._p_set),
+            entry('_tvp', repeat=self.n_horizon, struct=self.model._tvp),
+            entry('_y_meas', repeat=self.n_horizon, struct=self.model._y),
+        ])
+
+        # Dummy struct with symbolic variables
+        self.aux_struct = struct_symSX([
+            entry('_aux', repeat=[self.n_horizon], struct=self.model._aux_expression)
+        ])
+        # Create mutable symbolic expression from the struct defined above.
+        self.opt_aux = opt_aux = struct_SX(self.aux_struct)
+
+        self.n_opt_aux = self.opt_aux.shape[0]
+
+        self.lb_opt_x = opt_x(-np.inf)
+        self.ub_opt_x = opt_x(np.inf)
+
+        # Initialize objective function and constraints
+        obj = 0
+        cons = []
+        cons_lb = []
+        cons_ub = []
+
+        # Arrival cost:
+        arrival_cost = self.arrival_cost_fun(
+            opt_x['_x', 0, -1],
+            opt_p['_x_prev']/self._x_scaling,
+            opt_x['_p_est'],
+            opt_p['_p_prev']/self._p_est_scaling
+            )
+
+        obj += arrival_cost
+
+        # Get concatenated parameters vector containing the estimated and fixed parameters.
+        _p = self._p_cat_fun(self.opt_x['_p_est'], self.opt_p['_p_set'])
+
+        # For all control intervals
+        for k in range(self.n_horizon):
+            # Compute constraints and predicted next state of the discretization scheme
+            [g_ksb, xf_ksb] = ifcn(opt_x['_x', k, -1], vertcat(*opt_x['_x', k+1, :-1]),
+                                   opt_x['_u', k], vertcat(*opt_x['_z', k, :]), opt_p['_tvp', k], _p)
+
+            # Add the collocation equations
+            cons.append(g_ksb)
+            cons_lb.append(np.zeros(g_ksb.shape[0]))
+            cons_ub.append(np.zeros(g_ksb.shape[0]))
+
+            # Add continuity constraints
+            cons.append(xf_ksb - opt_x['_x', k+1, -1])
+            cons_lb.append(np.zeros((self.model.n_x, 1)))
+            cons_ub.append(np.zeros((self.model.n_x, 1)))
+
+            # Add nonlinear constraints only on each control step
+            nl_cons_k = self._nl_cons_fun(
+                opt_x_unscaled['_x', k, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1], opt_p['_tvp', k], _p)
+            cons.append(nl_cons_k)
+            cons_lb.append(self._nl_cons_lb)
+            cons_ub.append(self._nl_cons_ub)
+
+
+            obj += self.obj_fun(
+                opt_x_unscaled['_x', k+1, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1],
+                opt_p['_tvp', k], _p, opt_p['_y_meas', k]
+            )
+
+
+            # Calculate the auxiliary expressions for the current scenario:
+            opt_aux['_aux', k] = self.model._aux_expression_fun(
+                opt_x_unscaled['_x', k, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1], opt_p['_tvp', k], _p)
+
+            # Bounds for the states on all discretize values along the horizon
+            self.lb_opt_x['_x', k] = self._x_lb.cat/self._x_scaling
+            self.ub_opt_x['_x', k] = self._x_ub.cat/self._x_scaling
+
+            # Bounds for the inputs along the horizon
+            self.lb_opt_x['_u', k] = self._u_lb.cat/self._u_scaling
+            self.ub_opt_x['_u', k] = self._u_ub.cat/self._u_scaling
+
+        # Bounds for the inputs along the horizon
+        self.lb_opt_x['_p_est'] = self._p_est_lb.cat/self._p_est_scaling
+        self.ub_opt_x['_p_est'] = self._p_est_ub.cat/self._p_est_scaling
+
+
+        cons = vertcat(*cons)
+        self.cons_lb = vertcat(*cons_lb)
+        self.cons_ub = vertcat(*cons_ub)
+
+        self.n_opt_lagr = cons.shape[0]
+        # Create casadi optimization object:
+        nlpsol_opts = {
+            'expand': False,
+            'ipopt.linear_solver': 'mumps',
+        }.update(self.nlpsol_opts)
+        nlp = {'x': vertcat(opt_x), 'f': obj, 'g': cons, 'p': vertcat(opt_p)}
+        self.S = nlpsol('S', 'ipopt', nlp, self.nlpsol_opts)
+
+        # Create copies of these structures with numerical values (all zero):
+        self.opt_x_num = self.opt_x(0)
+        self.opt_x_num_unscaled = self.opt_x(0)
+        self.opt_p_num = self.opt_p(0)
+        self.opt_aux_num = self.opt_aux(0)
+
+        # Create function to caculate all auxiliary expressions:
+        self.opt_aux_expression_fun = Function('opt_aux_expression_fun', [opt_x, opt_p], [opt_aux])

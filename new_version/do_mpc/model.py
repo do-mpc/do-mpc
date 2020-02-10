@@ -26,7 +26,7 @@ from casadi.tools import *
 import pdb
 
 
-class model:
+class Model:
     """The "**do mpc**" model class. This class holds the full model description and is at the core of
     :py:class:`do_mpc.simulator`, :py:class:`do_mpc.optimizer` and :py:class:`do_mpc.estimator`.
     The :py:class:`do_mpc.model` class is created with setting the `model_type` (continuous or discrete).

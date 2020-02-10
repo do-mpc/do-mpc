@@ -25,46 +25,18 @@ from casadi import *
 from casadi.tools import *
 import pdb
 import itertools
-import do_mpc.data
-from do_mpc import backend_optimizer
 from indexedproperty import IndexedProperty
 import time
 
 
-class optimizer(backend_optimizer):
-    """This is where the magic happens. The optimizer class is used to configure, setup and solve the MPC optimization problem
-    for robust optimal control. The ocp is constructed based on the supplied instance of :py:class:`do_mpc.model`, which must be configured beforehand.
 
-    **Configuration and setup:**
 
-    Configuring and setting up the optimizer involves the following steps:
 
-    1. Use :py:func:`optimizer.set_param` to configure the :py:class:`optimizer`. See docstring for details.
-
-    2. Use :py:meth:`do_mpc.model.get_variables` to obtain the variables defined in :py:class:`do_mpc.model` and express the objective of the optimization problem in terms of these variables.
-
-    3. Set the objective of the control problem with :py:func:`optimizer.set_objective`.
-
-    4. Use :py:func:`optimizer.get_rterm` to obtain the structure of weighting parameters to penalize changes in the input and set appropriate values.  See docstring for details.
-
-    5. Set upper and lower bounds.
-
-    6. Optionally, set further (non-linear) constraints with :py:func:`optimizer.set_nl_cons`. See docstring for details.
-
-    7. Use the low-level API (:py:func:`optimizer.get_p_template` and :py:func:`optimizer.set_p_fun`) or high level API (:py:func:`optimizer.set_uncertainty_values`) to create scenarios for robust MPC. See docstrings for details.
-
-    8. Finally, call :py:func:`optimizer.setup`.
+class Optimizer:
+    """Docstring
 
     """
     def __init__(self, model):
-        super().__init__()
-
-        self.model = model
-
-        assert model.flags['setup'] == True, 'Model for optimizer was not setup. After the complete model creation call model.setup_model().'
-
-        self.data = do_mpc.data.Data(self.model)
-
 
         # Initialize structures for bounds, scaling, initial values by calling the symbolic structures defined in the model
         # with the default numerical value.
@@ -72,9 +44,6 @@ class optimizer(backend_optimizer):
 
         self._x_lb = model._x(-np.inf)
         self._x_ub = model._x(np.inf)
-
-        self._x_terminal_lb = model._x(-np.inf)
-        self._x_terminal_ub = model._x(np.inf)
 
         self._u_lb = model._u(-np.inf)
         self._u_ub = model._u(np.inf)
@@ -86,58 +55,11 @@ class optimizer(backend_optimizer):
         self._u_scaling = model._u(1.0)
         self._z_scaling = model._z(1.0)
 
-        self.rterm_factor = self.model._u(0.0)
-
-        self._x0 = model._x(0.0)
-        self._u0 = model._u(0.0)
-        self._z0 = model._z(0.0)
-        self._t0 = np.array([0.0])
-
         # Lists for further non-linear constraints (optional). Constraints are formulated as lb < cons < 0
         self.nl_cons_list = [
             {'expr_name': 'default', 'expr': DM(), 'lb': DM()}
         ]
 
-        # Parameters that can be set for the optimizer:
-        self.data_fields = [
-            'n_horizon',
-            'n_robust',
-            'open_loop',
-            't_step',
-            'state_discretization',
-            'collocation_type',
-            'collocation_deg',
-            'collocation_ni',
-            'store_full_solution',
-            'store_lagr_multiplier',
-            'store_solver_stats',
-            'nlpsol_opts'
-        ]
-
-        # Default Parameters:
-        self.n_robust = 0
-        self.state_discretization = 'collocation'
-        self.collocation_type = 'radau'
-        self.collocation_deg = 2
-        self.collocation_ni = 1
-        self.open_loop = False
-        self.store_full_solution = False
-        self.store_lagr_multiplier = True
-        self.store_solver_stats = [
-            'success',
-            't_wall_S',
-            't_wall_S',
-        ]
-        self.nlpsol_opts = {} # Will update default options with this dict.
-
-        # Flags are checked when calling .setup_optimizer.
-        self.flags = {
-            'setup': False,
-            'set_objective': False,
-            'set_rterm': False,
-            'set_tvp_fun': False,
-            'set_p_fun': False,
-        }
 
     @IndexedProperty
     def bounds(self, ind):
@@ -337,78 +259,40 @@ class optimizer(backend_optimizer):
         self.data.init_storage()
         self._t0 = np.array([0])
 
-    def set_param(self, **kwargs):
-        """Method to set the parameters of the optimizer class. Parameters must be passed as pairs of valid keywords and respective argument.
-        For example:
-        ::
-            optimizer.set_param(n_horizon = 20)
-
-        It is also possible and convenient to pass a dictionary with multiple parameters simultaneously as shown in the following example:
-        ::
-            setup_optimizer = {
-                'n_horizon': 20,
-                't_step': 0.5,
-            }
-            optimizer.set_param(**setup_optimizer)
-
-        .. note:: :py:func:`optimizer.set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
-
-        The following parameters are available:
-
-        :param n_horizon: Prediction horizon of the optimal control problem. Parameter must be set by user.
-        :type n_horizon: int
-
-        :param n_robust: Robust horizon for robust scenario-tree MPC, defaults to ``0``. Optimization problem grows exponentially with ``n_robust``.
-        :type n_robust: int , optional
-
-        :param open_loop: Setting for scenario-tree MPC: If the parameter is ``False``, for each timestep **AND** scenario an individual control input is computed. If set to ``True``, the same control input is used for each scenario. Defaults to False.
-        :type open_loop: bool , optional
-
-        :param t_step: Timestep of the optimizer.
-        :type t_step: float
-
-        :param state_discretization: Choose the state discretization for continuous models. Currently only ``'collocation'`` is available. Defaults to ``'collocation'``.
-        :type state_discretization: str
-
-        :param collocation_type: Choose the collocation type for continuous models with collocation as state discretization. Currently only ``'radau'`` is available. Defaults to ``'radau'``.
-        :type collocation_type: str
-
-        :param collocation_deg: Choose the collocation degree for continuous models with collocation as state discretization. Defaults to ``2``.
-        :type collocation_deg: int
-
-        :param collocation_ni: Choose the collocation ni for continuous models with collocation as state discretization. Defaults to ``1``.
-        :type collocation_ni: int
-
-        :param store_full_solution: Choose whether to store the full solution of the optimization problem. This is required for animating the predictions in post processing. However, it drastically increases the required storage. Defaults to False.
-        :type store_full_solution: bool
-
-        :param store_lagr_multiplier: Choose whether to store the lagrange multipliers of the optimization problem. Increases the required storage. Defaults to ``True``.
-        :type store_lagr_multiplier: bool
-
-        :param store_solver_stats: Choose which solver statistics to store. Must be a list of valid statistics. Defaults to ``['success','t_wall_S','t_wall_S']``.
-        :type store_solver_stats: list
-
-        :param nlpsol_opts: Dictionary with options for the CasADi solver call ``nlpsol`` with plugin ``ipopt``. All options are listed `here <http://casadi.sourceforge.net/api/internal/d4/d89/group__nlpsol.html>`_.
-        :type store_solver_stats: dict
-
-        .. note:: We highly suggest to change the linear solver for IPOPT from `mumps` to `MA27`. In many cases this will drastically boost the speed of **do mpc**. Change the linear solver with:
-            ::
-                optimizer.set_param(nlpsol_opts = {'ipopt.linear_solver': 'MA27'})
-        .. note:: To surpress the output of IPOPT, please use:
-            ::
-                surpress_ipopt = {'ipopt.print_level':0, 'ipopt.sb': 'yes', 'print_time':0}
-                optimizer.set_param(nlpsol_opts = surpress_ipopt)
+    def prepare_data(self):
+        """Write optimizer meta data to data object (all params set in self.data_fields).
+        If selected, initialize the container for the full solution of the optimizer.
         """
-        assert self.flags['setup'] == False, 'Setting parameters after setup is prohibited.'
 
-        for key, value in kwargs.items():
-            if not (key in self.data_fields):
-                print('Warning: Key {} does not exist for optimizer.'.format(key))
-            else:
-                setattr(self, key, value)
+        if self.store_full_solution == True:
+            # Create data_field for the optimal solution.
+            self.data.data_fields.update({'_opt_x_num': self.n_opt_x})
+            self.data.data_fields.update({'_opt_aux_num': self.n_opt_aux})
+            self.data.opt_x = self.opt_x
+            # aux_struct is the struct_symSX variant of opt_aux (which is struct_SX). struct_SX cannot be unpickled (bug).
+            # See: https://groups.google.com/forum/#!topic/casadi-users/dqAb4tnA2ik
+            self.data.opt_aux = self.aux_struct
+        if self.store_lagr_multiplier == True:
+            # Create data_field for the lagrange multipliers
+            self.data.data_fields.update({'_lam_g_num': self.n_opt_lagr})
+        if len(self.store_solver_stats) > 0:
+            # These are valid arguments for solver stats:
+            solver_stats = ['iter_count', 'iterations', 'n_call_S', 'n_call_callback_fun',
+                            'n_call_nlp_f', 'n_call_nlp_g', 'n_call_nlp_grad', 'n_call_nlp_grad_f',
+                            'n_call_nlp_hess_l', 'n_call_nlp_jac_g', 'return_status', 'success', 't_proc_S',
+                            't_proc_callback_fun', 't_proc_nlp_f', 't_proc_nlp_g', 't_proc_nlp_grad',
+                            't_proc_nlp_grad_f', 't_proc_nlp_hess_l', 't_proc_nlp_jac_g', 't_wall_S',
+                            't_wall_callback_fun', 't_wall_nlp_f', 't_wall_nlp_g', 't_wall_nlp_grad', 't_wall_nlp_grad_f',
+                            't_wall_nlp_hess_l', 't_wall_nlp_jac_g']
+            # Create data_field(s) for the recorded (valid) stats.
+            for stat_i in self.store_solver_stats:
+                assert stat_i in solver_stats, 'The requested {} is not a valid solver stat and cannot be recorded. Please supply one of the following (or none): {}'.format(stat_i, solver_stats)
+                self.data.data_fields.update({stat_i: 1})
+
+        self.data.init_storage()
 
     def set_nl_cons(self, expr_name, expr, lb=-np.inf):
-        """Introduce new constraint to the optimizer class. Further constraints are optional.
+        """Introduce new constraint to the class. Further constraints are optional.
         Expressions must be formulated with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
 
         :param expr_name: Arbitrary name for the given expression. Names are used for key word indexing.
@@ -430,70 +314,6 @@ class optimizer(backend_optimizer):
         self.nl_cons_list.extend([{'expr_name': expr_name, 'expr': expr, 'lb' : lb}])
 
         return expr
-
-
-    def set_objective(self, mterm=None, lterm=None):
-        """Sets the objective of the optimal control problem (OCP). We introduce the following notation:
-
-        .. math::
-
-           \min_{x,u,z}\quad \sum_{k=0}^{n-1} ( l(x_k,u_k,z_k,p) + \Delta u_k^T R \Delta u_k ) + m(x_n)
-
-        :py:func:`optimizer.set_objective` is used to set the :math:`l(x_k,u_k,z_k,p)` (``lterm``) and :math:`m(x_N)` (``lterm``), where ``N`` is the prediction horizon.
-        Please see :py:func:`optimizer.set_rterm` for the ``rterm``.
-
-        :param lterm: Stage cost - **scalar** symbolic expression with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``
-        :type lterm:  CasADi SX or MX
-        :param mterm: Terminal cost - **scalar** symbolic expression with respect to ``_x``
-        :type mterm: CasADi SX or MX
-
-        :raises assertion: mterm must have shape=(1,1) (scalar expression)
-        :raises assertion: lterm must have shape=(1,1) (scalar expression)
-
-        :return: None
-        :rtype: None
-        """
-        assert mterm.shape == (1,1), 'mterm must have shape=(1,1). You have {}'.format(mterm.shape)
-        assert lterm.shape == (1,1), 'lterm must have shape=(1,1). You have {}'.format(lterm.shape)
-        assert self.flags['setup'] == False, 'Cannot call .set_objective after .setup_model.'
-
-        self.flags['set_objective'] = True
-        # TODO: Add docstring
-        _x, _u, _z, _tvp, _p, _aux,  *_ = self.model.get_variables()
-
-        # TODO: Check if this is only a function of x
-        self.mterm = mterm
-        # TODO: This function should be evaluated with scaled variables.
-        self.mterm_fun = Function('mterm', [_x], [mterm])
-
-        self.lterm = lterm
-        self.lterm_fun = Function('lterm', [_x, _u, _z, _tvp, _p], [lterm])
-
-    def set_rterm(self, **kwargs):
-        """Set the penality factor for the inputs. Call this function with keyword argument refering to the input names in
-        :py:class:`model` and the penalty factor as the respective value.
-
-        Example:
-        ::
-            # in model definition:
-            Q_heat = model.set_variable(var_type='_u', var_name='Q_heat')
-            F_flow = model.set_variable(var_type='_u', var_name='F_flow')
-
-            ...
-            # in optimizer configuration:
-            optimizer.set_rterm(Q_heat = 10)
-            optimizer.set_rterm(F_flow = 10)
-            # or alternatively:
-            optimizer.set_rterm(Q_heat = 10, F_flow = 10)
-        """
-        assert self.flags['setup'] == False, 'Cannot call .set_rterm after .setup_model.'
-
-        self.flags['set_rterm'] = True
-        for key, val in kwargs.items():
-            assert key in self.model._u.keys(), 'Must pass keywords that refer to input names defined in model. Valid is: {}. You have: {}'.format(self.model._u.keys(), key)
-            assert isinstance(val, (int, float, np.ndarray)), 'Value for {} must be int, float or numpy.ndarray. You have: {}'.format(key, type(val))
-            self.rterm_factor[key] = val
-
 
     def get_tvp_template(self):
         """The method returns a structured object with n_horizon elements, and a set of time varying parameters (as defined in model)
@@ -574,262 +394,6 @@ class optimizer(backend_optimizer):
 
         self.tvp_fun = tvp_fun
 
-    def get_p_template(self, n_combinations):
-        """ Low level API method to set user defined scenarios for robust MPC but defining an arbitrary number
-        of combinations for the parameters defined in the model. The method returns a structured object which is
-        initialized with all zeros. Use this object to define value of the parameters for an arbitrary number of scenarios (defined by n_scenarios).
-
-        This structure (with numerical values) should be used as the output of the p_fun function which is set to the class with .set_p_fun (see doc string).
-
-        Use the combination of .get_p_template() and .set_p_template() as a more adaptable alternative to .set_uncertainty_values().
-
-        Example:
-        ::
-            # in model definition:
-            alpha = model.set_variable(var_type='_p', var_name='alpha')
-            beta = model.set_variable(var_type='_p', var_name='beta')
-
-            ...
-            # in optimizer configuration:
-            n_combinations = 3
-            p_template = optimizer.get_p_template(n_combinations)
-            p_template['_p',0] = np.array([1,1])
-            p_template['_p',1] = np.array([0.9, 1.1])
-            p_template['_p',2] = np.array([1.1, 0.9])
-
-            def p_fun(t_now):
-                return p_template
-
-            optimizer.set_p_fun(p_fun)
-
-        Note the nominal case is now:
-        alpha = 1
-        beta = 1
-        which is determined by the order in the arrays above (first element is nominal).
-
-        :param n_combinations: Define the number of combinations for the uncertain parameters for robust MPC.
-        :type n_combinations: int
-
-        :return: None
-        :rtype: None
-        """
-        self.n_combinations = n_combinations
-        p_template = struct_symSX([
-            entry('_p', repeat=n_combinations, struct=self.model._p)
-        ])
-        return p_template(0)
-
-    def set_p_fun(self, p_fun):
-        """ Low level API method to set user defined scenarios for robust MPC but defining an arbitrary number
-        of combinations for the parameters defined in the model. The method takes as input a function, which MUST
-        return a structured object, based on the defined parameters and the number of combinations.
-        The defined function has time as a single input.
-
-        Obtain this structured object first, by calling :py:func:`optimizer.get_p_template`.
-
-        Use the combination of :py:func:`optimizer.get_p_template` and :py:func:`optimizer.set_p_fun` as a more adaptable alternative to :py:func:`optimizer.set_uncertainty_values`.
-
-        Example:
-        ::
-            # in model definition:
-            alpha = model.set_variable(var_type='_p', var_name='alpha')
-            beta = model.set_variable(var_type='_p', var_name='beta')
-
-            ...
-            # in optimizer configuration:
-            n_combinations = 3
-            p_template = optimizer.get_p_template(n_combinations)
-            p_template['_p',0] = np.array([1,1])
-            p_template['_p',1] = np.array([0.9, 1.1])
-            p_template['_p',2] = np.array([1.1, 0.9])
-
-            def p_fun(t_now):
-                return p_template
-
-            optimizer.set_p_fun(p_fun)
-
-        Note the nominal case is now:
-        alpha = 1
-        beta = 1
-        which is determined by the order in the arrays above (first element is nominal).
-
-        :param p_fun: Function which returns a structure with numerical values. Must be the same structure as obtained from :py:func:`optimizer.get_p_template`.
-        Function must have a single input (time).
-        :type p_fun: function
-
-        :return: None
-        :rtype: None
-        """
-        assert self.get_p_template(self.n_combinations).labels() == p_fun(0).labels(), 'Incorrect output of p_fun. Use get_p_template to obtain the required structure.'
-        self.flags['set_p_fun'] = True
-        self.p_fun = p_fun
-
-    def set_uncertainty_values(self, uncertainty_values):
-        """ High-level API method to conveniently set all possible scenarios for multistage MPC, given a list of uncertainty values.
-        This list must have the same number of elements as uncertain parameters in the model definition. The first element is the nominal case.
-        Each list element can be an array or list of possible values for the respective parameter.
-        Note that the order of elements determine the assignment.
-
-        Example:
-        ::
-            # in model definition:
-            alpha = model.set_variable(var_type='_p', var_name='alpha')
-            beta = model.set_variable(var_type='_p', var_name='beta')
-            ...
-            # in optimizer configuration:
-            alpha_var = np.array([1., 0.9, 1.1])
-            beta_var = np.array([1., 1.05])
-            optimizer.set_uncertainty_values([alpha_var, beta_var])
-
-        Note the nominal case is now:
-        alpha = 1
-        beta = 1
-        which is determined by the order in the arrays above (first element is nominal).
-
-        :param uncertainty_values: List of lists / numpy arrays with the same number of elements as number of parameters in model.
-        :type uncertainty_values: list
-
-        :raises asssertion: uncertainty values must be of type list
-
-        :return: None
-        :rtype: None
-        """
-        assert isinstance(uncertainty_values, list), 'uncertainty values must be of type list, you have: {}'.format(type(uncertainty_values))
-
-        p_scenario = list(itertools.product(*uncertainty_values))
-        n_combinations = len(p_scenario)
-        p_template = self.get_p_template(n_combinations)
-        p_template['_p', :] = p_scenario
-
-        def p_fun(t_now):
-            return p_template
-
-        self.set_p_fun(p_fun)
-
-    def check_validity(self):
-        # Objective mus be defined.
-        if self.flags['set_objective'] == False:
-            raise Exception('Objective is undefined. Please call .set_objective() prior to .setup().')
-        # rterm should have been set (throw warning if not)
-        if self.flags['set_rterm'] == False:
-            warning('rterm was not set and defaults to zero. Changes in the control inputs are not penalized. Can lead to oscillatory behavior.')
-            time.sleep(2)
-        # tvp_fun must be set, if tvp are defined in model.
-        if self.flags['set_tvp_fun'] == False and self.model._tvp.size > 0:
-            raise Exception('You have not supplied a function to obtain the time varying parameters defined in model. Use .set_tvp_fun() prior to setup.')
-        # p_fun must be set, if p are defined in model.
-        if self.flags['set_p_fun'] == False and self.model._p.size > 0:
-            raise Exception('You have not supplied a function to obtain the parameters defined in model. Use .set_p_fun() (low-level API) or .set_uncertainty_values() (high-level API) prior to setup.')
-
-        if np.any(self.rterm_factor.cat.full() < 0):
-            warning('You have selected negative values for the rterm penalizing changes in the control input.')
-            time.sleep(2)
-
-        # Lower bounds should be lower than upper bounds:
-        for lb, ub in zip([self._x_lb, self._u_lb, self._z_lb], [self._x_ub, self._u_ub, self._z_ub]):
-            bound_check = lb.cat > ub.cat
-            bound_fail = [label_i for i,label_i in enumerate(lb.labels()) if bound_check[i]]
-            if np.any(bound_check):
-                raise Exception('Your bounds are inconsistent. For {} you have lower bound > upper bound.'.format(bound_fail))
-
-        # Set dummy functions for tvp and p in case these parameters are unused.
-        if 'tvp_fun' not in self.__dict__:
-            _tvp = self.get_tvp_template()
-
-            def tvp_fun(t): return _tvp
-            self.set_tvp_fun(tvp_fun)
-
-        if 'p_fun' not in self.__dict__:
-            _p = self.get_p_template()
-
-            def p_fun(t): return _p
-            self.set_p_fun(p_fun)
-
-    def setup(self):
-        """The setup method finalizes the optimizer creation. After this call, the .solve() method is applicable.
-        The method wraps the following calls:
-
-        * check_validity
-
-        * setup_nlp
-
-        * set_inital_guess
-
-        * prepare_data
-
-        and sets the setup flag = True.
-
-        """
-        self.flags['setup'] = True
-
-        # Create struct for _nl_cons:
-        # Use the previously defined SX.sym variables to declare shape and symbolic variable.
-        self._nl_cons = struct_SX([
-            entry(expr_i['expr_name'], expr=expr_i['expr']) for expr_i in self.nl_cons_list
-        ])
-        # Make function from these expressions:
-        _x, _u, _z, _tvp, _p, _aux, *_ = self.model.get_variables()
-        self._nl_cons_fun = Function('nl_cons_fun', [_x, _u, _z, _tvp, _p], [self._nl_cons])
-        # Create bounds:
-        self._nl_cons_ub = self._nl_cons(0)
-        self._nl_cons_lb = self._nl_cons(-np.inf)
-        # Set bounds:
-        for nl_cons_i in self.nl_cons_list:
-            self._nl_cons_lb[nl_cons_i['expr_name']] = nl_cons_i['lb']
-
-        self.check_validity()
-        self.setup_nlp()
-        self.set_initial_guess()
-        self.prepare_data()
-
-    def prepare_data(self):
-        """Write optimizer meta data to data object (all params set in self.data_fields).
-        If selected, initialize the container for the full solution of the optimizer.
-        """
-        meta_data = {key: getattr(self, key) for key in self.data_fields}
-        if not isinstance(self, do_mpc.estimator.mhe):
-            meta_data.update({'structure_scenario': self.scenario_tree['structure_scenario']})
-        self.data.set_meta(**meta_data)
-
-        if self.store_full_solution == True:
-            # Create data_field for the optimal solution.
-            self.data.data_fields.update({'_opt_x_num': self.n_opt_x})
-            self.data.data_fields.update({'_opt_aux_num': self.n_opt_aux})
-            self.data.opt_x = self.opt_x
-            # aux_struct is the struct_symSX variant of opt_aux (which is struct_SX). struct_SX cannot be unpickled (bug).
-            # See: https://groups.google.com/forum/#!topic/casadi-users/dqAb4tnA2ik
-            self.data.opt_aux = self.aux_struct
-        if self.store_lagr_multiplier == True:
-            # Create data_field for the lagrange multipliers
-            self.data.data_fields.update({'_lam_g_num': self.n_opt_lagr})
-        if len(self.store_solver_stats) > 0:
-            # These are valid arguments for solver stats:
-            solver_stats = ['iter_count', 'iterations', 'n_call_S', 'n_call_callback_fun',
-                            'n_call_nlp_f', 'n_call_nlp_g', 'n_call_nlp_grad', 'n_call_nlp_grad_f',
-                            'n_call_nlp_hess_l', 'n_call_nlp_jac_g', 'return_status', 'success', 't_proc_S',
-                            't_proc_callback_fun', 't_proc_nlp_f', 't_proc_nlp_g', 't_proc_nlp_grad',
-                            't_proc_nlp_grad_f', 't_proc_nlp_hess_l', 't_proc_nlp_jac_g', 't_wall_S',
-                            't_wall_callback_fun', 't_wall_nlp_f', 't_wall_nlp_g', 't_wall_nlp_grad', 't_wall_nlp_grad_f',
-                            't_wall_nlp_hess_l', 't_wall_nlp_jac_g']
-            # Create data_field(s) for the recorded (valid) stats.
-            for stat_i in self.store_solver_stats:
-                assert stat_i in solver_stats, 'The requested {} is not a valid solver stat and cannot be recorded. Please supply one of the following (or none): {}'.format(stat_i, solver_stats)
-                self.data.data_fields.update({stat_i: 1})
-
-        self.data.init_storage()
-
-    def set_initial_guess(self):
-        """Uses the current class attributes _x0, _z0 and _u0 to create an initial guess for the optimizer.
-        The initial guess is simply the initial values for all instances of x, u and z. The method is automatically
-        evoked when calling the .setup() method.
-        However, if no initial values for x, u and z were supplied during setup, these default to zero.
-        """
-        assert self.flags['setup'] == True, 'optimizer was not setup yet. Please call optimizer.setup().'
-
-        self.opt_x_num['_x'] = self._x0.cat/self._x_scaling
-        self.opt_x_num['_u'] = self._u0.cat/self._u_scaling
-        self.opt_x_num['_z'] = self._z0.cat/self._z_scaling
-
     def solve(self):
         """Solves the optmization problem. The current time-step is defined by the parameters in the
         self.opt_p_num CasADi structured Data. These include the initial condition, the parameters, the time-varying paramters and the previous u.
@@ -861,60 +425,198 @@ class optimizer(backend_optimizer):
                 self.opt_p_num
             )
 
+    def _setup_discretization(self):
+        _x, _u, _z, _tvp, _p, *_ = self.model.get_variables()
 
+        rhs = substitute(self.model._rhs, _x, _x*self._x_scaling.cat)
+        rhs = substitute(rhs, _u, _u*self._u_scaling.cat)
+        rhs = substitute(rhs, _z, _z*self._z_scaling.cat)
 
-    def make_step(self, x0):
-        """Main method of the optimizer class during control runtime. This method is called at each timestep
-        and returns the control input for the current initial state ``x0``.
+        if self.state_discretization == 'discrete':
+            ifcn = Function('ifcn', [_x, _u, _z, _tvp, _p], [[], rhs/self._x_scaling.cat])
+            n_total_coll_points = 0
+        if self.state_discretization == 'collocation':
+            ffcn = Function('ffcn', [_x, _u, _z, _tvp, _p], [rhs/self._x_scaling.cat])
+            # Get collocation information
+            coll = self.collocation_type
+            deg = self.collocation_deg
+            ni = self.collocation_ni
+            nk = self.n_horizon
+            t_step = self.t_step
+            n_x = self.model.n_x
+            n_u = self.model.n_u
+            n_p = self.model.n_p
+            n_z = self.model.n_z
+            n_tvp = self.model.n_tvp
+            n_total_coll_points = (deg + 1) * ni
 
-        The method prepares the optimizer by setting the current parameters, calls :py:func:`optimizer.solve`
-        and updates the :py:class:`do_mpc.data` object.
+            # Choose collocation points
+            if coll == 'legendre':    # Legendre collocation points
+                tau_root = [0] + collocation_points(deg, 'legendre')
+            elif coll == 'radau':     # Radau collocation points
+                tau_root = [0] + collocation_points(deg, 'radau')
+            else:
+                raise Exception('Unknown collocation scheme')
 
-        :param x0: Current state of the system.
-        :type x0: numpy.ndarray
+            # Size of the finite elements
+            h = t_step / ni
 
-        :return: u0
-        :rtype: numpy.ndarray
+            # Coefficients of the collocation equation
+            C = np.zeros((deg + 1, deg + 1))
+
+            # Coefficients of the continuity equation
+            D = np.zeros(deg + 1)
+
+            # Dimensionless time inside one control interval
+            tau = SX.sym("tau")
+
+            # All collocation time points
+            T = np.zeros((nk, ni, deg + 1))
+            for k in range(nk):
+                for i in range(ni):
+                    for j in range(deg + 1):
+                        T[k, i, j] = h * (k * ni + i + tau_root[j])
+
+            # For all collocation points
+            for j in range(deg + 1):
+                # Construct Lagrange polynomials to get the polynomial basis at the
+                # collocation point
+                L = 1
+                for r in range(deg + 1):
+                    if r != j:
+                        L *= (tau - tau_root[r]) / (tau_root[j] - tau_root[r])
+                lfcn = Function('lfcn', [tau], [L])
+                D[j] = lfcn(1.0)
+                # Evaluate the time derivative of the polynomial at all collocation
+                # points to get the coefficients of the continuity equation
+                tfcn = Function('tfcn', [tau], [tangent(L, tau)])
+                for r in range(deg + 1):
+                    C[j, r] = tfcn(tau_root[r])
+
+            # Define symbolic variables for collocation
+            xk0 = SX.sym("xk0", n_x)
+            zk = SX.sym("zk", n_z)
+            pk = SX.sym("pk", n_p)
+            tv_pk = SX.sym("tv_pk", n_tvp)
+            uk = SX.sym("uk", n_u)
+
+            # State trajectory
+            n_ik = ni * (deg + 1) * n_x
+            ik = SX.sym("ik", n_ik)
+            ik_split = np.resize(np.array([], dtype=SX), (ni, deg + 1))
+            offset = 0
+
+            # Store initial condition
+            ik_split[0, 0] = xk0
+            first_j = 1  # Skip allocating x for the first collocation point for the first finite element
+            # For each finite element
+            for i in range(ni):
+                # For each collocation point
+                for j in range(first_j, deg + 1):
+                    # Get the expression for the state vector
+                    ik_split[i, j] = ik[offset:offset + n_x]
+                    offset += n_x
+
+                # All collocation points in subsequent finite elements
+                first_j = 0
+
+            # Get the state at the end of the control interval
+            xkf = ik[offset:offset + n_x]
+            offset += n_x
+            # Check offset for consistency
+            assert(offset == n_ik)
+
+            # Constraints in the control interval
+            gk = []
+            lbgk = []
+            ubgk = []
+
+            # For all finite elements
+            for i in range(ni):
+                # For all collocation points
+                for j in range(1, deg + 1):
+                    # Get an expression for the state derivative at the coll point
+                    xp_ij = 0
+                    for r in range(deg + 1):
+                        xp_ij += C[r, j] * ik_split[i, r]
+
+                    # Add collocation equations to the NLP
+                    f_ij = ffcn(ik_split[i, j], uk, zk, tv_pk, pk)
+                    gk.append(h * f_ij - xp_ij)
+                    lbgk.append(np.zeros(n_x))  # equality constraints
+                    ubgk.append(np.zeros(n_x))  # equality constraints
+
+                # Get an expression for the state at the end of the finite element
+                xf_i = 0
+                for r in range(deg + 1):
+                    xf_i += D[r] * ik_split[i, r]
+
+                # Add continuity equation to NLP
+                x_next = ik_split[i + 1, 0] if i + 1 < ni else xkf
+                gk.append(x_next - xf_i)
+                lbgk.append(np.zeros(n_x))
+                ubgk.append(np.zeros(n_x))
+
+            # Concatenate constraints
+            gk = vertcat(*gk)
+            lbgk = np.concatenate(lbgk)
+            ubgk = np.concatenate(ubgk)
+
+            assert(gk.shape[0] == ik.shape[0])
+
+            # Create the integrator function
+            ifcn = Function("ifcn", [xk0, ik, uk, zk, tv_pk, pk], [gk, xkf])
+
+            # Return the integration function and the number of collocation points
+        return ifcn, n_total_coll_points
+
+    def _setup_scenario_tree(self):
         """
+        -----------------------------------------------------------------------------------
+        Build the scenario tree given the possible values of the uncertain parmeters
+        The strategy to build the tree is by default a combination of all the possible values
+        This strategy can be modified by changing the code below
+        -----------------------------------------------------------------------------------
+        """
+        n_p = self.model.n_p
+        nk = self.n_horizon
+        n_robust = self.n_robust
+        # Build auxiliary variables that code the structure of the tree
+        # Number of branches
+        n_branches = [self.n_combinations if k < n_robust else 1 for k in range(nk)]
+        # Calculate the number of scenarios (nodes at each stage)
+        n_scenarios = [self.n_combinations**min(k, n_robust) for k in range(nk + 1)]
+        # Scenaro tree structure
+        child_scenario = -1 * np.ones((nk, n_scenarios[-1], n_branches[0])).astype(int)
+        parent_scenario = -1 * np.ones((nk + 1, n_scenarios[-1])).astype(int)
+        branch_offset = -1 * np.ones((nk, n_scenarios[-1])).astype(int)
+        structure_scenario = np.zeros((nk + 1, n_scenarios[-1])).astype(int)
+        # Fill in the auxiliary structures
+        for k in range(nk):
+            # Scenario counter
+            scenario_counter = 0
+            # For all scenarios
+            for s in range(n_scenarios[k]):
+                # For all uncertainty realizations
+                for b in range(n_branches[k]):
+                    child_scenario[k][s][b] = scenario_counter
+                    structure_scenario[k][scenario_counter] = s
+                    structure_scenario[k+1][scenario_counter] = s
+                    parent_scenario[k + 1][scenario_counter] = s
+                    scenario_counter += 1
+                # Store the range of branches
+                if n_robust == 0:
+                    branch_offset[k][s] = 0
+                elif k < n_robust:
+                    branch_offset[k][s] = 0
+                else:
+                    branch_offset[k][s] = s % n_branches[0]
 
-        u_prev = self._u0
-        tvp0 = self.tvp_fun(self._t0)
-        p0 = self.p_fun(self._t0)
-        t0 = self._t0
-
-        self.opt_p_num['_x0'] = x0
-        self.opt_p_num['_u_prev'] = u_prev
-        self.opt_p_num['_tvp'] = tvp0['_tvp']
-        self.opt_p_num['_p'] = p0['_p']
-        self.solve()
-
-        u0 = self._u0 = self.opt_x_num['_u', 0, 0]*self._u_scaling
-        z0 = self._z0 = self.opt_x_num['_z', 0, 0, -1]*self._z_scaling
-        aux0 = self.opt_aux_num['_aux', 0, 0]
-
-        self.data.update(_x = x0)
-        self.data.update(_u = u0)
-        self.data.update(_z = z0)
-        #TODO: tvp und p support.
-        # self.data.update(_tvp = tvp0)
-        # self.data.update(_p = p0)
-        self.data.update(_time = t0)
-        self.data.update(_aux_expression = aux0)
-
-        # Store additional information
-        if self.store_full_solution == True:
-            opt_x_num_unscaled = self.opt_x_num_unscaled
-            opt_aux_num = self.opt_aux_num
-            self.data.update(_opt_x_num = opt_x_num_unscaled)
-            self.data.update(_opt_aux_num = opt_aux_num)
-        if self.store_lagr_multiplier == True:
-            lam_g_num = self.lam_g_num
-            self.data.update(_lam_g_num = lam_g_num)
-        if len(self.store_solver_stats) > 0:
-            solver_stats = self.solver_stats
-            store_solver_stats = self.store_solver_stats
-            self.data.update(**{stat_i: value for stat_i, value in solver_stats.items() if stat_i in store_solver_stats})
-
-        self._t0 = self._t0 + self.t_step
-
-        return u0.full()
+        self.scenario_tree = {
+            'structure_scenario': structure_scenario,
+            'n_branches': n_branches,
+            'n_scenarios': n_scenarios,
+            'parent_scenario': parent_scenario,
+            'branch_offset': branch_offset
+        }
+        return n_branches, n_scenarios, child_scenario, parent_scenario, branch_offset

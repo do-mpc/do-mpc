@@ -34,27 +34,27 @@ import pickle
 import time
 
 from template_model import template_model
-from template_optimizer import template_optimizer
+from template_optimizer import template_mpc
 from template_simulator import template_simulator
 
 
 model = template_model()
-optimizer = template_optimizer(model)
+mpc = template_mpc(model)
 simulator = template_simulator(model)
-estimator = do_mpc.estimator.state_feedback(model)
+estimator = do_mpc.estimator.StateFeedback(model)
 
-# Set the initial state of optimizer and simulator:
+# Set the initial state of mpc and simulator:
 C_a_0 = 0.8 # This is the initial concentration inside the tank [mol/l]
 C_b_0 = 0.5 # This is the controlled variable [mol/l]
 T_R_0 = 134.14 #[C]
 T_K_0 = 130.0 #[C]
 x0 = np.array([C_a_0, C_b_0, T_R_0, T_K_0]).reshape(-1,1)
 
-optimizer.set_initial_state(x0, reset_history=True)
+mpc.set_initial_state(x0, reset_history=True)
 simulator.set_initial_state(x0, reset_history=True)
 
 # Initialize graphic:
-graphics = do_mpc.graphics()
+graphics = do_mpc.graphics.Graphics()
 
 
 fig, ax = plt.subplots(4, sharex=True)
@@ -76,27 +76,27 @@ plt.ion()
 time_list = []
 for k in range(100):
     tic = time.time()
-    u0 = optimizer.make_step(x0)
+    u0 = mpc.make_step(x0)
     y_next = simulator.make_step(u0)
     x0 = estimator.make_step(y_next)
     toc = time.time()
     time_list.append(toc-tic)
 
-    if False:
+    if True:
         graphics.reset_axes()
-        graphics.plot_results(optimizer.data, linewidth=3)
-        graphics.plot_predictions(optimizer.data, linestyle='--', linewidth=1)
+        graphics.plot_results(mpc.data, linewidth=3)
+        graphics.plot_predictions(mpc.data, linestyle='--', linewidth=1)
         plt.show()
         input('next step')
 
 time_arr = np.array(time_list)
 print('Total run-time: {tot:5.2f} s, step-time {mean:.3f}+-{std:.3f} s.'.format(tot=np.sum(time_arr), mean=np.mean(time_arr), std=np.sqrt(np.var(time_arr))))
 
-opti_lines = graphics.plot_results(optimizer.data)
+opti_lines = graphics.plot_results(mpc.data)
 simu_lines = graphics.plot_results(simulator.data)
 
 plt.sca(ax[0])
-ax[0].add_artist(plt.legend(opti_lines[:2], ['Ca', 'Cb'], title='optimizer', loc=1))
+ax[0].add_artist(plt.legend(opti_lines[:2], ['Ca', 'Cb'], title='mpc', loc=1))
 plt.sca(ax[0])
 ax[0].add_artist(plt.legend(simu_lines[:2], ['Ca', 'Cb'], title='Simulator', loc=2))
 plt.show()
