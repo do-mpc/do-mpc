@@ -24,8 +24,8 @@ import numpy as np
 from casadi import *
 from casadi.tools import *
 import pdb
-import do_mpc
 import pickle
+import do_mpc
 
 
 class Data:
@@ -166,11 +166,11 @@ def save_results(save_list, result_name='results', result_path='./results/', ove
     results = {}
 
     for obj_i in save_list:
-        if isinstance(obj_i, do_mpc.optimizer):
-            results.update({'optimizer': obj_i.data})
-        elif isinstance(obj_i, do_mpc.simulator):
+        if isinstance(obj_i, do_mpc.controller.MPC):
+            results.update({'mpc': obj_i.data})
+        elif isinstance(obj_i, do_mpc.simulator.Simulator):
             results.update({'simulator': obj_i.data})
-        elif isinstance(obj_i, (do_mpc.state_feedback, do_mpc.ekf, do_mpc.mhe)):
+        elif isinstance(obj_i, (do_mpc.estimator.StateFeedback, do_mpc.estimator.EKF, do_mpc.estimator.MHE)):
             results.update({'estimator': obj_i.data})
         else:
             raise Exception('save_list contains object which is neither do_mpc simulator, optimizizer nor estimator.')

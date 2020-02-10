@@ -28,7 +28,7 @@ from casadi.tools import *
 import pdb
 
 
-class graphics:
+class Graphics:
     """Graphics module to present the results of do-mpc. The module is independent of all other modules but is incorporated in the configuration.
     This allows for a high-level API which is triggered through the configuration.
     At the same time, the module can be used with pickled result files in post-processing for flexible and custom graphics.
@@ -160,7 +160,7 @@ class graphics:
         :return: All plotted lines on all supplied axes.
         :rtype:  list
         """
-        assert data.dtype == 'optimizer', 'Can only call plot_predictions with data object from do-mpc optimizer.'
+        assert data.dtype == 'MPC', 'Can only call plot_predictions with data object from do-mpc optimizer.'
         assert isinstance(t_ind, int), 'The t_ind param must be of type int. You have: {}'.format(type(t_ind))
 
         t_now = data._time[t_ind]

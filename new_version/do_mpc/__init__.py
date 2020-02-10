@@ -20,10 +20,17 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
-from do_mpc.model import model
-from do_mpc.backend_optimizer import backend_optimizer
-from do_mpc.optimizer import optimizer
-from do_mpc.simulator import simulator
-from do_mpc.graphics import graphics
+# from do_mpc.model import model
+# import do_mpc.data
+# from do_mpc.optimizer import Optimizer
+# from do_mpc.simulator import simulator
+# from do_mpc.graphics import graphics
+# import do_mpc.controler
+# import do_mpc.estimator
+
+import do_mpc.model
+import do_mpc.controller
 import do_mpc.estimator
-import do_mpc.data
+import do_mpc.optimizer
+import do_mpc.simulator
+import do_mpc.graphics

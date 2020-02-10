@@ -24,10 +24,10 @@ import numpy as np
 from casadi import *
 from casadi.tools import *
 import pdb
-import do_mpc.data
+from do_mpc.data import Data
 
 
-class simulator:
+class Simulator:
     """A class for simulating systems. Discrete-time and continuous systems can be considered.
     """
     def __init__(self, model):
@@ -43,7 +43,7 @@ class simulator:
 
         assert model.flags['setup'] == True, 'Model for simulator was not setup. After the complete model creation call model.setup_model().'
 
-        self.data = do_mpc.data.Data(model)
+        self.data = Data(model)
 
         self._x0 = model._x(0)
         self._t0 = np.array([0])
@@ -361,7 +361,7 @@ class simulator:
         self.data.update(_aux_expression = aux0)
         self.data.update(_time = t0)
 
-        self._x0 = x_next
+        self._x0.master = x_next
         self._t0 = self._t0 + self.t_step
 
         return y_next.full()

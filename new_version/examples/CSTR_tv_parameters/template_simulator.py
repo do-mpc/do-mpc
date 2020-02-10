@@ -35,7 +35,7 @@ def template_simulator(model):
     template_optimizer: tuning parameters
     --------------------------------------------------------------------------
     """
-    simulator = do_mpc.simulator(model)
+    simulator = do_mpc.simulator.Simulator(model)
 
     params_simulator = {
         'integration_tool': 'cvodes',
