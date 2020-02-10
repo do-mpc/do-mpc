@@ -36,19 +36,12 @@ do\_mpc.data
    :show-inheritance:
 
 
-do\_mpc.configuration
+do\_mpc.estimator
 -------------------
 
-.. automodule:: do_mpc.configuration
+.. automodule:: do_mpc.estimator
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-Module contents
----------------
-
-.. automodule:: do_mpc
-   :members:
-   :undoc-members:
-   :show-inheritance:
