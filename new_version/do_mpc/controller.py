@@ -32,36 +32,38 @@ import do_mpc.data
 import do_mpc.optimizer
 
 class MPC(do_mpc.optimizer.Optimizer):
-    """This is where the magic happens. The optimizer class is used to configure, setup and solve the MPC optimization problem
-    for robust optimal control. The ocp is constructed based on the supplied instance of :py:class:`do_mpc.model`, which must be configured beforehand.
+    """THE MPC controller extends the optimizer base class (which is also used for the MHE estimator).
+    Use this class to configure and run the MPC controller based on a previously configured :py:class:`do_mpc.model` instance.
 
     **Configuration and setup:**
 
-    Configuring and setting up the optimizer involves the following steps:
+    Configuring and setting up the MPC controller involves the following steps:
 
-    1. Use :py:func:`optimizer.set_param` to configure the :py:class:`optimizer`. See docstring for details.
+    1. Use :py:func:`MPC.set_param` to configure the :py:class:`MPC`. See docstring for details.
 
     2. Use :py:meth:`do_mpc.model.get_variables` to obtain the variables defined in :py:class:`do_mpc.model` and express the objective of the optimization problem in terms of these variables.
 
-    3. Set the objective of the control problem with :py:func:`optimizer.set_objective`.
+    3. Set the objective of the control problem with :py:func:`MPC.set_objective`.
 
-    4. Use :py:func:`optimizer.get_rterm` to obtain the structure of weighting parameters to penalize changes in the input and set appropriate values.  See docstring for details.
+    4. Use :py:func:`MPC.get_rterm` to obtain the structure of weighting parameters to penalize changes in the input and set appropriate values.  See docstring for details.
 
     5. Set upper and lower bounds.
 
-    6. Optionally, set further (non-linear) constraints with :py:func:`optimizer.set_nl_cons`. See docstring for details.
+    6. Optionally, set further (non-linear) constraints with :py:func:`MPC.set_nl_cons`. See docstring for details.
 
-    7. Use the low-level API (:py:func:`optimizer.get_p_template` and :py:func:`optimizer.set_p_fun`) or high level API (:py:func:`optimizer.set_uncertainty_values`) to create scenarios for robust MPC. See docstrings for details.
+    7. Use the low-level API (:py:func:`MPC.get_p_template` and :py:func:`MPC.set_p_fun`) or high level API (:py:func:`MPC.set_uncertainty_values`) to create scenarios for robust MPC. See docstrings for details.
 
-    8. Finally, call :py:func:`optimizer.setup`.
+    8. Finally, call :py:func:`MPC.setup`.
 
     """
     def __init__(self, model):
 
         self.model = model
+
         assert model.flags['setup'] == True, 'Model for optimizer was not setup. After the complete model creation call model.setup_model().'
         self.data = do_mpc.data.Data(self.model)
         self.data.dtype = 'MPC'
+
         # Initialize structure for intial conditions:
         self._x0 = model._x(0.0)
         self._u0 = model._u(0.0)
@@ -69,7 +71,7 @@ class MPC(do_mpc.optimizer.Optimizer):
         self._t0 = np.array([0.0])
 
         # Initialize parent class:
-        do_mpc.optimizer.Optimizer.__init__(self, model)
+        do_mpc.optimizer.Optimizer.__init__(self)
 
         # Initialize further structures specific to the MPC optimization problem.
         # This returns an identical numerical structure with all values set to the passed value.
@@ -386,7 +388,12 @@ class MPC(do_mpc.optimizer.Optimizer):
 
         self.set_p_fun(p_fun)
 
-    def check_validity(self):
+    def _check_validity(self):
+        """Private method to be called in :py:func:`MPC.setup`. Checks if the configuration is valid and
+        if the optimization problem can be constructed.
+        Furthermore, default values are set if they were not configured by the user (if possible).
+        Specifically, we set dummy values for the ``tvp_fun`` and ``p_fun`` if they are not present in the model.
+        """
         # Objective mus be defined.
         if self.flags['set_objective'] == False:
             raise Exception('Objective is undefined. Please call .set_objective() prior to .setup().')
@@ -426,16 +433,16 @@ class MPC(do_mpc.optimizer.Optimizer):
             self.set_p_fun(p_fun)
 
     def setup(self):
-        """The setup method finalizes the optimizer creation. After this call, the .solve() method is applicable.
+        """The setup method finalizes the optimizer creation. After this call, the py:func:`.solve()` method is applicable.
         The method wraps the following calls:
 
-        * check_validity
+        * py:func:`MPC.check_validity()`
 
-        * setup_nlp
+        * py:func:`MPC._setup_mpc_optim_problem()`
 
-        * set_inital_guess
+        * py:func:`MPC.set_initial_guess()`
 
-        * prepare_data
+        * py:func:`do_mpc.optimizer.prepare_data()`
 
         and sets the setup flag = True.
 
@@ -458,7 +465,7 @@ class MPC(do_mpc.optimizer.Optimizer):
             self._nl_cons_lb[nl_cons_i['expr_name']] = nl_cons_i['lb']
 
 
-        self.check_validity()
+        self._check_validity()
         self._setup_mpc_optim_problem()
         self.set_initial_guess()
 
@@ -470,7 +477,7 @@ class MPC(do_mpc.optimizer.Optimizer):
         self.prepare_data()
 
     def set_initial_guess(self):
-        """Uses the current class attributes _x0, _z0 and _u0 to create an initial guess for the optimizer.
+        """Uses the current class attributes ``_x0``, ``_z0`` and ``_u0`` to create an initial guess for the optimizer.
         The initial guess is simply the initial values for all instances of x, u and z. The method is automatically
         evoked when calling the .setup() method.
         However, if no initial values for x, u and z were supplied during setup, these default to zero.
@@ -483,11 +490,11 @@ class MPC(do_mpc.optimizer.Optimizer):
 
 
     def make_step(self, x0):
-        """Main method of the optimizer class during control runtime. This method is called at each timestep
+        """Main method of the class during runtime. This method is called at each timestep
         and returns the control input for the current initial state ``x0``.
 
-        The method prepares the optimizer by setting the current parameters, calls :py:func:`optimizer.solve`
-        and updates the :py:class:`do_mpc.data` object.
+        The method prepares the MHE by setting the current parameters, calls :py:func:`do_mpc.optimizer.solve`
+        and updates the :py:class:`do_mpc.data.Data` object.
 
         :param x0: Current state of the system.
         :type x0: numpy.ndarray
@@ -495,22 +502,26 @@ class MPC(do_mpc.optimizer.Optimizer):
         :return: u0
         :rtype: numpy.ndarray
         """
-
+        # Get current tvp, p and time (as well as previous u)
         u_prev = self._u0
         tvp0 = self.tvp_fun(self._t0)
         p0 = self.p_fun(self._t0)
         t0 = self._t0
 
+        # Set the current parameter struct for the optimization problem:
         self.opt_p_num['_x0'] = x0
         self.opt_p_num['_u_prev'] = u_prev
         self.opt_p_num['_tvp'] = tvp0['_tvp']
         self.opt_p_num['_p'] = p0['_p']
+        # Solve the optimization problem (method inherited from optimizer)
         self.solve()
 
+        # Extract solution:
         u0 = self.opt_x_num['_u', 0, 0]*self._u_scaling
         z0 = self.opt_x_num['_z', 0, 0, -1]*self._z_scaling
         aux0 = self.opt_aux_num['_aux', 0, 0]
 
+        # Store solution:
         self.data.update(_x = x0)
         self.data.update(_u = u0)
         self.data.update(_z = z0)
@@ -540,10 +551,18 @@ class MPC(do_mpc.optimizer.Optimizer):
         self._u0.master = u0
         self._z0.master = z0
 
+        # Return control input:
         return u0.full()
 
 
     def _setup_mpc_optim_problem(self):
+        """Private method of the MPC class to construct the MPC optimization problem.
+        The method depends on inherited methods from the :py:class:`do_mpc.optimizer`,
+        such as :py:func:`do_mpc.optimizer._setup_discretization` and
+        :py:func:`do_mpc.optimizer._setup_scenario_tree`.
+
+        The MHE has a similar method with similar structure.
+        """
         # Obtain an integrator (collocation, discrete-time) and the amount of intermediate (collocation) points
         ifcn, n_total_coll_points = self._setup_discretization()
         n_branches, n_scenarios, child_scenario, parent_scenario, branch_offset = self._setup_scenario_tree()

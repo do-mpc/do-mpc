@@ -94,7 +94,7 @@ class EKF(Estimator):
 class MHE(do_mpc.optimizer.Optimizer, Estimator):
     def __init__(self, model, p_est_list=[]):
         Estimator.__init__(self, model)
-        do_mpc.optimizer.Optimizer.__init__(self, model)
+        do_mpc.optimizer.Optimizer.__init__(self)
 
             # Parameters that can be set for the MHE:
         self.data_fields = [

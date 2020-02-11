@@ -29,14 +29,14 @@ from indexedproperty import IndexedProperty
 import time
 
 
-
-
-
 class Optimizer:
-    """Docstring
+    """The base clase for the optimization based state estimation (MHE) and predictive controller (MPC).
+    This class establishes the jointly used attributes, methods and properties.
 
+    The ``Optimizer`` base class can not be used independently.
     """
-    def __init__(self, model):
+    def __init__(self):
+        assert 'model' in self.__dict__.keys(), 'Cannot initialize the optimizer before assigning the model to the current class instance.'
 
         # Initialize structures for bounds, scaling, initial values by calling the symbolic structures defined in the model
         # with the default numerical value.
@@ -212,11 +212,11 @@ class Optimizer:
         var_struct[var_name] = val
 
     def set_initial_state(self, x0, p_est0=None, reset_history=False, set_intial_guess=True):
-        """Set the intial state of the optimizer/estimator.
+        """Set the intial state of the optimizer.
         Optionally resets the history. The history is empty upon creation of the optimizer.
 
-        Optionally update the initial guess. The initial guess is first created with the .setup() method
-        and uses the class attributes _x0, _u0, _z0 for all time instances, collocation points (if applicable)
+        Optionally update the initial guess. The initial guess is first created with the ``.setup()`` method (MHE/MPC)
+        and uses the class attributes ``_x0``, ``_u0``, ``_z0`` for all time instances, collocation points (if applicable)
         and scenarios (if applicable). If these values were net explicitly set by the user, they default to all zeros.
 
 
@@ -245,7 +245,7 @@ class Optimizer:
             elif isinstance(p_est0, structure3.DMStruct):
                 self._p_est0 = p_est0
             else:
-                raise Exception('p_est0 must be of tpye (np.ndarray, casadi.DM, structure3.DMStruct). You have: {}'.format(type(p_est0)))
+                raise Exception('p_est0 must be of type (np.ndarray, casadi.DM, structure3.DMStruct). You have: {}'.format(type(p_est0)))
 
         if reset_history:
             self.reset_history()
@@ -319,8 +319,8 @@ class Optimizer:
         """The method returns a structured object with n_horizon elements, and a set of time varying parameters (as defined in model)
         for each of these instances. The structure is initialized with all zeros. Use this object to define values of the time varying parameters.
 
-        This structure (with numerical values) should be used as the output of the tvp_fun function which is set to the class with .set_tvp_fun (see doc string).
-        Use the combination of .get_tvp_template() and .set_tvp_fun().
+        This structure (with numerical values) should be used as the output of the ``tvp_fun`` function which is set to the class with :py:func:`optimizer.set_tvp_fun`.
+        Use the combination of :py:func:`optimizer.get_tvp_template` and :py:func:`optimizer.set_tvp_fun`.
 
         Example:
         ::
@@ -330,7 +330,6 @@ class Optimizer:
 
             ...
             # in optimizer configuration:
-            (assume n_horizon = 5)
             tvp_temp_1 = optimizer.get_tvp_template()
             tvp_temp_1['_tvp', :] = np.array([1,1])
 
@@ -358,7 +357,7 @@ class Optimizer:
         """ Set the tvp_fun which is called at each optimization step to get the current prediction of the time-varying parameters.
         The supplied function must be callable with the current time as the only input. Furthermore, the function must return
         a CasADi structured object which is based on the horizon and on the model definition. The structure can be obtained with
-        .get_tvp_template().
+        :py:func:`optimizer.get_tvp_template`.
         ::
             # in model definition:
             alpha = model.set_variable(var_type='_tvp', var_name='alpha')
@@ -366,7 +365,6 @@ class Optimizer:
 
             ...
             # in optimizer configuration:
-            (assume n_horizon = 5)
             tvp_temp_1 = optimizer.get_tvp_template()
             tvp_temp_1['_tvp', :] = np.array([1,1])
 
@@ -381,7 +379,7 @@ class Optimizer:
 
             optimizer.set_tvp_fun(tvp_fun)
 
-        The method .set_tvp_fun() must be called prior to setup IF time-varying parameters are defined in the model.
+        The method :py:func:`optimizer.set_tvp_fun`. must be called prior to setup IF time-varying parameters are defined in the model.
 
         :param tvp_fun: Function that returns the predicted tvp values at each timestep. Must have single input (float) and return a structure3.DMStruct (obtained with .get_tvp_template())
         :type tvp_fun: function
@@ -397,7 +395,7 @@ class Optimizer:
     def solve(self):
         """Solves the optmization problem. The current time-step is defined by the parameters in the
         self.opt_p_num CasADi structured Data. These include the initial condition, the parameters, the time-varying paramters and the previous u.
-        Typically, self.opt_p_num is prepared for the current iteration in the configuration.make_step_optimizer() method.
+        Typically, self.opt_p_num is prepared for the current iteration in the ``.make_step()`` (in MHE/MPC) method.
         It is, however, valid and possible to directly set paramters in self.opt_p_num before calling .solve().
 
         Solve updates the opt_x_num, and lam_g_num attributes of the class. In resetting, opt_x_num to the current solution, the method implicitly
@@ -426,6 +424,20 @@ class Optimizer:
             )
 
     def _setup_discretization(self):
+        """Private method that creates the discretization for the optimizer (MHE or MPC).
+        Returns the integrator function (``ifcn``) and the total number of collocation points.
+
+        The following discretization methods are available:
+
+        * orthogonal collocation
+
+        * discrete dynamics
+
+        Discretization parameters can be set with the :py:func:`do_mpc.controller.MPC.set_param` and
+        :py:func:`do_mpc.estimator.MHE.set_param` methods.
+
+        There is no point in calling this method as part of the public API.
+        """
         _x, _u, _z, _tvp, _p, *_ = self.model.get_variables()
 
         rhs = substitute(self.model._rhs, _x, _x*self._x_scaling.cat)
@@ -571,13 +583,14 @@ class Optimizer:
         return ifcn, n_total_coll_points
 
     def _setup_scenario_tree(self):
+        """Private method that builds the scenario tree given the possible values of the uncertain parmeters.
+        By default all possible combinations of uncertain parameters are evaluated.
+        See the API in :py:class:`do_mpc.controller.MHE` for the high level / low level API.
+        This method is currently only used for the MPC controller.
+
+        There is no point in calling this method as part of the public API.
         """
-        -----------------------------------------------------------------------------------
-        Build the scenario tree given the possible values of the uncertain parmeters
-        The strategy to build the tree is by default a combination of all the possible values
-        This strategy can be modified by changing the code below
-        -----------------------------------------------------------------------------------
-        """
+
         n_p = self.model.n_p
         nk = self.n_horizon
         n_robust = self.n_robust
