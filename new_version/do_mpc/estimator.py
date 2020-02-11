@@ -32,6 +32,14 @@ import do_mpc.data
 
 
 class Estimator:
+    """The Estimator base class. Used for :py:class:`StateFeedback`, :py:class:`EKF` and :py:class:`MHE`.
+    This class cannot be used independently.
+
+    .. note::
+       The methods py:func:`Estimator.set_initial_state` and :py:func:`Estimator.reset_history`
+       are overwritten when using the :py:class:`MHE`, by the methods defined in :py:class:`do_mpc.optimizer.Optimizer`.
+
+    """
     def __init__(self, model):
         self.model = model
 
@@ -92,11 +100,43 @@ class EKF(Estimator):
         None
 
 class MHE(do_mpc.optimizer.Optimizer, Estimator):
+    """THE MHE estimator extends the optimizer base class (which is also used for the MPC controller), as well as the Estimator base class.
+    Use this class to configure and run the MHE based on a previously configured :py:class:`do_mpc.model.Model` instance.
+
+    The class is initiated by passing a list of the **parameters that should be estimated**. This must be a subset (or all) of the parameters defined in
+    :py:class:`do_mpc.model.Model`. This allows to define parameters in the model that influence the model externally (e.g. weather predictions),
+    and those that are internal e.g. system parameters and can be estimated.
+    Passing an empty list (default) value, means that no parameters are estimated.
+
+    .. note::
+        Parameters are influencing the model equation at all timesteps but are constant over the entire horizon.
+        Parameters could also be introduced as states without dynamic but this would increase the total number of optimization variables.
+
+
+    **Configuration and setup:**
+
+    Configuring and setting up the MHE involves the following steps:
+
+    1. Use :py:func:`MHE.set_param` to configure the :py:class:`MHE`. See docstring for details.
+
+    2. Obtain the following variables from the class: `MHE._y_meas`, `MHE._y_calc`, `MHE._x_prev`, `MHE._x0`, `MHE._p_est_prev`, `MHE._p_est0`
+
+    3. Set the objective of the control problem with :py:func:`MHE.set_objective`.
+
+    5. Set upper and lower bounds.
+
+    6. Optionally, set further (non-linear) constraints with :py:func:`do_mpc.optimizer.Optimizer.set_nl_cons`.
+
+    7. Use :py:func:`MHE.get_p_template` and :py:func:`MHE.set_p_fun` to set the function for the parameters.
+
+    8. Finally, call :py:func:`MHE.setup`.
+
+    """
     def __init__(self, model, p_est_list=[]):
         Estimator.__init__(self, model)
         do_mpc.optimizer.Optimizer.__init__(self)
 
-            # Parameters that can be set for the MHE:
+        # Parameters that can be set for the MHE:
         self.data_fields = [
             'n_horizon',
             't_step',
@@ -139,7 +179,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         # Function to obtain full set of parameters from the seperate structs (while obeying the order):
         self._p_cat_fun = Function('p_cat_fun', [self._p_est, self._p_set], [_p])
 
-        # Initialize structures for bounds, scaling, initial values by calling the symbolic structures defined above
+        # Initialize additional structures by calling the symbolic structures defined above
         # with the default numerical value.
         # This returns an identical numerical structure with all values set to the passed value.
         self._p_est_scaling = self._p_est(1.0)
@@ -156,10 +196,10 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self._y_calc = self.model._y_expression
 
         self._x_prev = copy.copy(self.model._x)
-        self._x = self.model._x
+        self._x0 = self.model._x
 
-        self._p_prev = copy.copy(self._p_est)
-        self._p_est = self._p_est
+        self._p_est_prev = copy.copy(self._p_est)
+        self._p_est0 = self._p_est
 
         # Flags are checked when calling .setup.
         self.flags = {
@@ -188,18 +228,18 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
 
     def set_param(self, **kwargs):
-        """Method to set the parameters of the mhe class. Parameters must be passed as pairs of valid keywords and respective argument.
+        """Method to set the parameters of the :py:class:`MHE` class. Parameters must be passed as pairs of valid keywords and respective argument.
         For example:
         ::
             mhe.set_param(n_horizon = 20)
 
         It is also possible and convenient to pass a dictionary with multiple parameters simultaneously as shown in the following example:
         ::
-            setup_optimizer = {
+            setup_mhe = {
                 'n_horizon': 20,
                 't_step': 0.5,
             }
-            mhe.set_param(**setup_optimizer)
+            mhe.set_param(**setup_mhe)
 
         .. note:: :py:func:`mhe.set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
 
@@ -211,7 +251,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         :param t_step: Timestep of the mhe.
         :type t_step: float
 
-        :param meas_from_data: Default option to retrieve past measurements for the MHE optimization problem.
+        :param meas_from_data: Default option to retrieve past measurements for the MHE optimization problem. The :py:func:`MHE.set_y_fun` is called during setup.
         :type meas_from_data: bool
 
         :param state_discretization: Choose the state discretization for continuous models. Currently only ``'collocation'`` is available. Defaults to ``'collocation'``.
@@ -256,6 +296,11 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
                 setattr(self, key, value)
 
     def set_objective(self, obj, arrival_cost):
+        """Set the objective function for the MHE problem. We suggest to formulate the MHE objective such that:
+        .. math::
+           \min_{x,u,z}\quad (x_0 - \tildex_0)^T P_x (x_0 - \tilde x_0) + (p_0 - \tilde p_0)^T P_p (p_0 - \tilde p_0) \sum_{k=0}^{n-1}
+
+        """
         assert obj.shape == (1,1), 'obj must have shape=(1,1). You have {}'.format(obj.shape)
         assert arrival_cost.shape == (1,1), 'arrival_cost must have shape=(1,1). You have {}'.format(arrival_cost.shape)
         assert self.flags['setup'] == False, 'Cannot call .set_objective after .setup.'
