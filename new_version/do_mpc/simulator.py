@@ -89,7 +89,7 @@ class Simulator:
         if isinstance(x0, (np.ndarray, casadi.DM)):
             self._x0 = self.model._x(x0)
         elif isinstance(x0, structure3.DMStruct):
-            self._x0 = x0
+            self._x0 = self.model._x(x0.cat)
         else:
             raise Exception('x0 must be of tpye (np.ndarray, casadi.DM, structure3.DMStruct). You have: {}'.format(type(x0)))
 

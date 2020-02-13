@@ -326,7 +326,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
            J= & \\underbrace{(x_0 - \\tilde{x}_0)^T P_x (x_0 - \\tilde{x}_0)}_{\\text{arrival cost states}} +
            \\underbrace{(p_0 - \\tilde{p}_0)^T P_p (p_0 - \\tilde{p}_0)}_{\\text{arrival cost params.}} \\\\
-           & +\sum_{k=0}^{n-1} \\underbrace{(h(x_k, u_k, p_k) - y_k)^T P_{y,k} (h(x_k, u_k, p_k) - y_k)}_{\\text{stage cost}} \\\\
+           & +\sum_{k=0}^{n-1} \\underbrace{(h(x_k, u_k, p_k) - y_k)^T P_{y,k} (h(x_k, u_k, p_k) - y_k)}_{\\text{stage cost}}
 
         Use the class attributes:
 
