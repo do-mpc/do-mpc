@@ -123,20 +123,20 @@ class MPC(do_mpc.optimizer.Optimizer):
 
 
     def set_param(self, **kwargs):
-        """Method to set the parameters of the optimizer class. Parameters must be passed as pairs of valid keywords and respective argument.
+        """Method to set the parameters of the :py:class:`MPC` class. Parameters must be passed as pairs of valid keywords and respective argument.
         For example:
         ::
-            optimizer.set_param(n_horizon = 20)
+            mpc.set_param(n_horizon = 20)
 
         It is also possible and convenient to pass a dictionary with multiple parameters simultaneously as shown in the following example:
         ::
-            setup_optimizer = {
+            setup_mpc = {
                 'n_horizon': 20,
                 't_step': 0.5,
             }
-            optimizer.set_param(**setup_optimizer)
+            mpc.set_param(**setup_mpc)
 
-        .. note:: :py:func:`optimizer.set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
+        .. note:: :py:func:`MPC.set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
 
         The following parameters are available:
 
@@ -149,7 +149,7 @@ class MPC(do_mpc.optimizer.Optimizer):
         :param open_loop: Setting for scenario-tree MPC: If the parameter is ``False``, for each timestep **AND** scenario an individual control input is computed. If set to ``True``, the same control input is used for each scenario. Defaults to False.
         :type open_loop: bool , optional
 
-        :param t_step: Timestep of the optimizer.
+        :param t_step: Timestep of the mpc.
         :type t_step: float
 
         :param state_discretization: Choose the state discretization for continuous models. Currently only ``'collocation'`` is available. Defaults to ``'collocation'``.
@@ -436,13 +436,13 @@ class MPC(do_mpc.optimizer.Optimizer):
         """The setup method finalizes the optimizer creation. After this call, the py:func:`.solve()` method is applicable.
         The method wraps the following calls:
 
-        * py:func:`MPC.check_validity()`
+        * :py:func:`MPC.check_validity()`
 
-        * py:func:`MPC._setup_mpc_optim_problem()`
+        * :py:func:`MPC._setup_mpc_optim_problem()`
 
-        * py:func:`MPC.set_initial_guess()`
+        * :py:func:`MPC.set_initial_guess()`
 
-        * py:func:`do_mpc.optimizer.prepare_data()`
+        * :py:func:`do_mpc.optimizer.prepare_data()`
 
         and sets the setup flag = True.
 

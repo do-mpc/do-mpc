@@ -36,8 +36,8 @@ class Estimator:
     This class cannot be used independently.
 
     .. note::
-       The methods py:func:`Estimator.set_initial_state` and :py:func:`Estimator.reset_history`
-       are overwritten when using the :py:class:`MHE`, by the methods defined in :py:class:`do_mpc.optimizer.Optimizer`.
+       The methods :py:func:`Estimator.set_initial_state` and :py:func:`Estimator.reset_history`
+       are overwritten when using the :py:class:`MHE` by the methods defined in :py:class:`do_mpc.optimizer.Optimizer`.
 
     """
     def __init__(self, model):
@@ -57,6 +57,7 @@ class Estimator:
     def set_initial_state(self, x0, reset_history=False):
         """Set the intial state of the estimator.
         Optionally resets the history. The history is empty upon creation of the estimator.
+        This method is overwritten for the :py:class:`MHE` from :py:class:`do_mpc.optimizer.Optimizer`.
 
         :param x0: Initial state
         :type x0: numpy array
@@ -85,22 +86,37 @@ class Estimator:
 
 
 class StateFeedback(Estimator):
+    """Simple state-feedback "estimator".
+    The main method :py:func:`StateFeedback.make_step` simply returns the input.
+    Why do you even bother to use this class?
+    """
     def __init__(self, model):
         super().__init__(model)
 
     def make_step(self, y0):
+        """Return the measurement ``y0``.
+        """
         return y0
 
 class EKF(Estimator):
+    """Extended Kalman Filter. Setup this class and use :py:func:`EKF.make_step`
+    during runtime to obtain the currently estimated states given the measurements ``y0``.
+
+    .. warning::
+        Not currently implemented.
+    """
     def __init__(self, model):
         raise Exception('EKF is not currently supported. This is a placeholder.')
         super().__init__(model)
 
     def make_step(self, y0):
+        """Main method during runtime. Pass the most recent measurement and
+        retrieve the estimated state."""
         None
 
 class MHE(do_mpc.optimizer.Optimizer, Estimator):
-    """THE MHE estimator extends the optimizer base class (which is also used for the MPC controller), as well as the Estimator base class.
+    """THE MHE estimator extends the :py:class:`do_mpc.optimizer.Optimizer` base class
+    (which is also used for the MPC controller), as well as the :py:class:`Estimator` base class.
     Use this class to configure and run the MHE based on a previously configured :py:class:`do_mpc.model.Model` instance.
 
     The class is initiated by passing a list of the **parameters that should be estimated**. This must be a subset (or all) of the parameters defined in
@@ -119,7 +135,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
     1. Use :py:func:`MHE.set_param` to configure the :py:class:`MHE`. See docstring for details.
 
-    2. Obtain the following variables from the class: `MHE._y_meas`, `MHE._y_calc`, `MHE._x_prev`, `MHE._x0`, `MHE._p_est_prev`, `MHE._p_est0`
+    2. Obtain the following variables from the class: ``MHE._y_meas``, ``MHE._y_calc``, ``MHE._x_prev``, ``MHE._x0``, ``MHE._p_est_prev``, ``MHE._p_est0``
 
     3. Set the objective of the control problem with :py:func:`MHE.set_objective`.
 
@@ -130,6 +146,14 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
     7. Use :py:func:`MHE.get_p_template` and :py:func:`MHE.set_p_fun` to set the function for the parameters.
 
     8. Finally, call :py:func:`MHE.setup`.
+
+    During runtime use :py:func:`MHE.make_step` with the most recent measurement to obtain the estimated states.
+
+    :param model: A configured and setup :py:class:`do_mpc.model.Model`
+    :type model: :py:class:`do_mpc.model.Model`
+
+    :param p_est_list: List with names of parameters (``_p``) defined in ``model``
+    :type p_est_list: list
 
     """
     def __init__(self, model, p_est_list=[]):
@@ -196,10 +220,10 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self._y_calc = self.model._y_expression
 
         self._x_prev = copy.copy(self.model._x)
-        self._x0 = self.model._x
+        self._x = self.model._x
 
         self._p_est_prev = copy.copy(self._p_est)
-        self._p_est0 = self._p_est
+        self._p_est = self._p_est
 
         # Flags are checked when calling .setup.
         self.flags = {
@@ -210,21 +234,21 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             'set_objective': False,
         }
 
-    @IndexedProperty
-    def vars(self, ind):
-        if isinstance(ind, tuple):
-            assert ind[0] in self.__dict__.keys(), '{} is not a MHE variable.'.format(ind[0])
-            rval = self.__dict__[ind[0]][ind[1:]]
-        elif isinstance(ind, str):
-            assert ind in self.__dict__.keys(), '{} is not a MHE variable.'.format(ind)
-            rval = self.__dict__[ind]
-        else:
-            raise Exception('Index {} is not valid.'.format(ind))
-        return rval
-
-    @vars.setter
-    def vars(self, ind, val):
-        raise Exception('Setting MHE variables is not allowed.')
+    # @IndexedProperty
+    # def vars(self, ind):
+    #     if isinstance(ind, tuple):
+    #         assert ind[0] in self.__dict__.keys(), '{} is not a MHE variable.'.format(ind[0])
+    #         rval = self.__dict__[ind[0]][ind[1:]]
+    #     elif isinstance(ind, str):
+    #         assert ind in self.__dict__.keys(), '{} is not a MHE variable.'.format(ind)
+    #         rval = self.__dict__[ind]
+    #     else:
+    #         raise Exception('Index {} is not valid.'.format(ind))
+    #     return rval
+    #
+    # @vars.setter
+    # def vars(self, ind, val):
+    #     raise Exception('Setting MHE variables is not allowed.')
 
 
     def set_param(self, **kwargs):
@@ -295,52 +319,168 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             else:
                 setattr(self, key, value)
 
-    def set_objective(self, obj, arrival_cost):
-        """Set the objective function for the MHE problem. We suggest to formulate the MHE objective such that:
-        .. math::
-           \min_{x,u,z}\quad (x_0 - \tildex_0)^T P_x (x_0 - \tilde x_0) + (p_0 - \tilde p_0)^T P_p (p_0 - \tilde p_0) \sum_{k=0}^{n-1}
+    def set_objective(self, stage_cost, arrival_cost):
+        """Set the objective function for the MHE problem. We suggest to formulate the MHE objective (:math:`J`) such that:
 
+        .. math::
+
+           J= & \\underbrace{(x_0 - \\tilde{x}_0)^T P_x (x_0 - \\tilde{x}_0)}_{\\text{arrival cost states}} +
+           \\underbrace{(p_0 - \\tilde{p}_0)^T P_p (p_0 - \\tilde{p}_0)}_{\\text{arrival cost params.}} \\\\
+           & +\sum_{k=0}^{n-1} \\underbrace{(h(x_k, u_k, p_k) - y_k)^T P_{y,k} (h(x_k, u_k, p_k) - y_k)}_{\\text{stage cost}} \\\\
+
+        Use the class attributes:
+
+        * ``mhe._y_meas`` as :math:`y_k`
+
+        * ``mhe._y_calc`` as :math:`h(x_k, u_k, p_k)` (function is defined in :py:class:`do_mpc.model.Model`)
+
+        * ``mhe._x_prev`` as :math:`\\tilde{x}_0`
+
+        * ``mhe._x`` as :math:`x_0`
+
+        * ``mhe._p_est_prev`` as :math:`\\tilde{p}_0`
+
+        * ``mhe._p_est`` as :math:`p_0`
+
+        To formulate the objective function and pass the stage cost and arrival cost independently.
+
+        .. note::
+            The retrieved attributes are symbolic structures, which can be queried with the given variable names,
+            e.g.:
+            ::
+                x1 = mhe._x['state_1']
+            For a vector of all states, use the ``.cat`` method as shown in the example below.
+
+        **Example:**
+        ::
+            # Get variables:
+            y_meas = mhe._y_meas
+            y_calc = mhe._y_calc
+
+            dy = y_meas.cat-y_calc.cat
+            stage_cost = dy.T@np.diag(np.array([1,1,1,20,20]))@dy
+
+            x_0 = mhe._x
+            x_prev = mhe._x_prev
+            p_0 = mhe._p_est
+            p_prev = mhe._p_est_prev
+
+            dx = x_0.cat - x_prev.cat
+            dp = p_0.cat - p_prev.cat
+
+            arrival_cost = 1e-4*dx.T@dx + 1e-4*dp.T@dp
+
+            mhe.set_objective(stage_cost, arrival_cost)
+
+        :param stage_cost: Stage cost that is added to the MHE objective at each age.
+        :type stage_cost: CasADi expression
+
+        :param arrival_cost: Arrival cost that is added to the MHE objective at the initial state.
+        :type arrival_cost: CasADi expression
+
+        :return: None
+        :rtype: None
         """
-        assert obj.shape == (1,1), 'obj must have shape=(1,1). You have {}'.format(obj.shape)
+        assert stage_cost.shape == (1,1), 'stage_cost must have shape=(1,1). You have {}'.format(stage_cost.shape)
         assert arrival_cost.shape == (1,1), 'arrival_cost must have shape=(1,1). You have {}'.format(arrival_cost.shape)
         assert self.flags['setup'] == False, 'Cannot call .set_objective after .setup.'
 
 
-        obj_input = self.model._x, self.model._u, self.model._z, self.model._tvp, self.model._p, self._y_meas
-        assert set(symvar(obj)).issubset(set(symvar(vertcat(*obj_input)))), 'objective cost equation must be solely depending on x, u, z, p, tvp, y_meas.'
-        self.obj_fun = Function('obj_fun', [*obj_input], [obj])
+        stage_cost_input = self.model._x, self.model._u, self.model._z, self.model._tvp, self.model._p, self._y_meas
+        assert set(symvar(stage_cost)).issubset(set(symvar(vertcat(*stage_cost_input)))), 'objective cost equation must be solely depending on x, u, z, p, tvp, y_meas.'
+        self.stage_cost_fun = Function('stage_cost_fun', [*stage_cost_input], [stage_cost])
 
-        arrival_cost_input = self._x, self._x_prev, self._p_est, self._p_prev
+        arrival_cost_input = self._x, self._x_prev, self._p_est, self._p_est_prev
         assert set(symvar(arrival_cost)).issubset(set(symvar(vertcat(*arrival_cost_input)))), 'Arrival cost equation must be solely depending on x_0, x_prev, p_0, p_prev.'
         self.arrival_cost_fun = Function('arrival_cost_fun', arrival_cost_input, [arrival_cost])
 
         self.flags['set_objective'] = True
 
     def get_p_template(self):
-        """docstring
+        """Obtain the a numerical copy of the structure of the (not estimated) parameters.
+        Use this structure as the return of a user defined parameter function (``p_fun``)
+        that is called at each MHE step. Pass this function to the MHE by calling :py:func:`MHE.set_p_fun`.
+
+        .. note::
+            The combination of :py:func:`MHE.get_p_template` and :py:func:`MHE.set_p_fun` is
+            identical to the :py:class:`do_mpc.simulator.Simulator` methods, if the MHE
+            is not estimating any parameters.
+
+        :return: p_template
+        :rtype: struct_symSX
         """
         return self._p_set(0)
 
     def set_p_fun(self, p_fun):
-        """docstring
+        """Set the parameter function which is called at each MHE time step and returns the (not) estimated parameters.
+        The function must return a numerical CasADi structure, which can be retrieved with :py:func:`MHE.get_p_template`.
+
+        :param p_fun: Parameter function.
+        :type p_fun: function
         """
         assert self.get_p_template().labels() == p_fun(0).labels(), 'Incorrect output of p_fun. Use get_p_template to obtain the required structure.'
         self.p_fun = p_fun
         self.flags['set_p_fun'] = True
 
     def get_y_template(self):
+        """Obtain the a numerical copy of the structure of the measurements for the set horizon.
+        Use this structure as the return of a user defined parameter function (``y_fun``)
+        that is called at each MHE step. Pass this function to the MHE by calling :py:func:`MHE.set_y_fun`.
+
+        The structure carries a set of measurements for each time step of the horizon and can be accessed as follows:
+        ::
+            y_template['y_meas', k, 'meas_name']
+            # Slicing is possible, e.g.:
+            y_template['y_meas', :, 'meas_name']
+
+        where ``k`` runs from ``0`` to ``N_horizon-1`` and ``meas_name`` refers to the user-defined names in :py:class:`do_mpc.model.Model`.
+
+        .. note::
+            The structure is ordered, sucht that ``k=0`` is the "oldest measurement" and ``k=N_horizon-1`` is the newest measurement.
+
+        By default, the following measurement function is choosen:
+        ::
+            y_template = self.get_y_template()
+
+            def y_fun(t_now):
+                n_steps = min(self.data._y.shape[0], self.n_horizon)
+                for k in range(-n_steps,0):
+                    y_template['y_meas',k] = self.data._y[k]
+                try:
+                    for k in range(self.n_horizon-n_steps):
+                        y_template['y_meas',k] = self.data._y[-n_steps]
+                except:
+                    None
+                return y_template
+        Which simply reads the last results from the ``MHE.data`` object.
+
+        :return: y_template
+        :rtype: struct_symSX
+        """
         y_template = struct_symSX([
             entry('y_meas', repeat=self.n_horizon, struct=self._y_meas)
         ])
         return y_template(0)
 
     def set_y_fun(self, y_fun):
+        """Set the measurement function. The function must return a CasADi structure which can be obtained
+        from :py:func:`MHE.get_y_template`. See the respective doc string for details.
+
+        :param y_fun: measurement function.
+        :type y_fun: function
+        """
         assert self.get_y_template().labels() == y_fun(0).labels(), 'Incorrect output of y_fun. Use get_y_template to obtain the required structure.'
         self.y_fun = y_fun
         self.flags['set_y_fun'] = True
 
 
-    def check_validity(self):
+    def _check_validity(self):
+        """Private method to be called in :py:func:`MHE.setup`. Checks if the configuration is valid and
+        if the optimization problem can be constructed.
+        Furthermore, default values are set if they were not configured by the user (if possible).
+        Specifically, we set dummy values for the ``tvp_fun`` and ``p_fun`` if they are not present in the model
+        and the default measurement function.
+        """
         # Objective mus be defined.
         if self.flags['set_objective'] == False:
             raise Exception('Objective is undefined. Please call .set_objective() prior to .setup().')
@@ -392,9 +532,9 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
 
     def set_initial_guess(self):
-        """Uses the current class attributes _x0, _z0 and _u0, _p_est0 to create an initial guess for the mhe.
+        """Uses the current class attributes ``_x0``, ``_z0`` and ``_u0``, ``_p_est0`` to create an initial guess for the mhe.
         The initial guess is simply the initial values for all instances of x, u and z, p_est. The method is automatically
-        evoked when calling the .setup() method.
+        evoked when calling the :py:func:`MHE.setup` method.
         However, if no initial values for x, u and z were supplied during setup, these default to zero.
         """
         assert self.flags['setup'] == True, 'mhe was not setup yet. Please call mhe.setup().'
@@ -405,6 +545,20 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self.opt_x_num['_p_est'] = self._p_est0.cat/self._p_est_scaling
 
     def setup(self):
+        """The setup method finalizes the MHE creation. After this call, the py:func:`do_mpc.optimizer.Optimizer.solve` method is applicable.
+        The method wraps the following calls:
+
+        * :py:func:`MHE.check_validity()`
+
+        * :py:func:`MHE._setup_mpc_optim_problem()`
+
+        * :py:func:`MHE.set_initial_guess()`
+
+        * :py:func:`do_mpc.optimizer.prepare_data()`
+
+        and sets the setup flag = True.
+
+        """
         # Create struct for _nl_cons:
         # Use the previously defined SX.sym variables to declare shape and symbolic variable.
         self._nl_cons = struct_SX([
@@ -424,7 +578,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         meta_data = {key: getattr(self, key) for key in self.data_fields}
         self.data.set_meta(**meta_data)
 
-        self.check_validity()
+        self._check_validity()
         self._setup_mhe_optim_problem()
         self.flags['setup'] = True
 
@@ -432,6 +586,18 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self.prepare_data()
 
     def make_step(self, y0):
+        """Main method of the class during runtime. This method is called at each timestep
+        and returns the current state estimate for the current measurement ``y0``.
+
+        The method prepares the MHE by setting the current parameters, calls :py:func:`do_mpc.optimizer.Optimizer.solve`
+        and updates the :py:class:`do_mpc.data.Data` object.
+
+        :param y0: Current measurement.
+        :type y0: numpy.ndarray
+
+        :return: x0, estimated state of the system.
+        :rtype: numpy.ndarray
+        """
 
         self.data.update(_y = y0)
 
@@ -446,7 +612,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         y_traj = self.y_fun(t0)
 
         self.opt_p_num['_x_prev'] = x0
-        self.opt_p_num['_p_prev'] = p_est0
+        self.opt_p_num['_p_est_prev'] = p_est0
         self.opt_p_num['_p_set'] = p_set0
         self.opt_p_num['_tvp'] = tvp0['_tvp']
         self.opt_p_num['_y_meas'] = y_traj['y_meas']
@@ -479,6 +645,13 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         return x_next.full()
 
     def _setup_mhe_optim_problem(self):
+        """Private method of the MHE class to construct the MHE optimization problem.
+        The method depends on inherited methods from the :py:class:`do_mpc.optimizer.Optimizer`,
+        such as :py:func:`do_mpc.optimizer.Optimizer._setup_discretization` and
+        :py:func:`do_mpc.optimizer.Optimizer._setup_scenario_tree`.
+
+        The MPC has a similar method with similar structure.
+        """
         # Obtain an integrator (collocation, discrete-time) and the amount of intermediate (collocation) points
         ifcn, n_total_coll_points = self._setup_discretization()
         # Create struct for optimization variables:
@@ -506,7 +679,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         # Create struct for optimization parameters:
         self.opt_p = opt_p = struct_symSX([
             entry('_x_prev', struct=self.model._x),
-            entry('_p_prev', struct=self._p_prev),
+            entry('_p_est_prev', struct=self._p_est_prev),
             entry('_p_set', struct=self._p_set),
             entry('_tvp', repeat=self.n_horizon, struct=self.model._tvp),
             entry('_y_meas', repeat=self.n_horizon, struct=self.model._y),
@@ -535,7 +708,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             opt_x['_x', 0, -1],
             opt_p['_x_prev']/self._x_scaling,
             opt_x['_p_est'],
-            opt_p['_p_prev']/self._p_est_scaling
+            opt_p['_p_est_prev']/self._p_est_scaling
             )
 
         obj += arrival_cost
@@ -567,7 +740,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             cons_ub.append(self._nl_cons_ub)
 
 
-            obj += self.obj_fun(
+            obj += self.stage_cost_fun(
                 opt_x_unscaled['_x', k+1, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1],
                 opt_p['_tvp', k], _p, opt_p['_y_meas', k]
             )
