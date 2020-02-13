@@ -35,9 +35,9 @@ def template_optimizer(model):
     template_optimizer: tuning parameters
     --------------------------------------------------------------------------
     """
-    optimizer = do_mpc.optimizer(model)
+    mpc = do_mpc.controller.MPC(model)
 
-    setup_optimizer = {
+    setup_mpc = {
         'n_horizon': 20,
         'n_robust': 1,
         'open_loop': 0,
@@ -47,58 +47,58 @@ def template_optimizer(model):
         'store_full_solution': True,
     }
 
-    optimizer.set_param(**setup_optimizer)
+    mpc.set_param(**setup_mpc)
 
-    _x, _u, _z, _tvp, p, _aux,  *_ = optimizer.model.get_variables()
+    _x, _u, _z, _tvp, p, _aux,  *_ = mpc.model.get_variables()
 
     mterm = - _x['m_P']
     lterm = - _x['m_P']
 
-    optimizer.set_objective(mterm=mterm, lterm=lterm)
-    optimizer.set_rterm(m_dot_f=0.002, T_in_M=0.004, T_in_EK=0.002)
+    mpc.set_objective(mterm=mterm, lterm=lterm)
+    mpc.set_rterm(m_dot_f=0.002, T_in_M=0.004, T_in_EK=0.002)
 
     temp_range = 2.0
 
-    optimizer.bounds['lower','_x','m_W'] = 0.0
-    optimizer.bounds['lower','_x','m_A'] = 0.0
-    optimizer.bounds['lower','_x','m_P'] = 26.0
+    mpc.bounds['lower','_x','m_W'] = 0.0
+    mpc.bounds['lower','_x','m_A'] = 0.0
+    mpc.bounds['lower','_x','m_P'] = 26.0
 
-    optimizer.bounds['lower','_x','T_R'] = 363.15 - temp_range
-    optimizer.bounds['lower','_x','T_S'] = 298.0
-    optimizer.bounds['lower','_x','Tout_M'] = 298.0
-    optimizer.bounds['lower','_x','T_EK'] = 288.0
-    optimizer.bounds['lower','_x','Tout_AWT'] = 288.0
-    optimizer.bounds['lower','_x','accum_monom'] = 0.0
+    mpc.bounds['lower','_x','T_R'] = 363.15 - temp_range
+    mpc.bounds['lower','_x','T_S'] = 298.0
+    mpc.bounds['lower','_x','Tout_M'] = 298.0
+    mpc.bounds['lower','_x','T_EK'] = 288.0
+    mpc.bounds['lower','_x','Tout_AWT'] = 288.0
+    mpc.bounds['lower','_x','accum_monom'] = 0.0
 
-    optimizer.bounds['upper','_x','T_R'] = 363.15 + temp_range + 10.0
-    optimizer.bounds['upper','_x','T_S'] = 400.0
-    optimizer.bounds['upper','_x','Tout_M'] = 400.0
-    optimizer.bounds['upper','_x','T_EK'] = 400.0
-    optimizer.bounds['upper','_x','Tout_AWT'] = 400.0
-    optimizer.bounds['upper','_x','accum_monom'] = 30000.0
-    optimizer.bounds['upper','_x','T_adiab'] = 382.15 + 10.0
+    mpc.bounds['upper','_x','T_R'] = 363.15 + temp_range + 10.0
+    mpc.bounds['upper','_x','T_S'] = 400.0
+    mpc.bounds['upper','_x','Tout_M'] = 400.0
+    mpc.bounds['upper','_x','T_EK'] = 400.0
+    mpc.bounds['upper','_x','Tout_AWT'] = 400.0
+    mpc.bounds['upper','_x','accum_monom'] = 30000.0
+    mpc.bounds['upper','_x','T_adiab'] = 382.15 + 10.0
 
-    optimizer.bounds['lower','_u','m_dot_f'] = 0.0
-    optimizer.bounds['lower','_u','T_in_M'] = 333.15
-    optimizer.bounds['lower','_u','T_in_EK'] = 333.15
+    mpc.bounds['lower','_u','m_dot_f'] = 0.0
+    mpc.bounds['lower','_u','T_in_M'] = 333.15
+    mpc.bounds['lower','_u','T_in_EK'] = 333.15
 
-    optimizer.bounds['upper','_u','m_dot_f'] = 3.0e4
-    optimizer.bounds['upper','_u','T_in_M'] = 373.15
-    optimizer.bounds['upper','_u','T_in_EK'] = 373.15
+    mpc.bounds['upper','_u','m_dot_f'] = 3.0e4
+    mpc.bounds['upper','_u','T_in_M'] = 373.15
+    mpc.bounds['upper','_u','T_in_EK'] = 373.15
 
     # Scaling
-    optimizer.scaling['_x','m_W'] = 10
-    optimizer.scaling['_x','m_A'] = 10
-    optimizer.scaling['_x','m_P'] = 10
-    optimizer.scaling['_x','accum_monom'] = 10
+    mpc.scaling['_x','m_W'] = 10
+    mpc.scaling['_x','m_A'] = 10
+    mpc.scaling['_x','m_P'] = 10
+    mpc.scaling['_x','accum_monom'] = 10
 
-    optimizer.scaling['_u','m_dot_f'] = 100
+    mpc.scaling['_u','m_dot_f'] = 100
 
 
     delH_R_var = np.array([950.0, 950.0 * 1.30, 950.0 * 0.70])
     k_0_var = np.array([7.0*1.00, 7.0*1.30, 7.0*0.70])
-    optimizer.set_uncertainty_values([delH_R_var, k_0_var])
+    mpc.set_uncertainty_values([delH_R_var, k_0_var])
 
-    optimizer.setup()
+    mpc.setup()
 
-    return optimizer
+    return mpc

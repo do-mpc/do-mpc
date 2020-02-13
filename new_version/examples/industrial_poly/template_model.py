@@ -36,7 +36,7 @@ def template_model():
     --------------------------------------------------------------------------
     """
     model_type = 'continuous' # either 'discrete' or 'continuous'
-    model = do_mpc.model(model_type)
+    model = do_mpc.model.Model(model_type)
 
     # Certain parameters
     R           = 8.314    			#gas constant

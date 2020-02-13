@@ -39,11 +39,11 @@ from template_optimizer import template_optimizer
 from template_simulator import template_simulator
 
 model = template_model()
-optimizer = template_optimizer(model)
+mpc = template_optimizer(model)
 simulator = template_simulator(model)
-estimator = do_mpc.estimator.state_feedback(model)
+estimator = do_mpc.estimator.StateFeedback(model)
 
-# Set the initial state of optimizer and simulator:
+# Set the initial state of mpc and simulator:
 x0 = model._x(0)
 
 delH_R_real = 950.0
@@ -63,11 +63,11 @@ x0['T_adiab'] = x0['m_A']*delH_R_real/((x0['m_W'] + x0['m_A'] + x0['m_P']) * c_p
 
 
 
-optimizer.set_initial_state(x0, reset_history=True)
+mpc.set_initial_state(x0, reset_history=True)
 simulator.set_initial_state(x0, reset_history=True)
 
 # Initialize graphic:
-graphics = do_mpc.graphics()
+graphics = do_mpc.graphics.Graphics()
 
 
 fig, ax = plt.subplots(5, sharex=True)
@@ -91,7 +91,7 @@ plt.ion()
 time_list = []
 for k in range(100):
     tic = time.time()
-    u0 = optimizer.make_step(x0)
+    u0 = mpc.make_step(x0)
     y_next = simulator.make_step(u0)
     x0 = estimator.make_step(y_next)
     toc = time.time()
@@ -99,8 +99,8 @@ for k in range(100):
 
     if True:
         graphics.reset_axes()
-        graphics.plot_results(optimizer.data, linewidth=3)
-        graphics.plot_predictions(optimizer.data, linestyle='--', linewidth=1)
+        graphics.plot_results(mpc.data, linewidth=3)
+        graphics.plot_predictions(mpc.data, linestyle='--', linewidth=1)
         plt.show()
         input('next step')
 
