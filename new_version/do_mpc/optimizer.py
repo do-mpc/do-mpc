@@ -42,18 +42,18 @@ class Optimizer:
         # with the default numerical value.
         # This returns an identical numerical structure with all values set to the passed value.
 
-        self._x_lb = model._x(-np.inf)
-        self._x_ub = model._x(np.inf)
+        self._x_lb = self.model._x(-np.inf)
+        self._x_ub = self.model._x(np.inf)
 
-        self._u_lb = model._u(-np.inf)
-        self._u_ub = model._u(np.inf)
+        self._u_lb = self.model._u(-np.inf)
+        self._u_ub = self.model._u(np.inf)
 
-        self._z_lb = model._z(-np.inf)
-        self._z_ub = model._z(np.inf)
+        self._z_lb = self.model._z(-np.inf)
+        self._z_ub = self.model._z(np.inf)
 
-        self._x_scaling = model._x(1.0)
-        self._u_scaling = model._u(1.0)
-        self._z_scaling = model._z(1.0)
+        self._x_scaling = self.model._x(1.0)
+        self._u_scaling = self.model._u(1.0)
+        self._z_scaling = self.model._z(1.0)
 
         # Lists for further non-linear constraints (optional). Constraints are formulated as lb < cons < 0
         self.nl_cons_list = [

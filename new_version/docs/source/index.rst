@@ -12,6 +12,7 @@ Welcome to the documentation of do-mpc!
 
    overview
    getting_started
+   mhe_example
    license
    installation
    modules

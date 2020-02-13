@@ -14,7 +14,25 @@ do\_mpc.optimizer
 ------------------------
 
 .. automodule:: do_mpc.optimizer
-   :exclude-members: check_validity, prepare_data
+   :exclude-members: prepare_data
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+do\_mpc.controller
+------------------------
+
+.. automodule:: do_mpc.controller
+   :exclude-members: _check_validity
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+do\_mpc.estimator
+-------------------
+
+.. automodule:: do_mpc.estimator
+   :exclude-members: check_validity
    :members:
    :undoc-members:
    :show-inheritance:
@@ -35,13 +53,5 @@ do\_mpc.data
    :undoc-members:
    :show-inheritance:
 
-
-do\_mpc.estimator
--------------------
-
-.. automodule:: do_mpc.estimator
-   :members:
-   :undoc-members:
-   :show-inheritance:
 
 
