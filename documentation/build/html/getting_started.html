@@ -38,7 +38,7 @@
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="License" href="license.html" />
+    <link rel="next" title="Getting started: Moving Horizon Estimation" href="mhe_example.html" />
     <link rel="prev" title="Overview" href="overview.html" /> 
 </head>
 
@@ -126,6 +126,7 @@
 </li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="mhe_example.html">Getting started: Moving Horizon Estimation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="modules.html">API</a></li>
@@ -419,8 +420,8 @@ div.rendered_html tbody tr:hover {
 <h1>Getting started<a class="headerlink" href="#Getting-started" title="Permalink to this headline">¶</a></h1>
 <p>In this Jupyter Notebook we illustrate the core functionalities of <strong>do mpc</strong>.</p>
 <p>We start by importing the required modules, most notably <code class="docutils literal notranslate"><span class="pre">do_mpc</span></code>.</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[78]:
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -429,17 +430,8 @@ div.rendered_html tbody tr:hover {
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-The autoreload extension is already loaded. To reload it, use:
-  %reload_ext autoreload
-</pre></div></div>
-</div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[79]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -470,7 +462,7 @@ The autoreload extension is already loaded. To reload it, use:
 <p>The uncontrolled system, starting from a non-zero initial state will osciallate for an extended period of time, as shown below:</p>
 <p><img alt="SegmentLocal1" src="_images/anim_disc_3d_uncontrolled.gif" /></p>
 <p>Later, we want to be able to use the motors efficiently to bring the oscillating masses to a rest. It will look something like this:</p>
-<p><img alt="SegmentLocal2" src="_images/anim_discs_3d.gif" /></p>
+<p><img alt="SegmentLocal2" src="_images/anim_disc_3d_ctrl_motor.gif" /></p>
 </div>
 <div class="section" id="Creating-the-model">
 <h2>Creating the model<a class="headerlink" href="#Creating-the-model" title="Permalink to this headline">¶</a></h2>
@@ -500,7 +492,7 @@ x_6 = \dot{\phi}_3\\\end{split}\]</div>
 <p>With this theoretical background we can start configuring the <strong>do mpc</strong> <code class="docutils literal notranslate"><span class="pre">model</span></code> object.</p>
 <p>First, we need to decide on the model type. For the given example, we are working with a continuous model.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[80]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -548,7 +540,7 @@ x_6 = \dot{\phi}_3\\\end{split}\]</div>
 </tbody>
 </table>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[81]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -568,7 +560,7 @@ x_6 = \dot{\phi}_3\\\end{split}\]</div>
 </div>
 <p>Note that <code class="docutils literal notranslate"><span class="pre">model.set_variable()</span></code> returns the symbolic variable:</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[82]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -591,7 +583,7 @@ dphi=[dphi_0, dphi_1, dphi_2], with dphi.shape=(3, 1)
 <h3>Model parameters<a class="headerlink" href="#Model-parameters" title="Permalink to this headline">¶</a></h3>
 <p>Next we <strong>define parameters</strong>. Known values can and should be hardcoded but with robust MPC in mind, we define uncertain parameters explictly. We assume that the inertia is such an uncertain parameter and hardcode the spring constant and friction coefficient.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[83]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -610,7 +602,7 @@ dphi=[dphi_0, dphi_1, dphi_2], with dphi.shape=(3, 1)
 <h3>Right-hand-side equation<a class="headerlink" href="#Right-hand-side-equation" title="Permalink to this headline">¶</a></h3>
 <p>Finally, we set the right-hand-side of the model by calling <code class="docutils literal notranslate"><span class="pre">model.set_rhs(var_name,</span> <span class="pre">expr)</span></code> with the <code class="docutils literal notranslate"><span class="pre">var_name</span></code> from the state variables defined above and an expression in terms of <span class="math notranslate nohighlight">\(x, u, z, p\)</span>.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[84]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -622,7 +614,7 @@ dphi=[dphi_0, dphi_1, dphi_2], with dphi.shape=(3, 1)
 </div>
 <p>For the vector valued state <code class="docutils literal notranslate"><span class="pre">dphi</span></code> we need to concatenate symbolic expressions. We import the symbolic library CasADi:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[85]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -631,7 +623,7 @@ dphi=[dphi_0, dphi_1, dphi_2], with dphi.shape=(3, 1)
 </div>
 </div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[86]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -646,7 +638,7 @@ dphi=[dphi_0, dphi_1, dphi_2], with dphi.shape=(3, 1)
 </div>
 </div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[87]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -658,7 +650,7 @@ dphi=[dphi_0, dphi_1, dphi_2], with dphi.shape=(3, 1)
 </div>
 <p>The model setup is completed by calling <code class="docutils literal notranslate"><span class="pre">model.setup_model()</span></code>:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[88]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -673,7 +665,7 @@ dphi=[dphi_0, dphi_1, dphi_2], with dphi.shape=(3, 1)
 <h2>Configuring the MPC controller<a class="headerlink" href="#Configuring-the-MPC-controller" title="Permalink to this headline">¶</a></h2>
 <p>With the configured and setup model we can now create the optimizer for Model Predictive Control (MPC). We start by creating the object (with the <code class="docutils literal notranslate"><span class="pre">model</span></code> as the only input)</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[89]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -686,7 +678,7 @@ dphi=[dphi_0, dphi_1, dphi_2], with dphi.shape=(3, 1)
 <p>Next, we need to parametrize the <code class="docutils literal notranslate"><span class="pre">optimizer</span></code>. Please see the API documentation for <code class="docutils literal notranslate"><span class="pre">optimizer.set_param()</span></code> for a full description of available parameters and their meaning. Many parameters already have suggested default values. Most importantly, we need to set <code class="docutils literal notranslate"><span class="pre">n_horizon</span></code> and <code class="docutils literal notranslate"><span class="pre">t_step</span></code>. We also choose <code class="docutils literal notranslate"><span class="pre">n_robust=1</span></code> for this example, which would default to <code class="docutils literal notranslate"><span class="pre">0</span></code>.</p>
 <p>Note that by default the continuous system is discretized with <code class="docutils literal notranslate"><span class="pre">collocation</span></code>.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[90]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -714,7 +706,7 @@ dphi=[dphi_0, dphi_1, dphi_2], with dphi.shape=(3, 1)
 \[\begin{split}l(x_k,u_k,z_k,p) = \phi_1^2+\phi_2^2+\phi_3^2\\
 m(x_n) = \phi_1^2+\phi_2^2+\phi_3^2\end{split}\]</div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[91]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -731,7 +723,7 @@ m(x_n) = \phi_1^2+\phi_2^2+\phi_3^2\end{split}\]</div>
 <p>and automatically supply the solver with the previous solution of <span class="math notranslate nohighlight">\(u_{k-1}\)</span> for <span class="math notranslate nohighlight">\(\Delta u_0\)</span>.</p>
 <p>The user can set the tuning factor for these quadratic terms like this:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[92]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -748,7 +740,7 @@ m(x_n) = \phi_1^2+\phi_2^2+\phi_3^2\end{split}\]</div>
 <h3>Constraints<a class="headerlink" href="#Constraints" title="Permalink to this headline">¶</a></h3>
 <p>It is an important feature of MPC to be able to set constraints on inputs and states. In <strong>do mpc</strong> these constraints are set like this:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[93]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -775,7 +767,7 @@ m(x_n) = \phi_1^2+\phi_2^2+\phi_3^2\end{split}\]</div>
 <h3>Scaling<a class="headerlink" href="#Scaling" title="Permalink to this headline">¶</a></h3>
 <p>Scaling is an important feature if the OCP is poorly conditioned, e.g. different states have significantly different magnitudes. In that case the unscaled problem might not lead to a (desired) solution. Scaling factors can be introduced for all states, inputs and algebraic variables and the objective is to scale them to roughly the same order of magnitude. For the given problem, this is not necessary but we briefly show the syntax (note that this step can also be skipped).</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[94]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -791,7 +783,7 @@ m(x_n) = \phi_1^2+\phi_2^2+\phi_3^2\end{split}\]</div>
 <p>An important feature of <strong>do mpc</strong> is scenario based robust MPC. Instead of predicting and controlling a single future trajectory, we investigate multiple possible trajectories depending on different uncertain parameters. These parameters were previously defined in the model (the mass inertia). Now we must provide the optimizer with different possible scenarios.</p>
 <p>This can be done in the following way:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[95]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -810,7 +802,7 @@ m(x_n) = \phi_1^2+\phi_2^2+\phi_3^2\end{split}\]</div>
 <h3>Setup<a class="headerlink" href="#Setup" title="Permalink to this headline">¶</a></h3>
 <p>The last step of configuring the optimizer is to call <code class="docutils literal notranslate"><span class="pre">optimizer.setup</span></code>, which finalizes the setup and creates the optimization problem. Only now can we use the optimizer to obtain the control input.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[96]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -825,7 +817,7 @@ m(x_n) = \phi_1^2+\phi_2^2+\phi_3^2\end{split}\]</div>
 <p>In many cases a developed control approach is first tested on a simulated system. <strong>do mpc</strong> responds to this need with the <code class="docutils literal notranslate"><span class="pre">do_mpc.simulator</span></code> class. The <code class="docutils literal notranslate"><span class="pre">simulator</span></code> uses state-of-the-art DAE solvers, e.g. Sundials <a class="reference external" href="https://computing.llnl.gov/projects/sundials/cvode">CVODE</a> to solve the DAE equations defined in the supplied <code class="docutils literal notranslate"><span class="pre">do_mpc.model</span></code>. This will often be the same model as defined for the <code class="docutils literal notranslate"><span class="pre">optimizer</span></code> but it is also possible to use a more complex model of the same system.</p>
 <p>In this section we demonstrate how to setup the <code class="docutils literal notranslate"><span class="pre">simulator</span></code> class for the given example. We initilize the class with the previously defined <code class="docutils literal notranslate"><span class="pre">model</span></code>:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[97]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -837,7 +829,7 @@ m(x_n) = \phi_1^2+\phi_2^2+\phi_3^2\end{split}\]</div>
 <h3>Simulator parameters<a class="headerlink" href="#Simulator-parameters" title="Permalink to this headline">¶</a></h3>
 <p>Next, we need to parametrize the <code class="docutils literal notranslate"><span class="pre">simulator</span></code>. Please see the API documentation for <code class="docutils literal notranslate"><span class="pre">simulator.set_param()</span></code> for a full description of available parameters and their meaning. Many parameters already have suggested default values. Most importantly, we need to set <code class="docutils literal notranslate"><span class="pre">t_step</span></code>. We choose the same value as for the <code class="docutils literal notranslate"><span class="pre">optimizer</span></code>.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[98]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -852,7 +844,7 @@ m(x_n) = \phi_1^2+\phi_2^2+\phi_3^2\end{split}\]</div>
 <h3>Uncertain parameters<a class="headerlink" href="#Uncertain-parameters" title="Permalink to this headline">¶</a></h3>
 <p>In the <code class="docutils literal notranslate"><span class="pre">model</span></code> we have defined the inertia of the masses as parameters, for which we have choosen multiple scenarios in the <code class="docutils literal notranslate"><span class="pre">optmizer</span></code>. The <code class="docutils literal notranslate"><span class="pre">simulator</span></code> is now parametrized to simulate with the “true” values at each timestep. In the most general case, these values can change, which is why we need to supply a function that can be evaluted at each time to obtain the current values. <strong>do mpc</strong> requires this function to have a specific return structure which we obtain first by calling:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[99]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -862,7 +854,7 @@ m(x_n) = \phi_1^2+\phi_2^2+\phi_3^2\end{split}\]</div>
 </div>
 <p>This object is a CasADi structure:</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[100]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -871,7 +863,7 @@ m(x_n) = \phi_1^2+\phi_2^2+\phi_3^2\end{split}\]</div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[100]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -881,7 +873,7 @@ casadi.tools.structure3.DMStruct
 </div>
 <p>which can be indexed with the following keys:</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[101]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -890,7 +882,7 @@ casadi.tools.structure3.DMStruct
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[101]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -900,7 +892,7 @@ casadi.tools.structure3.DMStruct
 </div>
 <p>We need to now write a function which returns this structure with the desired numerial values. For our simple case:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[102]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -914,7 +906,7 @@ casadi.tools.structure3.DMStruct
 </div>
 <p>This function is now supplied to the <code class="docutils literal notranslate"><span class="pre">simulator</span></code> in the following way:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[103]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[25]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -927,7 +919,7 @@ casadi.tools.structure3.DMStruct
 <h3>Setup<a class="headerlink" href="#Setup" title="Permalink to this headline">¶</a></h3>
 <p>Similarly to the <code class="docutils literal notranslate"><span class="pre">optimizer</span></code> we need to call <code class="docutils literal notranslate"><span class="pre">simulator.setup()</span></code> to finalize the setup of the simulator.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[104]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[26]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -942,7 +934,7 @@ casadi.tools.structure3.DMStruct
 <p>In theory, we could now also create an estimator but for this concise example we just assume direct state-feedback. This means we are now ready to setup and run the control loop. The control loop consists of running the optimizer with the current state (<span class="math notranslate nohighlight">\(x_0\)</span>) to obtain the current control input (<span class="math notranslate nohighlight">\(u_0\)</span>) and then running the simulator with the current control input (<span class="math notranslate nohighlight">\(u_0\)</span>) to obtain the next state.</p>
 <p>As discussed before, we setup a controller for regulating a triple-mass-spring system. To show some interesting control action we choose an arbitrary initial state <span class="math notranslate nohighlight">\(x_0\neq 0\)</span>:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[105]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[27]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -952,7 +944,7 @@ casadi.tools.structure3.DMStruct
 </div>
 <p>and use the <code class="docutils literal notranslate"><span class="pre">.set_initial_state()</span></code> method to set the initial state (which also calls <code class="docutils literal notranslate"><span class="pre">optimizer.set_initial_guess()</span></code>.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[106]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[28]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -966,7 +958,7 @@ casadi.tools.structure3.DMStruct
 <p>To investigate the controller performance <strong>AND</strong> the MPC predictions, we are using the <strong>do mpc</strong> <code class="docutils literal notranslate"><span class="pre">graphics</span></code> module. This versatile tool allows us to conveniently configure a user-defined plot based on Matplotlib and visualize the results stored in the <code class="docutils literal notranslate"><span class="pre">optimizer.data</span></code>, <code class="docutils literal notranslate"><span class="pre">simulator.data</span></code> (and if applicable <code class="docutils literal notranslate"><span class="pre">estimator.data</span></code>) objects.</p>
 <p>We start by importing matplotlib:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[107]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[29]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -981,7 +973,7 @@ casadi.tools.structure3.DMStruct
 </div>
 <p>And initializing the <code class="docutils literal notranslate"><span class="pre">graphics</span> <span class="pre">module</span></code>:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[108]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -991,7 +983,7 @@ casadi.tools.structure3.DMStruct
 </div>
 <p>Next, we create a <code class="docutils literal notranslate"><span class="pre">figure</span></code> and obtain its <code class="docutils literal notranslate"><span class="pre">axis</span></code> object. Matplotlib offers multiple alternative ways to obtain an <code class="docutils literal notranslate"><span class="pre">axis</span></code> object, e.g. <a class="reference external" href="https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.pyplot.subplots.html">subplots</a>, <a class="reference external" href="https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.pyplot.subplot2grid.html">subplot2grid</a>, or simply <a class="reference external" href="https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.pyplot.gca.html">gca</a>. We use <code class="docutils literal notranslate"><span class="pre">subplots</span></code>:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[109]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1005,7 +997,7 @@ casadi.tools.structure3.DMStruct
 <p>Most important API element for setting up the <code class="docutils literal notranslate"><span class="pre">graphics</span></code> module is <code class="docutils literal notranslate"><span class="pre">graphics.add_line</span></code>, which mimics the API of <code class="docutils literal notranslate"><span class="pre">model.add_variable</span></code>, except that we also need to pass an <code class="docutils literal notranslate"><span class="pre">axis</span></code>.</p>
 <p>Note that we are only configuring the <code class="docutils literal notranslate"><span class="pre">graphics</span></code> module without showing anything just yet.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[110]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[32]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1030,7 +1022,7 @@ casadi.tools.structure3.DMStruct
 <h3>Running the simulator<a class="headerlink" href="#Running-the-simulator" title="Permalink to this headline">¶</a></h3>
 <p>We start investigating the <strong>do mpc</strong> simulator and the <code class="docutils literal notranslate"><span class="pre">graphics</span></code> package by simulating the autonomous system without control inputs (<span class="math notranslate nohighlight">\(u = 0\)</span>). This can be done as follows:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[111]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[33]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1042,7 +1034,7 @@ casadi.tools.structure3.DMStruct
 </div>
 <p>We can visualize the resulting trajectory with the pre-defined graphic:</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[112]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[34]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1053,7 +1045,7 @@ casadi.tools.structure3.DMStruct
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[112]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[34]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -1067,7 +1059,7 @@ casadi.tools.structure3.DMStruct
 <h3>Running the optimizer<a class="headerlink" href="#Running-the-optimizer" title="Permalink to this headline">¶</a></h3>
 <p>To obtain the current control input we call <code class="docutils literal notranslate"><span class="pre">optimizer.make_step(x0)</span></code> with the current state (<span class="math notranslate nohighlight">\(x_0\)</span>):</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[113]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[35]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1080,6 +1072,13 @@ casadi.tools.structure3.DMStruct
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
+
+******************************************************************************
+This program contains Ipopt, a library for large-scale nonlinear optimization.
+ Ipopt is released as open source code under the Eclipse Public License (EPL).
+         For more information visit http://projects.coin-or.org/Ipopt
+******************************************************************************
+
 This is Ipopt version 3.12.12, running with linear solver mumps.
 NOTE: Other linear solvers might be more efficient (see Ipopt documentation).
 
@@ -1129,24 +1128,24 @@ Number of inequality constraint evaluations          = 0
 Number of equality constraint Jacobian evaluations   = 12
 Number of inequality constraint Jacobian evaluations = 0
 Number of Lagrangian Hessian evaluations             = 11
-Total CPU secs in IPOPT (w/o function evaluations)   =      3.268
-Total CPU secs in NLP function evaluations           =      0.018
+Total CPU secs in IPOPT (w/o function evaluations)   =      2.790
+Total CPU secs in NLP function evaluations           =      0.017
 
 EXIT: Optimal Solution Found.
                t_proc [s]   t_wall [s]    n_eval
-           S         3.66         1.84         1
-       nlp_f     0.000453     0.000233        12
-       nlp_g      0.00573      0.00277        12
-    nlp_grad     0.000775     0.000388         1
-  nlp_grad_f      0.00129     0.000622        13
-  nlp_hess_l     0.000453     0.000216        11
-   nlp_jac_g       0.0103      0.00508        13
+           S         3.25         1.63         1
+       nlp_f     0.000461     0.000235        12
+       nlp_g      0.00565      0.00275        12
+    nlp_grad     0.000843      0.00042         1
+  nlp_grad_f      0.00142      0.00073        13
+  nlp_hess_l     0.000392     0.000186        11
+   nlp_jac_g      0.00948      0.00465        13
 </pre></div></div>
 </div>
 <p>Note that we obtained the output from IPOPT regarding the given optimal control problem (OCP). Most importantly we obtained <code class="docutils literal notranslate"><span class="pre">Optimal</span> <span class="pre">Solution</span> <span class="pre">Found</span></code>.</p>
 <p>The configured <code class="docutils literal notranslate"><span class="pre">graphics</span></code> module is very useful to investigate the obtained solution by plotting the predicted system behavior. We simply need to call:</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[114]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[37]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1163,7 +1162,7 @@ EXIT: Optimal Solution Found.
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[114]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[37]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -1179,7 +1178,7 @@ EXIT: Optimal Solution Found.
 <p>Finally, we are now able to run the control loop as discussed above. We obtain the input from the <code class="docutils literal notranslate"><span class="pre">optimizer</span></code> and then run the <code class="docutils literal notranslate"><span class="pre">simulator</span></code>.</p>
 <p>To make sure we start fresh, we reset the initial state and erase the history:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[115]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[38]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1191,7 +1190,7 @@ EXIT: Optimal Solution Found.
 <p>This is the main-loop. We run 20 steps, whic is identical to the prediction horizon. Note that we use “capture” again, to surpress the output from IPOPT.</p>
 <p>It is usually suggested to display the output as it contains important information about the state of the solver.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[117]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[39]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1204,7 +1203,7 @@ EXIT: Optimal Solution Found.
 </div>
 <p>We can now plot the previously shown prediction from time <span class="math notranslate nohighlight">\(t=0\)</span>, as well as the closed-loop trajectory from the simulator:</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[119]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[40]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1219,7 +1218,7 @@ EXIT: Optimal Solution Found.
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[119]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[40]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -1235,7 +1234,7 @@ EXIT: Optimal Solution Found.
 <h3>Saving and retrieving results<a class="headerlink" href="#Saving-and-retrieving-results" title="Permalink to this headline">¶</a></h3>
 <p><strong>do mpc</strong> results can be stored and retrieved with the methods <code class="docutils literal notranslate"><span class="pre">save_results</span></code> and <code class="docutils literal notranslate"><span class="pre">load_results</span></code> from the <code class="docutils literal notranslate"><span class="pre">do_mpc.data</span></code> module. We start by importing these methods:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[125]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[41]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1246,7 +1245,7 @@ EXIT: Optimal Solution Found.
 <p>The method <code class="docutils literal notranslate"><span class="pre">save_results</span></code> is passed a list of the <strong>do mpc</strong> objects that we want to store. In our case, the <code class="docutils literal notranslate"><span class="pre">optimizer</span></code> and <code class="docutils literal notranslate"><span class="pre">simulator</span></code> are available and configured.</p>
 <p>Note that by default results are stored in the subfolder <code class="docutils literal notranslate"><span class="pre">results</span></code> under the name <code class="docutils literal notranslate"><span class="pre">results.pkl</span></code>. Both can be changed and the folder is created if it doesn’t exist already.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[126]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[42]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1256,7 +1255,7 @@ EXIT: Optimal Solution Found.
 </div>
 <p>We investigate the content of the newly created folder:</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[127]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[43]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1266,7 +1265,7 @@ EXIT: Optimal Solution Found.
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[127]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[43]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -1276,7 +1275,7 @@ EXIT: Optimal Solution Found.
 </div>
 <p>Automatically, the <code class="docutils literal notranslate"><span class="pre">save_results</span></code> call will check if a file with the given name already exists. To avoid overwriting, the method prepends an index. If we save again, the folder contains:</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[129]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[44]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1286,7 +1285,7 @@ EXIT: Optimal Solution Found.
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[129]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[44]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -1301,7 +1300,7 @@ EXIT: Optimal Solution Found.
 </div>
 <p>or by calling <code class="docutils literal notranslate"><span class="pre">load_results</span></code> with the appropriate <code class="docutils literal notranslate"><span class="pre">file_name</span></code> (and path). <code class="docutils literal notranslate"><span class="pre">load_results</span></code> contains simply the code above for more convenience.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[130]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[45]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1316,7 +1315,7 @@ EXIT: Optimal Solution Found.
 <p>Animating MPC results, to compare prediction and closed-loop trajectories, allows for a very meaningful investigation of the obtained results.</p>
 <p><strong>do mpc</strong> significantly facilitates this process while working hand in hand with Matplotlib for full customizability. Obtaining publication ready animations is as easy as writing the following short blocks of code:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[54]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[46]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1331,25 +1330,25 @@ EXIT: Optimal Solution Found.
 </div>
 <p>The <code class="docutils literal notranslate"><span class="pre">graphics</span></code> module can also be used without restrictions with loaded <strong>do mpc</strong> data. This allows for convenient data post-processing, e.g. in a Jupyter Notebook. With the <code class="docutils literal notranslate"><span class="pre">results</span></code> dict from above we have to write:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[55]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[49]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
 <span></span><span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="n">t_ind</span><span class="p">):</span>
     <span class="n">graphics</span><span class="o">.</span><span class="n">reset_axes</span><span class="p">()</span>
     <span class="n">graphics</span><span class="o">.</span><span class="n">plot_results</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="s1">&#39;simulator&#39;</span><span class="p">],</span> <span class="n">t_ind</span><span class="o">=</span><span class="n">t_ind</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
-    <span class="n">graphics</span><span class="o">.</span><span class="n">plot_predictions</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="s1">&#39;optimizer&#39;</span><span class="p">],</span> <span class="n">t_ind</span><span class="o">=</span><span class="n">t_ind</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">graphics</span><span class="o">.</span><span class="n">plot_predictions</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="s1">&#39;mpc&#39;</span><span class="p">],</span> <span class="n">t_ind</span><span class="o">=</span><span class="n">t_ind</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[56]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[50]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
 <span></span><span class="n">anim</span> <span class="o">=</span> <span class="n">FuncAnimation</span><span class="p">(</span><span class="n">fig</span><span class="p">,</span> <span class="n">update</span><span class="p">,</span> <span class="n">frames</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">repeat</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="n">gif_writer</span> <span class="o">=</span> <span class="n">ImageMagickWriter</span><span class="p">(</span><span class="n">fps</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
-<span class="c1">#anim.save(&#39;anim.gif&#39;, writer=gif_writer)</span>
+<span class="n">anim</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;anim.gif&#39;</span><span class="p">,</span> <span class="n">writer</span><span class="o">=</span><span class="n">gif_writer</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -1369,7 +1368,7 @@ EXIT: Optimal Solution Found.
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="license.html" class="btn btn-neutral float-right" title="License" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="mhe_example.html" class="btn btn-neutral float-right" title="Getting started: Moving Horizon Estimation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
         <a href="overview.html" class="btn btn-neutral float-left" title="Overview" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>

@@ -3,10 +3,8 @@
 
 *.pkl
 
-*.gif
-
-*/docs/build/
-
 */.ipynb_checkpoints/
 
-new_version/docs/source/.ipynb_checkpoints/
+docs/source/.ipynb_checkpoints/
+
+documentation/build/
