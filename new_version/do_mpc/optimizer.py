@@ -55,6 +55,7 @@ class Optimizer:
         self._x_scaling = self.model._x(1.0)
         self._u_scaling = self.model._u(1.0)
         self._z_scaling = self.model._z(1.0)
+        self._p_scaling = self.model._p(1.0) # only meaningful for MHE.
 
         # Lists for further non-linear constraints (optional). Constraints are formulated as lb < cons < 0
         self.nl_cons_list = [
@@ -126,7 +127,7 @@ class Optimizer:
 
         err_msg = 'Invalid power index {} for bound_type. Must be from (lower, upper).'
         assert bound_type in ('lower', 'upper'), err_msg.format(bound_type)
-        err_msg = 'Invalid power index {} for var_type. Must be from (_x, states, _u, inputs, _z, algebraic).'
+        err_msg = 'Invalid power index {} for var_type. Must be from (_x, _u, _z, _p_est).'
         assert var_type in ('_x', '_u', '_z', '_p_est'), err_msg.format(var_type)
 
         if bound_type == 'lower':
@@ -444,6 +445,7 @@ class Optimizer:
         rhs = substitute(self.model._rhs, _x, _x*self._x_scaling.cat)
         rhs = substitute(rhs, _u, _u*self._u_scaling.cat)
         rhs = substitute(rhs, _z, _z*self._z_scaling.cat)
+        rhs = substitute(rhs, _p, _p*self._p_scaling.cat) # only meaningful for MHE.
 
         if self.state_discretization == 'discrete':
             ifcn = Function('ifcn', [_x, _u, _z, _tvp, _p], [[], rhs/self._x_scaling.cat])

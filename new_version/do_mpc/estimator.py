@@ -205,7 +205,9 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         # Initialize additional structures by calling the symbolic structures defined above
         # with the default numerical value.
         # This returns an identical numerical structure with all values set to the passed value.
+        # TODO: p_scaling already exists. Maybe use it instead of these seperate structs?
         self._p_est_scaling = self._p_est(1.0)
+        self._p_set_scaling = self._p_set(1.0) # This not meant to be adapted. We need it to concatenate p_scaling.
 
         self._p_est_lb = self._p_est(-np.inf)
         self._p_est_ub = self._p_est(np.inf)
@@ -573,6 +575,9 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         for nl_cons_i in self.nl_cons_list:
             self._nl_cons_lb[nl_cons_i['expr_name']] = nl_cons_i['lb']
 
+        # Concatenate _p_est_scaling und _p_set_scaling to p_scaling (and make it a struct again)
+        self._p_scaling = self.model._p(self._p_cat_fun(self._p_est_scaling, self._p_set_scaling))
+
         # Gather meta information:
         meta_data = {key: getattr(self, key) for key in self.data_fields}
         self.data.set_meta(**meta_data)
@@ -620,7 +625,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         # Extract solution:
         x_next = self.opt_x_num['_x', -1, -1]*self._x_scaling
-        p_est_next = self._p_est0 = self.opt_x_num['_p_est']*self._p_est_scaling
+        p_est_next = self.opt_x_num['_p_est']*self._p_est_scaling
         u0 = self.opt_x_num['_u', -1]*self._u_scaling
         z0  = self.opt_x_num['_z', -1, -1]*self._z_scaling
         aux0 = self.opt_aux_num['_aux', -1]
@@ -704,16 +709,16 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         # Arrival cost:
         arrival_cost = self.arrival_cost_fun(
-            opt_x['_x', 0, -1],
-            opt_p['_x_prev']/self._x_scaling,
-            opt_x['_p_est'],
-            opt_p['_p_est_prev']/self._p_est_scaling
+            opt_x_unscaled['_x', 0, -1],
+            opt_p['_x_prev'],#/self._x_scaling,
+            opt_x_unscaled['_p_est'],
+            opt_p['_p_est_prev'],#/self._p_est_scaling
             )
 
         obj += arrival_cost
 
-        # Get concatenated parameters vector containing the estimated and fixed parameters.
-        _p = self._p_cat_fun(self.opt_x['_p_est'], self.opt_p['_p_set'])
+        # Get concatenated parameters vector containing the estimated and fixed parameters (scaled)
+        _p = self._p_cat_fun(self.opt_x['_p_est'], self.opt_p['_p_set']/self._p_set_scaling)
 
         # For all control intervals
         for k in range(self.n_horizon):
