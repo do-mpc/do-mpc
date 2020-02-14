@@ -15,7 +15,7 @@
 # sys.path.insert(0, os.path.abspath('.'))
 import pdb
 import sys
-sys.path.append('../')
+sys.path.insert(0, os.path.abspath('../'))
 
 
 # -- Project information -----------------------------------------------------
