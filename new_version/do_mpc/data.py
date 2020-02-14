@@ -52,7 +52,7 @@ class Data:
             '_z':    model.n_z,
             '_tvp':  model.n_tvp,
             '_p':    model.n_p,
-            '_aux_expression':  model.n_aux,
+            '_aux':  model.n_aux,
         }
 
         self.init_storage()
@@ -128,11 +128,11 @@ class Data:
 def save_results(save_list, result_name='results', result_path='./results/', overwrite=False):
     """Exports the data objects from the **do mpc** modules in ``save_list`` as a pickled file. Supply any, all or a selection of (as a list):
 
-    * :py:class:`do_mpc.optimizer`
+    * :py:class:`do_mpc.controller.MPC`
 
-    * :py:class:`do_mpc.simulator`
+    * :py:class:`do_mpc.simulator.Simulator`
 
-    * :py:class:`do_mpc.estimator`
+    * :py:class:`do_mpc.estimator.Estimator`
 
     These objects can be used in post-processing to create graphics with the :py:class:`do_mpc.graphics_backend`.
 
@@ -191,11 +191,11 @@ def load_results(file_name):
     """ Simple wrapper to open and unpickle a file.
     If used for **do mpc** results, this will return a dictionary with the stored **do mpc** modules:
 
-    * :py:class:`do_mpc.optimizer`
+    * :py:class:`do_mpc.controller.MPC`
 
-    * :py:class:`do_mpc.simulator`
+    * :py:class:`do_mpc.simulator.Simulator`
 
-    * :py:class:`do_mpc.estimator`
+    * :py:class:`do_mpc.estimator.Estimator`
 
     :param file_name: File name (including path) for the file to be opened and unpickled.
     :type file_name: str

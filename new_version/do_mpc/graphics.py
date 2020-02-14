@@ -62,7 +62,7 @@ class Graphics:
 
     def add_line(self, var_type, var_name, axis, **pltkwargs):
         """add_line is called during setting up the graphics class. This is typically the last step of the configuration of a do-mpc case.
-        Each call of .add_line adds a line to the passed axis according to the variable type (_x, _u, _z, _tvp, _p, _aux_expression)
+        Each call of .add_line adds a line to the passed axis according to the variable type (_x, _u, _z, _tvp, _p, _aux)
         and its name (as defined in the model).
         Furthermore, all valid matplotlib .plot arguments can be passed as optional keyword arguments, e.g.: 'linewidth', 'color', 'alpha'.
 
@@ -85,7 +85,7 @@ class Graphics:
         """
         assert isinstance(var_type, str), 'var_type argument must be a string. You have: {}'.format(type(var_type))
         assert isinstance(var_name, str), 'var_name argument must be a string. You have: {}'.format(type(var_name))
-        assert var_type in ['_x', '_u', '_z', '_tvp', '_p'], 'var_type argument must reference to the valid var_types of do-mpc models. Note that _aux_expression are currently not supported for plotting.'
+        assert var_type in ['_x', '_u', '_z', '_tvp', '_p', '_aux'], 'var_type argument must reference to the valid var_types of do-mpc models. Note that _aux_expression are currently not supported for plotting.'
         assert isinstance(axis, maxes.Axes), 'axis argument must be matplotlib axes object.'
 
         self.line_list.append(
@@ -211,7 +211,7 @@ class Graphics:
                 pred = vertcat(*opt_x_num[line_i['var_type'],:,lambda v: horzcat(*v),:,line_i['var_name']])
                 pred = pred.full()[range(pred.shape[0]),structure_scenario[:-1,:].T].T
                 lines.extend(line_i['ax'].step(time, pred, **line_i['predkwargs']))
-            elif line_i['var_type'] in ['_aux_expression']:
+            elif line_i['var_type'] in ['_aux']:
                 pred = vertcat(*opt_aux_num['_aux',:,lambda v: horzcat(*v),:,line_i['var_name']])
                 pred = pred.full()[range(pred.shape[0]),structure_scenario[:-1,:].T].T
                 lines.extend(line_i['ax'].plot(time, pred, **line_i['predkwargs']))
