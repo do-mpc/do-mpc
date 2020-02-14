@@ -412,7 +412,7 @@ div.rendered_html tbody tr:hover {
 <h1>Getting started: Moving Horizon Estimation<a class="headerlink" href="#Getting-started:-Moving-Horizon-Estimation" title="Permalink to this headline">¶</a></h1>
 <p>In this Jupyter Notebook we illustrate application of the <strong>do mpc</strong> moving horizon estimation module. Please follow first the general <strong>Getting Started</strong> guide, as we cover the sample example and skip over some previously explained details.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -432,7 +432,7 @@ div.rendered_html tbody tr:hover {
 <h2>Creating the model<a class="headerlink" href="#Creating-the-model" title="Permalink to this headline">¶</a></h2>
 <p>First, we need to decide on the model type. For the given example, we are working with a continuous model.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -446,7 +446,7 @@ div.rendered_html tbody tr:hover {
 <p>The next step is to define the model variables. It is important to define the variable type, name and optionally shape (default is scalar variable).</p>
 <p>In contrast to the previous example, we now use vectors for all variables.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -467,7 +467,7 @@ div.rendered_html tbody tr:hover {
 <p>This step is essential for the state estimation task: We must define a measurable output. Typcially, this is a subset of states (or a transformation thereof) as well as the inputs.</p>
 <p>Note that some MHE implementations consider inputs seperatly.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -484,7 +484,7 @@ div.rendered_html tbody tr:hover {
 <h3>Model parameters<a class="headerlink" href="#Model-parameters" title="Permalink to this headline">¶</a></h3>
 <p>Next we <strong>define parameters</strong>. The MHE allows to estimate parameters as well as states. Note that not all parameters must be estimated (as shown in the MHE setup below). We can also hardcode parameters (suche as the spring constants <code class="docutils literal notranslate"><span class="pre">c</span></code>.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -502,7 +502,7 @@ div.rendered_html tbody tr:hover {
 <h3>Right-hand-side equation<a class="headerlink" href="#Right-hand-side-equation" title="Permalink to this headline">¶</a></h3>
 <p>Finally, we set the right-hand-side of the model by calling <code class="docutils literal notranslate"><span class="pre">model.set_rhs(var_name,</span> <span class="pre">expr)</span></code> with the <code class="docutils literal notranslate"><span class="pre">var_name</span></code> from the state variables defined above and an expression in terms of <span class="math notranslate nohighlight">\(x, u, z, p\)</span>.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -524,7 +524,7 @@ div.rendered_html tbody tr:hover {
 </div>
 <p>The model setup is completed by calling <code class="docutils literal notranslate"><span class="pre">model.setup_model()</span></code>:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -539,7 +539,7 @@ div.rendered_html tbody tr:hover {
 <h2>Configuring the Moving Horizon Estimator<a class="headerlink" href="#Configuring-the-Moving-Horizon-Estimator" title="Permalink to this headline">¶</a></h2>
 <p>The first step of configuring the moving horizon estimator is to call the class with a list of all parameters to be estimated. An empty list (default value) means that no parameters are estimated. The list of estimated parameters must be a subset (or all) of the previously defined parameters.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -551,7 +551,7 @@ div.rendered_html tbody tr:hover {
 <h3>MHE parameters:<a class="headerlink" href="#MHE-parameters:" title="Permalink to this headline">¶</a></h3>
 <p>Next we pass MHE parameters. Most importantly, we need to set the time step and the horizon. We also choose here, to obtain the measurement from the MHE data object. Alternatively, we are able to set a user defined measurement function that is called at each timestep and returns the <code class="docutils literal notranslate"><span class="pre">N</span></code> previous measurements for the estimation step.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -572,9 +572,9 @@ div.rendered_html tbody tr:hover {
 <div class="math notranslate nohighlight">
 \[\begin{split}J=  &amp;\underbrace{(x_0 - \tilde{x}_0)^T P_x (x_0 - \tilde{x}_0)}_{\text{arrival cost states}} +
            \underbrace{(p_0 - \tilde{p}_0)^T P_p (p_0 - \tilde{p}_0)}_{\text{arrival cost params.}} \\
-            &amp;+\sum_{k=0}^{n-1} \underbrace{(h(x_k, u_k, p_k) - y_k)^T P_{y,k} (h(x_k, u_k, p_k) - y_k)}_{\\text{stage cost}}\end{split}\]</div>
+            &amp;+\sum_{k=0}^{n-1} \underbrace{(h(x_k, u_k, p_k) - y_k)^T P_{y,k} (h(x_k, u_k, p_k) - y_k)}_{\text{stage cost}}\end{split}\]</div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -610,7 +610,7 @@ div.rendered_html tbody tr:hover {
 <p>If the model contains parameters and if we estimate only a subset of these parameters, it is required to pass a function that returns the value of the remaining parameters at each time step.</p>
 <p>Furthermore, this function must return a specific structure, which is first obtained by calling:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -620,7 +620,7 @@ div.rendered_html tbody tr:hover {
 </div>
 <p>Using this structure, we then formulate the following function for the remaining (not estimated) parameters:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[25]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -632,7 +632,7 @@ div.rendered_html tbody tr:hover {
 </div>
 </div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[26]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -645,7 +645,7 @@ div.rendered_html tbody tr:hover {
 <h3>Bounds<a class="headerlink" href="#Bounds" title="Permalink to this headline">¶</a></h3>
 <p>The MHE implementation also supports bounds for states, inputs, parameters which can be set as shown below. For the given example, it is especially important to set realistic bounds on the estimated parameter. Otherwise the MHE solution is a poor fit.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[28]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -662,7 +662,7 @@ div.rendered_html tbody tr:hover {
 <h3>Setup<a class="headerlink" href="#Setup" title="Permalink to this headline">¶</a></h3>
 <p>Similar to the controller, simulator and model, we finalize the MHE configuration by calling:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[29]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -677,7 +677,7 @@ div.rendered_html tbody tr:hover {
 <p>In many cases a developed control approach is first tested on a simulated system. <strong>do mpc</strong> responds to this need with the <code class="docutils literal notranslate"><span class="pre">do_mpc.simulator</span></code> class. The <code class="docutils literal notranslate"><span class="pre">simulator</span></code> uses state-of-the-art DAE solvers, e.g. Sundials <a class="reference external" href="https://computing.llnl.gov/projects/sundials/cvode">CVODE</a> to solve the DAE equations defined in the supplied <code class="docutils literal notranslate"><span class="pre">do_mpc.model</span></code>. This will often be the same model as defined for the <code class="docutils literal notranslate"><span class="pre">optimizer</span></code> but it is also possible to use a more complex model of the same system.</p>
 <p>In this section we demonstrate how to setup the <code class="docutils literal notranslate"><span class="pre">simulator</span></code> class for the given example. We initilize the class with the previously defined <code class="docutils literal notranslate"><span class="pre">model</span></code>:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -689,7 +689,7 @@ div.rendered_html tbody tr:hover {
 <h3>Simulator parameters<a class="headerlink" href="#Simulator-parameters" title="Permalink to this headline">¶</a></h3>
 <p>Next, we need to parametrize the <code class="docutils literal notranslate"><span class="pre">simulator</span></code>. Please see the API documentation for <code class="docutils literal notranslate"><span class="pre">simulator.set_param()</span></code> for a full description of available parameters and their meaning. Many parameters already have suggested default values. Most importantly, we need to set <code class="docutils literal notranslate"><span class="pre">t_step</span></code>. We choose the same value as for the <code class="docutils literal notranslate"><span class="pre">optimizer</span></code>.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -704,7 +704,7 @@ div.rendered_html tbody tr:hover {
 <h3>Parameters<a class="headerlink" href="#Parameters" title="Permalink to this headline">¶</a></h3>
 <p>In the <code class="docutils literal notranslate"><span class="pre">model</span></code> we have defined the inertia of the masses as parameters. The <code class="docutils literal notranslate"><span class="pre">simulator</span></code> is now parametrized to simulate with the “true” values at each timestep. In the most general case, these values can change, which is why we need to supply a function that can be evaluted at each time to obtain the current values. <strong>do mpc</strong> requires this function to have a specific return structure which we obtain first by calling:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[32]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -714,7 +714,7 @@ div.rendered_html tbody tr:hover {
 </div>
 <p>We need to now write a function which returns this structure with the desired numerial values. For our simple case:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[33]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -728,7 +728,7 @@ div.rendered_html tbody tr:hover {
 </div>
 <p>This function is now supplied to the <code class="docutils literal notranslate"><span class="pre">simulator</span></code> in the following way:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[34]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -741,7 +741,7 @@ div.rendered_html tbody tr:hover {
 <h3>Setup<a class="headerlink" href="#Setup" title="Permalink to this headline">¶</a></h3>
 <p>Finally, we call:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[35]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -755,7 +755,7 @@ div.rendered_html tbody tr:hover {
 <h2>Creating the loop<a class="headerlink" href="#Creating-the-loop" title="Permalink to this headline">¶</a></h2>
 <p>While the full loop should also include a controller, we are currently only interested in showcasing the estimator. We therefore estimate the states for an arbitrary initial condition and some random control inputs (shown below).</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[36]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -765,7 +765,7 @@ div.rendered_html tbody tr:hover {
 </div>
 <p>To make things more interesting we pass the estimator a perturbed initial state:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[37]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -775,7 +775,7 @@ div.rendered_html tbody tr:hover {
 </div>
 <p>and use the <code class="docutils literal notranslate"><span class="pre">.set_initial_state()</span></code> method to set the initial state:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[38]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -789,7 +789,7 @@ div.rendered_html tbody tr:hover {
 <p>We are again using the <strong>do mpc</strong> <code class="docutils literal notranslate"><span class="pre">graphics</span></code> module. This versatile tool allows us to conveniently configure a user-defined plot based on Matplotlib and visualize the results stored in the <code class="docutils literal notranslate"><span class="pre">mhe.data</span></code>, <code class="docutils literal notranslate"><span class="pre">simulator.data</span></code> objects.</p>
 <p>We start by importing matplotlib:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[39]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[25]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -804,7 +804,7 @@ div.rendered_html tbody tr:hover {
 </div>
 <p>And initializing the <code class="docutils literal notranslate"><span class="pre">graphics</span> <span class="pre">module</span></code>:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[43]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[26]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -814,7 +814,7 @@ div.rendered_html tbody tr:hover {
 </div>
 <p>Next, we create a <code class="docutils literal notranslate"><span class="pre">figure</span></code> and obtain its <code class="docutils literal notranslate"><span class="pre">axis</span></code> object. Matplotlib offers multiple alternative ways to obtain an <code class="docutils literal notranslate"><span class="pre">axis</span></code> object, e.g. <a class="reference external" href="https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.pyplot.subplots.html">subplots</a>, <a class="reference external" href="https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.pyplot.subplot2grid.html">subplot2grid</a>, or simply <a class="reference external" href="https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.pyplot.gca.html">gca</a>. We use <code class="docutils literal notranslate"><span class="pre">subplots</span></code>:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[42]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[27]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -831,7 +831,7 @@ div.rendered_html tbody tr:hover {
 <p>Most important API element for setting up the <code class="docutils literal notranslate"><span class="pre">graphics</span></code> module is <code class="docutils literal notranslate"><span class="pre">graphics.add_line</span></code>, which mimics the API of <code class="docutils literal notranslate"><span class="pre">model.add_variable</span></code>, except that we also need to pass an <code class="docutils literal notranslate"><span class="pre">axis</span></code>.</p>
 <p>Note that we are only configuring the <code class="docutils literal notranslate"><span class="pre">graphics</span></code> module without showing anything just yet.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[44]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[28]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -860,7 +860,7 @@ div.rendered_html tbody tr:hover {
 <h3>Running the loop<a class="headerlink" href="#Running-the-loop" title="Permalink to this headline">¶</a></h3>
 <p>We investigate the closed-loop MHE performance by alternating a simulation step (<code class="docutils literal notranslate"><span class="pre">y0=simulator.make_step(u0)</span></code>) and an estimation step (<code class="docutils literal notranslate"><span class="pre">x0=mhe.make_step(y0)</span></code>). Since we are lacking the controller which would close the loop (<code class="docutils literal notranslate"><span class="pre">u0=mpc.make_step(x0)</span></code>), we define a random control input function:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[45]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[29]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -876,11 +876,12 @@ div.rendered_html tbody tr:hover {
 <p>The function holds a random value in the range of the allowed control inputs for a random time.</p>
 <p>We can now run the loop, where we also add gaussian normal measurement noise:</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[46]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
 <span></span><span class="o">%%capture</span>
+<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">999</span><span class="p">)</span> <span class="c1">#make it repeatable</span>
 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">50</span><span class="p">):</span>
     <span class="n">u0</span> <span class="o">=</span> <span class="n">random_u</span><span class="p">(</span><span class="n">u0</span><span class="p">)</span>
     <span class="n">y0</span> <span class="o">=</span> <span class="n">simulator</span><span class="o">.</span><span class="n">make_step</span><span class="p">(</span><span class="n">u0</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="mf">0.1</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">n_y</span><span class="p">,</span><span class="mi">1</span><span class="p">))</span>
@@ -890,7 +891,7 @@ div.rendered_html tbody tr:hover {
 </div>
 <p>We can visualize the resulting trajectory with the pre-defined graphic:</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[49]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -910,7 +911,7 @@ div.rendered_html tbody tr:hover {
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[49]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -919,7 +920,7 @@ div.rendered_html tbody tr:hover {
 </div>
 <p>Parameter estimation:</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[37]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[32]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -931,7 +932,7 @@ div.rendered_html tbody tr:hover {
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[37]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[32]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -940,15 +941,6 @@ div.rendered_html tbody tr:hover {
 </div>
 <p>Thank you, for following through this short example on how to use <strong>do mpc</strong>. We hope you find the tool and this documentation useful.</p>
 <p>We also want to emphasize that we skipped over many details, further functions etc. in this introduction. Please have a look at our more complex examples to get a better impression of the possibilities with <strong>do mpc</strong>.</p>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span>
-</pre></div>
-</div>
-</div>
 </div>
 </div>
 </div>

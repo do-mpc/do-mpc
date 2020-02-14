@@ -1166,7 +1166,7 @@ For example:</p>
 <div class="math notranslate nohighlight">
 \[\begin{split}J= &amp; \underbrace{(x_0 - \tilde{x}_0)^T P_x (x_0 - \tilde{x}_0)}_{\text{arrival cost states}} +
 \underbrace{(p_0 - \tilde{p}_0)^T P_p (p_0 - \tilde{p}_0)}_{\text{arrival cost params.}} \\
-&amp; +\sum_{k=0}^{n-1} \underbrace{(h(x_k, u_k, p_k) - y_k)^T P_{y,k} (h(x_k, u_k, p_k) - y_k)}_{\text{stage cost}} \\\end{split}\]</div>
+&amp; +\sum_{k=0}^{n-1} \underbrace{(h(x_k, u_k, p_k) - y_k)^T P_{y,k} (h(x_k, u_k, p_k) - y_k)}_{\text{stage cost}}\end{split}\]</div>
 <p>Use the class attributes:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">mhe._y_meas</span></code> as <span class="math notranslate nohighlight">\(y_k\)</span></p></li>
@@ -1634,9 +1634,9 @@ See self.data_fields for a complete list of data fields.</p>
 <code class="sig-prename descclassname">do_mpc.data.</code><code class="sig-name descname">save_results</code><span class="sig-paren">(</span><em class="sig-param">save_list</em>, <em class="sig-param">result_name='results'</em>, <em class="sig-param">result_path='./results/'</em>, <em class="sig-param">overwrite=False</em><span class="sig-paren">)</span><a class="headerlink" href="#do_mpc.data.save_results" title="Permalink to this definition">¶</a></dt>
 <dd><p>Exports the data objects from the <strong>do mpc</strong> modules in <code class="docutils literal notranslate"><span class="pre">save_list</span></code> as a pickled file. Supply any, all or a selection of (as a list):</p>
 <ul class="simple">
-<li><p><a class="reference internal" href="#module-do_mpc.optimizer" title="do_mpc.optimizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">do_mpc.optimizer</span></code></a></p></li>
-<li><p><a class="reference internal" href="#module-do_mpc.simulator" title="do_mpc.simulator"><code class="xref py py-class docutils literal notranslate"><span class="pre">do_mpc.simulator</span></code></a></p></li>
-<li><p><a class="reference internal" href="#module-do_mpc.estimator" title="do_mpc.estimator"><code class="xref py py-class docutils literal notranslate"><span class="pre">do_mpc.estimator</span></code></a></p></li>
+<li><p><a class="reference internal" href="#do_mpc.controller.MPC" title="do_mpc.controller.MPC"><code class="xref py py-class docutils literal notranslate"><span class="pre">do_mpc.controller.MPC</span></code></a></p></li>
+<li><p><a class="reference internal" href="#do_mpc.simulator.Simulator" title="do_mpc.simulator.Simulator"><code class="xref py py-class docutils literal notranslate"><span class="pre">do_mpc.simulator.Simulator</span></code></a></p></li>
+<li><p><a class="reference internal" href="#do_mpc.estimator.Estimator" title="do_mpc.estimator.Estimator"><code class="xref py py-class docutils literal notranslate"><span class="pre">do_mpc.estimator.Estimator</span></code></a></p></li>
 </ul>
 <p>These objects can be used in post-processing to create graphics with the <code class="xref py py-class docutils literal notranslate"><span class="pre">do_mpc.graphics_backend</span></code>.</p>
 <dl class="field-list simple">
@@ -1672,9 +1672,9 @@ See self.data_fields for a complete list of data fields.</p>
 <dd><p>Simple wrapper to open and unpickle a file.
 If used for <strong>do mpc</strong> results, this will return a dictionary with the stored <strong>do mpc</strong> modules:</p>
 <ul class="simple">
-<li><p><a class="reference internal" href="#module-do_mpc.optimizer" title="do_mpc.optimizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">do_mpc.optimizer</span></code></a></p></li>
-<li><p><a class="reference internal" href="#module-do_mpc.simulator" title="do_mpc.simulator"><code class="xref py py-class docutils literal notranslate"><span class="pre">do_mpc.simulator</span></code></a></p></li>
-<li><p><a class="reference internal" href="#module-do_mpc.estimator" title="do_mpc.estimator"><code class="xref py py-class docutils literal notranslate"><span class="pre">do_mpc.estimator</span></code></a></p></li>
+<li><p><a class="reference internal" href="#do_mpc.controller.MPC" title="do_mpc.controller.MPC"><code class="xref py py-class docutils literal notranslate"><span class="pre">do_mpc.controller.MPC</span></code></a></p></li>
+<li><p><a class="reference internal" href="#do_mpc.simulator.Simulator" title="do_mpc.simulator.Simulator"><code class="xref py py-class docutils literal notranslate"><span class="pre">do_mpc.simulator.Simulator</span></code></a></p></li>
+<li><p><a class="reference internal" href="#do_mpc.estimator.Estimator" title="do_mpc.estimator.Estimator"><code class="xref py py-class docutils literal notranslate"><span class="pre">do_mpc.estimator.Estimator</span></code></a></p></li>
 </ul>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
