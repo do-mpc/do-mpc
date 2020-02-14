@@ -85,6 +85,7 @@ class Model:
             '_y': [{'var_name': 'default', 'value':SX.sym('default',(0,0))}],
             '_p': [{'var_name': 'default', 'value':SX.sym('default',(0,0))}],
             '_tvp': [{'var_name': 'default', 'value':SX.sym('default',(0,0))}],
+            '_aux': [{'var_name': 'default', 'value':SX.sym('default',(0,0))}],
         }
         self.expr_list = [
             {'expr_name': 'default', 'expr': DM()}
@@ -181,6 +182,7 @@ class Model:
         assert isinstance(expr_name, str), 'expr_name must be str, you have: {}'.format(type(expr_name))
         assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
         self.expr_list.extend([{'expr_name': expr_name, 'expr': expr}])
+        self.var_list['_aux'].extend([{'var_name': expr_name, 'value':SX.sym(expr_name, expr.shape)}])
 
         return expr
 

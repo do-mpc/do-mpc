@@ -528,7 +528,7 @@ class MPC(do_mpc.optimizer.Optimizer):
         # self.data.update(_tvp = tvp0)
         #self.data.update(_p = p0)
         self.data.update(_time = t0)
-        self.data.update(_aux_expression = aux0)
+        self.data.update(_aux = aux0)
 
         # Store additional information
         if self.store_full_solution == True:

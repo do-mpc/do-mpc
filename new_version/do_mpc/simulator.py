@@ -358,7 +358,7 @@ class Simulator:
         self.data.update(_z = z0)
         self.data.update(_tvp = tvp0)
         self.data.update(_p = p0)
-        self.data.update(_aux_expression = aux0)
+        self.data.update(_aux = aux0)
         self.data.update(_time = t0)
 
         self._x0.master = x_next

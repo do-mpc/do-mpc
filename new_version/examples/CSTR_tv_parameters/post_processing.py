@@ -32,63 +32,82 @@ import scipy.io as sio
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, FFMpegWriter, ImageMagickWriter
 import pickle
+plt.ion()
 
-
-with open('./results/results.pkl', 'rb') as f:
-    results = pickle.load(f)
-
+results  = do_mpc.data.load_results('./results/CSTR_robust_MPC.pkl')
 
 """
 Static plot Example
 """
-graphics = do_mpc.graphics()
+graphics = do_mpc.graphics.Graphics()
 
-fig, ax = plt.subplots(3, sharex=True)
+fig, ax = plt.subplots(5, sharex=True, figsize=(8,6))
+# Configure plot:
 graphics.add_line(var_type='_x', var_name='C_a', axis=ax[0])
 graphics.add_line(var_type='_x', var_name='C_b', axis=ax[0])
-graphics.add_line(var_type='_u', var_name='Q_dot', axis=ax[1])
-graphics.add_line(var_type='_u', var_name='F', axis=ax[2])
+graphics.add_line(var_type='_x', var_name='T_R', axis=ax[1])
+graphics.add_line(var_type='_x', var_name='T_K', axis=ax[1])
+graphics.add_line(var_type='_aux', var_name='T_dif', axis=ax[2])
+graphics.add_line(var_type='_u', var_name='Q_dot', axis=ax[3])
+graphics.add_line(var_type='_u', var_name='F', axis=ax[4])
 ax[0].set_ylabel('c [mol/l]')
-ax[1].set_ylabel('$Q_{heat}$ [kW]')
-ax[2].set_ylabel('Flow [l/h]')
-ax[2].set_xlabel('time [s]')
+ax[1].set_ylabel('T [K]')
+ax[2].set_ylabel('$\Delta T$ [K]')
+ax[3].set_ylabel('$Q_{heat}$ [kW]')
+ax[4].set_ylabel('Flow [l/h]')
+ax[4].set_xlabel('time [h]')
+
 fig.align_ylabels()
 
 
-opti_lines = graphics.plot_results(results['optimizer'])
-simu_lines = graphics.plot_results(results['optimizer'])
+simu_lines = graphics.plot_results(results['simulator'])
 
-plt.sca(ax[0])
-ax[0].add_artist(plt.legend(opti_lines[:2], ['Ca', 'Cb'], title='optimizer', loc=1))
-plt.sca(ax[0])
-ax[0].add_artist(plt.legend(simu_lines[:2], ['Ca', 'Cb'], title='Simulator', loc=2))
+ax[0].legend(simu_lines[:2], ['$C_a$', '$C_b$'], loc=1)
+ax[1].legend(simu_lines[2:4], ['$T_R$', '$T_K$'], loc=1)
+
+fig.tight_layout()
+
 plt.show()
+input('press any key.')
 
 
 """
 Animation
 """
-graphics = do_mpc.graphics()
+graphics = do_mpc.graphics.Graphics()
 
-fig, ax = plt.subplots(3, sharex=True)
+fig, ax = plt.subplots(5, sharex=True, figsize=(8,6))
+# Configure plot:
 graphics.add_line(var_type='_x', var_name='C_a', axis=ax[0])
 graphics.add_line(var_type='_x', var_name='C_b', axis=ax[0])
-graphics.add_line(var_type='_u', var_name='Q_dot', axis=ax[1])
-graphics.add_line(var_type='_u', var_name='F', axis=ax[2])
+graphics.add_line(var_type='_x', var_name='T_R', axis=ax[1])
+graphics.add_line(var_type='_x', var_name='T_K', axis=ax[1])
+graphics.add_line(var_type='_aux', var_name='T_dif', axis=ax[2])
+graphics.add_line(var_type='_u', var_name='Q_dot', axis=ax[3])
+graphics.add_line(var_type='_u', var_name='F', axis=ax[4])
 ax[0].set_ylabel('c [mol/l]')
-ax[1].set_ylabel('$Q_{heat}$ [kW]')
-ax[2].set_ylabel('Flow [l/h]')
-ax[2].set_xlabel('time [s]')
+ax[1].set_ylabel('T [K]')
+ax[2].set_ylabel('$\Delta T$ [K]')
+ax[3].set_ylabel('$Q_{heat}$ [kW]')
+ax[4].set_ylabel('Flow [l/h]')
+ax[4].set_xlabel('time [h]')
+
 fig.align_ylabels()
 
-output_format = ''
+
+output_format = 'gif'
 
 def update(t_ind):
     graphics.reset_axes()
-    graphics.plot_results(results['optimizer'], t_ind=t_ind)
-    graphics.plot_predictions(results['optimizer'], t_ind=t_ind, linestyle='--')
+    simu_lines = graphics.plot_results(results['simulator'], t_ind=t_ind, linewidth=3)
+    graphics.plot_predictions(results['mpc'], t_ind=t_ind, linewidth=1, linestyle='--')
+    if t_ind==0:
+        ax[0].legend(simu_lines[:2], ['$C_a$', '$C_b$'], loc=1)
+        ax[1].legend(simu_lines[2:4], ['$T_R$', '$T_K$'], loc=1)
+
 
 anim = FuncAnimation(fig, update, frames=99, repeat=False)
+
 if 'mp4' in output_format:
     FFWriter = FFMpegWriter(fps=6, extra_args=['-vcodec', 'libx264'])
     anim.save('anim.mp4', writer=FFWriter)

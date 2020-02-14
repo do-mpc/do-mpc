@@ -57,18 +57,20 @@ simulator.set_initial_state(x0, reset_history=True)
 graphics = do_mpc.graphics.Graphics()
 
 
-fig, ax = plt.subplots(4, sharex=True)
+fig, ax = plt.subplots(5, sharex=True)
 # Configure plot:
 graphics.add_line(var_type='_x', var_name='C_a', axis=ax[0])
 graphics.add_line(var_type='_x', var_name='C_b', axis=ax[0])
 graphics.add_line(var_type='_x', var_name='T_R', axis=ax[1])
 graphics.add_line(var_type='_x', var_name='T_K', axis=ax[1])
-graphics.add_line(var_type='_u', var_name='Q_dot', axis=ax[2])
-graphics.add_line(var_type='_u', var_name='F', axis=ax[3])
+graphics.add_line(var_type='_aux', var_name='T_dif', axis=ax[2])
+graphics.add_line(var_type='_u', var_name='Q_dot', axis=ax[3])
+graphics.add_line(var_type='_u', var_name='F', axis=ax[4])
 ax[0].set_ylabel('c [mol/l]')
 ax[1].set_ylabel('Temperature [K]')
-ax[2].set_ylabel('Q_heat [kW]')
-ax[3].set_ylabel('Flow [l/h]')
+ax[2].set_ylabel('\Delta T [K]')
+ax[3].set_ylabel('Q_heat [kW]')
+ax[4].set_ylabel('Flow [l/h]')
 
 fig.align_ylabels()
 plt.ion()
@@ -82,7 +84,7 @@ for k in range(100):
     toc = time.time()
     time_list.append(toc-tic)
 
-    if True:
+    if False:
         graphics.reset_axes()
         graphics.plot_results(mpc.data, linewidth=3)
         graphics.plot_predictions(mpc.data, linestyle='--', linewidth=1)
@@ -101,3 +103,6 @@ plt.sca(ax[0])
 ax[0].add_artist(plt.legend(simu_lines[:2], ['Ca', 'Cb'], title='Simulator', loc=2))
 plt.show()
 input('Press any key to exit.')
+
+# Store results:
+do_mpc.data.save_results([mpc, simulator], 'CSTR_robust_MPC')
