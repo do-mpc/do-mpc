@@ -1,0 +1,7 @@
+sphinx>=1.4
+ipykernel
+nbsphinx
+casadi >= 3.5.1
+numpy >= 1.17.2
+jupyter >= 1.0.0
+matplotlib >= 3.1.1
