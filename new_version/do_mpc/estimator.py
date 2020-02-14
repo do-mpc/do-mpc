@@ -25,7 +25,6 @@ from casadi import *
 from casadi.tools import *
 import pdb
 import copy
-from indexedproperty import IndexedProperty
 
 import do_mpc.optimizer
 import do_mpc.data

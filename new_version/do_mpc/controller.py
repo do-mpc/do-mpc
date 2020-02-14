@@ -25,7 +25,6 @@ from casadi import *
 from casadi.tools import *
 import pdb
 import itertools
-from indexedproperty import IndexedProperty
 import time
 
 import do_mpc.data

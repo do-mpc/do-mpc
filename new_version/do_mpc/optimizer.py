@@ -25,8 +25,9 @@ from casadi import *
 from casadi.tools import *
 import pdb
 import itertools
-from indexedproperty import IndexedProperty
 import time
+
+from do_mpc.tools.indexedproperty import IndexedProperty
 
 
 class Optimizer:
