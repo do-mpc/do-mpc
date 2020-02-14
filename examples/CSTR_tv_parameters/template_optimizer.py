@@ -4,7 +4,7 @@
 #   do-mpc: An environment for the easy, modular and efficient implementation of
 #        robust nonlinear model predictive control
 #
-#   Copyright (c) 2014-2018 Sergio Lucia, Alexandru Tatulea-Codrean
+#   Copyright (c) 2014-2019 Sergio Lucia, Alexandru Tatulea-Codrean
 #                        TU Dortmund. All rights reserved
 #
 #   do-mpc is free software: you can redistribute it and/or modify
@@ -19,99 +19,81 @@
 #
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
-#
 
+import numpy as np
 from casadi import *
-import numpy as NP
-import core_do_mpc
+from casadi.tools import *
+import pdb
+import sys
+sys.path.append('../../')
+import do_mpc
 
-def optimizer(model):
 
+def template_mpc(model):
     """
     --------------------------------------------------------------------------
-    template_optimizer: tuning parameters
+    template_mpc: tuning parameters
     --------------------------------------------------------------------------
     """
+    mpc = do_mpc.controller.MPC(model)
 
-    # Prediction horizon
-    n_horizon = 20
-    # Robust horizon, set to 0 for standard NMPC
-    n_robust = 0
-    # open_loop robust NMPC (1) or multi-stage NMPC (0). Only important if n_robust > 0
-    open_loop = 0
-    # Sampling time
-    t_step = 0.005
-    # Simulation time
-    t_end = 0.2
-    # Choose type of state discretization (collocation or multiple-shooting)
-    state_discretization = 'collocation'
-    # Degree of interpolating polynomials: 1 to 5
-    poly_degree = 2
-    # Collocation points: 'legendre' or 'radau'
-    collocation = 'radau'
-    # Number of finite elements per control interval
-    n_fin_elem = 2
-    # NLP Solver and linear solver
-    nlp_solver = 'ipopt'
-    qp_solver = 'qpoases'
+    setup_mpc = {
+        'n_horizon': 20,
+        'n_robust': 1,
+        'open_loop': 0,
+        't_step': 0.005,
+        'state_discretization': 'collocation',
+        'collocation_type': 'radau',
+        'collocation_deg': 2,
+        'collocation_ni': 1,
+        'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
+    }
 
-    # It is highly recommended that you use a more efficient linear solver
-    # such as the hsl linear solver MA27, which can be downloaded as a precompiled
-    # library and can be used by IPOPT on run time
+    mpc.set_param(**setup_mpc)
 
-    linear_solver = 'mumps'
+    mpc.set_param(store_full_solution=True)
 
-    # GENERATE C CODE shared libraries NOTE: Not currently supported
-    generate_code = 0
+    mpc._x_scaling['T_R'] = 100
+    mpc._x_scaling['T_K'] = 100
+    mpc._u_scaling['Q_dot'] = 2000
+    mpc._u_scaling['F'] = 100
 
-    """
-    --------------------------------------------------------------------------
-    template_optimizer: uncertain parameters
-    --------------------------------------------------------------------------
-    """
-    # Define the different possible values of the uncertain parameters in the scenario tree
-    alpha_values = NP.array([1.0, 1.1, 0.9])
-    beta_values = NP.array([1.0, 1.1, 0.9])
-    uncertainty_values = NP.array([alpha_values,beta_values])
-    # Parameteres of the NLP which may vary along the time (For example a set point that varies at a given time)
-    set_point = SX.sym('set_point')
-    parameters_nlp = NP.array([set_point])
+    _x, _u, _z, _tvp, p, _aux,  *_ = mpc.model.get_variables()
 
-    """
-    --------------------------------------------------------------------------
-    template_optimizer: time-varying parameters
-    --------------------------------------------------------------------------
-    """
-    # Only necessary if time-varying paramters defined in the model
-    # The length of the vector for each parameter should be the prediction horizon
-    # The vectos for each parameter might chance at each sampling time
-    number_steps = int(t_end/t_step) + 1
-    # Number of time-varying parameters
-    n_tv_p = 2
-    tv_p_values = NP.resize(NP.array([]),(number_steps,n_tv_p,n_horizon))
-    for time_step in range (number_steps):
-        if time_step < number_steps/2:
-            tv_param_1_values = 0.6*NP.ones(n_horizon)
-        else:
-            tv_param_1_values = 0.8*NP.ones(n_horizon)
-        tv_param_2_values = 0.9*NP.ones(n_horizon)
-        tv_p_values[time_step] = NP.array([tv_param_1_values,tv_param_2_values])
-    # Parameteres of the NLP which may vary along the time (For example a set point that varies at a given time)
-    set_point = SX.sym('set_point')
-    parameters_nlp = NP.array([set_point])
+    mterm = (_x['C_b'] - 0.6)**2
+    lterm = (_x['C_b'] - 0.6)**2
+
+    mpc.set_objective(mterm=mterm, lterm=lterm)
+
+    mpc.set_rterm(F=0.1, Q_dot = 1e-3)
+
+    mpc.bounds['lower', '_x', 'C_a'] = 0.1
+    mpc.bounds['lower', '_x', 'C_b'] = 0.1
+    mpc.bounds['lower', '_x', 'T_R'] = 50
+    mpc.bounds['lower', '_x', 'T_K'] = 50
+
+    mpc.bounds['upper', '_x', 'C_a'] = 2
+    mpc.bounds['upper', '_x', 'C_b'] = 2
+    mpc.bounds['upper', '_x', 'T_R'] = 140
+    mpc.bounds['upper', '_x', 'T_K'] = 140
+
+    mpc.bounds['lower', '_u', 'F'] = 5
+    mpc.bounds['lower', '_u', 'Q_dot'] = -8500
+
+    mpc.bounds['upper', '_u', 'F'] = 100
+    mpc.bounds['upper', '_u', 'Q_dot'] = 0.0
 
 
-    """
-    --------------------------------------------------------------------------
-    template_optimizer: pass_information (not necessary to edit)
-    --------------------------------------------------------------------------
-    """
-    # Check if the user has introduced the data correctly
-    optimizer_dict = {'n_horizon':n_horizon, 'n_robust':n_robust, 't_step': t_step,
-    't_end':t_end,'poly_degree': poly_degree, 'collocation':collocation,
-    'n_fin_elem': n_fin_elem,'generate_code':generate_code,'open_loop': open_loop,
-    'uncertainty_values':uncertainty_values,'parameters_nlp':parameters_nlp,
-    'state_discretization':state_discretization,'nlp_solver': nlp_solver,
-    'linear_solver':linear_solver, 'qp_solver':qp_solver, 'tv_p_values':tv_p_values}
-    optimizer_1 = core_do_mpc.optimizer(model,optimizer_dict)
-    return optimizer_1
+    mpc._x0['C_a'] = 0.8
+    mpc._x0['C_b'] = 0.5
+    mpc._x0['T_R'] = 134.14
+    mpc._x0['T_K'] = 130.0
+
+    alpha_var = np.array([1., 1.05, 0.95])
+    beta_var = np.array([1., 1.1, 0.9])
+
+    mpc.set_uncertainty_values([alpha_var, beta_var])
+
+    mpc.setup()
+
+    return mpc
