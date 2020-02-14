@@ -1,0 +1,337 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Welcome to the documentation of do-mpc! &mdash; do-mpc 4.0.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"extensions": ["tex2jax.js"], "jax": ["input/TeX", "output/HTML-CSS"], "tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Overview" href="overview.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="#">
+          
+
+          
+            
+            <img src="_static/dompc_var_02_white.svg" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mhe_example.html">Getting started: Moving Horizon Estimation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">API</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">do-mpc</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="#">Docs</a> &raquo;</li>
+        
+      <li>Welcome to the documentation of do-mpc!</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="welcome-to-the-documentation-of-do-mpc">
+<h1>Welcome to the documentation of do-mpc!<a class="headerlink" href="#welcome-to-the-documentation-of-do-mpc" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="overview.html#structure">Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="overview.html#next-steps">Next steps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="overview.html#robust-multi-stage-mpc">Robust Multi-stage MPC</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#Example-system">Example system</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#Creating-the-model">Creating the model</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#Model-variables">Model variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#Model-parameters">Model parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#Right-hand-side-equation">Right-hand-side equation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#Configuring-the-MPC-controller">Configuring the MPC controller</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#Optimizer-parameters">Optimizer parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#Objective-function">Objective function</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#Constraints">Constraints</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#Scaling">Scaling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#Uncertain-Parameters">Uncertain Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#Setup">Setup</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#Configuring-the-Simulator">Configuring the Simulator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#Simulator-parameters">Simulator parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#Uncertain-parameters">Uncertain parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#Setup">Setup</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#Creating-the-control-loop">Creating the control loop</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#Setting-up-the-Graphic">Setting up the Graphic</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#Running-the-simulator">Running the simulator</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#Running-the-optimizer">Running the optimizer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#Running-the-control-loop">Running the control loop</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#Data-processing">Data processing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#Saving-and-retrieving-results">Saving and retrieving results</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#Animating-results">Animating results</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="mhe_example.html">Getting started: Moving Horizon Estimation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="mhe_example.html#Creating-the-model">Creating the model</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mhe_example.html#Model-variables">Model variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mhe_example.html#Model-measurements">Model measurements</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mhe_example.html#Model-parameters">Model parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mhe_example.html#Right-hand-side-equation">Right-hand-side equation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mhe_example.html#Configuring-the-Moving-Horizon-Estimator">Configuring the Moving Horizon Estimator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mhe_example.html#MHE-parameters:">MHE parameters:</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mhe_example.html#Cost-Function">Cost Function</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mhe_example.html#Fixed-parameters">Fixed parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mhe_example.html#Bounds">Bounds</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mhe_example.html#Setup">Setup</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mhe_example.html#Configuring-the-Simulator">Configuring the Simulator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mhe_example.html#Simulator-parameters">Simulator parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mhe_example.html#Parameters">Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mhe_example.html#Setup">Setup</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mhe_example.html#Creating-the-loop">Creating the loop</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mhe_example.html#Setting-up-the-Graphic">Setting up the Graphic</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mhe_example.html#Running-the-loop">Running the loop</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#how-it-s-done-exactly">How it’s done exactly</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">API</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="do_mpc.html">do_mpc package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="do_mpc.html#module-do_mpc.model">do_mpc.model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="do_mpc.html#module-do_mpc.optimizer">do_mpc.optimizer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="do_mpc.html#module-do_mpc.controller">do_mpc.controller</a></li>
+<li class="toctree-l3"><a class="reference internal" href="do_mpc.html#module-do_mpc.estimator">do_mpc.estimator</a></li>
+<li class="toctree-l3"><a class="reference internal" href="do_mpc.html#module-do_mpc.simulator">do_mpc.simulator</a></li>
+<li class="toctree-l3"><a class="reference internal" href="do_mpc.html#module-do_mpc.data">do_mpc.data</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="overview.html" class="btn btn-neutral float-right" title="Overview" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Sergio Lucia
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

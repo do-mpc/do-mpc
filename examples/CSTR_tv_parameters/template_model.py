@@ -4,7 +4,7 @@
 #   do-mpc: An environment for the easy, modular and efficient implementation of
 #        robust nonlinear model predictive control
 #
-#   Copyright (c) 2014-2018 Sergio Lucia, Alexandru Tatulea-Codrean
+#   Copyright (c) 2014-2019 Sergio Lucia, Alexandru Tatulea-Codrean
 #                        TU Dortmund. All rights reserved
 #
 #   do-mpc is free software: you can redistribute it and/or modify
@@ -19,19 +19,26 @@
 #
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
-#
 
+import numpy as np
 from casadi import *
-import numpy as NP
-import core_do_mpc
-def model():
+from casadi.tools import *
+import pdb
+import sys
+sys.path.append('../../')
+import do_mpc
 
+
+def template_model():
     """
     --------------------------------------------------------------------------
-    template_model: define the non-uncertain parameters
+    template_model: Variables / RHS / AUX
     --------------------------------------------------------------------------
     """
+    model_type = 'continuous' # either 'discrete' or 'continuous'
+    model = do_mpc.model.Model(model_type)
 
+    # Certain parameters
     K0_ab = 1.287e12 # K0 [h^-1]
     K0_bc = 1.287e12 # K0 [h^-1]
     K0_ad = 9.043e9 # K0 [l/mol.h]
@@ -52,153 +59,38 @@ def model():
     K_w = 4032.0 # [kj/h.m^2.K]
     C_A0 = (5.7+4.5)/2.0*1.0 # Concentration of A in input Upper bound 5.7 lower bound 4.5 [mol/l]
 
+    # States struct (optimization variables):
+    C_a = model.set_variable(var_type='_x', var_name='C_a', shape=(1,1))
+    C_b = model.set_variable(var_type='_x', var_name='C_b', shape=(1,1))
+    T_R = model.set_variable(var_type='_x', var_name='T_R', shape=(1,1))
+    T_K = model.set_variable(var_type='_x', var_name='T_K', shape=(1,1))
 
-    """
-    --------------------------------------------------------------------------
-    template_model: define uncertain parameters, states and controls as symbols
-    --------------------------------------------------------------------------
-    """
-    # Define the uncertainties as CasADi symbols
+    # Input struct (optimization variables):
+    F = model.set_variable(var_type='_u', var_name='F')
+    Q_dot = model.set_variable(var_type='_u', var_name='Q_dot')
 
-    alpha   = SX.sym("alpha")
-    beta    = SX.sym("beta")
-    # Define the differential states as CasADi symbols
+    # Fixed parameters:
+    alpha = model.set_variable(var_type='_p', var_name='alpha')
+    beta = model.set_variable(var_type='_p', var_name='beta')
 
-    C_a    = SX.sym("C_a") # Concentration A
-    C_b    = SX.sym("C_b") # Concentration B
-    T_R    = SX.sym("T_R") # Reactor Temprature
-    T_K    = SX.sym("T_K") # Jacket Temprature
+    # Set expression. These can be used in the cost function, as non-linear constraints
+    # or just to monitor another output.
+    T_dif = model.set_expression(expr_name='T_dif', expr=T_R-T_K)
 
-    # Define the algebraic states as CasADi symbols
-
-    # Define the control inputs as CasADi symbols
-
-    F      = SX.sym("F") # Vdot/V_R [h^-1]
-    Q_dot  = SX.sym("Q_dot") #Q_dot second control input
-
-    # Define time-varying parameters that can change at each step of the prediction and at each sampling time of the MPC controller. For example, future weather predictions
-
-    tv_param_1 = SX.sym("tv_param_1")
-    tv_param_2 = SX.sym("tv_param_2")
-
-    """
-    --------------------------------------------------------------------------
-    template_model: define algebraic and differential equations
-    --------------------------------------------------------------------------
-    """
-    # Define the algebraic equations
-
+    # Expressions can also be formed without beeing explicitly added to the model.
+    # The main difference is that they will not be monitored and can only be used within the current file.
     K_1 = beta * K0_ab * exp((-E_A_ab)/((T_R+273.15)))
     K_2 =  K0_bc * exp((-E_A_bc)/((T_R+273.15)))
     K_3 = K0_ad * exp((-alpha*E_A_ad)/((T_R+273.15)))
 
-    # Define the differential equations
+    # Differential equations
+    model.set_rhs('C_a', F*(C_A0 - C_a) -K_1*C_a - K_3*(C_a**2))
+    model.set_rhs('C_b', -F*C_b + K_1*C_a - K_2*C_b)
+    model.set_rhs('T_R', ((K_1*C_a*H_R_ab + K_2*C_b*H_R_bc + K_3*(C_a**2)*H_R_ad)/(-Rou*Cp)) + F*(T_in-T_R) +(((K_w*A_R)*(-T_dif))/(Rou*Cp*V_R)))
+    model.set_rhs('T_K', (Q_dot + K_w*A_R*(T_dif))/(m_k*Cp_k))
 
-    dC_a = F*(C_A0 - C_a) -K_1*C_a - K_3*(C_a**2)
-    dC_b = -F*C_b + K_1*C_a - K_2*C_b
-    dT_R = ((K_1*C_a*H_R_ab + K_2*C_b*H_R_bc + K_3*(C_a**2)*H_R_ad)/(-Rou*Cp)) + F*(T_in-T_R) +(((K_w*A_R)*(T_K-T_R))/(Rou*Cp*V_R))
-    dT_K = (Q_dot + K_w*A_R*(T_R-T_K))/(m_k*Cp_k)
+    # Build the model
+    model.setup_model()
 
-    # Concatenate differential states, algebraic states, control inputs and right-hand-sides
-
-    _x = vertcat(C_a, C_b, T_R,T_K)
-
-    _z = vertcat([])
-
-    _u = vertcat(F, Q_dot)
-
-    _xdot = vertcat(dC_a, dC_b, dT_R, dT_K)
-
-    _p = vertcat(alpha, beta)
-
-    _tv_p = vertcat(tv_param_1, tv_param_2)
-
-
-
-    """
-    --------------------------------------------------------------------------
-    template_model: initial condition and constraints
-    --------------------------------------------------------------------------
-    """
-    # Initial condition for the states
-    C_a_0 = 0.8 # This is the initial concentration inside the tank [mol/l]
-    C_b_0 = 0.5 # This is the controlled variable [mol/l]
-    T_R_0 = 134.14 #[C]
-    T_K_0 = 130.0 #[C]
-    x0 = NP.array([C_a_0, C_b_0, T_R_0, T_K_0])
-    # No algebraic states
-    z0 = NP.array([])
-
-    # Bounds on the states. Use "inf" for unconstrained states
-    C_a_lb = 0.1;			C_a_ub = 2.0
-    C_b_lb = 0.1;			C_b_ub = 2.0
-    T_R_lb = 50.0;			T_R_ub = 180
-    T_K_lb = 50.0;			T_K_ub = 180
-    x_lb = NP.array([C_a_lb, C_b_lb, T_R_lb, T_K_lb])
-    x_ub = NP.array([C_a_ub, C_b_ub, T_R_ub, T_K_ub])
-
-    # No algebraic states
-    z_lb = NP.array([])
-    z_ub = NP.array([])
-
-    # Bounds on the control inputs. Use "inf" for unconstrained inputs
-    F_lb = 5.0;                 F_ub = +100.0;
-    Q_dot_lb = -8500.0;         Q_dot_ub = 0.0;
-    u_lb = NP.array([F_lb, Q_dot_lb])
-    u_ub = NP.array([F_ub, Q_dot_ub])
-    u0 = NP.array([30.0,-6000.0])
-
-    # Scaling factors for the states and control inputs. Important if the system is ill-conditioned
-    x_scaling = NP.array([1.0, 1.0, 1.0, 1.0])
-    z_scaling = NP.array([])
-    u_scaling = NP.array([1.0, 1.0])
-
-    # Other possibly nonlinear constraints in the form cons(x,u,p) <= cons_ub
-    # Define the expresion of the constraint (leave it empty if not necessary)
-    cons = vertcat([])
-    # Define the lower and upper bounds of the constraint (leave it empty if not necessary)
-    cons_ub = NP.array([])
-
-    # Activate if the nonlinear constraints should be implemented as soft constraints
-    soft_constraint = 0
-    # Penalty term to add in the cost function for the constraints (it should be the same size as cons)
-    penalty_term_cons = NP.array([])
-    # Maximum violation for the constraints
-    maximum_violation = NP.array([0])
-
-    # Define the terminal constraint (leave it empty if not necessary)
-    cons_terminal = vertcat()
-    # Define the lower and upper bounds of the constraint (leave it empty if not necessary)
-    cons_terminal_lb = NP.array([])
-    cons_terminal_ub = NP.array([])
-
-
-    """
-    --------------------------------------------------------------------------
-    template_model: cost function
-    --------------------------------------------------------------------------
-    """
-    # Define the cost function
-    # Lagrange term
-    lterm =  (C_b - tv_param_1)**2
-    #lterm =  - C_b
-    # Mayer term
-    mterm =  (C_b - tv_param_1)**2
-    #mterm =  - C_b
-    # Penalty term for the control movements
-    rterm = NP.array([0.0, 0.0])
-
-
-
-    """
-    --------------------------------------------------------------------------
-    template_model: pass information (not necessary to edit)
-    --------------------------------------------------------------------------
-    """
-    model_dict = {'x':_x,'u': _u, 'rhs':_xdot,'p': _p, 'z':_z,'x0': x0, 'x_lb': x_lb,'x_ub': x_ub, 'u0':u0,
-    'u_lb':u_lb, 'u_ub':u_ub, 'x_scaling':x_scaling, 'u_scaling':u_scaling, 'cons':cons, 'tv_p':_tv_p,
-    "cons_ub": cons_ub, 'cons_terminal':cons_terminal, 'cons_terminal_lb': cons_terminal_lb, 'cons_terminal_ub':cons_terminal_ub, 'soft_constraint': soft_constraint, 'penalty_term_cons': penalty_term_cons, 'maximum_violation': maximum_violation, 'mterm': mterm,'lterm':lterm, 'rterm':rterm}
-
-    model = core_do_mpc.model(model_dict)
 
     return model
