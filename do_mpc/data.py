@@ -74,7 +74,9 @@ class Data:
         See self.data_fields for a complete list of data fields.
 
         Example:
+
         ::
+
             _x = np.ones((1, 3))
             _u = np.ones((1, 2))
             data.update('_x': _x, '_u': _u)
@@ -92,8 +94,8 @@ class Data:
             data.update(**data_dict)
 
 
-        :param **kwargs: Arbitrary number of key word arguments for data fields that should be updated.
-        :type casadi.DM or numpy.ndarray
+        :param kwargs: Arbitrary number of key word arguments for data fields that should be updated.
+        :type kwargs: casadi.DM or numpy.ndarray
 
         :raises assertion: Keyword must be in existing data_fields.
 

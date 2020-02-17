@@ -255,11 +255,15 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
     def set_param(self, **kwargs):
         """Method to set the parameters of the :py:class:`MHE` class. Parameters must be passed as pairs of valid keywords and respective argument.
         For example:
+
         ::
+
             mhe.set_param(n_horizon = 20)
 
         It is also possible and convenient to pass a dictionary with multiple parameters simultaneously as shown in the following example:
+
         ::
+
             setup_mhe = {
                 'n_horizon': 20,
                 't_step': 0.5,
@@ -304,10 +308,14 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         :type store_solver_stats: dict
 
         .. note:: We highly suggest to change the linear solver for IPOPT from `mumps` to `MA27`. In many cases this will drastically boost the speed of **do mpc**. Change the linear solver with:
+
             ::
+
                 optimizer.set_param(nlpsol_opts = {'ipopt.linear_solver': 'MA27'})
         .. note:: To surpress the output of IPOPT, please use:
+
             ::
+            
                 surpress_ipopt = {'ipopt.print_level':0, 'ipopt.sb': 'yes', 'print_time':0}
                 optimizer.set_param(nlpsol_opts = surpress_ipopt)
 
@@ -348,12 +356,17 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         .. note::
             The retrieved attributes are symbolic structures, which can be queried with the given variable names,
             e.g.:
+
             ::
+
                 x1 = mhe._x['state_1']
+
             For a vector of all states, use the ``.cat`` method as shown in the example below.
 
         **Example:**
+
         ::
+
             # Get variables:
             y_meas = mhe._y_meas
             y_calc = mhe._y_calc
@@ -429,7 +442,9 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         that is called at each MHE step. Pass this function to the MHE by calling :py:func:`MHE.set_y_fun`.
 
         The structure carries a set of measurements for each time step of the horizon and can be accessed as follows:
+
         ::
+
             y_template['y_meas', k, 'meas_name']
             # Slicing is possible, e.g.:
             y_template['y_meas', :, 'meas_name']
@@ -440,7 +455,9 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             The structure is ordered, sucht that ``k=0`` is the "oldest measurement" and ``k=N_horizon-1`` is the newest measurement.
 
         By default, the following measurement function is choosen:
+
         ::
+
             y_template = self.get_y_template()
 
             def y_fun(t_now):
@@ -453,6 +470,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
                 except:
                     None
                 return y_template
+
         Which simply reads the last results from the ``MHE.data`` object.
 
         :return: y_template

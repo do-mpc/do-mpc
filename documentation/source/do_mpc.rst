@@ -1,6 +1,21 @@
-do\_mpc package
-===============
+do mpc toolbox
+==============
 
+Note the following important inheritance of **do mpc** classes:
+
+.. graphviz::
+    :name: class_inheritance
+    :caption: Class inheritance.
+    :align: center
+
+    digraph G {
+        graph [fontname = "Monaco"];
+        node [fontname = "Monaco", shape=box];
+        edge [fontname = "Monaco"];
+
+        "do_mpc.optimizer.Optimizer" -> "do_mpc.controller.MPC", "do_mpc.estimator.MHE"
+        "do_mpc.estimator.Estimator" -> "do_mpc.estimator.EKF", "do_mpc.estimator.StateFeedback", "do_mpc.estimator.MHE"
+    }
 
 do\_mpc.model
 --------------------
@@ -52,6 +67,3 @@ do\_mpc.data
    :members:
    :undoc-members:
    :show-inheritance:
-
-
-
