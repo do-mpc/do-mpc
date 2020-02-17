@@ -74,7 +74,6 @@ def template_mpc(model):
 
     mpc.bounds['upper', '_x', 'C_a'] = 2
     mpc.bounds['upper', '_x', 'C_b'] = 2
-    mpc.bounds['upper', '_x', 'T_R'] = 140
     mpc.bounds['upper', '_x', 'T_K'] = 140
 
     mpc.bounds['lower', '_u', 'F'] = 5
@@ -82,6 +81,11 @@ def template_mpc(model):
 
     mpc.bounds['upper', '_u', 'F'] = 100
     mpc.bounds['upper', '_u', 'Q_dot'] = 0.0
+
+    # Instead of having a regular bound on T_R:
+    #mpc.bounds['upper', '_x', 'T_R'] = 140
+    # We can also have soft consraints as part of the set_nl_cons method:
+    mpc.set_nl_cons('T_R', _x['T_R'], ub=140, soft_constraint=True, penalty_term_cons=1e2)
 
 
     mpc._x0['C_a'] = 0.8

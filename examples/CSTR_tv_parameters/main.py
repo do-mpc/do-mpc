@@ -84,7 +84,7 @@ for k in range(100):
     toc = time.time()
     time_list.append(toc-tic)
 
-    if False:
+    if True:
         graphics.reset_axes()
         graphics.plot_results(mpc.data, linewidth=3)
         graphics.plot_predictions(mpc.data, linestyle='--', linewidth=1)

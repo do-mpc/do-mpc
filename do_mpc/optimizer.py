@@ -57,10 +57,14 @@ class Optimizer:
         self._z_scaling = self.model._z(1.0)
         self._p_scaling = self.model._p(1.0) # only meaningful for MHE.
 
-        # Lists for further non-linear constraints (optional). Constraints are formulated as lb < cons < 0
+        # Lists for further non-linear constraints (optional). Constraints are formulated as cons < ub
         self.nl_cons_list = [
-            {'expr_name': 'default', 'expr': DM(), 'lb': DM()}
+            {'expr_name': 'default', 'expr': DM(), 'ub': DM()}
         ]
+        self.slack_vars_list = [
+            {'slack_name': 'default', 'var':SX.sym('default',(0,0)), 'ub': DM()}
+        ]
+        self.slack_cost = 0
 
 
     @IndexedProperty
@@ -265,6 +269,7 @@ class Optimizer:
         """Write optimizer meta data to data object (all params set in self.data_fields).
         If selected, initialize the container for the full solution of the optimizer.
         """
+        self.data.data_fields.update({'_eps': self.n_eps})
 
         if self.store_full_solution == True:
             # Create data_field for the optimal solution.
@@ -293,9 +298,25 @@ class Optimizer:
 
         self.data.init_storage()
 
-    def set_nl_cons(self, expr_name, expr, lb=-np.inf):
+    def set_nl_cons(self, expr_name, expr, ub=np.inf, soft_constraint=False, penalty_term_cons=1, maximum_violation=np.inf):
         """Introduce new constraint to the class. Further constraints are optional.
         Expressions must be formulated with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
+        They are implemented as:
+        .. math::
+
+            m(x,u,z,p_{\\text{tv}}, p) \\leq m_{\\text{ub}}
+
+        Setting the flag ``soft_constraint=True`` will introduce slack variables :math:`\\epsilon`, such that:
+
+        .. math::
+
+            m(x,u,z,p_{\\text{tv}}, p)-\\epsilon &\\leq m_{\\text{ub}},\\\\
+            0 &\\leq \\epsilon \\geq \\epsilon_{\\text{max}},
+            \\
+
+        Slack variables are added to the cost function and multiplied with the supplied penalty term.
+        This formulation makes constraints soft, meaning that a certain violation is tolerated and does not lead to infeasibility.
+        Typically, high values for the penalty are suggested to avoid significant violation of the constraints.
 
         :param expr_name: Arbitrary name for the given expression. Names are used for key word indexing.
         :type expr_name: string
@@ -311,11 +332,63 @@ class Optimizer:
         assert self.flags['setup'] == False, 'Cannot call .set_expression after .setup_model.'
         assert isinstance(expr_name, str), 'expr_name must be str, you have: {}'.format(type(expr_name))
         assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have: {}'.format(type(expr))
-        assert isinstance(lb, (int, float, np.ndarray)), 'lb must be float, int or numpy.ndarray, you have: {}'.format(type(lb))
+        assert isinstance(ub, (int, float, np.ndarray)), 'ub must be float, int or numpy.ndarray, you have: {}'.format(type(ub))
+        assert isinstance(soft_constraint, bool), 'soft_constraint must be boolean, you have: {}'.format(type(soft_constraint))
 
-        self.nl_cons_list.extend([{'expr_name': expr_name, 'expr': expr, 'lb' : lb}])
+        if soft_constraint==True:
+            # Introduce new slack variable:
+            epsilon = SX.sym('eps_'+expr_name,*expr.shape)
+            # Change expression
+            expr = expr-epsilon
+            # Add slack variable to list of slack variables:
+            self.slack_vars_list.extend([
+                {'slack_name': expr_name, 'var': epsilon, 'ub': maximum_violation}
+            ])
+            # Add cost contribution:
+            self.slack_cost += sum1(penalty_term_cons*epsilon)
+
+
+        self.nl_cons_list.extend([
+            {'expr_name': expr_name, 'expr': expr, 'ub' : ub}])
 
         return expr
+
+    def _setup_nl_cons(self):
+        """Private method that is called from :py:func:`do_mpc.controller.MPC.setup` or :py:func:`do_mpc.estimator.MHE.setup`.
+        Afterwards no further non-linear constraints can be added with the :py:func:`Optimizer.set_nl_cons` method.
+
+        This is not part of the public API. Do not call this method.
+        """
+        # Create struct for soft constraints:
+        self._eps = _eps = struct_symSX([
+            entry(slack_i['slack_name'], sym=slack_i['var']) for slack_i in self.slack_vars_list
+        ])
+        self.n_eps = _eps.shape[0]
+
+        # Create bounds:
+        self._eps_lb = _eps(0.0)
+        self._eps_ub = _eps(np.inf)
+        # Set bounds:
+        for slack_i in self.slack_vars_list:
+            self._eps_ub[slack_i['slack_name']] = slack_i['ub']
+        # Objective function epsilon contribution:
+        self.epsterm_fun = Function('epsterm', [_eps], [self.slack_cost])
+
+        # Create struct for _nl_cons:
+        # Use the previously defined SX.sym variables to declare shape and symbolic variable.
+        self._nl_cons = struct_SX([
+            entry(expr_i['expr_name'], expr=expr_i['expr']) for expr_i in self.nl_cons_list
+        ])
+        # Make function from these expressions:
+        _x, _u, _z, _tvp, _p, _aux, *_ = self.model.get_variables()
+        self._nl_cons_fun = Function('nl_cons_fun', [_x, _u, _z, _tvp, _p, _eps], [self._nl_cons])
+        # Create bounds:
+        self._nl_cons_ub = self._nl_cons(np.inf)
+        self._nl_cons_lb = self._nl_cons(-np.inf)
+        # Set bounds:
+        for nl_cons_i in self.nl_cons_list:
+            self._nl_cons_ub[nl_cons_i['expr_name']] = nl_cons_i['ub']
+
 
     def get_tvp_template(self):
         """The method returns a structured object with n_horizon elements, and a set of time varying parameters (as defined in model)
