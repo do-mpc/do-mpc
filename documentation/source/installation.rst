@@ -18,7 +18,7 @@ Requirements
 
 Quick and easy
 **************
-Simply use the **PIP** and install **do mpc** from the terminal.
+Simply use **PIP** and install **do mpc** from the terminal.
 
 1. Activate your environment, e.g. (on linux):
 ::

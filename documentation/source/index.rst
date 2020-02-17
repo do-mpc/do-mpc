@@ -15,6 +15,8 @@ Welcome to the documentation of do-mpc!
    mhe_example
    license
    installation
+   project_structure
+   Debugging
    modules
 
 

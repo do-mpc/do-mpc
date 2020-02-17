@@ -42,6 +42,7 @@ extensions = ['sphinx.ext.autodoc',
 	      'sphinx.ext.intersphinx',
           'nbsphinx',
           'sphinx.ext.mathjax',
+          'sphinx.ext.graphviz'
               ]
 
 mathjax_config = {
@@ -84,4 +85,3 @@ html_static_path = ['_static']
 
 # -- Options for LaTeX output ---------------------------------------------
 latex_engine ='pdflatex'
-

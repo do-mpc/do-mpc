@@ -302,6 +302,7 @@ class Optimizer:
         """Introduce new constraint to the class. Further constraints are optional.
         Expressions must be formulated with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
         They are implemented as:
+
         .. math::
 
             m(x,u,z,p_{\\text{tv}}, p) \\leq m_{\\text{ub}}
@@ -311,8 +312,7 @@ class Optimizer:
         .. math::
 
             m(x,u,z,p_{\\text{tv}}, p)-\\epsilon &\\leq m_{\\text{ub}},\\\\
-            0 &\\leq \\epsilon \\geq \\epsilon_{\\text{max}},
-            \\
+            0 &\\leq \\epsilon \\leq \\epsilon_{\\text{max}},
 
         Slack variables are added to the cost function and multiplied with the supplied penalty term.
         This formulation makes constraints soft, meaning that a certain violation is tolerated and does not lead to infeasibility.
