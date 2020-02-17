@@ -40,7 +40,7 @@ class MPC(do_mpc.optimizer.Optimizer):
 
     1. Use :py:func:`MPC.set_param` to configure the :py:class:`MPC`. See docstring for details.
 
-    2. Use :py:meth:`do_mpc.model.get_variables` to obtain the variables defined in :py:class:`do_mpc.model` and express the objective of the optimization problem in terms of these variables.
+    2. Use :py:meth:`do_mpc.model.Model.get_variables` to obtain the variables defined in :py:class:`do_mpc.model.Model` and express the objective of the optimization problem in terms of these variables.
 
     3. Set the objective of the control problem with :py:func:`MPC.set_objective`.
 
@@ -48,7 +48,7 @@ class MPC(do_mpc.optimizer.Optimizer):
 
     5. Set upper and lower bounds.
 
-    6. Optionally, set further (non-linear) constraints with :py:func:`MPC.set_nl_cons`. See docstring for details.
+    6. Optionally, set further (non-linear) constraints with :py:func:`do_mpc.optimizer.Optimizer.set_nl_cons`. See docstring for details.
 
     7. Use the low-level API (:py:func:`MPC.get_p_template` and :py:func:`MPC.set_p_fun`) or high level API (:py:func:`MPC.set_uncertainty_values`) to create scenarios for robust MPC. See docstrings for details.
 
@@ -432,40 +432,29 @@ class MPC(do_mpc.optimizer.Optimizer):
             self.set_p_fun(p_fun)
 
     def setup(self):
-        """The setup method finalizes the optimizer creation. After this call, the py:func:`.solve()` method is applicable.
+        """The setup method finalizes the MPC creation. After this call, the :py:func:`do_mpc.optimizer.Optimizer.solve` method is applicable.
         The method wraps the following calls:
 
-        * :py:func:`MPC.check_validity()`
+        * :py:func:`do_mpc.optimizer.Optimizer._setup_nl_cons`
 
-        * :py:func:`MPC._setup_mpc_optim_problem()`
+        * :py:func:`MPC._check_validity`
 
-        * :py:func:`MPC.set_initial_guess()`
+        * :py:func:`MPC._setup_mpc_optim_problem`
 
-        * :py:func:`do_mpc.optimizer.prepare_data()`
+        * :py:func:`MPC.set_initial_guess`
+
+        * :py:func:`do_mpc.optimizer.Optimizer.prepare_data`
 
         and sets the setup flag = True.
 
         """
-        self.flags['setup'] = True
 
-        # Create struct for _nl_cons:
-        # Use the previously defined SX.sym variables to declare shape and symbolic variable.
-        self._nl_cons = struct_SX([
-            entry(expr_i['expr_name'], expr=expr_i['expr']) for expr_i in self.nl_cons_list
-        ])
-        # Make function from these expressions:
-        _x, _u, _z, _tvp, _p, _aux, *_ = self.model.get_variables()
-        self._nl_cons_fun = Function('nl_cons_fun', [_x, _u, _z, _tvp, _p], [self._nl_cons])
-        # Create bounds:
-        self._nl_cons_ub = self._nl_cons(0)
-        self._nl_cons_lb = self._nl_cons(-np.inf)
-        # Set bounds:
-        for nl_cons_i in self.nl_cons_list:
-            self._nl_cons_lb[nl_cons_i['expr_name']] = nl_cons_i['lb']
-
-
+        self._setup_nl_cons()
         self._check_validity()
         self._setup_mpc_optim_problem()
+        self.flags['setup'] = True
+
+
         self.set_initial_guess()
 
         # Gather meta information:
@@ -573,6 +562,7 @@ class MPC(do_mpc.optimizer.Optimizer):
             entry('_z', repeat=[self.n_horizon, n_max_scenarios,
                                 1+n_total_coll_points], struct=self.model._z),
             entry('_u', repeat=[self.n_horizon, n_max_scenarios], struct=self.model._u),
+            entry('_eps', repeat=[self.n_horizon, n_max_scenarios], struct=self._eps),
         ])
         self.n_opt_x = self.opt_x.shape[0]
         # NOTE: The entry _x[k,child_scenario[k,s,b],:] starts with the collocation points from s to b at time k
@@ -650,7 +640,8 @@ class MPC(do_mpc.optimizer.Optimizer):
 
                     # Add nonlinear constraints only on each control step
                     nl_cons_k = self._nl_cons_fun(
-                        opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s], opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
+                        opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s], opt_x_unscaled['_z', k, s, -1],
+                        opt_p['_tvp', k], opt_p['_p', current_scenario], opt_x_unscaled['_eps', k, s])
                     cons.append(nl_cons_k)
                     cons_lb.append(self._nl_cons_lb)
                     cons_ub.append(self._nl_cons_ub)
@@ -661,6 +652,9 @@ class MPC(do_mpc.optimizer.Optimizer):
                     # Add contribution to the cost
                     obj += omega[k] * self.lterm_fun(opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s],
                                                      opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
+                    # Add slack variables to the cost
+                    obj += self.epsterm_fun(opt_x_unscaled['_eps', k, s])
+
                     # In the last step add the terminal cost too
                     if k == self.n_horizon - 1:
                         obj += omega[k] * self.mterm_fun(opt_x_unscaled['_x', k + 1, s, -1])
@@ -682,6 +676,10 @@ class MPC(do_mpc.optimizer.Optimizer):
                 # Bounds for the inputs along the horizon
                 self.lb_opt_x['_u', k, s] = self._u_lb.cat/self._u_scaling
                 self.ub_opt_x['_u', k, s] = self._u_ub.cat/self._u_scaling
+
+                # Bounds for the slack variables:
+                self.lb_opt_x['_eps', k, s] = self._eps_lb.cat
+                self.ub_opt_x['_eps', k, s] = self._eps_ub.cat
 
                 # Bounds on the terminal state
                 if k == self.n_horizon - 1:

@@ -546,34 +546,23 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self.opt_x_num['_p_est'] = self._p_est0.cat/self._p_est_scaling
 
     def setup(self):
-        """The setup method finalizes the MHE creation. After this call, the py:func:`do_mpc.optimizer.Optimizer.solve` method is applicable.
+        """The setup method finalizes the MHE creation. After this call, the :py:func:`do_mpc.optimizer.Optimizer.solve` method is applicable.
         The method wraps the following calls:
 
-        * :py:func:`MHE.check_validity()`
+        * :py:func:`do_mpc.optimizer.Optimizer._setup_nl_cons`
 
-        * :py:func:`MHE._setup_mpc_optim_problem()`
+        * :py:func:`MHE._check_validity`
 
-        * :py:func:`MHE.set_initial_guess()`
+        * :py:func:`MHE._setup_mhe_optim_problem`
 
-        * :py:func:`do_mpc.optimizer.prepare_data()`
+        * :py:func:`MHE.set_initial_guess`
+
+        * :py:func:`do_mpc.optimizer.Optimizer.prepare_data`
 
         and sets the setup flag = True.
 
         """
-        # Create struct for _nl_cons:
-        # Use the previously defined SX.sym variables to declare shape and symbolic variable.
-        self._nl_cons = struct_SX([
-            entry(expr_i['expr_name'], expr=expr_i['expr']) for expr_i in self.nl_cons_list
-        ])
-        # Make function from these expressions:
-        _x, _u, _z, _tvp, _p, _aux, _y, _ = self.model.get_variables()
-        self._nl_cons_fun = Function('nl_cons_fun', [_x, _u, _z, _tvp, _p], [self._nl_cons])
-        # Create bounds:
-        self._nl_cons_ub = self._nl_cons(0)
-        self._nl_cons_lb = self._nl_cons(-np.inf)
-        # Set bounds:
-        for nl_cons_i in self.nl_cons_list:
-            self._nl_cons_lb[nl_cons_i['expr_name']] = nl_cons_i['lb']
+        self._setup_nl_cons()
 
         # Concatenate _p_est_scaling und _p_set_scaling to p_scaling (and make it a struct again)
         self._p_scaling = self.model._p(self._p_cat_fun(self._p_est_scaling, self._p_set_scaling))
@@ -637,7 +626,21 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self.data.update(_z = z0)
         self.data.update(_p = p0)
         self.data.update(_time = t0)
-        self.data.update(_aux_expression = aux0)
+        self.data.update(_aux = aux0)
+
+        # Store additional information
+        if self.store_full_solution == True:
+            opt_x_num_unscaled = self.opt_x_num_unscaled
+            opt_aux_num = self.opt_aux_num
+            self.data.update(_opt_x_num = opt_x_num_unscaled)
+            self.data.update(_opt_aux_num = opt_aux_num)
+        if self.store_lagr_multiplier == True:
+            lam_g_num = self.lam_g_num
+            self.data.update(_lam_g_num = lam_g_num)
+        if len(self.store_solver_stats) > 0:
+            solver_stats = self.solver_stats
+            store_solver_stats = self.store_solver_stats
+            self.data.update(**{stat_i: value for stat_i, value in solver_stats.items() if stat_i in store_solver_stats})
 
         # Update initial
         self._t0 = self._t0 + self.t_step
@@ -663,6 +666,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             entry('_x', repeat=[self.n_horizon+1, 1+n_total_coll_points], struct=self.model._x),
             entry('_z', repeat=[self.n_horizon,   1+n_total_coll_points], struct=self.model._z),
             entry('_u', repeat=[self.n_horizon], struct=self.model._u),
+            entry('_eps', repeat=[self.n_horizon], struct=self._eps),
             entry('_p_est', struct=self._p_est),
         ])
         self.n_opt_x = self.opt_x.shape[0]
@@ -738,7 +742,9 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
             # Add nonlinear constraints only on each control step
             nl_cons_k = self._nl_cons_fun(
-                opt_x_unscaled['_x', k, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1], opt_p['_tvp', k], _p)
+                opt_x_unscaled['_x', k, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1],
+                opt_p['_tvp', k], _p, opt_x_unscaled['_eps', k])
+
             cons.append(nl_cons_k)
             cons_lb.append(self._nl_cons_lb)
             cons_ub.append(self._nl_cons_ub)
@@ -748,6 +754,8 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
                 opt_x_unscaled['_x', k+1, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1],
                 opt_p['_tvp', k], _p, opt_p['_y_meas', k]
             )
+            # Add slack variables to the cost
+            obj += self.epsterm_fun(opt_x_unscaled['_eps', k])
 
 
             # Calculate the auxiliary expressions for the current scenario:
@@ -761,6 +769,10 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             # Bounds for the inputs along the horizon
             self.lb_opt_x['_u', k] = self._u_lb.cat/self._u_scaling
             self.ub_opt_x['_u', k] = self._u_ub.cat/self._u_scaling
+
+            # Bounds for the slack variables along the horizon:
+            self.lb_opt_x['_eps', k] = self._eps_lb.cat
+            self.ub_opt_x['_eps', k] = self._eps_ub.cat
 
         # Bounds for the inputs along the horizon
         self.lb_opt_x['_p_est'] = self._p_est_lb.cat/self._p_est_scaling
