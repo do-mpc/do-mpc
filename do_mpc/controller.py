@@ -124,11 +124,15 @@ class MPC(do_mpc.optimizer.Optimizer):
     def set_param(self, **kwargs):
         """Method to set the parameters of the :py:class:`MPC` class. Parameters must be passed as pairs of valid keywords and respective argument.
         For example:
+
         ::
+
             mpc.set_param(n_horizon = 20)
 
         It is also possible and convenient to pass a dictionary with multiple parameters simultaneously as shown in the following example:
+
         ::
+
             setup_mpc = {
                 'n_horizon': 20,
                 't_step': 0.5,
@@ -176,10 +180,14 @@ class MPC(do_mpc.optimizer.Optimizer):
         :type store_solver_stats: dict
 
         .. note:: We highly suggest to change the linear solver for IPOPT from `mumps` to `MA27`. In many cases this will drastically boost the speed of **do mpc**. Change the linear solver with:
+
             ::
+
                 optimizer.set_param(nlpsol_opts = {'ipopt.linear_solver': 'MA27'})
         .. note:: To surpress the output of IPOPT, please use:
+
             ::
+
                 surpress_ipopt = {'ipopt.print_level':0, 'ipopt.sb': 'yes', 'print_time':0}
                 optimizer.set_param(nlpsol_opts = surpress_ipopt)
         """
@@ -234,7 +242,9 @@ class MPC(do_mpc.optimizer.Optimizer):
         :py:class:`model` and the penalty factor as the respective value.
 
         Example:
+
         ::
+
             # in model definition:
             Q_heat = model.set_variable(var_type='_u', var_name='Q_heat')
             F_flow = model.set_variable(var_type='_u', var_name='F_flow')
@@ -265,7 +275,9 @@ class MPC(do_mpc.optimizer.Optimizer):
         Use the combination of .get_p_template() and .set_p_template() as a more adaptable alternative to .set_uncertainty_values().
 
         Example:
+
         ::
+
             # in model definition:
             alpha = model.set_variable(var_type='_p', var_name='alpha')
             beta = model.set_variable(var_type='_p', var_name='beta')
@@ -306,12 +318,14 @@ class MPC(do_mpc.optimizer.Optimizer):
         return a structured object, based on the defined parameters and the number of combinations.
         The defined function has time as a single input.
 
-        Obtain this structured object first, by calling :py:func:`optimizer.get_p_template`.
+        Obtain this structured object first, by calling :py:func:`MPC.get_p_template`.
 
-        Use the combination of :py:func:`optimizer.get_p_template` and :py:func:`optimizer.set_p_fun` as a more adaptable alternative to :py:func:`optimizer.set_uncertainty_values`.
+        Use the combination of :py:func:`MPC.get_p_template` and :py:func:`MPC.set_p_fun` as a more adaptable alternative to :py:func:`MPC.set_uncertainty_values`.
 
         Example:
+
         ::
+
             # in model definition:
             alpha = model.set_variable(var_type='_p', var_name='alpha')
             beta = model.set_variable(var_type='_p', var_name='beta')
@@ -334,8 +348,7 @@ class MPC(do_mpc.optimizer.Optimizer):
         beta = 1
         which is determined by the order in the arrays above (first element is nominal).
 
-        :param p_fun: Function which returns a structure with numerical values. Must be the same structure as obtained from :py:func:`optimizer.get_p_template`.
-        Function must have a single input (time).
+        :param p_fun: Function which returns a structure with numerical values. Must be the same structure as obtained from :py:func:`MPC.get_p_template`. Function must have a single input (time).
         :type p_fun: function
 
         :return: None
@@ -352,7 +365,9 @@ class MPC(do_mpc.optimizer.Optimizer):
         Note that the order of elements determine the assignment.
 
         Example:
+
         ::
+
             # in model definition:
             alpha = model.set_variable(var_type='_p', var_name='alpha')
             beta = model.set_variable(var_type='_p', var_name='beta')

@@ -70,7 +70,7 @@ class Optimizer:
     @IndexedProperty
     def bounds(self, ind):
         """Queries and sets the bounds of the optimization variables for the optimizer.
-        The :py:func:`optimizer.bounds` method is an indexed property, meaning
+        The :py:func:`Optimizer.bounds` method is an indexed property, meaning
         getting and setting this property requires an index and calls this function.
         The power index (elements are seperated by comas) must contain atleast the following elements:
 
@@ -83,7 +83,9 @@ class Optimizer:
         Further indices are possible (but not neccessary) when the referenced variable is a vector or matrix.
 
         **Example**:
+
         ::
+
             # Set with:
             optimizer.bounds['lower','_x', 'phi_1'] = -2*np.pi
             optimizer.bounds['upper','_x', 'phi_1'] = 2*np.pi
@@ -153,7 +155,7 @@ class Optimizer:
     @IndexedProperty
     def scaling(self, ind):
         """Queries and sets the scaling of the optimization variables for the optimizer.
-        The :py:func:`optimizer.scaling` method is an indexed property, meaning
+        The :py:func:`Optimizer.scaling` method is an indexed property, meaning
         getting and setting this property requires an index and calls this function.
         The power index (elements are seperated by comas) must contain atleast the following elements:
 
@@ -164,7 +166,9 @@ class Optimizer:
         Further indices are possible (but not neccessary) when the referenced variable is a vector or matrix.
 
         **Example**:
+
         ::
+
             # Set with:
             optimizer.scaling['_x', 'phi_1'] = 2
             optimizer.scaling['_x', 'phi_2'] = 2
@@ -394,11 +398,13 @@ class Optimizer:
         """The method returns a structured object with n_horizon elements, and a set of time varying parameters (as defined in model)
         for each of these instances. The structure is initialized with all zeros. Use this object to define values of the time varying parameters.
 
-        This structure (with numerical values) should be used as the output of the ``tvp_fun`` function which is set to the class with :py:func:`optimizer.set_tvp_fun`.
-        Use the combination of :py:func:`optimizer.get_tvp_template` and :py:func:`optimizer.set_tvp_fun`.
+        This structure (with numerical values) should be used as the output of the ``tvp_fun`` function which is set to the class with :py:func:`Optimizer.set_tvp_fun`.
+        Use the combination of :py:func:`Optimizer.get_tvp_template` and :py:func:`Optimizer.set_tvp_fun`.
 
         Example:
+
         ::
+
             # in model definition:
             alpha = model.set_variable(var_type='_tvp', var_name='alpha')
             beta = model.set_variable(var_type='_tvp', var_name='beta')
@@ -432,8 +438,10 @@ class Optimizer:
         """ Set the tvp_fun which is called at each optimization step to get the current prediction of the time-varying parameters.
         The supplied function must be callable with the current time as the only input. Furthermore, the function must return
         a CasADi structured object which is based on the horizon and on the model definition. The structure can be obtained with
-        :py:func:`optimizer.get_tvp_template`.
+        :py:func:`Optimizer.get_tvp_template`.
+
         ::
+
             # in model definition:
             alpha = model.set_variable(var_type='_tvp', var_name='alpha')
             beta = model.set_variable(var_type='_tvp', var_name='beta')
@@ -454,7 +462,7 @@ class Optimizer:
 
             optimizer.set_tvp_fun(tvp_fun)
 
-        The method :py:func:`optimizer.set_tvp_fun`. must be called prior to setup IF time-varying parameters are defined in the model.
+        The method :py:func:`Optimizer.set_tvp_fun`. must be called prior to setup IF time-varying parameters are defined in the model.
 
         :param tvp_fun: Function that returns the predicted tvp values at each timestep. Must have single input (float) and return a structure3.DMStruct (obtained with .get_tvp_template())
         :type tvp_fun: function

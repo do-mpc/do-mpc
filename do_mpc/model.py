@@ -28,8 +28,8 @@ import pdb
 
 class Model:
     """The "**do mpc**" model class. This class holds the full model description and is at the core of
-    :py:class:`do_mpc.simulator`, :py:class:`do_mpc.optimizer` and :py:class:`do_mpc.estimator`.
-    The :py:class:`do_mpc.model` class is created with setting the `model_type` (continuous or discrete).
+    :py:class:`do_mpc.simulator.Simulator`, :py:class:`do_mpc.controller.MHE` and :py:class:`do_mpc.estimator.Estimator`.
+    The :py:class:`Model` class is created with setting the ``model_type`` (continuous or discrete).
     A ``continous`` model consists of an underlying ordinary differential equation (ODE) or differential algebraic equation (DAE):
 
     .. math::
@@ -55,15 +55,15 @@ class Model:
 
     Configuring and setting up the optimizer involves the following steps:
 
-    1. Use :py:func:`model.set_variable` to introduce new variables to the model. It is important to declare the variable type (states, inputs, etc.).
+    1. Use :py:func:`Model.set_variable` to introduce new variables to the model. It is important to declare the variable type (states, inputs, etc.).
 
-    2. Optionally introduce "auxiliary" expressions as functions of the previously defined variables with :py:func:`model.set_expression`. The expressions can be used for monitoring or be reused as constraints, the cost function etc.
+    2. Optionally introduce "auxiliary" expressions as functions of the previously defined variables with :py:func:`Model.set_expression`. The expressions can be used for monitoring or be reused as constraints, the cost function etc.
 
-    3. Optionally introduce measurement equations with :py:func:`model.set_meas`. The syntax is identical to :py:func:`model.set_expression`. By default state-feedback is assumed.
+    3. Optionally introduce measurement equations with :py:func:`Model.set_meas`. The syntax is identical to :py:func:`Model.set_expression`. By default state-feedback is assumed.
 
-    4. Define the right-hand-side of the `discrete` or `continuous` model as a function of the previously defined variables with :py:func:`model.set_rhs`. This method must be called once for each introduced state.
+    4. Define the right-hand-side of the `discrete` or `continuous` model as a function of the previously defined variables with :py:func:`Model.set_rhs`. This method must be called once for each introduced state.
 
-    5. Call :py:func:`model.setup_model` to finalize the ``model``. No further changes are possible afterwards.
+    5. Call :py:func:`Model.setup_model` to finalize the :py:class:`Model`. No further changes are possible afterwards.
 
     :param model_type: Set if the model is ``discrete`` or ``continuous``.
     :type var_type: str
@@ -102,7 +102,9 @@ class Model:
         """Introduce new variables to the model class. Define variable type, name and shape (optional).
 
         **Example:**
+
         ::
+
             # States struct (optimization variables):
             C_a = model.set_variable(var_type='_x', var_name='C_a', shape=(1,1))
             T_K = model.set_variable(var_type='_x', var_name='T_K', shape=(1,1))
@@ -135,7 +137,7 @@ class Model:
         :raises assertion: var_type must be string
         :raises assertion: var_name must be string
         :raises assertion: shape must be tuple or int
-        :raises assertion: Cannot call after :py:func:`model.setup_model`.
+        :raises assertion: Cannot call after :py:func:`Model.setup_model`.
 
         :return: Returns the newly created symbolic variable. Variables can be used to create aux expressions.
         :rtype: casadi.SX
@@ -173,12 +175,12 @@ class Model:
 
         :raises assertion: expr_name must be str
         :raises assertion: expr must be a casadi SX or MX type
-        :raises assertion: Cannot call after .setup_model.
+        :raises assertion: Cannot call after :py:func:`Model.setup_model`.
 
         :return: Returns the newly created expression. Expression can be used e.g. for the RHS.
         :rtype: casadi.SX
         """
-        assert self.flags['setup'] == False, 'Cannot call .set_expression after .setup_model.'
+        assert self.flags['setup'] == False, 'Cannot call .set_expression after :py:func:`Model.setup_model`'
         assert isinstance(expr_name, str), 'expr_name must be str, you have: {}'.format(type(expr_name))
         assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
         self.expr_list.extend([{'expr_name': expr_name, 'expr': expr}])
@@ -202,7 +204,7 @@ class Model:
         :return: Returns the newly created measurement expression.
         :rtype: casadi.SX
         """
-        assert self.flags['setup'] == False, 'Cannot call .set_meas after .setup_model.'
+        assert self.flags['setup'] == False, 'Cannot call .set_meas after :py:func:`Model.setup_model`'
         assert isinstance(meas_name, str), 'meas_name must be str, you have: {}'.format(type(meas_name))
         assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
         self.meas_list.extend([{'meas_name': meas_name, 'expr': expr}])
@@ -216,7 +218,9 @@ class Model:
         RHS must be formulated with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
 
         **Example**:
+
         ::
+
             tank_level = model.set_variable('states', 'tank_level')
             tank_temp = model.set_variable('states', 'tank_temp')
 
@@ -226,7 +230,7 @@ class Model:
             model.set_rhs('tank_level', tank_level_next)
             model.set_rhs('tank_temp', tank_temp_next)
 
-        :param var_name: Name of any of the previously defined states with: model.set_variable('states', [NAME])
+        :param var_name: Name of any of the previously defined states with: ``model.set_variable('states', [NAME])``
         :type var_name: string
         :param expr: CasADi SX or MX function depending on ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
         :type expr: CasADi SX or MX
