@@ -21,11 +21,15 @@ Quick and easy
 Simply use **PIP** and install **do mpc** from the terminal.
 
 1. Activate your environment, e.g. (on linux):
+
 ::
+
     source activate [myenvironment]
 
 2. Install **do mpc**:
+
 ::
+    
     pip install do-mpc
 
 .. warning::

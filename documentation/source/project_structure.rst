@@ -19,9 +19,13 @@ Simple projects can also be developed as presented in our introductory Jupyter N
 
     digraph G {
         graph [fontname = "Monaco"];
-        node [fontname = "Monaco"];
-        edge [fontname = "Monaco"];
+        node [fontname = "Monaco", fontcolor="#404040", color="#bdbdbd"];
+        edge [fontname = "Monaco", color="#707070"];
 
+        Model [label="Model", href="../do_mpc.html#do_mpc.model.Model", target="_top", shape=box, style=filled]
+        MPC [href="../do_mpc.html#do_mpc.controller.MPC", target="_top", shape=box, style=filled]
+        Simulator [href="../do_mpc.html#do_mpc.simulator.Simulator", target="_top", shape=box, style=filled]
+        MHE [href="../do_mpc.html#do_mpc.estimator.MHE", target="_top", shape=box, style=filled]
 
         template_model -> Model
         Model -> template_optimizer,template_simulator, template_estimator;
@@ -29,7 +33,6 @@ Simple projects can also be developed as presented in our introductory Jupyter N
         Model [shape=box, style=filled]
 
         subgraph cluster_loop {{
-            node [style=filled, shape=box];
             rankdir=TB;
             rank=same;
             MPC -> Simulator [label="inputs"];
