@@ -17,7 +17,7 @@ Welcome to the documentation of do-mpc!
    installation
    project_structure
    Debugging
-   modules
+   do_mpc
 
 
 
@@ -25,5 +25,4 @@ Indices and tables
 ==================
 
 * :ref:`genindex`
-* :ref:`modindex`
 * :ref:`search`

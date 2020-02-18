@@ -45,6 +45,8 @@ extensions = ['sphinx.ext.autodoc',
           'sphinx.ext.graphviz'
               ]
 
+graphviz_output_format = 'svg'
+
 mathjax_config = {
     'extensions': ['tex2jax.js'],
     'jax': ['input/TeX', 'output/HTML-CSS'],
