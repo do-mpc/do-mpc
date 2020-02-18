@@ -4,9 +4,9 @@ Overview
 Welcome to "**do mpc**", an comprehensive toolbox for **robust Model Predictive Control**.
 Among others, "**do mpc**" has the following features:
 
-* robust multi-stage MPC
+* Robust multi-stage MPC
 
-* non-linear and economic MPC (NMPC / EMPC)
+* Non-linear and economic MPC (NMPC / EMPC)
 
 * DAE support
 
@@ -18,7 +18,7 @@ Among others, "**do mpc**" has the following features:
 
 * Low-level interface and integration with Matplotlib for fully customizable, publication ready graphics and animations.
 
-* comprehensible python code for easy customizability
+* Comprehensible python code for easy customizability
 
 Structure
 *********
