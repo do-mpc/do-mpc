@@ -10,3 +10,7 @@ docs/source/.ipynb_checkpoints/
 documentation/build/
 
 documentation/source/.ipynb_checkpoints/
+
+do_mpc/__pycache__/
+
+do_mpc/tools/__pycache__/
