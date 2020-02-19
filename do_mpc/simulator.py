@@ -158,6 +158,7 @@ class Simulator:
             # Build the simulator function
             self.simulator = Function('simulator',[sim_x,sim_p],[x_next])
 
+
         elif self.model.model_type == 'continuous':
 
             # Define the ODE
@@ -280,6 +281,8 @@ class Simulator:
         :return: x_new
         :rtype: numpy array
         """
+        assert self.flags['setup'] == True, 'Simulator is not setup. Call simulator.setup() first.'
+        
         # extract numerical values
         sim_x_num = self.sim_x_num
         sim_p_num = self.sim_p_num
@@ -319,6 +322,7 @@ class Simulator:
         :return: x_nsext
         :rtype: numpy.ndarray
         """
+        assert self.flags['setup'] == True, 'Simulator is not setup. Call simulator.setup() first.'
         assert isinstance(u0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'u0 is wrong input type. You have: {}'.format(type(u0))
         assert u0.shape == self.model._u.shape, 'u0 has incorrect shape. You have: {}, expected: {}'.format(u0.shape, self.model._u.shape)
         assert isinstance(u0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'u0 is wrong input type. You have: {}'.format(type(u0))

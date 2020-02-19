@@ -108,9 +108,15 @@ class EKF(Estimator):
         raise Exception('EKF is not currently supported. This is a placeholder.')
         super().__init__(model)
 
+        # Flags are checked when calling .setup.
+        self.flags = {
+            'setup': False,
+        }
+
     def make_step(self, y0):
         """Main method during runtime. Pass the most recent measurement and
         retrieve the estimated state."""
+        assert self.flags['setup'] == True, 'EKF was not setup yet. Please call EKF.setup().'
         None
 
 class MHE(do_mpc.optimizer.Optimizer, Estimator):
@@ -315,7 +321,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         .. note:: To surpress the output of IPOPT, please use:
 
             ::
-            
+
                 surpress_ipopt = {'ipopt.print_level':0, 'ipopt.sb': 'yes', 'print_time':0}
                 optimizer.set_param(nlpsol_opts = surpress_ipopt)
 
@@ -609,6 +615,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         :return: x0, estimated state of the system.
         :rtype: numpy.ndarray
         """
+        assert self.flags['setup'] == True, 'ME was not setup yet. Please call ME.setup().'
 
         self.data.update(_y = y0)
 
