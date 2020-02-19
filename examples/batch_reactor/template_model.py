@@ -36,7 +36,7 @@ def template_model():
     --------------------------------------------------------------------------
     """
     model_type = 'continuous' # either 'discrete' or 'continuous'
-    model = do_mpc.model(model_type)
+    model = do_mpc.model.Model(model_type)
 
     # Certain parameters
     mu_m  = 0.02
@@ -46,23 +46,19 @@ def template_model():
     Y_p	  = 1.2
 
     # States struct (optimization variables):
-    X_s = model.set_variable(var_type='_x', var_name='X_s', shape=(1,1))
-    S_s = model.set_variable(var_type='_x', var_name='S_s', shape=(1,1))
-    P_s = model.set_variable(var_type='_x', var_name='P_s', shape=(1,1))
-    V_s = model.set_variable(var_type='_x', var_name='V_s', shape=(1,1))
+    X_s = model.set_variable('_x',  'X_s')
+    S_s = model.set_variable('_x',  'S_s')
+    P_s = model.set_variable('_x',  'P_s')
+    V_s = model.set_variable('_x',  'V_s')
 
     # Input struct (optimization variables):
-    inp = model.set_variable(var_type='_u', var_name='inp')
+    inp = model.set_variable('_u',  'inp')
 
     # Fixed parameters:
-    Y_x = model.set_variable(var_type='_p', var_name='Y_x')
-    S_in = model.set_variable(var_type='_p', var_name='S_in')
+    Y_x = model.set_variable('_p',  'Y_x')
+    S_in = model.set_variable('_p', 'S_in')
 
-    # Set expression. These can be used in the cost function, as non-linear constraints
-    # or just to monitor another output.
-    model.set_expression(expr_name='dif', expr=X_s-S_s)
 
-    # algebraic equations
     mu_S	= mu_m*S_s/(K_m+S_s+(S_s**2/K_i))
 
     # Differential equations
@@ -73,6 +69,5 @@ def template_model():
 
     # Build the model
     model.setup_model()
-
 
     return model
