@@ -35,41 +35,32 @@ def template_optimizer(model):
     template_optimizer: tuning parameters
     --------------------------------------------------------------------------
     """
-    optimizer = do_mpc.optimizer(model)
+    mpc = do_mpc.controller.MPC(model)
 
-    setup_optimizer = {
+    setup_mpc = {
         'n_robust': 0,
         'n_horizon': 20,
         't_step': 0.1,
         'state_discretization': 'discrete',
     }
 
-    optimizer.set_param(**setup_optimizer)
+    mpc.set_param(**setup_mpc)
 
-    _x, _u, _z, _tvp, p, _aux, *_ = optimizer.model.get_variables()
+    _x, _u, _z, _tvp, p, _aux, *_ = model.get_variables()
 
-    mterm = _aux['x_squared']
+    mterm = _aux['cost']
     lterm = sum1(_x.cat**2)
 
-    optimizer.set_objective(mterm=mterm, lterm=lterm)
-    rterm_factor = optimizer.get_rterm()
-    rterm_factor['u1'] = 1e-4
-    rterm_factor['u2'] = 1e-4
+    mpc.set_objective(mterm=mterm, lterm=lterm)
+    mpc.set_rterm(u=1e-4)
 
-    optimizer._x_lb['x'] = -3
-    optimizer._x_ub['x'] = 3
+    mpc.bounds['lower','_x','x'] = -3
+    mpc.bounds['upper','_x','x'] = 3
 
-    optimizer._u_lb['u1'] = -5
-    optimizer._u_ub['u1'] = 5
-    optimizer._u_lb['u2'] = -5
-    optimizer._u_ub['u2'] = 5
+    mpc.bounds['lower','_u','u'] = -5
+    mpc.bounds['upper','_u','u'] = 5
 
-    optimizer._x0['x'] = 0.5
 
-    optimizer.set_nl_cons(x_max=_x['x'])
-    optimizer._nl_cons_ub['x_max'] = 100
+    mpc.setup()
 
-    optimizer.set_uncertainty_values(np.array([[1.0,1.2],[2.0,2.3]]))
-    optimizer.setup()
-
-    return optimizer
+    return mpc

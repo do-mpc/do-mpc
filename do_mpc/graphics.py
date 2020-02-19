@@ -203,18 +203,21 @@ class Graphics:
             # Plot states etc. as continous quantities and inputs as steps.
             if line_i['var_type'] in ['_x', '_z']:
                 # pred is a n_horizon x n_branches array.
-                pred = vertcat(*opt_x_num[line_i['var_type'],:,lambda v: horzcat(*v),:, -1, line_i['var_name']])
-                # sort pred such that each column belongs to one scenario
-                pred = pred.full()[range(pred.shape[0]),structure_scenario.T].T
-                lines.extend(line_i['ax'].plot(time, pred, **line_i['predkwargs']))
+                for i in range(data.model[line_i['var_type']][line_i['var_name']].shape[0]):
+                    pred = vertcat(*opt_x_num[line_i['var_type'],:,lambda v: horzcat(*v),:, -1, line_i['var_name'], i])
+                    # sort pred such that each column belongs to one scenario
+                    pred = pred.full()[range(pred.shape[0]),structure_scenario.T].T
+                    lines.extend(line_i['ax'].plot(time, pred, **line_i['predkwargs']))
             elif line_i['var_type'] in ['_u']:
-                pred = vertcat(*opt_x_num[line_i['var_type'],:,lambda v: horzcat(*v),:,line_i['var_name']])
-                pred = pred.full()[range(pred.shape[0]),structure_scenario[:-1,:].T].T
-                lines.extend(line_i['ax'].step(time, pred, **line_i['predkwargs']))
+                for i in range(data.model[line_i['var_type']][line_i['var_name']].shape[0]):
+                    pred = vertcat(*opt_x_num[line_i['var_type'],:,lambda v: horzcat(*v),:,line_i['var_name'], i])
+                    pred = pred.full()[range(pred.shape[0]),structure_scenario[:-1,:].T].T
+                    lines.extend(line_i['ax'].step(time, pred, **line_i['predkwargs']))
             elif line_i['var_type'] in ['_aux']:
-                pred = vertcat(*opt_aux_num['_aux',:,lambda v: horzcat(*v),:,line_i['var_name']])
-                pred = pred.full()[range(pred.shape[0]),structure_scenario[:-1,:].T].T
-                lines.extend(line_i['ax'].plot(time, pred, **line_i['predkwargs']))
+                for i in range(data.model[line_i['var_type']][line_i['var_name']].shape[0]):
+                    pred = vertcat(*opt_aux_num['_aux',:,lambda v: horzcat(*v),:,line_i['var_name'], i])
+                    pred = pred.full()[range(pred.shape[0]),structure_scenario[:-1,:].T].T
+                    lines.extend(line_i['ax'].plot(time, pred, **line_i['predkwargs']))
 
 
         return lines
