@@ -35,9 +35,9 @@ def template_optimizer(model):
     template_optimizer: tuning parameters
     --------------------------------------------------------------------------
     """
-    optimizer = do_mpc.optimizer(model)
+    mpc = do_mpc.controller.MPC(model)
 
-    setup_optimizer = {
+    setup_mpc = {
         'n_horizon': 20,
         'n_robust': 0,
         'open_loop': 0,
@@ -46,46 +46,36 @@ def template_optimizer(model):
         'collocation_type': 'radau',
         'collocation_deg': 2,
         'collocation_ni': 2,
+        'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
     }
 
-    optimizer.set_param(**setup_optimizer)
+    mpc.set_param(**setup_mpc)
 
-    _x, _u, _z, _tvp, p, _aux,  *_ = optimizer.model.get_variables()
+    _x, _u, _z, _tvp, p, _aux,  *_ = mpc.model.get_variables()
 
     mterm = -_x['P_s']
     lterm = -_x['P_s']
 
-    optimizer.set_objective(mterm=mterm, lterm=lterm)
-    rterm_factor = optimizer.get_rterm()
-    rterm_factor['inp'] = 1.0
+    mpc.set_objective(mterm=mterm, lterm=lterm)
+    mpc.set_rterm(inp=1.0)
 
-    optimizer._x_lb['X_s'] = 0.0
-    optimizer._x_lb['S_s'] = -0.01
-    optimizer._x_lb['P_s'] = 0.0
-    optimizer._x_lb['V_s'] = 0.0
 
-    optimizer._x_ub['X_s'] = 3.7
-    optimizer._x_ub['S_s'] = inf
-    optimizer._x_ub['P_s'] = 3.0
-    optimizer._x_ub['V_s'] = inf
+    mpc.bounds['lower', '_x', 'X_s'] = 0.0
+    mpc.bounds['lower', '_x', 'S_s'] = -0.01
+    mpc.bounds['lower', '_x', 'P_s'] = 0.0
+    mpc.bounds['lower', '_x', 'V_s'] = 0.0
 
-    optimizer._u_lb['inp'] = 0.0
+    mpc.bounds['upper', '_x','X_s'] = 3.7
+    mpc.bounds['upper', '_x','P_s'] = 3.0
 
-    optimizer._u_ub['inp'] = 0.2
-
-    optimizer._x0['X_s'] = 1.0
-    optimizer._x0['S_s'] = 0.5
-    optimizer._x0['P_s'] = 0.0
-    optimizer._x0['V_s'] = 120.0
-
-    optimizer.set_nl_cons(x_max=_u['inp'])
-    optimizer._nl_cons_ub['x_max'] = 100000
+    mpc.bounds['lower','_u','inp'] = 0.0
+    mpc.bounds['upper','_u','inp'] = 0.2
 
     Y_x_values = np.array([0.5, 0.4, 0.3])
     S_in_values = np.array([200.0, 220.0, 180.0])
 
-    optimizer.set_uncertainty_values([Y_x_values, S_in_values])
+    mpc.set_uncertainty_values([Y_x_values, S_in_values])
 
-    optimizer.setup()
+    mpc.setup()
 
-    return optimizer
+    return mpc
