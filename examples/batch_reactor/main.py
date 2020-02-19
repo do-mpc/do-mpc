@@ -30,6 +30,7 @@ sys.path.append('../../')
 import do_mpc
 import scipy.io as sio
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 import time
 
 from template_model import template_model
@@ -62,30 +63,7 @@ estimator.set_initial_state(x0, reset_history=True)
 Setup graphic:
 """
 
-# Initialize graphic:
-graphics = do_mpc.graphics.Graphics()
-
-
-fig, ax = plt.subplots(5, sharex=True)
-plt.ion()
-# Configure plot:
-graphics.add_line(var_type='_x', var_name='X_s', axis=ax[0])
-graphics.add_line(var_type='_x', var_name='S_s', axis=ax[1])
-graphics.add_line(var_type='_x', var_name='P_s', axis=ax[2])
-graphics.add_line(var_type='_x', var_name='V_s', axis=ax[3])
-graphics.add_line(var_type='_u', var_name='inp', axis=ax[4])
-
-ax[0].set_ylabel('X_s')
-ax[1].set_ylabel('S_s')
-ax[2].set_ylabel('P_s')
-ax[3].set_ylabel('V_s')
-ax[4].set_ylabel('inp')
-
-fig.align_ylabels()
-plt.ion()
-
-
-fig.align_ylabels()
+fig, ax, graphics = do_mpc.graphics.default_plot(model, figsize=(8,5))
 plt.ion()
 
 """
