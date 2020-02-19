@@ -218,3 +218,94 @@ class Graphics:
 
 
         return lines
+
+def default_plot(model, states_list=None, inputs_list=None, aux_list=None, **kwargs):
+    """Pass a :py:class:`do_mpc.model.Model` object and create a default **do mpc** plot.
+    By default all states, inputs and auxiliary expressions are plotted on individual axes.
+    Pass lists of states, inputs and aux names (string) to plot only a subset of these
+    trajectories.
+
+    Returns a figure, axis and configured :py:class:`graphics.Graphics` object.
+
+    :param model: Configured model that contains all information about states, inputs etc.
+    :type model: py:class:`do_mpc.model.Model`
+
+    :param states_list: List of strings containing a subset of state names defined in py:class:`do_mpc.model.Model`. These states are plotted.
+    :type states_list: list
+
+    :param inputs_list: List of strings containing a subset of input names defined in py:class:`do_mpc.model.Model`. These inputs are plotted.
+    :type inputs_list: list
+
+    :param aux_list: List of strings containing a subset of auxiliary expression names defined in py:class:`do_mpc.model.Model`. These values are plotted.
+    :type aux_list: list
+
+    :param kwargs: Further arguments are passed to the call of ``plt.subplots(n_plot, 1, sharex=True, **kwargs)``.
+    :type kwargs:
+
+
+    :return fig: Matplotlib figure.
+
+    :return ax: Matplotlib axes.
+
+    :return graphics: Configured module.
+    :rtype graphics:  :py:class:Graphics
+    """
+    assert model.flags['setup'] == True, 'Model must be setup. Please call model.setup() first.'
+
+    err_message = '{} contains invalid keys. Must be a subset of {}. You have {}.'
+    if states_list is None:
+        states_list = model._x.keys()
+    else:
+        assert set(states_list).issubset(model._x.keys()), err_message.format('states_list',model._x.keys(), states_list)
+
+    if inputs_list is None:
+        inputs_list = model._u.keys()
+        # Pop default variable:
+        inputs_list.pop(0)
+    else:
+        assert set(inputs_list).issubset(model._u.keys()), err_message.format('inputs_list',model._u.keys(), inputs_list)
+
+    if aux_list is None:
+        aux_list = model._aux.keys()
+        # Pop default variable:
+        aux_list.pop(0)
+    else:
+        assert set(aux_list).issubset(model._aux.keys()), err_message.format('aux_list',model._aux.keys(), aux_list)
+
+    n_x = len(states_list)
+    n_u = len(inputs_list)
+    n_aux = len(aux_list)
+
+    n_plot = n_x + n_u + n_aux
+
+    # Create figure:
+    fig, ax = plt.subplots(n_plot, 1, sharex=True, **kwargs)
+
+    # Catch special cases:
+    if n_plot == 0:
+        raise Exception('Nothing to plot.')
+    elif n_plot == 1:
+        ax = [ax]
+
+    # Create graphics instance:
+    graphics = Graphics()
+
+    # Add lines/ labels for states:
+    for i, x_i in enumerate(states_list):
+        graphics.add_line('_x', x_i, ax[i])
+        ax[i].set_ylabel(x_i)
+    # Add lines/ labels for inputs:
+    for i, u_i in enumerate(inputs_list, n_x):
+        graphics.add_line('_u', u_i, ax[i])
+        ax[i].set_ylabel(u_i)
+    # Add lines/ labels for auxiliary expressions:
+    for i, aux_i in enumerate(aux_list, n_x+n_u):
+        graphics.add_line('_aux', aux_i, ax[i])
+        ax[i].set_ylabel(aux_i)
+
+    ax[-1].set_xlabel('time')
+
+    fig.align_ylabels()
+    fig.tight_layout()
+
+    return fig, ax, graphics
