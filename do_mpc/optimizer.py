@@ -529,7 +529,9 @@ class Optimizer:
         rhs = substitute(rhs, _p, _p*self._p_scaling.cat) # only meaningful for MHE.
 
         if self.state_discretization == 'discrete':
-            ifcn = Function('ifcn', [_x, _u, _z, _tvp, _p], [[], rhs/self._x_scaling.cat])
+            _i = SX.sym('i', 0)
+            # discrete integrator ifcs mimics the API the collocation ifcn. 
+            ifcn = Function('ifcn', [_x, _i, _u, _z, _tvp, _p], [[], rhs/self._x_scaling.cat])
             n_total_coll_points = 0
         if self.state_discretization == 'collocation':
             ffcn = Function('ffcn', [_x, _u, _z, _tvp, _p], [rhs/self._x_scaling.cat])

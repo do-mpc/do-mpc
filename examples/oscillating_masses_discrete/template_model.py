@@ -36,21 +36,17 @@ def template_model():
     --------------------------------------------------------------------------
     """
     model_type = 'discrete' # either 'discrete' or 'continuous'
-    model = do_mpc.model(model_type)
+    model = do_mpc.model.Model(model_type)
 
     # States struct (optimization variables):
     _x = model.set_variable(var_type='_x', var_name='x', shape=(4,1))
 
     # Input struct (optimization variables):
-    u1 = model.set_variable(var_type='_u', var_name='u1')
-    u2 = model.set_variable(var_type='_u', var_name='u2')
-
-    # Fixed parameters:
-    p = model.set_variable(var_type='_p', var_name='dummy', shape=2)
+    _u = model.set_variable(var_type='_u', var_name='u', shape=(2,1))
 
     # Set expression. These can be used in the cost function, as non-linear constraints
     # or just to monitor another output.
-    model.set_expression(expr_name='x_squared', expr=sum1(_x**2))
+    model.set_expression(expr_name='cost', expr=sum1(_x**2))
 
 
     A = np.array([[0.96033209,  0.19734663,  0.01973449,  0.0013227],
@@ -64,7 +60,7 @@ def template_model():
                   [1.32269963e-03, 1.97346631e-01]])
 
 
-    x_next = A@_x+B@vertcat(u1,u2)
+    x_next = A@_x+B@_u
     model.set_rhs('x', x_next)
 
     model.setup_model()

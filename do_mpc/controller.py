@@ -441,7 +441,7 @@ class MPC(do_mpc.optimizer.Optimizer):
             self.set_tvp_fun(tvp_fun)
 
         if 'p_fun' not in self.__dict__:
-            _p = self.get_p_template()
+            _p = self.get_p_template(1)
 
             def p_fun(t): return _p
             self.set_p_fun(p_fun)
@@ -506,7 +506,7 @@ class MPC(do_mpc.optimizer.Optimizer):
         :rtype: numpy.ndarray
         """
         assert self.flags['setup'] == True, 'optimizer was not setup yet. Please call optimizer.setup().'
-        
+
         # Get current tvp, p and time (as well as previous u)
         u_prev = self._u0
         tvp0 = self.tvp_fun(self._t0)

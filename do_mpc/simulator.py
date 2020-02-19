@@ -66,11 +66,11 @@ class Simulator:
             self.reltol = 1e-10
             self.integration_tool = 'cvodes'
 
-            self.flags = {
-                'setup': False,
-                'set_tvp_fun': False,
-                'set_p_fun': False,
-            }
+        self.flags = {
+            'set_tvp_fun': False,
+            'set_p_fun': False,
+            'setup': False,
+        }
 
     def set_initial_state(self, x0, reset_history=False):
         """Set the intial state of the simulator.
@@ -282,7 +282,7 @@ class Simulator:
         :rtype: numpy array
         """
         assert self.flags['setup'] == True, 'Simulator is not setup. Call simulator.setup() first.'
-        
+
         # extract numerical values
         sim_x_num = self.sim_x_num
         sim_p_num = self.sim_p_num
