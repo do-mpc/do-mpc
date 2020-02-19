@@ -175,13 +175,13 @@ class Graphics:
         elif opt_x_num is not None:
             pass
         else:
-            raise Exception('Cannot plot predictions if full solution is not stored or supplied when calling the method.')
+            raise Exception('Cannot plot predictions if full solution is not stored or supplied (opt_x_num) when calling the method.')
         if opt_aux_num is None and data.meta_data['store_full_solution']:
             opt_aux_num = data.opt_aux(data._opt_aux_num[t_ind])
         elif opt_aux_num is not None:
             pass
         else:
-            raise Exception('Cannot plot predictions if full solution is not stored or supplied when calling the method.')
+            raise Exception('Cannot plot predictions if full solution is not stored or supplied (opt_aux_num) when calling the method.')
 
         # Plot predictions:
         self.reset_prop_cycle()

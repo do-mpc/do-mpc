@@ -505,6 +505,8 @@ class MPC(do_mpc.optimizer.Optimizer):
         :return: u0
         :rtype: numpy.ndarray
         """
+        assert self.flags['setup'] == True, 'optimizer was not setup yet. Please call optimizer.setup().'
+        
         # Get current tvp, p and time (as well as previous u)
         u_prev = self._u0
         tvp0 = self.tvp_fun(self._t0)
