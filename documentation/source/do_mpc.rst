@@ -76,3 +76,11 @@ do\_mpc.data
    :members:
    :undoc-members:
    :show-inheritance:
+
+do\_mpc.graphics
+-------------------
+
+.. automodule:: do_mpc.graphics
+   :members:
+   :undoc-members:
+   :show-inheritance:
