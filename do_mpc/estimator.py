@@ -539,6 +539,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             self.set_p_fun(p_fun)
 
         if self.flags['set_y_fun'] == False and self.meas_from_data:
+            # Case that measurement function is automatically created.
             y_template = self.get_y_template()
 
             def y_fun(t_now):
@@ -552,7 +553,11 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
                     None
                 return y_template
             self.set_y_fun(y_fun)
+        elif self.flags['set_y_fun'] == True:
+            # Case that the user supplied a measurement function.
+            pass
         else:
+            # No measurement function.
             raise Exception('You have not suppplied a measurement function. Use .set_y_fun or set parameter meas_from_data to True for default function.')
 
 
