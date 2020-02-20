@@ -1,6 +1,5 @@
 {{ fullname | escape | underline }}
 
-.. rubric:: Description
 .. automodule:: {{ fullname }}
 .. currentmodule:: {{ fullname }}
 

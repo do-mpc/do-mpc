@@ -43,7 +43,8 @@ extensions = ['sphinx.ext.autodoc',
           'nbsphinx',
           'sphinx.ext.mathjax',
           'sphinx.ext.graphviz',
-          'sphinx.ext.autosummary'
+          'sphinx.ext.autosummary',
+          'sphinx.ext.viewcode',
               ]
 
 graphviz_output_format = 'svg'
@@ -85,7 +86,7 @@ html_show_sourcelink = True
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = ['static']
 
 
 # -- Options for LaTeX output ---------------------------------------------

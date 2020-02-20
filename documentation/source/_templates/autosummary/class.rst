@@ -21,7 +21,9 @@
    .. autosummary::
       :toctree:
    {% for item in methods %}
+    {%- if not item.startswith('__') %}
       {{ name }}.{{ item }}
+    {%- endif -%}
    {% endfor %}
    {% endif %}
    {% endblock %}
