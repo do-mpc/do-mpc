@@ -18,14 +18,14 @@ and **Moving Horizon Estimation (MHE)**.
 
 .. toctree::
    :maxdepth: 5
-   :caption: Getting do mpc
+   :caption: How to get it?
 
    license
    installation
 
 .. toctree::
    :maxdepth: 5
-   :caption: Application
+   :caption: How to use it?
 
    project_structure
    Debugging
