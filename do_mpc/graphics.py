@@ -29,16 +29,66 @@ import pdb
 
 
 class Graphics:
-    """Graphics module to present the results of do-mpc. The module is independent of all other modules but is incorporated in the configuration.
-    This allows for a high-level API which is triggered through the configuration.
-    At the same time, the module can be used with pickled result files in post-processing for flexible and custom graphics.
-    For details about the high-level API, please see the doc string in configuration.setup_graphic().
-    Using the low-level API consists of two steps.
-    First, the .add_line method is used to define which results are to be plotted. The user passes an existing axes object.
-    Note that .add_line does not create a graphic.
-    The graphic is obtained with the .plot_results() method, which takes a do-mpc data object as input. Each module (simulator, estimator, optimizer)
-    has its own data object.
-    Furthermore, the module contains the .plot_predictions() method, which can be used to show the predicted trajectories.
+    """Graphics module to present the results of **do mpc**.
+    The module is independent of all other modules and can be used optionally.
+    The module can also be used with pickled result files in post-processing for flexible and custom graphics.
+
+    The graphics module is based on Matplotlib and allows for fully customizable, publication ready graphics and animations.
+    User defined graphics are configured prior to plotting results, e.g.:
+
+    ::
+
+        # Initialize graphic:
+        graphics = do_mpc.graphics.Graphics()
+
+        # Create figure with arbitrary Matplotlib method
+        fig, ax = plt.subplots(5, sharex=True)
+        # Configure plot (pass the previously obtained ax objects):
+        graphics.add_line(var_type='_x', var_name='C_a', axis=ax[0])
+        graphics.add_line(var_type='_x', var_name='C_b', axis=ax[0])
+        graphics.add_line(var_type='_x', var_name='T_R', axis=ax[1])
+        graphics.add_line(var_type='_x', var_name='T_K', axis=ax[1])
+        graphics.add_line(var_type='_aux', var_name='T_dif', axis=ax[2])
+        graphics.add_line(var_type='_u', var_name='Q_dot', axis=ax[3])
+        graphics.add_line(var_type='_u', var_name='F', axis=ax[4])
+        # Optional configuration of the plot(s) with matplotlib:
+        ax[0].set_ylabel('c [mol/l]')
+        ax[1].set_ylabel('Temperature [K]')
+        ax[2].set_ylabel('\Delta T [K]')
+        ax[3].set_ylabel('Q_heat [kW]')
+        ax[4].set_ylabel('Flow [l/h]')
+
+        fig.align_ylabels()
+
+    After initializing the :py:class:`Graphics` module,
+    the :py:func:`Graphics.add_line` method is used to define which results are to be plotted on which existing axes object.
+    Note that :py:func:`Graphics.add_line` does not create a graphic or plots results.
+    The graphic is obtained with the :py:func:`Graphics.plot_results` method, which takes a :py:class:`do_mpc.data.Data` object as input.
+    Each module (e.g.: :py:class:`do_mpc.simulator.Simulator`, :py:class:`do_mpc.estimator.MHE`, :py:class:`do_mpc.controller.MPC`)
+    has its own :py:class:`do_mpc.data.Data` object.
+    Furthermore, the module contains the :py:func:`Graphics.plot_predictions` method,
+    which can be used to show the predicted trajectories for the :py:class:`do_mpc.controller.MPC`.
+
+    .. note::
+        A high-level API for obtaining a configured :py:class:`Graphics` module is the :py:func:`default_plot` function.
+        Use this function and the obtained :py:class:`Graphics` module in the developement process.
+
+    Animations can be setup with the follwing loop:
+
+    ::
+
+        for k in range(50):
+            # do mpc loop:
+            u0 = mpc.make_step(x0)
+            y_next = simulator.make_step(u0)
+            x0 = estimator.make_step(y_next)
+
+            # Reset and replot results and predictions with Graphics:
+            graphics.reset_axes()
+            graphics.plot_results(mpc.data, linewidth=3)
+            # The second and third argument can be omitted if this information is stored in the data object (optional setting).
+            graphics.plot_predictions(mpc.data, mpc.opt_x_num, mpc.opt_aux_num)
+            plt.show()
     """
     def __init__(self):
         self.line_list = []
@@ -46,7 +96,7 @@ class Graphics:
         self.color = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
     def reset_axes(self):
-        """Clears the lines on all axes which were passed with .add_line.
+        """Clears the lines on all axes which were passed with :py:func:`Graphics.add_line`.
         Method is called internally, before each plot.
         """
         for ax_i in self.ax_list:
@@ -54,19 +104,19 @@ class Graphics:
         self.reset_prop_cycle()
 
     def reset_prop_cycle(self):
-        """Resets the property cycle for all axes which were passed with .add_line.
+        """Resets the property cycle for all axes which were passed with :py:func:`Graphics.add_line`.
         The matplotlib color cycler is restarted.
         """
         for ax_i in self.ax_list:
             ax_i.set_prop_cycle(None)
 
     def add_line(self, var_type, var_name, axis, **pltkwargs):
-        """add_line is called during setting up the graphics class. This is typically the last step of the configuration of a do-mpc case.
-        Each call of .add_line adds a line to the passed axis according to the variable type (_x, _u, _z, _tvp, _p, _aux)
-        and its name (as defined in the model).
-        Furthermore, all valid matplotlib .plot arguments can be passed as optional keyword arguments, e.g.: 'linewidth', 'color', 'alpha'.
+        """add_line is called during setting up the :py:class:`Graphics` class. This is typically the last step of configuring **do mpc**.
+        Each call of :py:func:`Graphics.add_line` adds a line to the passed axis according to the variable type (``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``, ``_aux``)
+        and its name (as defined in the :py:class:`do_mpc.model.Model`).
+        Furthermore, all valid matplotlib .plot arguments can be passed as optional keyword arguments, e.g.: ``linewidth``, ``color``, ``alpha``.
 
-        :param var_type: Variable type to be plotted. Valid arguments are _x, _u, _z, _tvp, _p, _aux_expression.
+        :param var_type: Variable type to be plotted. Valid arguments are ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``, ``_aux``.
         :type var_type: string
 
         :param var_name: Variable name. Must reference the names defined in the model for the given variable type.
@@ -75,8 +125,8 @@ class Graphics:
         :param axis: Variable name. Must reference the names defined in the model for the given variable type.
         :type axis: matplotlib.axes.Axes object.
 
-        :param pltkwargs: Valid matplotlib pyplot keyword arguments (e.g.: 'linewidth', 'color', 'alpha')
-        :type pltkwargs: , optional
+        :param pltkwargs: Valid matplotlib pyplot keyword arguments (e.g.: ``linewidth``, ``color``, ``alpha``)
+        :type pltkwargs: optional
 
         :raises assertion: var_type argument must be a string
         :raises assertion: var_name argument must be a string
@@ -96,18 +146,18 @@ class Graphics:
 
     def plot_results(self, data, t_ind=None, **pltkwargs):
         """Plots the results stored in the passed data object for the plot configuration.
-        Each do-mpc module (simulator, estimator, optimizer) has an individual data object.
-        Use the t_ind parameter to plot only until the given time index. This is mostly used in post-processing for animations.
-        Optionally pass an arbitrary number of valid pyplot.plot arguments (e.g. 'color', 'linewidth', 'alpha'), which is applied to ALL lines.
+        Each **do mpc** module has an individual data object.
+        Use the ``t_ind`` parameter to plot only until the given time index. This is mostly used in post-processing for animations.
+        Optionally pass an arbitrary number of valid pyplot.plot arguments (e.g. ``linewidth``, ``color``, ``alpha``), which is applied to ALL lines.
 
-        :param data: do-mpc data object. Either from unpickled results or the created modules. The data object is updated at each make_step_... call in the configuration.
+        :param data: do-mpc data object. Either from unpickled results or the created modules. The data object is updated at each ``make_step``  call.
         :type data: do-mpc data object
 
         :param t_ind: Plot results up until this time index.
         :type t_ind: int
 
-        :param pltkwargs: Valid matplotlib pyplot keyword arguments (e.g.: 'linewidth', 'color', 'alpha')
-        :type pltkwargs: , optional
+        :param pltkwargs: Valid matplotlib pyplot keyword arguments (e.g.: ``linewidth``, ``color``, ``alpha``)
+        :type pltkwargs: optional
 
         :raises assertion: t_ind argument must be a int
         :raises assertion: t_ind argument must not exceed the length of the results
@@ -140,10 +190,10 @@ class Graphics:
     def plot_predictions(self, data, opt_x_num=None, opt_aux_num=None, t_ind=-1, **pltkwargs):
         """Plots the predicted trajectories for the plot configuration.
         The predicted trajectories are part of the optimal solution at each timestep and can be passed either as the optional
-        argument (opt_x_num) or they are part of the data structure, if the optimizer was set to store the optimal solution.
-        The plot predictions method can only be called with data from the do-mpc optimizer object and raises an error if called with data from other objects.
-        Use the t_ind parameter to plot the prediction for the given time instance. This is mostly used in post-processing for animations.
-        Optionally pass an arbitrary number of valid pyplot.plot arguments (e.g. 'color', 'linewidth', 'alpha'), which is applied to ALL lines.
+        argument (``opt_x_num``) or they are part of the data structure, if the optimizer was set to store the optimal solution (see :py:func:do_mpc.controller.MPC.set_param)
+        The plot predictions method can only be called with data from the :py:class:`do_mpc.controller.MPC` object and raises an error if called with data from other objects.
+        Use the ``t_ind`` parameter to plot the prediction for the given time instance. This is mostly used in post-processing for animations.
+        Optionally pass an arbitrary number of valid pyplot.plot arguments (e.g. ``linewidth``, ``color``, ``alpha``), which is applied to ALL lines.
 
         :param data: do-mpc (optimizer) data object. Either from unpickled results or the created modules.
         :type data: do-mpc (optimizer) data object
@@ -151,7 +201,7 @@ class Graphics:
         :param t_ind: Plot predictions at this time index.
         :type t_ind: int
 
-        :param pltkwargs: Valid matplotlib pyplot keyword arguments (e.g.: 'linewidth', 'color', 'alpha')
+        :param pltkwargs: Valid matplotlib pyplot keyword arguments (e.g.: ``linewidth``, ``color``, ``alpha``)
         :type pltkwargs: , optional
 
         :raises assertion: Can only call plot_predictions with data object from do-mpc optimizer
@@ -202,8 +252,9 @@ class Graphics:
 
             # Plot states etc. as continous quantities and inputs as steps.
             if line_i['var_type'] in ['_x', '_z']:
-                # pred is a n_horizon x n_branches array.
+                # Loop over all element of the variable (in case it is a vector)
                 for i in range(data.model[line_i['var_type']][line_i['var_name']].shape[0]):
+                    # pred is a n_horizon x n_branches array.
                     pred = vertcat(*opt_x_num[line_i['var_type'],:,lambda v: horzcat(*v),:, -1, line_i['var_name'], i])
                     # sort pred such that each column belongs to one scenario
                     pred = pred.full()[range(pred.shape[0]),structure_scenario.T].T
@@ -228,7 +279,7 @@ def default_plot(model, states_list=None, inputs_list=None, aux_list=None, **kwa
     Pass lists of states, inputs and aux names (string) to plot only a subset of these
     trajectories.
 
-    Returns a figure, axis and configured :py:class:`graphics.Graphics` object.
+    Returns a figure, axis and configured :py:class:`Graphics` object.
 
     :param model: Configured model that contains all information about states, inputs etc.
     :type model: py:class:`do_mpc.model.Model`
@@ -246,12 +297,11 @@ def default_plot(model, states_list=None, inputs_list=None, aux_list=None, **kwa
     :type kwargs:
 
 
-    :return fig: Matplotlib figure.
+    :return:
+        * fig *(Matplotlib figure)*
+        * ax *(Matplotlib axes)*
+        * configured :py:class:`Graphics` object (Graphics)
 
-    :return ax: Matplotlib axes.
-
-    :return graphics: Configured module.
-    :rtype graphics:  :py:class:Graphics
     """
     assert model.flags['setup'] == True, 'Model must be setup. Please call model.setup() first.'
 

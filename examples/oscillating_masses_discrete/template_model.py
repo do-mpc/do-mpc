@@ -38,6 +38,9 @@ def template_model():
     model_type = 'discrete' # either 'discrete' or 'continuous'
     model = do_mpc.model.Model(model_type)
 
+    # Simple oscillating masses example with two masses and two inputs.
+    # States are the position and velocitiy of the two masses.
+
     # States struct (optimization variables):
     _x = model.set_variable(var_type='_x', var_name='x', shape=(4,1))
 
