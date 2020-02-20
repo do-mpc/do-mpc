@@ -64,17 +64,21 @@ mhe_plot = do_mpc.graphics.Graphics()
 
 ax[0].set_title('Measured states / inputs')
 mpc_plot.add_line('_x', 'phi', ax[0])
+mpc_plot.add_line('_tvp', 'phi_set', ax[0])
+
 mpc_plot.add_line('_u', 'phi_m_set', ax[1])
 
 ax[2].set_title('Estimated states / parameters')
 mhe_plot.add_line('_x', 'dphi', ax[2])
 mhe_plot.add_line('_p', 'Theta_1', ax[3])
 
-ax[0].set_ylabel('angle position [rad]')
-ax[1].set_ylabel('motor position [rad]')
-ax[2].set_ylabel('angle velocity [rad/2]')
+ax[0].set_ylabel('angle \n position [rad]')
+ax[1].set_ylabel('motor \n position [rad]')
+ax[2].set_ylabel('angle \n velocity [rad/2]')
 ax[3].set_ylabel('mass inertia')
 ax[3].set_xlabel('time [s]')
+
+
 
 # fig, ax, graphics = do_mpc.graphics.default_plot(model)
 
@@ -97,10 +101,17 @@ for k in range(50):
         mpc_plot.plot_results(mpc.data, linewidth=3)
         mpc_plot.plot_predictions(mpc.data, mpc.opt_x_num, mpc.opt_aux_num, linestyle='--', linewidth=1)
 
-        mhe_plot.plot_results(mhe.data, linewidth=3)
+        mhe_plot.plot_results(simulator.data, linewidth=6, alpha = 0.4)
+        mhe_plot.plot_results(mhe.data, linewidth=3, alpha = 1)
+
+        for ax_i in ax:
+            ax_i.axvline(1.0)
+
         plt.show()
         input('next step')
 
-simu_lines = graphics.plot_results(simulator.data)
+mpc_plot.plot_results(mpc.data, linewidth=3)
+mhe_plot.plot_results(simulator.data, linewidth=6, alpha = 0.4)
+mhe_plot.plot_results(mhe.data, linewidth=3, alpha = 1)
 plt.show()
 input('Press any key to exit.')
