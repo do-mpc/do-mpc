@@ -233,6 +233,8 @@ class Graphics:
         else:
             raise Exception('Cannot plot predictions if full solution is not stored or supplied (opt_aux_num) when calling the method.')
 
+        opt_p_num = data.opt_p(data.opt_p_num[t_ind])
+
         # Plot predictions:
         self.reset_prop_cycle()
         lines = []
@@ -268,6 +270,10 @@ class Graphics:
                 for i in range(data.model[line_i['var_type']][line_i['var_name']].shape[0]):
                     pred = vertcat(*opt_aux_num['_aux',:,lambda v: horzcat(*v),:,line_i['var_name'], i])
                     pred = pred.full()[range(pred.shape[0]),structure_scenario[:-1,:].T].T
+                    lines.extend(line_i['ax'].plot(time, pred, **line_i['predkwargs']))
+            elif line_i['var_type'] in ['_tvp']:
+                for i in range(data.model[line_i['var_type']][line_i['var_name']].shape[0]):
+                    pred = vertcat(*opt_p_num['_tvp',:, line_i['var_name'], i]).full()
                     lines.extend(line_i['ax'].plot(time, pred, **line_i['predkwargs']))
 
 
