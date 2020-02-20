@@ -9,7 +9,7 @@ Classes and functions of each module are shown on their respective page.
 
 .. rubric:: Modules
 .. autosummary::
-    :toctree: _autosummary
+    :toctree: api
 
     model
 
