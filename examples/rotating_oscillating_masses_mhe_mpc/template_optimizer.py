@@ -48,8 +48,8 @@ def template_optimizer(model):
 
     _x, _u, _z, _tvp, p, _aux, *_ = model.get_variables()
 
-    mterm = sum1(_x['phi']**2)
-    lterm = sum1(_x['phi']**2)
+    lterm = (_x['phi'][1] - _tvp['phi_set'])**2
+    mterm = DM(1)
 
     mpc.set_objective(mterm=mterm, lterm=lterm)
     mpc.set_rterm(phi_m_set=1e-2)
