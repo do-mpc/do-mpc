@@ -30,42 +30,65 @@ sys.path.append('../../')
 import do_mpc
 import scipy.io as sio
 import matplotlib.pyplot as plt
-
+import matplotlib.gridspec as gridspec
+import time
 
 from template_model import template_model
 from template_optimizer import template_optimizer
 from template_simulator import template_simulator
+
+"""
+Get configured do mpc modules:
+"""
+
+model = template_model()
+mpc = template_optimizer(model)
+simulator = template_simulator(model)
+estimator = do_mpc.estimator.StateFeedback(model)
+
+"""
+Set initial state
+"""
 
 X_s_0 = 1.0 # This is the initial concentration inside the tank [mol/l]
 S_s_0 = 0.5 # This is the controlled variable [mol/l]
 P_s_0 = 0.0 #[C]
 V_s_0 = 120.0 #[C]
 x0 = np.array([X_s_0, S_s_0, P_s_0, V_s_0]).reshape(-1,1)
+mpc.set_initial_state(x0, reset_history=True)
+simulator.set_initial_state(x0, reset_history=True)
+estimator.set_initial_state(x0, reset_history=True)
 
-model = template_model()
-optimizer = template_optimizer(model)
-simulator = template_simulator(model)
-estimator = do_mpc.estimator.state_feedback(model)
+"""
+Setup graphic:
+"""
 
-optimizer._x0 = x0
-simulator._x0 = x0
-estimator._x0 = x0
+fig, ax, graphics = do_mpc.graphics.default_plot(model, figsize=(8,5))
+plt.ion()
 
-configuration = do_mpc.configuration(simulator, optimizer, estimator)
+"""
+Run MPC main loop:
+"""
 
+time_list = []
 for k in range(150):
-    configuration.make_step_optimizer()
-    configuration.make_step_simulator()
-    configuration.make_step_estimator()
+    tic = time.time()
+    u0 = mpc.make_step(x0)
+    y_next = simulator.make_step(u0)
+    x0 = estimator.make_step(y_next)
+    toc = time.time()
+    time_list.append(toc-tic)
 
-_x = simulator.data._x
-_u = simulator.data._u
-_t = simulator.data._time
+    if True:
+        graphics.reset_axes()
+        graphics.plot_results(mpc.data, linewidth=3)
+        graphics.plot_predictions(mpc.data, mpc.opt_x_num, mpc.opt_aux_num, linestyle='--', linewidth=1)
+        plt.show()
+        input('next step')
 
-for i in range(_x.shape[1]):
-    plt.figure()
-    plt.plot(_t, _x[:,i])
+time_arr = np.array(time_list)
+print('Total run-time: {tot:5.2f} s, step-time {mean:.3f}+-{std:.3f} s.'.format(tot=np.sum(time_arr), mean=np.mean(time_arr), std=np.sqrt(np.var(time_arr))))
 
-for i in range(_u.shape[1]):
-    plt.figure()
-    plt.plot(_t[0:-1], _u[:,i])
+simu_lines = graphics.plot_results(simulator.data)
+plt.show()
+input('Press any key to exit.')

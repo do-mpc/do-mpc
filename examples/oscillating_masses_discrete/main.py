@@ -26,6 +26,7 @@ from casadi import *
 from casadi.tools import *
 import pdb
 import sys
+import time
 sys.path.append('../../')
 import do_mpc
 
@@ -34,20 +35,52 @@ from template_optimizer import template_optimizer
 from template_simulator import template_simulator
 
 model = template_model()
-optimizer = template_optimizer(model)
+mpc = template_optimizer(model)
 simulator = template_simulator(model)
-estimator = do_mpc.estimator.state_feedback(model)
-
-configuration = do_mpc.configuration(simulator, optimizer, estimator)
+estimator = do_mpc.estimator.StateFeedback(model)
 
 
-for k in range(100):
-    configuration.make_step_optimizer()
-    configuration.make_step_simulator()
-    configuration.make_step_estimator()
+"""
+Set initial state
+"""
+np.random.seed(99)
 
-_x = simulator.data._x
-_t = simulator.data._time
+x0 = np.random.rand(model.n_x)-0.5
+mpc.set_initial_state(x0, reset_history=True)
+simulator.set_initial_state(x0, reset_history=True)
+estimator.set_initial_state(x0, reset_history=True)
 
-plt.plot(_t, _x)
+
+"""
+Setup graphic:
+"""
+
+fig, ax, graphics = do_mpc.graphics.default_plot(model)
+plt.ion()
+
+"""
+Run MPC main loop:
+"""
+
+time_list = []
+for k in range(50):
+    tic = time.time()
+    u0 = mpc.make_step(x0)
+    y_next = simulator.make_step(u0)
+    x0 = estimator.make_step(y_next)
+    toc = time.time()
+    time_list.append(toc-tic)
+
+    if True:
+        graphics.reset_axes()
+        graphics.plot_results(mpc.data, linewidth=3)
+        graphics.plot_predictions(mpc.data, mpc.opt_x_num, mpc.opt_aux_num, linestyle='--', linewidth=1)
+        plt.show()
+        input('next step')
+
+time_arr = np.array(time_list)
+print('Total run-time: {tot:5.2f} s, step-time {mean:.3f}+-{std:.3f} s.'.format(tot=np.sum(time_arr), mean=np.mean(time_arr), std=np.sqrt(np.var(time_arr))))
+
+simu_lines = graphics.plot_results(simulator.data)
 plt.show()
+input('Press any key to exit.')

@@ -29,53 +29,34 @@ sys.path.append('../../')
 import do_mpc
 
 
-def template_optimizer(model):
+def template_simulator(model):
     """
     --------------------------------------------------------------------------
     template_optimizer: tuning parameters
     --------------------------------------------------------------------------
     """
-    mpc = do_mpc.controller.MPC(model)
-
-    setup_mpc = {
-        'n_horizon': 20,
-        'n_robust': 0,
-        'open_loop': 0,
-        't_step': 1.0,
-        'state_discretization': 'collocation',
-        'collocation_type': 'radau',
-        'collocation_deg': 2,
-        'collocation_ni': 2,
-        'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
-    }
-
-    mpc.set_param(**setup_mpc)
-
-    _x, _u, _z, _tvp, p, _aux,  *_ = mpc.model.get_variables()
-
-    mterm = -_x['P_s']
-    lterm = -_x['P_s']
-
-    mpc.set_objective(mterm=mterm, lterm=lterm)
-    mpc.set_rterm(inp=1.0)
+    simulator = do_mpc.simulator.Simulator(model)
 
 
-    mpc.bounds['lower', '_x', 'X_s'] = 0.0
-    mpc.bounds['lower', '_x', 'S_s'] = -0.01
-    mpc.bounds['lower', '_x', 'P_s'] = 0.0
-    mpc.bounds['lower', '_x', 'V_s'] = 0.0
+    simulator.set_param(t_step = 0.1)
 
-    mpc.bounds['upper', '_x','X_s'] = 3.7
-    mpc.bounds['upper', '_x','P_s'] = 3.0
+    p_template = simulator.get_p_template()
+    def p_fun(t_now):
+        p_template['Theta_1'] = 2.25e-4
+        p_template['Theta_2'] = 2.25e-4
+        p_template['Theta_3'] = 2.25e-4
+        return p_template
+    simulator.set_p_fun(p_fun)
 
-    mpc.bounds['lower','_u','inp'] = 0.0
-    mpc.bounds['upper','_u','inp'] = 0.2
+    # The timevarying paramters have no effect on the simulator (they are only part of the cost function).
+    # We simply use the default values:
+    tvp_template = simulator.get_tvp_template()
+    def tvp_fun(t_now):
+        return tvp_template
 
-    Y_x_values = np.array([0.5, 0.4, 0.3])
-    S_in_values = np.array([200.0, 220.0, 180.0])
+    simulator.set_tvp_fun(tvp_fun)
 
-    mpc.set_uncertainty_values([Y_x_values, S_in_values])
 
-    mpc.setup()
+    simulator.setup()
 
-    return mpc
+    return simulator

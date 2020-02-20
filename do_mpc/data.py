@@ -29,6 +29,14 @@ import do_mpc
 
 
 class Data:
+    """**do mpc** data container. An instance of this class is created for all active **do mpc** classes,
+    e.g. :py:class:`do_mpc.simulator.Simulator`, :py:class:`do_mpc.controller.MPC`, :py:class:`do_mpc.estimator.MHE`.
+
+    The class is initialized with an instance of the :py:class:`do_mpc.model.Model` which contains all
+    information about variables (e.g. states, inputs etc.).
+
+    The :py:class:`Data` class has a public API but is mostly used by other **do mpc** classes, e.g. updated in the ``.make_step`` calls.
+    """
     def __init__(self, model):
         self.dtype = 'default'
         assert model.flags['setup'] == True, 'Model was not setup. After the complete model creation call model.setup_model().'
@@ -59,6 +67,11 @@ class Data:
         self.meta_data = {}
 
     def init_storage(self):
+        """Create new (empty) arrays for all variables.
+        The variables of interest are listed in the ``data_fields`` dictionary,
+        with their respective dimension. This dictionary may be updated.
+        The :py:class:`do_mpc.controller.MPC` class adds for example optimizer information.
+        """
         for field_i, dim_i in self.data_fields.items():
             setattr(self, field_i, np.empty((0, dim_i)))
 

@@ -66,11 +66,11 @@ class Simulator:
             self.reltol = 1e-10
             self.integration_tool = 'cvodes'
 
-            self.flags = {
-                'setup': False,
-                'set_tvp_fun': False,
-                'set_p_fun': False,
-            }
+        self.flags = {
+            'set_tvp_fun': False,
+            'set_p_fun': False,
+            'setup': False,
+        }
 
     def set_initial_state(self, x0, reset_history=False):
         """Set the intial state of the simulator.
@@ -97,12 +97,12 @@ class Simulator:
             self.reset_history()
 
     def reset_history(self):
-        """Reset the history of the simulator
+        """Reset the history of the simulator.
         """
         self._t0 = np.array([0])
         self.data.init_storage()
 
-    def check_validity(self):
+    def _check_validity(self):
         # tvp_fun must be set, if tvp are defined in model.
         if self.flags['set_tvp_fun'] == False and self.model._tvp.size > 0:
             raise Exception('You have not supplied a function to obtain the time varying parameters defined in model. Use .set_tvp_fun() prior to setup.')
@@ -133,7 +133,7 @@ class Simulator:
         :rtype: None
         """
 
-        self.check_validity()
+        self._check_validity()
 
         self.sim_x = sim_x = struct_symSX([
             entry('_x', struct=self.model._x),
@@ -157,6 +157,7 @@ class Simulator:
 
             # Build the simulator function
             self.simulator = Function('simulator',[sim_x,sim_p],[x_next])
+
 
         elif self.model.model_type == 'continuous':
 
@@ -263,7 +264,7 @@ class Simulator:
 
 
     def simulate(self):
-        """This is the core function of the simulator class. Numerical values for sim_x_num and sim_p_num need to be provided beforehand in order to simulate the system for one time step:
+        """Call the CasADi simulator. Numerical values for sim_x_num and sim_p_num need to be provided beforehand in order to simulate the system for one time step:
 
         * states (sim_x_num['_x'])
 
@@ -280,6 +281,8 @@ class Simulator:
         :return: x_new
         :rtype: numpy array
         """
+        assert self.flags['setup'] == True, 'Simulator is not setup. Call simulator.setup() first.'
+
         # extract numerical values
         sim_x_num = self.sim_x_num
         sim_p_num = self.sim_p_num
@@ -319,6 +322,7 @@ class Simulator:
         :return: x_nsext
         :rtype: numpy.ndarray
         """
+        assert self.flags['setup'] == True, 'Simulator is not setup. Call simulator.setup() first.'
         assert isinstance(u0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'u0 is wrong input type. You have: {}'.format(type(u0))
         assert u0.shape == self.model._u.shape, 'u0 has incorrect shape. You have: {}, expected: {}'.format(u0.shape, self.model._u.shape)
         assert isinstance(u0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'u0 is wrong input type. You have: {}'.format(type(u0))
