@@ -540,13 +540,12 @@ class MPC(do_mpc.optimizer.Optimizer):
         self.data.update(_x = x0)
         self.data.update(_u = u0)
         self.data.update(_z = z0)
-        #TODO: tvp und p support.
-        # self.data.update(_tvp = tvp0)
-        #self.data.update(_p = p0)
+        self.data.update(_tvp = tvp0['_tvp', 0])
         self.data.update(_time = t0)
         self.data.update(_aux = aux0)
 
         # Store additional information
+        self.data.update(opt_p_num = self.opt_p_num)
         if self.store_full_solution == True:
             opt_x_num_unscaled = self.opt_x_num_unscaled
             opt_aux_num = self.opt_aux_num
@@ -612,6 +611,7 @@ class MPC(do_mpc.optimizer.Optimizer):
             entry('_p', repeat=self.n_combinations, struct=self.model._p),
             entry('_u_prev', struct=self.model._u)
         ])
+        self.n_opt_p = opt_p.shape[0]
 
         # Dummy struct with symbolic variables
         self.aux_struct = struct_symSX([

@@ -655,10 +655,12 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self.data.update(_u = u0)
         self.data.update(_z = z0)
         self.data.update(_p = p0)
+        self.data.update(_tvp = tvp0['_tvp', -1])
         self.data.update(_time = t0)
         self.data.update(_aux = aux0)
 
         # Store additional information
+        self.data.update(opt_p_num = self.opt_p_num)
         if self.store_full_solution == True:
             opt_x_num_unscaled = self.opt_x_num_unscaled
             opt_aux_num = self.opt_aux_num
@@ -722,6 +724,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             entry('_tvp', repeat=self.n_horizon, struct=self.model._tvp),
             entry('_y_meas', repeat=self.n_horizon, struct=self.model._y),
         ])
+        self.n_opt_p = opt_p.shape[0]
 
         # Dummy struct with symbolic variables
         self.aux_struct = struct_symSX([

@@ -274,6 +274,8 @@ class Optimizer:
         If selected, initialize the container for the full solution of the optimizer.
         """
         self.data.data_fields.update({'_eps': self.n_eps})
+        self.data.data_fields.update({'opt_p_num': self.n_opt_p})
+        self.data.opt_p = self.opt_p
 
         if self.store_full_solution == True:
             # Create data_field for the optimal solution.
