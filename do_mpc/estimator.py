@@ -120,7 +120,7 @@ class EKF(Estimator):
         None
 
 class MHE(do_mpc.optimizer.Optimizer, Estimator):
-    """THE MHE estimator extends the :py:class:`do_mpc.optimizer.Optimizer` base class
+    """Moving horizon estimator. THE MHE estimator extends the :py:class:`do_mpc.optimizer.Optimizer` base class
     (which is also used for the MPC controller), as well as the :py:class:`Estimator` base class.
     Use this class to configure and run the MHE based on a previously configured :py:class:`do_mpc.model.Model` instance.
 
