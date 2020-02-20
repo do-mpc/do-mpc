@@ -225,9 +225,13 @@ class MPC(do_mpc.optimizer.Optimizer):
         assert lterm.shape == (1,1), 'lterm must have shape=(1,1). You have {}'.format(lterm.shape)
         assert self.flags['setup'] == False, 'Cannot call .set_objective after .setup_model.'
 
-        self.flags['set_objective'] = True
-        # TODO: Add docstring
         _x, _u, _z, _tvp, _p, _aux,  *_ = self.model.get_variables()
+
+        # If the mterm is a symbolic expression:
+        try:
+            assert set(symvar(mterm)).issubset(set(symvar(vertcat(_x)))), 'mterm must be solely a function of _x.'
+        except:
+            pass
 
         # TODO: Check if this is only a function of x
         self.mterm = mterm
@@ -236,6 +240,8 @@ class MPC(do_mpc.optimizer.Optimizer):
 
         self.lterm = lterm
         self.lterm_fun = Function('lterm', [_x, _u, _z, _tvp, _p], [lterm])
+
+        self.flags['set_objective'] = True
 
     def set_rterm(self, **kwargs):
         """Set the penality factor for the inputs. Call this function with keyword argument refering to the input names in
