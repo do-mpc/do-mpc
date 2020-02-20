@@ -42,13 +42,14 @@ def template_optimizer(model):
         'n_horizon': 20,
         't_step': 0.1,
         'store_full_solution': True,
+        'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
     }
 
     mpc.set_param(**setup_mpc)
 
     _x, _u, _z, _tvp, p, _aux, *_ = model.get_variables()
 
-    lterm = (_x['phi'][1] - _tvp['phi_set'])**2
+    lterm = (_x['phi_2'] - _tvp['phi_2_set'])**2
     mterm = DM(1)
 
     mpc.set_objective(mterm=mterm, lterm=lterm)
@@ -63,8 +64,9 @@ def template_optimizer(model):
         tvp0 = (1-switch)*tvp0 + switch*tvp_next
         return tvp0
 
+    np.random.seed(999)
     tvp_traj = [np.array([0])]
-    for i in range(200):
+    for i in range(400):
         tvp_traj.append(random_setpoint(tvp_traj[i]))
 
     tvp_traj = np.concatenate(tvp_traj)
@@ -85,11 +87,9 @@ def template_optimizer(model):
 
     mpc.set_uncertainty_values([inertia_mass_1, inertia_mass_2, inertia_mass_3])
 
-    # mpc.bounds['lower','_x','x'] = -3
-    # mpc.bounds['upper','_x','x'] = 3
-    #
-    # mpc.bounds['lower','_u','u'] = -5
-    # mpc.bounds['upper','_u','u'] = 5
+
+    mpc.bounds['lower','_u','phi_m_set'] = -5
+    mpc.bounds['upper','_u','phi_m_set'] = 5
 
     mpc.setup()
 

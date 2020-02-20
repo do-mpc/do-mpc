@@ -41,6 +41,7 @@ def template_mhe(model):
         'n_horizon': 10,
         't_step': 0.1,
         'store_full_solution': True,
+        'nlpsol_opts': {'ipopt.linear_solver': 'MA27'},
     }
 
     mhe.set_param(**setup_mhe)
@@ -65,7 +66,7 @@ def template_mhe(model):
     P_x = np.eye(8)
     P_p = np.eye(1)
 
-    arrival_cost = 1e-4*dx.T@P_x@dx + 1e-4*dp.T@P_p@dp
+    arrival_cost = 1e-4*dx.T@P_x@dx + 1e0*dp.T@P_p@dp
 
     mhe.set_objective(stage_cost, arrival_cost)
 
@@ -98,11 +99,8 @@ def template_mhe(model):
 
     mhe.set_y_fun(y_fun)
 
-    # mhe.bounds['lower','_x','x'] = -3
-    # mhe.bounds['upper','_x','x'] = 3
-    #
-    # mhe.bounds['lower','_u','u'] = -5
-    # mhe.bounds['upper','_u','u'] = 5
+    mhe.bounds['lower','_u','phi_m_set'] = -5
+    mhe.bounds['upper','_u','phi_m_set'] = 5
 
     mhe.bounds['lower','_p_est', 'Theta_1'] = 1e-5
     mhe.bounds['upper','_p_est', 'Theta_1'] = 1e-3
