@@ -274,6 +274,8 @@ class Optimizer:
         If selected, initialize the container for the full solution of the optimizer.
         """
         self.data.data_fields.update({'_eps': self.n_eps})
+        self.data.data_fields.update({'opt_p_num': self.n_opt_p})
+        self.data.opt_p = self.opt_p
 
         if self.store_full_solution == True:
             # Create data_field for the optimal solution.
@@ -529,7 +531,9 @@ class Optimizer:
         rhs = substitute(rhs, _p, _p*self._p_scaling.cat) # only meaningful for MHE.
 
         if self.state_discretization == 'discrete':
-            ifcn = Function('ifcn', [_x, _u, _z, _tvp, _p], [[], rhs/self._x_scaling.cat])
+            _i = SX.sym('i', 0)
+            # discrete integrator ifcs mimics the API the collocation ifcn. 
+            ifcn = Function('ifcn', [_x, _i, _u, _z, _tvp, _p], [[], rhs/self._x_scaling.cat])
             n_total_coll_points = 0
         if self.state_discretization == 'collocation':
             ffcn = Function('ffcn', [_x, _u, _z, _tvp, _p], [rhs/self._x_scaling.cat])

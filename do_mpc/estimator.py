@@ -108,13 +108,19 @@ class EKF(Estimator):
         raise Exception('EKF is not currently supported. This is a placeholder.')
         super().__init__(model)
 
+        # Flags are checked when calling .setup.
+        self.flags = {
+            'setup': False,
+        }
+
     def make_step(self, y0):
         """Main method during runtime. Pass the most recent measurement and
         retrieve the estimated state."""
+        assert self.flags['setup'] == True, 'EKF was not setup yet. Please call EKF.setup().'
         None
 
 class MHE(do_mpc.optimizer.Optimizer, Estimator):
-    """THE MHE estimator extends the :py:class:`do_mpc.optimizer.Optimizer` base class
+    """Moving horizon estimator. THE MHE estimator extends the :py:class:`do_mpc.optimizer.Optimizer` base class
     (which is also used for the MPC controller), as well as the :py:class:`Estimator` base class.
     Use this class to configure and run the MHE based on a previously configured :py:class:`do_mpc.model.Model` instance.
 
@@ -315,7 +321,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         .. note:: To surpress the output of IPOPT, please use:
 
             ::
-            
+
                 surpress_ipopt = {'ipopt.print_level':0, 'ipopt.sb': 'yes', 'print_time':0}
                 optimizer.set_param(nlpsol_opts = surpress_ipopt)
 
@@ -533,6 +539,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             self.set_p_fun(p_fun)
 
         if self.flags['set_y_fun'] == False and self.meas_from_data:
+            # Case that measurement function is automatically created.
             y_template = self.get_y_template()
 
             def y_fun(t_now):
@@ -546,7 +553,11 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
                     None
                 return y_template
             self.set_y_fun(y_fun)
+        elif self.flags['set_y_fun'] == True:
+            # Case that the user supplied a measurement function.
+            pass
         else:
+            # No measurement function.
             raise Exception('You have not suppplied a measurement function. Use .set_y_fun or set parameter meas_from_data to True for default function.')
 
 
@@ -609,6 +620,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         :return: x0, estimated state of the system.
         :rtype: numpy.ndarray
         """
+        assert self.flags['setup'] == True, 'ME was not setup yet. Please call ME.setup().'
 
         self.data.update(_y = y0)
 
@@ -643,10 +655,12 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self.data.update(_u = u0)
         self.data.update(_z = z0)
         self.data.update(_p = p0)
+        self.data.update(_tvp = tvp0['_tvp', -1])
         self.data.update(_time = t0)
         self.data.update(_aux = aux0)
 
         # Store additional information
+        self.data.update(opt_p_num = self.opt_p_num)
         if self.store_full_solution == True:
             opt_x_num_unscaled = self.opt_x_num_unscaled
             opt_aux_num = self.opt_aux_num
@@ -710,6 +724,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             entry('_tvp', repeat=self.n_horizon, struct=self.model._tvp),
             entry('_y_meas', repeat=self.n_horizon, struct=self.model._y),
         ])
+        self.n_opt_p = opt_p.shape[0]
 
         # Dummy struct with symbolic variables
         self.aux_struct = struct_symSX([

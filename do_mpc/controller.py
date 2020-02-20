@@ -31,7 +31,7 @@ import do_mpc.data
 import do_mpc.optimizer
 
 class MPC(do_mpc.optimizer.Optimizer):
-    """THE MPC controller extends the optimizer base class (which is also used for the MHE estimator).
+    """Model predictive controller. THE MPC controller extends the optimizer base class (which is also used for the MHE estimator).
     Use this class to configure and run the MPC controller based on a previously configured :py:class:`do_mpc.model` instance.
 
     **Configuration and setup:**
@@ -122,7 +122,7 @@ class MPC(do_mpc.optimizer.Optimizer):
 
 
     def set_param(self, **kwargs):
-        """Method to set the parameters of the :py:class:`MPC` class. Parameters must be passed as pairs of valid keywords and respective argument.
+        """Set the parameters of the :py:class:`MPC` class. Parameters must be passed as pairs of valid keywords and respective argument.
         For example:
 
         ::
@@ -225,9 +225,13 @@ class MPC(do_mpc.optimizer.Optimizer):
         assert lterm.shape == (1,1), 'lterm must have shape=(1,1). You have {}'.format(lterm.shape)
         assert self.flags['setup'] == False, 'Cannot call .set_objective after .setup_model.'
 
-        self.flags['set_objective'] = True
-        # TODO: Add docstring
         _x, _u, _z, _tvp, _p, _aux,  *_ = self.model.get_variables()
+
+        # If the mterm is a symbolic expression:
+        try:
+            assert set(symvar(mterm)).issubset(set(symvar(vertcat(_x)))), 'mterm must be solely a function of _x.'
+        except:
+            pass
 
         # TODO: Check if this is only a function of x
         self.mterm = mterm
@@ -236,6 +240,8 @@ class MPC(do_mpc.optimizer.Optimizer):
 
         self.lterm = lterm
         self.lterm_fun = Function('lterm', [_x, _u, _z, _tvp, _p], [lterm])
+
+        self.flags['set_objective'] = True
 
     def set_rterm(self, **kwargs):
         """Set the penality factor for the inputs. Call this function with keyword argument refering to the input names in
@@ -266,7 +272,8 @@ class MPC(do_mpc.optimizer.Optimizer):
 
 
     def get_p_template(self, n_combinations):
-        """ Low level API method to set user defined scenarios for robust MPC but defining an arbitrary number
+        """Obtain output template for :py:func:`set_p_fun`.
+        Low level API method to set user defined scenarios for robust MPC but defining an arbitrary number
         of combinations for the parameters defined in the model. The method returns a structured object which is
         initialized with all zeros. Use this object to define value of the parameters for an arbitrary number of scenarios (defined by n_scenarios).
 
@@ -313,7 +320,8 @@ class MPC(do_mpc.optimizer.Optimizer):
         return p_template(0)
 
     def set_p_fun(self, p_fun):
-        """ Low level API method to set user defined scenarios for robust MPC but defining an arbitrary number
+        """Set parameter function for MPC.
+        Low level API method to set user defined scenarios for robust MPC but defining an arbitrary number
         of combinations for the parameters defined in the model. The method takes as input a function, which MUST
         return a structured object, based on the defined parameters and the number of combinations.
         The defined function has time as a single input.
@@ -359,7 +367,8 @@ class MPC(do_mpc.optimizer.Optimizer):
         self.p_fun = p_fun
 
     def set_uncertainty_values(self, uncertainty_values):
-        """ High-level API method to conveniently set all possible scenarios for multistage MPC, given a list of uncertainty values.
+        """Define scenarios for the uncertain parameters.
+        High-level API method to conveniently set all possible scenarios for multistage MPC, given a list of uncertainty values.
         This list must have the same number of elements as uncertain parameters in the model definition. The first element is the nominal case.
         Each list element can be an array or list of possible values for the respective parameter.
         Note that the order of elements determine the assignment.
@@ -441,13 +450,13 @@ class MPC(do_mpc.optimizer.Optimizer):
             self.set_tvp_fun(tvp_fun)
 
         if 'p_fun' not in self.__dict__:
-            _p = self.get_p_template()
+            _p = self.get_p_template(1)
 
             def p_fun(t): return _p
             self.set_p_fun(p_fun)
 
     def setup(self):
-        """The setup method finalizes the MPC creation. After this call, the :py:func:`do_mpc.optimizer.Optimizer.solve` method is applicable.
+        """Setup the MPC class. After this call, the :py:func:`do_mpc.optimizer.Optimizer.solve` method is applicable.
         The method wraps the following calls:
 
         * :py:func:`do_mpc.optimizer.Optimizer._setup_nl_cons`
@@ -480,7 +489,8 @@ class MPC(do_mpc.optimizer.Optimizer):
         self.prepare_data()
 
     def set_initial_guess(self):
-        """Uses the current class attributes ``_x0``, ``_z0`` and ``_u0`` to create an initial guess for the optimizer.
+        """Initial guess for optimization variables.
+        Uses the current class attributes ``_x0``, ``_z0`` and ``_u0`` to create the initial guess.
         The initial guess is simply the initial values for all instances of x, u and z. The method is automatically
         evoked when calling the .setup() method.
         However, if no initial values for x, u and z were supplied during setup, these default to zero.
@@ -505,6 +515,8 @@ class MPC(do_mpc.optimizer.Optimizer):
         :return: u0
         :rtype: numpy.ndarray
         """
+        assert self.flags['setup'] == True, 'optimizer was not setup yet. Please call optimizer.setup().'
+
         # Get current tvp, p and time (as well as previous u)
         u_prev = self._u0
         tvp0 = self.tvp_fun(self._t0)
@@ -528,13 +540,12 @@ class MPC(do_mpc.optimizer.Optimizer):
         self.data.update(_x = x0)
         self.data.update(_u = u0)
         self.data.update(_z = z0)
-        #TODO: tvp und p support.
-        # self.data.update(_tvp = tvp0)
-        #self.data.update(_p = p0)
+        self.data.update(_tvp = tvp0['_tvp', 0])
         self.data.update(_time = t0)
         self.data.update(_aux = aux0)
 
         # Store additional information
+        self.data.update(opt_p_num = self.opt_p_num)
         if self.store_full_solution == True:
             opt_x_num_unscaled = self.opt_x_num_unscaled
             opt_aux_num = self.opt_aux_num
@@ -600,6 +611,7 @@ class MPC(do_mpc.optimizer.Optimizer):
             entry('_p', repeat=self.n_combinations, struct=self.model._p),
             entry('_u_prev', struct=self.model._u)
         ])
+        self.n_opt_p = opt_p.shape[0]
 
         # Dummy struct with symbolic variables
         self.aux_struct = struct_symSX([

@@ -35,29 +35,11 @@ def template_simulator(model):
     template_optimizer: tuning parameters
     --------------------------------------------------------------------------
     """
-    simulator = do_mpc.simulator(model)
+    simulator = do_mpc.simulator.Simulator(model)
 
-    params_simulator = {
-        'integration_tool': 'cvodes',
-        'abstol': 1e-10,
-        'reltol': 1e-10,
-        't_step': 0.1
-    }
 
-    simulator.set_param(**params_simulator)
+    simulator.set_param(t_step = 0.1)
 
-    simulator.setup_simulator()
-
-    tvp_num = simulator.get_tvp_template()
-    def tvp_fun(t_now):
-        return tvp_num
-
-    simulator.set_tvp_fun(tvp_fun)
-
-    p_num = simulator.get_p_template()
-    def p_fun(t_now):
-        return p_num
-    simulator.set_p_fun(p_fun)
-
+    simulator.setup()
 
     return simulator

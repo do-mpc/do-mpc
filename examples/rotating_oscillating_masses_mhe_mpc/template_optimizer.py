@@ -38,43 +38,58 @@ def template_optimizer(model):
     mpc = do_mpc.controller.MPC(model)
 
     setup_mpc = {
-        'n_horizon': 20,
         'n_robust': 0,
-        'open_loop': 0,
-        't_step': 1.0,
-        'state_discretization': 'collocation',
-        'collocation_type': 'radau',
-        'collocation_deg': 2,
-        'collocation_ni': 2,
+        'n_horizon': 20,
+        't_step': 0.1,
+        'store_full_solution': True,
         'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
     }
 
     mpc.set_param(**setup_mpc)
 
-    _x, _u, _z, _tvp, p, _aux,  *_ = mpc.model.get_variables()
+    _x, _u, _z, _tvp, p, _aux, *_ = model.get_variables()
 
-    mterm = -_x['P_s']
-    lterm = -_x['P_s']
+    lterm = (_x['phi_2'] - _tvp['phi_2_set'])**2
+    mterm = DM(1)
 
     mpc.set_objective(mterm=mterm, lterm=lterm)
-    mpc.set_rterm(inp=1.0)
+    mpc.set_rterm(phi_m_set=1e-2)
 
 
-    mpc.bounds['lower', '_x', 'X_s'] = 0.0
-    mpc.bounds['lower', '_x', 'S_s'] = -0.01
-    mpc.bounds['lower', '_x', 'P_s'] = 0.0
-    mpc.bounds['lower', '_x', 'V_s'] = 0.0
+    # Create an interesting trajectory for the setpoint (_tvp)
+    # by randomly choosing a new value or keeping the previous one.
+    def random_setpoint(tvp0):
+        tvp_next = (0.5-np.random.rand(1))*np.pi
+        switch = np.random.rand() >= 0.95
+        tvp0 = (1-switch)*tvp0 + switch*tvp_next
+        return tvp0
 
-    mpc.bounds['upper', '_x','X_s'] = 3.7
-    mpc.bounds['upper', '_x','P_s'] = 3.0
+    np.random.seed(999)
+    tvp_traj = [np.array([0])]
+    for i in range(400):
+        tvp_traj.append(random_setpoint(tvp_traj[i]))
 
-    mpc.bounds['lower','_u','inp'] = 0.0
-    mpc.bounds['upper','_u','inp'] = 0.2
+    tvp_traj = np.concatenate(tvp_traj)
 
-    Y_x_values = np.array([0.5, 0.4, 0.3])
-    S_in_values = np.array([200.0, 220.0, 180.0])
+    # Create tvp_fun that takes element from that previously defined trajectory
+    # depending on the current timestep.
+    tvp_template = mpc.get_tvp_template()
+    def tvp_fun(t_now):
+        ind = int(t_now/setup_mpc['t_step'])
+        tvp_template['_tvp', :] = vertsplit(tvp_traj[ind:ind+setup_mpc['n_horizon']])
+        return tvp_template
 
-    mpc.set_uncertainty_values([Y_x_values, S_in_values])
+    mpc.set_tvp_fun(tvp_fun)
+
+    inertia_mass_1 = 2.25*1e-4*np.array([1.,])
+    inertia_mass_2 = 2.25*1e-4*np.array([1.,])
+    inertia_mass_3 = 2.25*1e-4*np.array([1.])
+
+    mpc.set_uncertainty_values([inertia_mass_1, inertia_mass_2, inertia_mass_3])
+
+
+    mpc.bounds['lower','_u','phi_m_set'] = -5
+    mpc.bounds['upper','_u','phi_m_set'] = 5
 
     mpc.setup()
 
