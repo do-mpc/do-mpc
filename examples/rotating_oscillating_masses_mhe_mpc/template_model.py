@@ -41,7 +41,12 @@ def template_model():
     # Same example as shown in the Jupyter Notebooks.
 
     # Model variables:
-    phi = model.set_variable(var_type='_x', var_name='phi', shape=(3,1))
+    phi_1 = model.set_variable(var_type='_x', var_name='phi_1')
+    phi_2 = model.set_variable(var_type='_x', var_name='phi_2')
+    phi_3 = model.set_variable(var_type='_x', var_name='phi_3')
+
+    phi = vertcat(phi_1, phi_2, phi_3)
+
     dphi = model.set_variable(var_type='_x', var_name='dphi', shape=(3,1))
 
     # Two states for the desired (set) motor position:
@@ -51,7 +56,7 @@ def template_model():
     phi_m = model.set_variable(var_type='_x', var_name='phi_m', shape=(2,1))
 
     # Set point for the central mass:
-    phi_set = model.set_variable(var_type='_tvp', var_name='phi_set')
+    phi_2_set = model.set_variable(var_type='_tvp', var_name='phi_2_set')
 
     # State measurements
     phi_meas = model.set_meas('phi_1_meas', phi)
@@ -67,7 +72,9 @@ def template_model():
     d = np.array([6.78,  8.01,  8.82])*1e-5
 
 
-    model.set_rhs('phi', dphi)
+    model.set_rhs('phi_1', dphi[0])
+    model.set_rhs('phi_2', dphi[1])
+    model.set_rhs('phi_3', dphi[2])
 
     dphi_next = vertcat(
         -c[0]/Theta_1*(phi[0]-phi_m[0])-c[1]/Theta_1*(phi[0]-phi[1])-d[0]/Theta_1*dphi[0],

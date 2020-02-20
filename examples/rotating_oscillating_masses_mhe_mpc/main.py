@@ -51,31 +51,40 @@ x0_true = np.random.rand(model.n_x)-0.5
 x0 = np.zeros(model.n_x)
 mpc.set_initial_state(x0, reset_history=True)
 simulator.set_initial_state(x0_true, reset_history=True)
-mhe.set_initial_state(x0, reset_history=True)
+mhe.set_initial_state(x0, p_est0 = np.array([1e-4]), reset_history=True)
 
 
 """
 Setup graphic:
 """
-fig, ax = plt.subplots(4,1, sharex=True, figsize=(10, 7))
+color = plt.rcParams['axes.prop_cycle'].by_key()['color']
+
+fig, ax = plt.subplots(5,1, sharex=True, figsize=(10, 9))
 
 mpc_plot = do_mpc.graphics.Graphics()
 mhe_plot = do_mpc.graphics.Graphics()
 
-ax[0].set_title('Measured states / inputs')
-mpc_plot.add_line('_x', 'phi', ax[0])
-mpc_plot.add_line('_tvp', 'phi_set', ax[0])
+ax[0].set_title('controlled position:')
+mpc_plot.add_line('_x', 'phi_2', ax[0])
+mpc_plot.add_line('_tvp', 'phi_2_set', ax[0], color=color[0], linestyle='--', alpha=0.5)
 
-mpc_plot.add_line('_u', 'phi_m_set', ax[1])
+ax[1].set_title('uncontrolled position:')
+mpc_plot.add_line('_x', 'phi_1', ax[1])
+mpc_plot.add_line('_x', 'phi_3', ax[1])
 
-ax[2].set_title('Estimated states / parameters')
-mhe_plot.add_line('_x', 'dphi', ax[2])
-mhe_plot.add_line('_p', 'Theta_1', ax[3])
+ax[2].set_title('Inputs:')
+mpc_plot.add_line('_u', 'phi_m_set', ax[2])
 
-ax[0].set_ylabel('angle \n position [rad]')
-ax[1].set_ylabel('motor \n position [rad]')
-ax[2].set_ylabel('angle \n velocity [rad/2]')
-ax[3].set_ylabel('mass inertia')
+ax[3].set_title('Estimated angular velocity:')
+mhe_plot.add_line('_x', 'dphi', ax[3])
+ax[4].set_title('Estimated parameters:')
+mhe_plot.add_line('_p', 'Theta_1', ax[4])
+
+ax[0].set_ylabel('disc \n angle [rad]')
+ax[1].set_ylabel('disc \n angle [rad]')
+ax[2].set_ylabel('motor \n angle [rad]')
+ax[3].set_ylabel('angle \n velocity [rad/2]')
+ax[4].set_ylabel('mass inertia')
 ax[3].set_xlabel('time [s]')
 
 
@@ -89,7 +98,7 @@ plt.ion()
 Run MPC main loop:
 """
 
-for k in range(50):
+for k in range(200):
     u0 = mpc.make_step(x0)
     y_next = simulator.make_step(u0)
     x0 = mhe.make_step(y_next)
