@@ -42,10 +42,13 @@ extensions = ['sphinx.ext.autodoc',
 	      'sphinx.ext.intersphinx',
           'nbsphinx',
           'sphinx.ext.mathjax',
-          'sphinx.ext.graphviz'
+          'sphinx.ext.graphviz',
+          'sphinx.ext.autosummary'
               ]
 
 graphviz_output_format = 'svg'
+
+autosummary_generate = True
 
 mathjax_config = {
     'extensions': ['tex2jax.js'],
