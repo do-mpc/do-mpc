@@ -18,10 +18,10 @@ A core feature of **do mpc** is the simple framework for the implementation of a
 The **do mpc** software is Python based and works therefore on any OS with a Python 3.x distribution. **do mpc** has been developed at the DYN chair of the TU Dortmund by Sergio Lucia and Alexandru Tatulea.
 
 ## Installation instructions
-Installation instructions are given [here](https://**do mpc**.readthedocs.io/en/latest/installation.html).
+Installation instructions are given [here](https://do mpc.readthedocs.io/en/latest/installation.html).
 
 ## Documentation
-Please visit our extensive [documentation](https://**do mpc**.readthedocs.io/en/latest/index.html), kindly hosted on readthedocs.
+Please visit our extensive [documentation](https://do mpc.readthedocs.io/en/latest/index.html), kindly hosted on readthedocs.
 
 ## Citing **do mpc**
 If you use **do mpc** for published work please cite it as:
