@@ -28,7 +28,7 @@ Simple projects can also be developed as presented in our introductory Jupyter N
         MHE [href="../do_mpc.html#do_mpc.estimator.MHE", target="_top", shape=box, style=filled]
 
         template_model -> Model
-        Model -> template_optimizer,template_simulator, template_estimator;
+        Model -> template_mpc, template_simulator, template_estimator;
 
         Model [shape=box, style=filled]
 
@@ -39,7 +39,7 @@ Simple projects can also be developed as presented in our introductory Jupyter N
             Simulator -> MHE [label="meas."];
             MHE -> MPC [label="states"];
         }}
-        template_optimizer -> MPC;
+        template_mpc -> MPC;
         template_simulator -> Simulator;
         template_estimator -> MHE;
     }
@@ -48,7 +48,7 @@ As shown above, we split our MHE / MPC configuration into four seperate files:
 
 * ``template_model``: Define the dynamic ``Model`` (states, inputs, dynamic, etc.)
 
-* ``template_optimizer``: Configure the MPC controller based on the ``Model`` (objective, bounds, etc.)
+* ``template_mpc``: Configure the MPC controller based on the ``Model`` (objective, bounds, etc.)
 
 * ``template_simulator``: Configure the DAE/ODE/discrete simulator based on the ``Model`` (objective, bounds, etc.)
 
@@ -73,7 +73,7 @@ All these functions are called from a single ``main.py`` file, e.g.:
 ::
 
     from template_model import template_model
-    from template_optimizer import template_mpc
+    from template_mpc import template_mpc
     from template_simulator import template_simulator
 
     model = template_model()

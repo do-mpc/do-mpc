@@ -29,10 +29,10 @@ sys.path.append('../../')
 import do_mpc
 
 
-def template_optimizer(model):
+def template_mpc(model):
     """
     --------------------------------------------------------------------------
-    template_optimizer: tuning parameters
+    template_mpc: tuning parameters
     --------------------------------------------------------------------------
     """
     mpc = do_mpc.controller.MPC(model)
