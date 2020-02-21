@@ -6,4 +6,5 @@ install:
   - pip install -r requirements.txt
 # command to run tests
 script:
-  - ./testing/test_batch_reactor.py
+  - cd testing
+  - test_batch_reactor.py
