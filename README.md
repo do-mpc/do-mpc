@@ -1,6 +1,6 @@
 ![do_mpc](documentation/source/static/dompc_var_02_rtd_blue.svg)
 
-[![Documentation Status](https://readthedocs.org/projects/**do mpc**/badge/?version=latest)](https://**do mpc**.readthedocs.io/en/latest/?badge=latest)
+![Documentation Status](https://readthedocs.org/projects/do-mpc/badge/?version=latest)
 
 ## Introduction
 
