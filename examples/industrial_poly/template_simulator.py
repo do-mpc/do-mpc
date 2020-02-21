@@ -32,7 +32,7 @@ import do_mpc
 def template_simulator(model):
     """
     --------------------------------------------------------------------------
-    template_optimizer: tuning parameters
+    template_simulator: tuning parameters
     --------------------------------------------------------------------------
     """
     simulator = do_mpc.simulator.Simulator(model)
