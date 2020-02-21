@@ -9,4 +9,4 @@ script:
   - cd testing
   - pwd
   - ls
-  - test_batch_reactor.py
+  - python test_batch_reactor.py 
