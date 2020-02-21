@@ -34,7 +34,7 @@ import pickle
 import time
 
 from template_model import template_model
-from template_optimizer import template_mpc
+from template_mpc import template_mpc
 from template_simulator import template_simulator
 
 

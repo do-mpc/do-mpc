@@ -31,12 +31,12 @@ sys.path.append('../../')
 import do_mpc
 
 from template_model import template_model
-from template_optimizer import template_optimizer
+from template_mpc import template_mpc
 from template_simulator import template_simulator
 from template_mhe import template_mhe
 
 model = template_model()
-mpc = template_optimizer(model)
+mpc = template_mpc(model)
 simulator = template_simulator(model)
 mhe = template_mhe(model)
 
