@@ -105,6 +105,9 @@ def template_mhe(model):
     mhe.bounds['lower','_p_est', 'Theta_1'] = 1e-5
     mhe.bounds['upper','_p_est', 'Theta_1'] = 1e-3
 
+    mhe.bounds['lower','_x', 'dphi'] = -6
+    mhe.bounds['upper','_x', 'dphi'] = 6
+
     mhe.setup()
 
     return mhe
