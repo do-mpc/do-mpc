@@ -29,11 +29,10 @@ Simply use **PIP** and install **do mpc** from the terminal.
 2. Install **do mpc**:
 
 ::
-    
+
     pip install do-mpc
 
-.. warning::
-    Only the development version is currently available.
+Tested on Windows and Linux (Ubuntu 19.04).
 
 **do mpc** is now available within your selected environment.
 If the required packages are not available **PIP** will automatically install them.
@@ -41,6 +40,6 @@ If the required packages are not available **PIP** will automatically install th
 
 Custom and extensible
 *********************
-More experienced users are adviced to clone or fork the most recent version of **do mpc**
+More experienced users are advised to clone or fork the most recent version of **do mpc**
 from `GitHub <https://github.com/do-mpc/do-mpc>`_.
 In this case, the dependencies from above must be manually taken care of.

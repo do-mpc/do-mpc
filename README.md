@@ -1,19 +1,31 @@
-# do mpc
-**do mpc** proposes a new, modularized implementation and testing support for optimal control schemes based on  MPC approaches. The goal of this software project is to offer a simple to use and efficient platform, which allows users to define and test their  problems very fast and trouble-free. In most cases, such implementations are highly complex and cumbersome, requiring considerable coding effort that only produces hardcoded solutions for each individual test case. With **do mpc** we propose a generalized approach based on simple templates  that can be edited for each individual problem. A robust and time efficient core module combines everything together automatically, such that the coding effort is reduced drastically. Taking advantage of state of the art third party software, **do-mpc** is able to handle a wide variety of problems, making even large systems real time feasible.
+![do_mpc](documentation/source/static/dompc_var_02_rtd_blue.svg)
 
-Moreover, **do mpc** provides a very simple framework for the implementation of a state-of-the art robust nonlinear model predictive control approach called multi-stage NMPC, which is based on the description of the uncertainty as a scenario tree.
+[![Documentation Status](https://readthedocs.org/projects/**do mpc**/badge/?version=latest)](https://**do mpc**.readthedocs.io/en/latest/?badge=latest)
 
-The **do mpc** software is Python based and works therefore on any OS with a Python 3.x distribution. **do-mpc** has been developed at the DYN chair of the TU Dortmund by Sergio Lucia and Alexandru Tatulea.
+## Introduction
 
-# Installation instructions
-For detailed instructions go to [readthedocs](https://do-mpc.readthedocs.io)
+**do mpc** proposes a new, modularized implementation for optimization based model predictive control (MPC) and moving horizon estimation (MHE).
+The goal of this software project is to offer a simple to use and efficient platform,
+which allows users to define and test their problems very fast and trouble-free.
+In most cases, such implementations are highly complex and cumbersome,
+requiring considerable coding effort that only produces hard-coded solutions for each individual test case.
+With **do mpc** we propose a generalized approach:
+The **do mpc** model class is configured to represent the investigated system and is at the core of the **do mpc** simulator, MHE and MPC.
+These modules can be easily configured and work independently or in conjunction.
 
-# FAQ
-Go [here](https://github.com/do-mpc/do-mpc/wiki/FAQ) for a list of the most frequently asked questions
+A core feature of **do mpc** is the simple framework for the implementation of a state-of-the art **robust nonlinear model predictive control** approach called multi-stage NMPC, which is based on the description of the uncertainty as a scenario tree.
 
-# Citing do-mpc
-If you use do-mpc for published work please cite it as:
+The **do mpc** software is Python based and works therefore on any OS with a Python 3.x distribution. **do mpc** has been developed at the DYN chair of the TU Dortmund by Sergio Lucia and Alexandru Tatulea.
+
+## Installation instructions
+Installation instructions are given [here](https://**do mpc**.readthedocs.io/en/latest/installation.html).
+
+## Documentation
+Please visit our extensive [documentation](https://**do mpc**.readthedocs.io/en/latest/index.html), kindly hosted on readthedocs.
+
+## Citing **do mpc**
+If you use **do mpc** for published work please cite it as:
 
 S. Lucia, A. Tatulea-Codrean, C. Schoppmeyer, and S. Engell. Rapid development of modular and sustainable nonlinear model predictive control solutions. Control Engineering Practice, 60:51-62, 2017
 
-Please remember to properly cite other software that you might be using too if you use do-mpc (e.g. CasADi, IPOPT, ...)
+Please remember to properly cite other software that you might be using too if you use **do mpc** (e.g. CasADi, IPOPT, ...)
