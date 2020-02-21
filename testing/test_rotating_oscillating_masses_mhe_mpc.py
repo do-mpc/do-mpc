@@ -30,12 +30,14 @@ import unittest
 
 sys.path.append('../')
 import do_mpc
+sys.path.pop(-1)
 
 sys.path.append('../examples/rotating_oscillating_masses_mhe_mpc/')
 from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator
 from template_mhe import template_mhe
+sys.path.pop(-1)
 
 
 class TestRotatingMasses(unittest.TestCase):
