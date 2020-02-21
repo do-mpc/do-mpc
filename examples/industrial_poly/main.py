@@ -28,7 +28,7 @@ import pdb
 import sys
 sys.path.append('../../')
 import do_mpc
-import scipy.io as sio
+
 import matplotlib.pyplot as plt
 import pickle
 import time
