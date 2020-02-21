@@ -811,6 +811,10 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self.lb_opt_x['_p_est'] = self._p_est_lb.cat/self._p_est_scaling
         self.ub_opt_x['_p_est'] = self._p_est_ub.cat/self._p_est_scaling
 
+        # Bounds for the states at final time:
+        self.lb_opt_x['_x', self.n_horizon] = self._x_lb.cat/self._x_scaling
+        self.ub_opt_x['_x', self.n_horizon] = self._x_ub.cat/self._x_scaling
+
 
         cons = vertcat(*cons)
         self.cons_lb = vertcat(*cons_lb)
