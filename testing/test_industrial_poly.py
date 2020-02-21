@@ -30,11 +30,13 @@ import unittest
 
 sys.path.append('../')
 import do_mpc
+sys.path.pop(-1)
 
 sys.path.append('../examples/industrial_poly/')
 from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator
+sys.path.pop(-1)
 
 
 class TestIndustrialPoly(unittest.TestCase):

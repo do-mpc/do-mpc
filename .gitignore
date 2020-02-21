@@ -1,8 +1,6 @@
 
 *.pyc
 
-*.pkl
-
 */.ipynb_checkpoints/
 
 docs/source/.ipynb_checkpoints/
