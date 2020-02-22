@@ -2,6 +2,14 @@
    sphinx-quickstart on Fri Nov 29 17:20:10 2019.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
+   
+.. meta::
+   :description:
+   do mpc is a comprehensive open-source Python toolbox for robust Model Predictive Control (MPC)
+   and Moving Horizon Estimation (MHE).
+   :google-site-verification: 
+   vPyUwidEDFuOS3MRTnjaah0fEs91dYSHomsAj1mxssA
+   
 
 do mpc: Model Predictive Control Toolbox in Python
 ==================================================
