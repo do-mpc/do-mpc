@@ -3,9 +3,9 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to the documentation of do mpc ...
-===========================================
-... a comprehensive open-source toolbox for robust **Model Predictive Control (MPC)**
+do mpc: Model Predictive Control Toolbox in Python
+==================================================
+**do mpc** is a comprehensive open-source toolbox for robust **Model Predictive Control (MPC)**
 and **Moving Horizon Estimation (MHE)**.
 
 .. toctree::
