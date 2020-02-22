@@ -1,6 +1,7 @@
 ![do_mpc](documentation/source/static/dompc_var_02_rtd_blue.svg)
 
 ![Documentation Status](https://readthedocs.org/projects/do-mpc/badge/?version=latest)
+[![Build Status](https://travis-ci.org/do-mpc/do-mpc.svg?branch=master)](https://travis-ci.org/do-mpc/do-mpc)
 
 ## Introduction
 
