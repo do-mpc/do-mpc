@@ -9,6 +9,8 @@
       and Moving Horizon Estimation (MHE).
    :google-site-verification: 
       vPyUwidEDFuOS3MRTnjaah0fEs91dYSHomsAj1mxssA
+   :canonical:
+      https://do-mpc.readthedocs.io/en/latest/
    
 
 do mpc: Model Predictive Control Toolbox in Python
