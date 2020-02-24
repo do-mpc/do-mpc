@@ -43,7 +43,7 @@ class TestIndustrialPoly(unittest.TestCase):
 
     def test_industrialpoly(self):
         """
-        Get configured do mpc modules:
+        Get configured do-mpc modules:
         """
 
         model = template_model()

@@ -29,7 +29,7 @@ import pdb
 
 
 class Graphics:
-    """Graphics module to present the results of **do mpc**.
+    """Graphics module to present the results of **do-mpc**.
     The module is independent of all other modules and can be used optionally.
     The module can also be used with pickled result files in post-processing for flexible and custom graphics.
 
@@ -78,7 +78,7 @@ class Graphics:
     ::
 
         for k in range(50):
-            # do mpc loop:
+            # do-mpc loop:
             u0 = mpc.make_step(x0)
             y_next = simulator.make_step(u0)
             x0 = estimator.make_step(y_next)
@@ -111,7 +111,7 @@ class Graphics:
             ax_i.set_prop_cycle(None)
 
     def add_line(self, var_type, var_name, axis, **pltkwargs):
-        """add_line is called during setting up the :py:class:`Graphics` class. This is typically the last step of configuring **do mpc**.
+        """add_line is called during setting up the :py:class:`Graphics` class. This is typically the last step of configuring **do-mpc**.
         Each call of :py:func:`Graphics.add_line` adds a line to the passed axis according to the variable type (``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``, ``_aux``)
         and its name (as defined in the :py:class:`do_mpc.model.Model`).
         Furthermore, all valid matplotlib .plot arguments can be passed as optional keyword arguments, e.g.: ``linewidth``, ``color``, ``alpha``.
@@ -146,7 +146,7 @@ class Graphics:
 
     def plot_results(self, data, t_ind=None, **pltkwargs):
         """Plots the results stored in the passed data object for the plot configuration.
-        Each **do mpc** module has an individual data object.
+        Each **do-mpc** module has an individual data object.
         Use the ``t_ind`` parameter to plot only until the given time index. This is mostly used in post-processing for animations.
         Optionally pass an arbitrary number of valid pyplot.plot arguments (e.g. ``linewidth``, ``color``, ``alpha``), which is applied to ALL lines.
 
@@ -280,7 +280,7 @@ class Graphics:
         return lines
 
 def default_plot(model, states_list=None, inputs_list=None, aux_list=None, **kwargs):
-    """Pass a :py:class:`do_mpc.model.Model` object and create a default **do mpc** plot.
+    """Pass a :py:class:`do_mpc.model.Model` object and create a default **do-mpc** plot.
     By default all states, inputs and auxiliary expressions are plotted on individual axes.
     Pass lists of states, inputs and aux names (string) to plot only a subset of these
     trajectories.

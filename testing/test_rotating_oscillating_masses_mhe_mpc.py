@@ -44,7 +44,7 @@ class TestRotatingMasses(unittest.TestCase):
 
     def test_RotatingMasses(self):
         """
-        Get configured do mpc modules:
+        Get configured do-mpc modules:
         """
 
         model = template_model()

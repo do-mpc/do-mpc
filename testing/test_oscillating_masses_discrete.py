@@ -43,7 +43,7 @@ class TestOscillatingMassesDiscrete(unittest.TestCase):
 
     def test_oscillating_masses_discrete(self):
         """
-        Get configured do mpc modules:
+        Get configured do-mpc modules:
         """
 
         model = template_model()

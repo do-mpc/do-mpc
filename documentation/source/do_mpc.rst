@@ -1,9 +1,9 @@
 API Reference
 =============
-Find below a table of all **do mpc** modules.
+Find below a table of all **do-mpc** modules.
 Classes and functions of each module are shown on their respective page.
 
-Note the following important inheritance of **do mpc** classes:
+Note the following important inheritance of **do-mpc** classes:
 
 .. graphviz::
     :name: class_inheritance
