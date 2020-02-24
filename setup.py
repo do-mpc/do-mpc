@@ -4,7 +4,7 @@ setup(
     name='do_mpc',
     version='4.0.0dev1',
     packages=['do_mpc','do_mpc.tools'],
-    author='Sergio Lucia',
+    author='Sergio Lucia and Felix Fiedler',
     author_email='sergio.lucia@tu-berlin.de',
     url='https://do-mpc.readthedocs.io',
     license='LICENSE.txt',
