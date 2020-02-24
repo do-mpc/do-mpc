@@ -22,8 +22,8 @@ sys.path.insert(0, os.path.abspath('../../'))
 # -- Project information -----------------------------------------------------
 
 project = 'do-mpc'
-copyright = '2019, Sergio Lucia'
-author = 'Sergio Lucia'
+copyright = '2020, Sergio Lucia and Felix Fiedler'
+author = 'Sergio Lucia and Felix Fiedler'
 
 # The full version, including alpha/beta/rc tags
 release = '4.0.0'
