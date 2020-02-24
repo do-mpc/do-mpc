@@ -7,6 +7,7 @@ install:
 # command to run tests
 script:
   - cd testing
-  - pwd
-  - ls
-  - python test_batch_reactor.py 
+  - python test_batch_reactor.py
+  - python test_CSTR.py
+  - python test_oscillating_masses_discrete.py
+  - python test_rotating_oscillating_masses_mhe_mpc.py
