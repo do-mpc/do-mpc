@@ -41,7 +41,7 @@ def template_mhe(model):
         'n_horizon': 10,
         't_step': 0.1,
         'store_full_solution': True,
-        'nlpsol_opts': {'ipopt.linear_solver': 'MA27'},
+        #'nlpsol_opts': {'ipopt.linear_solver': 'MA27'},
     }
 
     mhe.set_param(**setup_mhe)
