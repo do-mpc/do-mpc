@@ -1,4 +1,5 @@
 <img align="left" src="documentation/source/static/dompc_var_02_rtd_blue.svg">
+
 # do-mpc: Robust optimal control toolbox
 
 ![Documentation Status](https://readthedocs.org/projects/do-mpc/badge/?version=latest)
