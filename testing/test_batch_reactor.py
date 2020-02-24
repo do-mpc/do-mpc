@@ -45,7 +45,7 @@ class TestBatchReactor(unittest.TestCase):
 
     def test_batch_reactor(self):
         """
-        Get configured do mpc modules:
+        Get configured do-mpc modules:
         """
 
         model = template_model()

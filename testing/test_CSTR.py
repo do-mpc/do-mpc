@@ -43,7 +43,7 @@ class TestCSTR(unittest.TestCase):
 
     def test_CSTR(self):
         """
-        Get configured do mpc modules:
+        Get configured do-mpc modules:
         """
 
         model = template_model()

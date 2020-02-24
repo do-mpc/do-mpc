@@ -38,7 +38,7 @@ from template_mpc import template_mpc
 from template_simulator import template_simulator
 
 """
-Get configured do mpc modules:
+Get configured do-mpc modules:
 """
 
 model = template_model()

@@ -27,7 +27,7 @@ import pdb
 
 
 class Model:
-    """The "**do mpc**" model class. This class holds the full model description and is at the core of
+    """The "**do-mpc**" model class. This class holds the full model description and is at the core of
     :py:class:`do_mpc.simulator.Simulator`, :py:class:`do_mpc.controller.MHE` and :py:class:`do_mpc.estimator.Estimator`.
     The :py:class:`Model` class is created with setting the ``model_type`` (continuous or discrete).
     A ``continous`` model consists of an underlying ordinary differential equation (ODE) or differential algebraic equation (DAE):

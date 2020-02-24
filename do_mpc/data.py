@@ -29,13 +29,13 @@ import do_mpc
 
 
 class Data:
-    """**do mpc** data container. An instance of this class is created for all active **do mpc** classes,
+    """**do-mpc** data container. An instance of this class is created for all active **do-mpc** classes,
     e.g. :py:class:`do_mpc.simulator.Simulator`, :py:class:`do_mpc.controller.MPC`, :py:class:`do_mpc.estimator.MHE`.
 
     The class is initialized with an instance of the :py:class:`do_mpc.model.Model` which contains all
     information about variables (e.g. states, inputs etc.).
 
-    The :py:class:`Data` class has a public API but is mostly used by other **do mpc** classes, e.g. updated in the ``.make_step`` calls.
+    The :py:class:`Data` class has a public API but is mostly used by other **do-mpc** classes, e.g. updated in the ``.make_step`` calls.
     """
     def __init__(self, model):
         self.dtype = 'default'
@@ -141,7 +141,7 @@ class Data:
 
 
 def save_results(save_list, result_name='results', result_path='./results/', overwrite=False):
-    """Exports the data objects from the **do mpc** modules in ``save_list`` as a pickled file. Supply any, all or a selection of (as a list):
+    """Exports the data objects from the **do-mpc** modules in ``save_list`` as a pickled file. Supply any, all or a selection of (as a list):
 
     * :py:class:`do_mpc.controller.MPC`
 
@@ -204,7 +204,7 @@ def save_results(save_list, result_name='results', result_path='./results/', ove
 
 def load_results(file_name):
     """ Simple wrapper to open and unpickle a file.
-    If used for **do mpc** results, this will return a dictionary with the stored **do mpc** modules:
+    If used for **do-mpc** results, this will return a dictionary with the stored **do-mpc** modules:
 
     * :py:class:`do_mpc.controller.MPC`
 

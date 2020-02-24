@@ -87,7 +87,7 @@ class above are often directly implemented in the ``main.py`` file.
 
 Main loop
 #########
-As shown in Diagram :ref:`project_structure`, after obtaining the different **do mpc**
+As shown in Diagram :ref:`project_structure`, after obtaining the different **do-mpc**
 objects they can be used in the *main loop*. In code form the loop looks like this:
 
 ::
