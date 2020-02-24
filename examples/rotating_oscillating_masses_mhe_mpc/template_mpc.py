@@ -42,7 +42,8 @@ def template_mpc(model):
         'n_horizon': 20,
         't_step': 0.1,
         'store_full_solution': True,
-        'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
+        # Use MA27 linear solver in ipopt for faster calculations:
+        #'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
     }
 
     mpc.set_param(**setup_mpc)
