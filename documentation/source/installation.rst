@@ -16,17 +16,13 @@ Requirements
 * matplotlib
 
 
-Quick and easy
-**************
+Option 1: **PIP**
+*****************
 Simply use **PIP** and install **do-mpc** from the terminal.
+This has the advantage that **do-mpc** is always in your Python path
+and can be used throughout your projects.
 
-1. Activate your environment, e.g. (on linux):
-
-::
-
-    source activate [myenvironment]
-
-2. Install **do-mpc**:
+1. Install **do-mpc**:
 
 ::
 
@@ -34,12 +30,30 @@ Simply use **PIP** and install **do-mpc** from the terminal.
 
 Tested on Windows and Linux (Ubuntu 19.04).
 
-**do-mpc** is now available within your selected environment.
-If the required packages are not available **PIP** will automatically install them.
+**PIP** will also
+take care of dependencies and you are immediately ready to go.
 
+Use this option if you plan to use **do-mpc** without altering the source code,
+e.g. write extensions.
 
-Custom and extensible
-*********************
+2. Get example documents:
+
+Download our examples here_. You can also get the MPC_ Jupyter Notebook and the MHE_ Jupyter Notebook from the introduction.
+
+.. _here: https://minhaskamal.github.io/DownGit/#/home?url=https://github.com/do-mpc/do-mpc/tree/master/examples
+.. _MPC: https://minhaskamal.github.io/DownGit/#/home?url=https://github.com/do-mpc/do-mpc/blob/master/documentation/source/getting_started.ipynb
+.. _MHE: https://minhaskamal.github.io/DownGit/#/home?url=https://github.com/do-mpc/do-mpc/blob/master/documentation/source/mhe_example.ipynb
+
+All these resources can also be obtained by simply cloning the repository as shown below.
+
+Option 2: **Clone from Github**
+*******************************
 More experienced users are advised to clone or fork the most recent version of **do-mpc**
-from `GitHub <https://github.com/do-mpc/do-mpc>`_.
+from `GitHub <https://github.com/do-mpc/do-mpc>`_:
+
+::
+
+    git clone https://github.com/do-mpc/do-mpc.git
+
 In this case, the dependencies from above must be manually taken care of.
+You have immediate access to our examples.
