@@ -13,7 +13,7 @@
       https://do-mpc.readthedocs.io/
 
 
-do-mpc: Model Predictive Control Toolbox in Python
+do-mpc: Model Predictive Control in Python
 ==================================================
 
 .. image:: https://readthedocs.org/projects/do-mpc/badge/?version=latest
