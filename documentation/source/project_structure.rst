@@ -51,11 +51,11 @@ Simple projects can also be developed as presented in our introductory Jupyter N
 We split our MHE / MPC configuration into five separate files:
 
 ========================= ======================================================
-``template_model``        Define the dynamic model
-``template_mpc``          Configure the MPC controller
-``template_simulator``    Configure the DAE/ODE/discrete simulator
-``template_estimator``    Configure the estimator (MHE / EKF / state-feedback)
-``main``                  **Obtain all configured modules and run the loop.**
+``template_model.py``     Define the dynamic model
+``template_mpc.py``       Configure the MPC controller
+``template_simulator.py`` Configure the DAE/ODE/discrete simulator
+``template_estimator.py`` Configure the estimator (MHE / EKF / state-feedback)
+``main.py``               **Obtain all configured modules and run the loop.**
 ========================= ======================================================
 
 
@@ -217,7 +217,18 @@ project. Configuration and setup of the moving horizon estimator (MHE) will be s
 
         return mhe
 
+Note that the cost function for the MHE can be freely configured using the available variables.
+Generally, we suggest to choose the typical MHE formulation:
 
+
+.. math::
+
+    J=  &\underbrace{(x_0 - \tilde{x}_0)^T P_x (x_0 - \tilde{x}_0)}_{\text{arrival cost states}} +
+        \underbrace{(p_0 - \tilde{p}_0)^T P_p (p_0 - \tilde{p}_0)}_{\text{arrival cost params.}} \\
+        &+\sum_{k=0}^{n-1} \underbrace{(h(x_k, u_k, p_k) - y_k)^T P_{y,k} (h(x_k, u_k, p_k) - y_k)}_{\text{stage cost}}
+
+The measurement function must be defined in the model definition and typically contains
+the inputs. Inputs are not treated separately as in some other formulations.
 
 main script
 ***********

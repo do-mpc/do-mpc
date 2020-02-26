@@ -28,27 +28,23 @@ import pdb
 
 class Model:
     """The **do-mpc** model class. This class holds the full model description and is at the core of
-    :py:class:`do_mpc.simulator.Simulator`, :py:class:`do_mpc.controller.MHE` and :py:class:`do_mpc.estimator.Estimator`.
+    :py:class:`do_mpc.simulator.Simulator`, :py:class:`do_mpc.controller.MPC` and :py:class:`do_mpc.estimator.Estimator`.
     The :py:class:`Model` class is created with setting the ``model_type`` (continuous or discrete).
     A ``continous`` model consists of an underlying ordinary differential equation (ODE) or differential algebraic equation (DAE):
 
     .. math::
 
-       \dot{x} = f(x,u,z,p_{tv},p)
-
-       0 = g(x,u,z,p_{tv},p)
-
-       y = h(x,u,z)
+       \dot{x} &= f(x,u,z,p_{tv},p)\\\\
+       0 &= g(x,u,z,p_{tv},p)\\\\
+       y &= h(x,u,z)
 
     whereas a ``discrete`` model consists of a difference equation:
 
     .. math::
 
-       x_{k+1} = f(x_{k},u_{k},z_{k},p_{tv,k},p)
-
-       0 = g(x_{k},u_{k}, z_{k},p_{tv,k},p)
-
-       y_k = h(x_k,u_k,z_k)
+       x_{k+1} &= f(x_{k},u_{k},z_{k},p_{tv,k},p)\\\\
+       0 &= g(x_{k},u_{k}, z_{k},p_{tv,k},p)\\\\
+       y_k &= h(x_k,u_k,z_k)
 
 
     **Configuration and setup:**
@@ -139,7 +135,7 @@ class Model:
         :raises assertion: shape must be tuple or int
         :raises assertion: Cannot call after :py:func:`Model.setup_model`.
 
-        :return: Returns the newly created symbolic variable. Variables can be used to create aux expressions.
+        :return: Returns the newly created symbolic variable.
         :rtype: casadi.SX
         """
         assert self.flags['setup'] == False, 'Cannot call .set_variable after .setup_model.'
@@ -168,6 +164,18 @@ class Model:
         to extract further information from the model. They can also be use for the objective function or constraints.
         Expressions must be formulated with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
 
+        **Example:**
+        Maybe you are interested in monitoring the product of two states?
+
+        ::
+
+            Introduce two scalar states:
+            x_1 = model.set_variable('_x', 'x_1')
+            x_2 = model.set_variable('_x', 'x_2')
+
+            # Introduce expression:
+            model.set_expression('x1x2', x_1*x_2)
+
         :param expr_name: Arbitrary name for the given expression. Names are used for key word indexing.
         :type expr_name: string
         :param expr: CasADi SX or MX function depending on ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
@@ -192,6 +200,25 @@ class Model:
         """Introduce new measurable output to the model class. By default, the model assumes state-feedback (all states are measured outputs).
         Expressions must be formulated with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
 
+        .. note::
+
+            For moving horizon estimation it is suggested to declare all inputs (``_u``) and a subset of states (``_x``) as
+            measurable output. Some other MHE formulations treat inputs seperately.
+
+        **Example:**
+
+        ::
+
+            # Introduce states:
+            x_meas = model.set_variable('_x', 'x', 3) # 3 measured states (vector)
+            x_est = model.set_variable('_x', 'x', 3) # 3 estimated states (vector)
+            # and inputs:
+            u = model.set_variable('_u', 'u', 2) # 2 inputs (vector)
+
+            # define measurements:
+            model.set_meas('x_meas', x_meas)
+            model.set_meas('u', u)
+
         :param expr_name: Arbitrary name for the given expression. Names are used for key word indexing.
         :type expr_name: string
         :param expr: CasADi SX or MX function depending on ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
@@ -213,9 +240,21 @@ class Model:
         return expr
 
     def set_rhs(self, var_name, expr):
-        """Formulate the right hand side (rhs) of the ODE. Each defined state variable must have a respective equation (of matching dimension)
+        """Formulate the right hand side (rhs) of the ODE:
+
+        .. math::
+
+            \\dot{x} = f(\\dots),
+
+        or the update equation in case of discrete dynamics:
+
+        .. math::
+
+            x_{k+1} = f(\\dots).
+
+        Each defined state variable must have a respective equation (of matching dimension)
         for the rhs. Match the rhs with the state by choosing the corresponding names.
-        RHS must be formulated with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
+        rhs must be formulated with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
 
         **Example**:
 
@@ -272,9 +311,21 @@ class Model:
 
         The method cannot be called prior to :py:func:`model.setup`.
 
+        Variables can also be retrieved independently of this method with, e.g.:
+
+        ::
+
+            _x = model._x
+
+        Note that structures can be indexed with the previously defined variable names:
+
+        ::
+
+            _x['var_name']
+
         :raises assertion: Model was not setup. Finish model creation by calling model.setup_model().
 
-        :return: List of model variables (``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``, ``_aux``)
+        :return: List of model variables (``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``, ``_aux``, ``_y``, ``_y_expression``)
         :rtype: list
         """
         assert self.flags['setup'] == True, 'Model was not setup. Finish model creation by calling model.setup_model().'
@@ -287,6 +338,13 @@ class Model:
         """Setup method must be called to finalize the modelling process.
         All required model variables ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p`` must be declared.
         The right hand side expression for ``_x`` must have been set with :py:func:`model.set_rhs`.
+
+        Sets default measurement function (state feedback) if :py:func:`set_meas` was not called.
+
+        .. warning::
+
+            After calling :py:func:`setup_model`, the model is locked and no further variables,
+            expressions etc. can be set.
 
         :raises assertion: Definition of right hand side (rhs) is incomplete
 

@@ -586,7 +586,6 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         * :py:func:`MHE.set_initial_guess`
 
-        * :py:func:`do_mpc.optimizer.Optimizer.prepare_data`
 
         and sets the setup flag = True.
 
@@ -605,7 +604,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self.flags['setup'] = True
 
         self.set_initial_guess()
-        self.prepare_data()
+        self._prepare_data()
 
     def make_step(self, y0):
         """Main method of the class during runtime. This method is called at each timestep

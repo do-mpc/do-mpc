@@ -31,26 +31,29 @@ import do_mpc.data
 import do_mpc.optimizer
 
 class MPC(do_mpc.optimizer.Optimizer):
-    """Model predictive controller. THE MPC controller extends the optimizer base class (which is also used for the MHE estimator).
-    Use this class to configure and run the MPC controller based on a previously configured :py:class:`do_mpc.model` instance.
+    """Model predictive controller.
+    The MPC controller extends the :py:class:`do_mpc.optimizer.Optimizer` base class
+    (which is also used for the MHE estimator).
+    Use this class to configure and run the MPC controller
+    based on a previously configured :py:class:`do_mpc.model` instance.
 
     **Configuration and setup:**
 
     Configuring and setting up the MPC controller involves the following steps:
 
-    1. Use :py:func:`MPC.set_param` to configure the :py:class:`MPC`. See docstring for details.
+    1. Use :py:func:`MPC.set_param` to configure the :py:class:`MPC` instance.
 
-    2. Use :py:meth:`do_mpc.model.Model.get_variables` to obtain the variables defined in :py:class:`do_mpc.model.Model` and express the objective of the optimization problem in terms of these variables.
+    2. Use :py:meth:`do_mpc.model.Model.get_variables` to obtain the variables defined in :py:class:`do_mpc.model.Model`.
 
-    3. Set the objective of the control problem with :py:func:`MPC.set_objective`.
+    3. Set the objective of the control problem with :py:func:`MPC.set_objective` with variables from step 2.
 
-    4. Use :py:func:`MPC.get_rterm` to obtain the structure of weighting parameters to penalize changes in the input and set appropriate values.  See docstring for details.
+    4. Use :py:func:`MPC.get_rterm` to obtain the structure of weighting parameters to penalize changes in the input and set appropriate values.
 
     5. Set upper and lower bounds.
 
-    6. Optionally, set further (non-linear) constraints with :py:func:`do_mpc.optimizer.Optimizer.set_nl_cons`. See docstring for details.
+    6. Optionally, set further (non-linear) constraints with :py:func:`do_mpc.optimizer.Optimizer.set_nl_cons`.
 
-    7. Use the low-level API (:py:func:`MPC.get_p_template` and :py:func:`MPC.set_p_fun`) or high level API (:py:func:`MPC.set_uncertainty_values`) to create scenarios for robust MPC. See docstrings for details.
+    7. Use the low-level API (:py:func:`MPC.get_p_template` and :py:func:`MPC.set_p_fun`) or high level API (:py:func:`MPC.set_uncertainty_values`) to create scenarios for robust MPC. 
 
     8. Finally, call :py:func:`MPC.setup`.
 
@@ -467,8 +470,6 @@ class MPC(do_mpc.optimizer.Optimizer):
 
         * :py:func:`MPC.set_initial_guess`
 
-        * :py:func:`do_mpc.optimizer.Optimizer.prepare_data`
-
         and sets the setup flag = True.
 
         """
@@ -486,7 +487,7 @@ class MPC(do_mpc.optimizer.Optimizer):
         meta_data.update({'structure_scenario': self.scenario_tree['structure_scenario']})
         self.data.set_meta(**meta_data)
 
-        self.prepare_data()
+        self._prepare_data()
 
     def set_initial_guess(self):
         """Initial guess for optimization variables.
