@@ -53,7 +53,7 @@ class MPC(do_mpc.optimizer.Optimizer):
 
     6. Optionally, set further (non-linear) constraints with :py:func:`do_mpc.optimizer.Optimizer.set_nl_cons`.
 
-    7. Use the low-level API (:py:func:`MPC.get_p_template` and :py:func:`MPC.set_p_fun`) or high level API (:py:func:`MPC.set_uncertainty_values`) to create scenarios for robust MPC. 
+    7. Use the low-level API (:py:func:`MPC.get_p_template` and :py:func:`MPC.set_p_fun`) or high level API (:py:func:`MPC.set_uncertainty_values`) to create scenarios for robust MPC.
 
     8. Finally, call :py:func:`MPC.setup`.
 
@@ -250,6 +250,21 @@ class MPC(do_mpc.optimizer.Optimizer):
         """Set the penality factor for the inputs. Call this function with keyword argument refering to the input names in
         :py:class:`model` and the penalty factor as the respective value.
 
+        We define for :math:`i \\in \\mathbb{I}`, where :math:`\\mathbb{I}` is the set of inputs
+        and all :math:`k=0,\\dots, N` where :math:`N` denotes the horizon:
+
+        .. math::
+
+            \\Delta u_{k,i} = u_{k,i} - u_{k-1,i}
+
+        and add:
+
+        .. math::
+
+            \\sum_{k=0}^N \\sum_{i \\in \\mathbb{I}} r_{i}\\Delta u_{k,i}^2,
+
+        the weighted squared cost to the MPC objective function.
+
         Example:
 
         ::
@@ -264,6 +279,14 @@ class MPC(do_mpc.optimizer.Optimizer):
             optimizer.set_rterm(F_flow = 10)
             # or alternatively:
             optimizer.set_rterm(Q_heat = 10, F_flow = 10)
+
+        In the above example we set :math:`r_{Q_{\\text{heat}}}=10`
+        and :math:`r_{F_{\\text{flow}}}=10`.
+
+        .. note::
+
+            For :math:`k=0` we obtain :math:`u_{-1}` from the previous solution.
+
         """
         assert self.flags['setup'] == False, 'Cannot call .set_rterm after .setup_model.'
 

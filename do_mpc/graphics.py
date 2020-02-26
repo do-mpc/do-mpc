@@ -288,7 +288,7 @@ def default_plot(model, states_list=None, inputs_list=None, aux_list=None, **kwa
     Returns a figure, axis and configured :py:class:`Graphics` object.
 
     :param model: Configured model that contains all information about states, inputs etc.
-    :type model: py:class:`do_mpc.model.Model`
+    :type model: :py:class:`do_mpc.model.Model`
 
     :param states_list: List of strings containing a subset of state names defined in py:class:`do_mpc.model.Model`. These states are plotted.
     :type states_list: list
