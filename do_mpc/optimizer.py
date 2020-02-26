@@ -34,7 +34,10 @@ class Optimizer:
     """The base clase for the optimization based state estimation (MHE) and predictive controller (MPC).
     This class establishes the jointly used attributes, methods and properties.
 
-    The ``Optimizer`` base class can not be used independently.
+    .. warning::
+
+        The ``Optimizer`` base class can not be used independently.
+
     """
     def __init__(self):
         assert 'model' in self.__dict__.keys(), 'Cannot initialize the optimizer before assigning the model to the current class instance.'
@@ -74,11 +77,13 @@ class Optimizer:
         getting and setting this property requires an index and calls this function.
         The power index (elements are seperated by comas) must contain atleast the following elements:
 
-        1. ``bound_type``: Valid options are ``lower`` and ``upper``.
-
-        2. ``var_type``: Valid options are ``_x``, ``_u`` and ``_z`` (and ``_p_est`` for MHE).
-
-        3. ``var_name``: Variable names that were previously defined in the :py:class:`do_mpc.model`.
+        ======      =================   ==========================================================
+        order       index name          valid options
+        ======      =================   ==========================================================
+        1           bound type          ``lower`` and ``upper``
+        2           variable type       ``_x``, ``_u`` and ``_z`` (and ``_p_est`` for MHE)
+        3           variable name       Names defined in :py:class:`do_mpc.model`.
+        ======      =================   ==========================================================
 
         Further indices are possible (but not neccessary) when the referenced variable is a vector or matrix.
 
@@ -93,8 +98,6 @@ class Optimizer:
             # Query with:
             optimizer.bounds['lower','_x', 'phi_1']
 
-        :param ind: power index with elements mentioned above.
-        :type ind: tuple
         """
         assert isinstance(ind, tuple), 'Power index must include bound_type, var_type, var_name (as a tuple).'
         assert len(ind)>=3, 'Power index must include bound_type, var_type, var_name (as a tuple).'
@@ -159,9 +162,12 @@ class Optimizer:
         getting and setting this property requires an index and calls this function.
         The power index (elements are seperated by comas) must contain atleast the following elements:
 
-        1. ``var_type``: Valid options are ``_x``, ``_u`` and ``_z`` (and ``_p_est`` for MHE).
-
-        2. ``var_name``: Variable names that were previously defined in the :py:class:`do_mpc.model`.
+        ======      =================   ==========================================================
+        order       index name          valid options
+        ======      =================   ==========================================================
+        1           variable type       ``_x``, ``_u`` and ``_z`` (and ``_p_est`` for MHE)
+        2           variable name       Names defined in :py:class:`do_mpc.model`.
+        ======      =================   ==========================================================
 
         Further indices are possible (but not neccessary) when the referenced variable is a vector or matrix.
 
@@ -176,8 +182,11 @@ class Optimizer:
             # Query with:
             optimizer.scaling['_x', 'phi_1']
 
-        :param ind: power index with elements mentioned above.
-        :type ind: tuple
+        .. note::
+
+            Scaling the optimization problem is suggested when states and / or inputs take on values
+            which differ by orders of magnitude.
+
         """
         assert isinstance(ind, tuple), 'Power index must include bound_type, var_type, var_name (as a tuple).'
         assert len(ind)>=2, 'Power index must include bound_type, var_type, var_name (as a tuple).'
@@ -227,7 +236,7 @@ class Optimizer:
 
         Optionally update the initial guess. The initial guess is first created with the ``.setup()`` method (MHE/MPC)
         and uses the class attributes ``_x0``, ``_u0``, ``_z0`` for all time instances, collocation points (if applicable)
-        and scenarios (if applicable). If these values were net explicitly set by the user, they default to all zeros.
+        and scenarios (if applicable). If these values were not explicitly set by the user, they default to all zeros.
 
 
         :param x0: Initial state
@@ -264,12 +273,13 @@ class Optimizer:
             self.set_initial_guess()
 
     def reset_history(self):
-        """Reset the history of the optimizer
+        """Reset the history of the optimizer.
+        All data from the :py:class:`do_mpc.data.Data` instance is removed.
         """
         self.data.init_storage()
         self._t0 = np.array([0])
 
-    def prepare_data(self):
+    def _prepare_data(self):
         """Write optimizer meta data to data object (all params set in self.data_fields).
         If selected, initialize the container for the full solution of the optimizer.
         """
@@ -479,11 +489,13 @@ class Optimizer:
 
     def solve(self):
         """Solves the optmization problem. The current time-step is defined by the parameters in the
-        self.opt_p_num CasADi structured Data. These include the initial condition, the parameters, the time-varying paramters and the previous u.
-        Typically, self.opt_p_num is prepared for the current iteration in the ``.make_step()`` (in MHE/MPC) method.
-        It is, however, valid and possible to directly set paramters in self.opt_p_num before calling .solve().
+        ``self.opt_p_num`` CasADi structured Data.
+        These include the initial condition, the parameters, the time-varying paramters and the previous input.
+        Typically, ``self.opt_p_num`` is prepared for the current iteration in the ``.make_step()`` (in MHE/MPC) method.
+        It is, however, valid and possible to directly set paramters in ``self.opt_p_num ``before calling ``.solve()``.
 
-        Solve updates the opt_x_num, and lam_g_num attributes of the class. In resetting, opt_x_num to the current solution, the method implicitly
+        Solve updates the ``opt_x_num``, and ``lam_g_num`` attributes of the class.
+        In resetting, ``opt_x_num`` to the current solution, the method implicitly
         enables warmstarting the optimizer for the next iteration, since this vector is always used as the initial guess.
 
         :raises asssertion: optimizer was not setup yet.
@@ -532,7 +544,7 @@ class Optimizer:
 
         if self.state_discretization == 'discrete':
             _i = SX.sym('i', 0)
-            # discrete integrator ifcs mimics the API the collocation ifcn. 
+            # discrete integrator ifcs mimics the API the collocation ifcn.
             ifcn = Function('ifcn', [_x, _i, _u, _z, _tvp, _p], [[], rhs/self._x_scaling.cat])
             n_total_coll_points = 0
         if self.state_discretization == 'collocation':

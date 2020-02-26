@@ -29,6 +29,27 @@ from do_mpc.data import Data
 
 class Simulator:
     """A class for simulating systems. Discrete-time and continuous systems can be considered.
+
+    **do-mpc** uses the CasADi interface to popular state-of-the-art tools such as Sundials `CVODES`_
+    for the integration of ODE/DAE equations.
+
+    .. _CVODES: https://computing.llnl.gov/projects/sundials
+
+    **Configuration and setup:**
+
+    Configuring and setting up the simulator involves the following steps:
+
+    1. Set parameters with :py:func:`set_param`, e.g. the sampling time.
+
+    2. Set parameter function with :py:func:`get_p_template` and  :py:func:`set_p_fun`.
+
+    3. Set time-varying parameter function with :py:func:`get_tvp_template` and  :py:func:`set_tvp_fun`.
+
+    4. Setup simulator with :py:func:`setup`.
+
+    During runtime, call the simulator :py:func:`make_step` method with current input (``u``).
+    This computes the next state of the system and the respective measurement.
+
     """
     def __init__(self, model):
         """ Initialize the simulator class. The model gives the basic model description and is used to build the simulator. If the model is discrete-time, the simulator is a function, if the model is continuous, the simulator is an integrator.
@@ -125,7 +146,8 @@ class Simulator:
 
 
     def setup(self):
-        """Sets up the simulator after the parameters were set via set_param. The simulation time step is required in order to setup the simulator for continuous and discrete-time models.
+        """Sets up the simulator and finalizes the simulator configuration.
+        Only after the setup, the :py:func:`make_step` method becomes available.
 
         :raises assertion: t_step must be set
 
@@ -211,7 +233,9 @@ class Simulator:
 
 
     def get_tvp_template(self):
-        """Obtain the a numerical copy of the structure of the time-varying parameters for the simulation.
+        """Obtain the output template for :py:func:`set_tvp_fun`.
+        Use this method in conjunction with :py:func:`set_tvp_fun`
+        to define the function for retrieving the time-varying parameters at each sampling time.
 
         :return: numerical CasADi structure
         :rtype: struct_SX
@@ -221,11 +245,49 @@ class Simulator:
 
     def set_tvp_fun(self,tvp_fun):
         """Function to set the function which gives the values of the time-varying parameters.
+        This function must return a CasADi structure which can be obtained with :py:func:`get_tvp_template`.
 
-        :param tvp_fun: [ParamDescription], defaults to [DefaultParamVal]
-        :type tvp_fun: python function
+        In the :py:class:`do_mpc.model.Model` we have defined the following parameters:
 
-        :raises [ErrorType]: the output of tvp_fun must have the right structure
+        ::
+
+            a = model.set_variable('parameter', 'a')
+
+        The integrate the ODE or evaluate the discrete dynamics, the simulator needs
+        to obtain the numerical values of these parameters at each timestep.
+        In the most general case, these values can change,
+        which is why we need to supply a function that can be evaluted at each time to obtain the current values.
+        **do-mpc** requires this function to have a specific return structure which we obtain first by calling:
+
+        ::
+
+            tvp_template = simulator.get_tvp_template()
+
+        The parameter function can look something like this:
+
+        ::
+
+            def tvp_fun(t_now):
+                tvp_template['a'] = 3
+                return tvp_template
+
+            simulator.set_tvp_fun(tvp_fun)
+
+        which results in constant parameters.
+
+        .. note::
+
+            From the perspective of the simulator there is no difference between
+            time-varying parameters and regular parameters. The difference is important only
+            for the MPC controller and MHE estimator. These methods incorporate a finite set
+            of future / past information, e.g. regarding the weather, which can change over time.
+            Parameters, on the other hand, are constant over the entire horizon.
+
+        :param tvp_fun: Function which gives the values of the time-varying parameters
+        :type tvp_fun: function
+
+        :raises assertion: tvp_fun has incorrect return type.
+        :raises assertion: Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.
 
         :return: None
         :rtype: None
@@ -238,7 +300,11 @@ class Simulator:
 
 
     def get_p_template(self):
-        """Obtain the a numerical copy of the structure of the parameters for the simulation.
+        """Obtain output template for :py:func:`set_p_fun`.
+        Use this method in conjunction with :py:func:`set_p_fun`
+        to define the function for retrieving the parameters at each sampling time.
+
+        See :py:func:`set_p_fun` for more details.
 
         :return: numerical CasADi structure
         :rtype: struct_SX
@@ -248,6 +314,42 @@ class Simulator:
 
     def set_p_fun(self,p_fun):
         """Function to set the function which gives the values of the parameters.
+        This function must return a CasADi structure which can be obtained with :py:func:`get_p_template`.
+
+        **Example**:
+
+        In the :py:class:`do_mpc.model.Model` we have defined the following parameters:
+
+        ::
+
+            Theta_1 = model.set_variable('parameter', 'Theta_1')
+            Theta_2 = model.set_variable('parameter', 'Theta_2')
+            Theta_3 = model.set_variable('parameter', 'Theta_3')
+
+        The integrate the ODE or evaluate the discrete dynamics, the simulator needs
+        to obtain the numerical values of these parameters at each timestep.
+        In the most general case, these values can change,
+        which is why we need to supply a function that can be evaluted at each time to obtain the current values.
+        **do-mpc** requires this function to have a specific return structure which we obtain first by calling:
+
+        ::
+
+            p_template = simulator.get_p_template()
+
+        The parameter function can look something like this:
+
+        ::
+
+            def p_fun(t_now):
+                p_template['Theta_1'] = 2.25e-4
+                p_template['Theta_2'] = 2.25e-4
+                p_template['Theta_3'] = 2.25e-4
+                return p_template
+
+            simulator.set_p_fun(p_fun)
+
+        which results in constant parameters.
+
 
         :param p_fun: A function which gives the values of the parameters
         :type p_fun: python function
@@ -264,19 +366,27 @@ class Simulator:
 
 
     def simulate(self):
-        """Call the CasADi simulator. Numerical values for sim_x_num and sim_p_num need to be provided beforehand in order to simulate the system for one time step:
+        """Call the CasADi simulator.
+        Numerical values for ``sim_x_num`` and ``sim_p_num`` need to be provided beforehand
+        in order to simulate the system for one time step:
 
-        * states (sim_x_num['_x'])
+        * states ``sim_x_num['_x']``
 
-        * algebraic states (sim_x_num['_z'])
+        * algebraic states ``sim_x_num['_z']``
 
-        * inputs (sim_p_num['_u'])
+        * inputs ``sim_p_num['_u']``
 
-        * parameter (sim_p_num['_p'])
+        * parameter ``sim_p_num['_p']``
 
-        * time-varying parameters (sim_p_num['_tvp'])
+        * time-varying parameters ``sim_p_num['_tvp']``
 
         The function returns the new state of the system.
+
+        .. warning::
+
+            :py:func:`simulate` can be used as part of the public API but is typically
+            called from within :py:func:`make_step` which wraps this method and sets the
+            required values to the ``sim_x_num`` and ``sim_p_num`` structures automatically.
 
         :return: x_new
         :rtype: numpy array

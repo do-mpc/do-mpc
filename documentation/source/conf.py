@@ -45,6 +45,7 @@ extensions = ['sphinx.ext.autodoc',
           'sphinx.ext.graphviz',
           'sphinx.ext.autosummary',
           'sphinx.ext.viewcode',
+          'sphinx_copybutton'
               ]
 
 graphviz_output_format = 'svg'
