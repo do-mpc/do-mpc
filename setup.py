@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='do_mpc',
-    version='4.0.0dev1',
+    version='4.0.0-beta',
     packages=['do_mpc','do_mpc.tools'],
     author='Sergio Lucia and Felix Fiedler',
     author_email='sergio.lucia@tu-berlin.de',
