@@ -10,7 +10,7 @@
    :google-site-verification:
       vPyUwidEDFuOS3MRTnjaah0fEs91dYSHomsAj1mxssA
    :canonical:
-      https://do-mpc.readthedocs.io/
+      https://www.do-mpc.com/en/latest/
 
 
 do-mpc: Model Predictive Control in Python
