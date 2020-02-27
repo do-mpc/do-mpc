@@ -9,6 +9,8 @@
       and Moving Horizon Estimation (MHE).
    :google-site-verification:
       vPyUwidEDFuOS3MRTnjaah0fEs91dYSHomsAj1mxssA
+   :google-site-verification:
+      IheinIFIQweRVW75acwPYtDY_KjIGGOUY0VECK9mz2k
    :canonical:
       https://www.do-mpc.com/en/latest/
 
@@ -21,6 +23,7 @@ do-mpc: Model Predictive Control in Python
     :alt: Documentation Status
 .. image:: https://travis-ci.org/do-mpc/do-mpc.svg?branch=master
     :target: https://travis-ci.org/do-mpc/do-mpc
+    :alt: Build Status
 
 **do-mpc** is a comprehensive open-source toolbox for robust **Model Predictive Control (MPC)**
 and **Moving Horizon Estimation (MHE)**.
