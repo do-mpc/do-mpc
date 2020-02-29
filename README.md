@@ -2,7 +2,7 @@
 
 # do-mpc: Robust optimal control toolbox
 
-[![Documentation Status](https://readthedocs.org/projects/do-mpc/badge/?version=latest)](https://do-mpc.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](https://readthedocs.org/projects/do-mpc/badge/?version=latest)](https://www.do-mpc.com)
 [![Build Status](https://travis-ci.org/do-mpc/do-mpc.svg?branch=master)](https://travis-ci.org/do-mpc/do-mpc)
 
 **do-mpc** proposes a new, modularized implementation for optimization based model predictive control (MPC) and moving horizon estimation (MHE). **do-mpc** enables the efficient formulation and solution of control and estimation problems for nonlinear systems, including tools to deal with uncertainty and time discretization. The modular structure of do-mpc contains simulation, estimation and control components that can be easily extended and combined to fit many different applications.
@@ -17,10 +17,10 @@ In summary, **do-mpc** offers the following features:
 The **do-mpc** software is Python based and works therefore on any OS with a Python 3.x distribution. **do-mpc** has been developed at the DYN chair of the TU Dortmund by Sergio Lucia and Alexandru Tatulea. The development is continued at the IOT chair of the TU Berlin by Felix Fiedler and Sergio Lucia.
 
 ## Installation instructions
-Installation instructions are given [here](https://do-mpc.readthedocs.io/en/latest/installation.html).
+Installation instructions are given [here](https://www.do-mpc.com/en/latest/installation.html).
 
 ## Documentation
-Please visit our extensive [documentation](https://do-mpc.readthedocs.io/en/latest/index.html), kindly hosted on readthedocs.
+Please visit our extensive [documentation](https://www.do-mpc.com), kindly hosted on readthedocs.
 
 ## Citing **do-mpc**
 If you use **do-mpc** for published work please cite it as:
