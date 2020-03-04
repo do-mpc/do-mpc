@@ -36,8 +36,8 @@ class Server:
     The class is initialized with relevant instances of the **do-mpc** configuration, e.g :py:class:`do_mpc.model.Model`, :py:class:`do_mpc.model.Optimizer` etc, which contain all
     information about variables (e.g. states, inputs, optimization outputs etc.).
 
-    The :py:class:`RTServer` class has a public API, which can be used to manually create and launch a server from the interpreter. However, it is recommended to use the real-time manager object
-    :py:class:`RTManager`
+    The :py:class:`Server` class has a public API, which can be used to manually create and launch a server from the interpreter. However, it is recommended to use the real-time manager object
+    :py:class:`Manager`
     """
     def __init__(self, opts):
         self.dtype = 'default'
@@ -68,17 +68,107 @@ class Server:
         # TODO: n_aux not existing
         #self._aux = np.empty((0, model.n_aux))
         # Dictionary with possible data_fields in the class and their respective dimension. All data is numpy ndarray.
-        self.data_fields = {
-            '_time': 1,
-            '_x':    model.n_x,
-            '_y':    model.n_y,
-            '_u':    model.n_u,
-            '_z':    model.n_z,
-            '_tvp':  model.n_tvp,
-            '_p':    model.n_p,
-            '_aux':  model.n_aux,
+        self.data_structure = {
+            'nr_x_states': model.n_x,
+            'nr_z_states': model.n_z,
+            'nr_inputs'  : model.n_u,
+            'nr_meas'    : model.n_y,
+            'nr_controls': model.n_u,
+            'nr_tv_pars' : model.n_tvp,
+            'nr_mod_pars': model.n_p,
+            'nr_aux'     : model.n_aux,
+            'nr_pred'    : model.n_x * 20,
+            'nr_flags'   : 5,
+            'nr_switches': 5
         }
-        self.start()
+        try:
+            self.opcua_server = opcua.Server()
+        except RuntimeError:
+            #TODO: add detailed error handling and inform user about possible actions
+            self.created = False
+            print("Server could not be created. Check your opcua module installation!")
+            return False
+        
+        self.opcua_server.set_endpoint(self.address)
+        self.opcua_server.set_server_name(self.name)
+        
+        # Setup a default namespace, because personalizing it does not bring any value for now
+        idx = self.opcua_server.register_namespace("Realtime NMPC structure")
+
+        # Get objects node, this is where the nodes are put
+        objects = self.opcua_server.get_objects_node()
+        
+        # Create the basic data structure, which consists of the simulator and the optimizer
+        localvar = objects.add_object(opcua.ua.NodeId("SimulatorData", idx), "SimulatorData")
+        datavector = localvar.add_variable(opcua.ua.NodeId("States.X", idx), "States.X", self.data_structure['nr_x_states'])
+        datavector.set_writable()
+        datavector = localvar.add_variable(opcua.ua.NodeId("States.Z", idx), "States.Z", self.data_structure['nr_z_states'])
+        datavector.set_writable()
+        datavector = localvar.add_variable(opcua.ua.NodeId("Measurements", idx), "Measurements", self.data_structure['nr_meas'])
+        datavector.set_writable()
+        datavector = localvar.add_variable(opcua.ua.NodeId("Inputs", idx), "Inputs", self.data_structure['nr_inputs'])
+        datavector.set_writable()
+        if self.server_type == 'with_parameters':
+            datavector = localvar.add_variable(opcua.ua.NodeId("Parameters", idx), "Parameters", self.data_structure['nr_x_states'])
+            datavector.set_writable()
+        
+        localvar = objects.add_object(opcua.ua.NodeId("OptimizerData", idx), "OptimizerData")
+        datavector = localvar.add_variable(opcua.ua.NodeId("InitialGuess", idx), "InitialGuess", self.data_structure['nr_x_states'])
+        datavector.set_writable()
+        datavector = localvar.add_variable(opcua.ua.NodeId("OptimalOutputs", idx), "OptimalOutputs", self.data_structure['nr_inputs'])
+        datavector.set_writable()
+        if self.server_type == 'with_parameters':
+            datavector = localvar.add_variable(opcua.ua.NodeId("TVParameters", idx), "TVParameters", self.data_structure['nr_tv_pars'])
+            datavector.set_writable()
+        if self.store_preditions == True:
+            datavector = localvar.add_variable(opcua.ua.NodeId("Predictions", idx), "Predictions", self.data_structure['nr_x_states'])
+            datavector.set_writable()    
+        
+        if self.server_type == 'with_estimatior':
+            localvar = objects.add_object(opcua.ua.NodeId("EstimatorData", idx), "EstimatorData")
+            datavector = localvar.add_variable(opcua.ua.NodeId("States", idx), "States", self.data_structure['nr_x_states'])
+            datavector.set_writable()
+            
+        # The flags are defined by default 
+        localvar = objects.add_object(opcua.ua.NodeId("User", idx), "User")
+        datavector = localvar.add_variable(opcua.ua.NodeId("Flags", idx), "Flags", self.data_structure['nr_flags'])
+        datavector.set_writable()
+        # The switches allow for manual control of the real-time modules remotely
+        datavector = localvar.add_variable(opcua.ua.NodeId("Switches", idx), "Switches", self.data_structure['nr_switches'])
+        datavector.set_writable()
+        self.created = True
+        self.running = False
+
+
+    def start(self):
+
+        try:
+            self.opcua_server.start()
+
+            print("Server was started successfully")
+            self.running = True
+            return True
+        except RuntimeError as err:
+            print("Server could not be started, returned error message :\n", err)
+            return False
+
+    def stop(self):
+
+        #TODO: stop services(optimizer, estimator) in order and inform user about success
+        try:
+            self.opcua_server.stop()
+
+            print("Server was stopped successfully")
+            self.running = False
+            return True
+        except RuntimeError as err:
+            print("Server could not be stopped, returned error message :\n", err)
+            return False
+
+    def checkStatus(self):
+        # This function returns status flags on the server
+        #TODO: implement status flags and error checkup
+        return True
 
     def update(self, **kwargs):
         """Update value(s) of the data structure with key word arguments.
@@ -89,7 +179,7 @@ class Server:
 
         ::
 
-            _name = "My base OPCUA server"
+            _name = "My basic OPCUA server"
             _port = 4880
             _mpc_model = model
             Server.update('_name': _name, '_port': _port, '_mpc_model': model)
@@ -100,7 +190,7 @@ class Server:
 
             Alternatively:
             data_dict = {
-                '_name':"My base OPCUA server",
+                '_name':"My basic OPCUA server",
                 '_port':"4880"
             }
 
@@ -130,8 +220,70 @@ class Server:
             # Update results array:
             setattr(self, key, updated)
 
+
 class Client:
     
         def __init__(self, opts):
             self.server_address = opts['_address']
             self.port           = opts['_port']
+            self.type           = opts['_type']
+            
+            try:
+                self.opcua_client = opcua.Client(self.server_address)
+                print("A client of the type", self.type, "was created")
+            except RuntimeError:
+                # TODO: catch the correct error and parse message
+                print("The connection to the server could not be established\n", self.settings["server"], "is not responding")
+
+        self.created = True
+        return
+    
+    def connect(self):
+        # This function implements (re)connection to the designated server
+        try:
+            self.opcua_client.connect()
+            print("A client of the type", self.settings["type"], "was created")
+            self.status["connected"] = True
+        except RuntimeError:
+            # TODO: catch the correct error and parse message
+            print("The connection to the server could not be established\n", self.settings["server"],
+                  " is not responding")
+            return False
+
+        return True
+
+    def disconnect(self):
+        self.opcua_client.disconnect()
+        print("A client of type", self.settings["type"],"disconnected from server",self.settings["server"])
+        #TODO disconnecting is by default done
+        return
+
+    def writeData(self, dataType, dataVal):
+        # This function can write data to any of the server defined namespaces
+        # TODO: handle also typed of writing e.g status data, operation flags etc
+
+        if self.type == "simulator":
+            writevar = "ns=2;s=States.vector"
+
+        if self.type == "optimizer":
+            writevar = "ns=2;s=Inputs.vector"
+        try:
+            out = self.opcua_client.get_node(writevar).set_value(dataVal)
+        except ConnectionRefusedError:
+            print("Write operation by:", self.type, " failed @ time:", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
+            return False
+        return out
+
+    def readData(self, dataType):
+        # This function can read any data from the server
+
+        dataVal = []
+        if self.type == "simulator":
+            readVar = "ns=2;s=Inputs.vector"
+        if self.type == "optimizer":
+            readVar = "ns=2;s=States.vector"
+        try:
+            dataVal = self.opcua_client.get_node(readVar).get_value()
+        except ConnectionRefusedError:
+            print("Read operation by:", self.type, "failed @ time: ", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
+        return dataVal
