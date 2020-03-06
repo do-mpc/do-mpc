@@ -19,7 +19,7 @@ do-mpc: Model Predictive Control in Python
 ==================================================
 
 .. image:: https://readthedocs.org/projects/do-mpc/badge/?version=latest
-    :target: https://do-mpc.readthedocs.io/en/latest/?badge=latest
+    :target: https://www.do-mpc.com
     :alt: Documentation Status
 .. image:: https://travis-ci.org/do-mpc/do-mpc.svg?branch=master
     :target: https://travis-ci.org/do-mpc/do-mpc
