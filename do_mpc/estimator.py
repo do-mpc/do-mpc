@@ -142,7 +142,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
     2. Obtain the following variables from the class: ``MHE._y_meas``, ``MHE._y_calc``, ``MHE._x_prev``, ``MHE._x0``, ``MHE._p_est_prev``, ``MHE._p_est0``
 
-    3. Set the objective of the control problem with :py:func:`MHE.set_objective`.
+    3. Set the objective of the control problem with :py:func:`MHE.set_objective` or use the high-level interface, :py:func:`MHE.set_default_objective`
 
     5. Set upper and lower bounds.
 
@@ -207,6 +207,9 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         )
         # Function to obtain full set of parameters from the seperate structs (while obeying the order):
         self._p_cat_fun = Function('p_cat_fun', [self._p_est, self._p_set], [_p])
+
+        self.n_p_est = self._p_est.shape[0]
+        self.n_p_set = self._p_set.shape[0]
 
         # Initialize additional structures by calling the symbolic structures defined above
         # with the default numerical value.
@@ -334,6 +337,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             else:
                 setattr(self, key, value)
 
+
     def set_objective(self, stage_cost, arrival_cost):
         """Set the objective function for the MHE problem. We suggest to formulate the MHE objective (:math:`J`) such that:
 
@@ -392,6 +396,10 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
             mhe.set_objective(stage_cost, arrival_cost)
 
+        .. note::
+            Use :py:func:`MHE.set_default_objective` as a high-level wrapper for this method,
+            if you want to use the default MHE objective function.
+
         :param stage_cost: Stage cost that is added to the MHE objective at each age.
         :type stage_cost: CasADi expression
 
@@ -415,6 +423,71 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self.arrival_cost_fun = Function('arrival_cost_fun', arrival_cost_input, [arrival_cost])
 
         self.flags['set_objective'] = True
+
+    def set_default_objective(self, P_x, P_y, P_p=None):
+        """ Wrapper function to set the suggested default MHE objective:
+
+        .. math::
+
+           J= & \\underbrace{(x_0 - \\tilde{x}_0)^T P_x (x_0 - \\tilde{x}_0)}_{\\text{arrival cost states}} +
+           \\underbrace{(p_0 - \\tilde{p}_0)^T P_p (p_0 - \\tilde{p}_0)}_{\\text{arrival cost params.}} \\\\
+           & +\\sum_{k=0}^{n-1} \\underbrace{(h(x_k, u_k, p_k) - y_k)^T P_{y,k} (h(x_k, u_k, p_k) - y_k)}_{\\text{stage cost}}
+
+        Pass the weighting matrices :math:`P_x`, :math:`P_p` and :math:`P_y`.
+        The matrices must be of appropriate dimension (and numpy nd.arrays).
+        In the case that no parameters are estimated, the weighting matrix :math:`P_p` is not required.
+
+        .. note::
+            Use :py:func:`MHE.set_objective` as a low-level alternative for this method,
+            if you want to use a custom objective function.
+
+        :param P_x: Tuning matrix :math:`P_x` of dimension :math:`n \\times n` (:math:`x \\in \\mathbb{R}^{n}`)
+        :type P_x: numpy.ndarray
+        :param P_y: Tuning matrix :math:`P_y` of dimension :math:`m \\times m` (:math:`y \\in \\mathbb{R}^{m}`)
+        :type P_y: numpy.ndarray
+        :param P_p: Tuning matrix :math:`P_p` of dimension :math:`l \\times l` (:math:`p_{\text{est}} \\in \\mathbb{R}^{l}`)
+        :type P_p: numpy.ndarray, optional
+        """
+
+        assert isinstance(P_x, np.ndarray), 'P_x must be of type numpy.ndarray'
+        assert isinstance(P_y, np.ndarray), 'P_y must be of type numpy.ndarray'
+        assert isinstance(P_p, (np.ndarray, type(None))), 'P_p must be of type numpy.ndarray or None object.'
+        n_x = self.model.n_x
+        n_y = self.model.n_y
+        n_p = self.n_p_est
+        assert P_x.shape == (n_x, n_x), 'P_x has wrong shape:{}, must be {}'.format(P_x.shape, (n_x,n_x))
+        assert P_y.shape == (n_y, n_y), 'P_y has wrong shape:{}, must be {}'.format(P_y.shape, (n_y,n_y))
+
+
+        # Calculate stage cost:
+        y_meas = self._y_meas
+        y_calc = self._y_calc
+        dy = y_meas.cat-y_calc.cat
+
+        stage_cost = dy.T@P_y@dy
+
+        # Calculate arrival cost:
+        x_0 = self._x
+        x_prev = self._x_prev
+        dx = x_0.cat - x_prev.cat
+
+        arrival_cost = dx.T@P_x@dx
+
+        # Add parameter term if there are parameters to be estimated:
+        if P_p is None:
+            assert n_p == 0, 'Must pass weighting factor P_p, since you are trying to estimate parameters.'
+        else:
+            assert P_p.shape == (n_p, n_p), 'P_p has wrong shape:{}, must be {}'.format(P_p.shape, (n_p,n_p))
+            p_0 = self._p_est
+            p_prev = self._p_est_prev
+            dp = p_0.cat - p_prev.cat
+            arrival_cost += dp.T@P_p@dp
+
+        # Set MHE objective:
+        self.set_objective(stage_cost, arrival_cost)
+
+
+
 
     def get_p_template(self):
         """Obtain the a numerical copy of the structure of the (not estimated) parameters.
