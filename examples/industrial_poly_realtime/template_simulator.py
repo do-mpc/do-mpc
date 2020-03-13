@@ -27,15 +27,15 @@ import pdb
 import sys
 sys.path.append('../../')
 import do_mpc
+from opcmodules import RealtimeSimulator, RealtimeController
 
-
-def template_simulator(model):
+def template_simulator(model, opc_opts):
     """
     --------------------------------------------------------------------------
     template_simulator: tuning parameters
     --------------------------------------------------------------------------
-    """
-    simulator = do_mpc.simulator.Simulator(model)
+    """    
+    simulator = RealtimeSimulator(model,opc_opts)
 
     params_simulator = {
         'integration_tool': 'cvodes',

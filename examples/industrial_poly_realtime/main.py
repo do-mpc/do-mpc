@@ -33,18 +33,43 @@ import matplotlib.pyplot as plt
 import pickle
 import time
 
-
 from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator
+from opcmodules import Server, Client
+from opcmodules import RealtimeSimulator, RealtimeController
+import multiprocessing as mp
 
 model = template_model()
-mpc = template_mpc(model)
-simulator = template_simulator(model)
-estimator = do_mpc.estimator.StateFeedback(model)
+
+"""Defining the OPCUA settings"""
+server_opts = {"_model":model,
+               "_name":"Poly Reactor OPCUA",
+               "_address":"opc.tcp://localhost:4840/freeopcua/server/",
+               "_port": 4840,
+               "_server_type": "basic",
+               "_store_predictions": False,
+               "_with_db": False}
+opc_server = Server(server_opts)
+if opc_server.created == True and opc_server.running == False: opc_server.start()
+
+client_opts = {"_address":"opc.tcp://localhost:4840/freeopcua/server/",
+               "_port": 4840,
+               "_client_type": "simulator",
+               "_namespace": opc_server.namespace}
+opc_opts ={'_cycle_time': 1.0, '_opc_opts': client_opts}
+
+
+rt_simulator = template_simulator(model,opc_opts)
+
+client_opts['_client_type'] = "controller"
+opc_opts ={'_cycle_time': 10.0, '_opc_opts': client_opts}
+
+rt_controller = template_mpc(model,opc_opts)
 
 # Set the initial state of mpc and simulator:
 x0 = model._x(0)
+#opc_client_sim.writeData(x0)
 
 delH_R_real = 950.0
 c_pR = 5.0
@@ -62,12 +87,32 @@ x0['accum_monom'] = 300.0
 x0['T_adiab'] = x0['m_A']*delH_R_real/((x0['m_W'] + x0['m_A'] + x0['m_P']) * c_pR) + x0['T_R']
 
 
-
-mpc.set_initial_state(x0, reset_history=True)
-simulator.set_initial_state(x0, reset_history=True)
+rt_controller.set_initial_state(x0, reset_history=True)
+rt_simulator.set_initial_state(x0, reset_history=True)
 
 # Initialize graphic:
 graphics = do_mpc.graphics.Graphics()
+
+
+time_list = []
+for k in range(100):
+    tic = time.time()
+    #pdb.set_trace()
+    rt_controller.run_once()
+    #pdb.set_trace()
+    rt_simulator.run_once()
+    toc = time.time()
+    time_list.append(toc-tic)
+
+    #if True:
+        #graphics.reset_axes()
+        #graphics.plot_results(mpc.data, linewidth=3)
+        #graphics.plot_predictions(mpc.data, linestyle='--', linewidth=1)
+        #plt.show()
+        #input('next step')
+
+time_arr = np.array(time_list)
+print('Total run-time: {tot:5.2f} s, step-time {mean:.3f}+-{std:.3f} s.'.format(tot=np.sum(time_arr), mean=np.mean(time_arr), std=np.sqrt(np.var(time_arr))))
 
 
 fig, ax = plt.subplots(5, sharex=True)
@@ -88,25 +133,6 @@ ax[4].set_ylabel('T_in_EK [K]')
 fig.align_ylabels()
 plt.ion()
 
-time_list = []
-for k in range(100):
-    tic = time.time()
-    u0 = mpc.make_step(x0)
-    y_next = simulator.make_step(u0)
-    x0 = estimator.make_step(y_next)
-    toc = time.time()
-    time_list.append(toc-tic)
-
-    if True:
-        graphics.reset_axes()
-        graphics.plot_results(mpc.data, linewidth=3)
-        graphics.plot_predictions(mpc.data, linestyle='--', linewidth=1)
-        plt.show()
-        input('next step')
-
-time_arr = np.array(time_list)
-print('Total run-time: {tot:5.2f} s, step-time {mean:.3f}+-{std:.3f} s.'.format(tot=np.sum(time_arr), mean=np.mean(time_arr), std=np.sqrt(np.var(time_arr))))
-
-simu_lines = graphics.plot_results(simulator.data)
+simu_lines = graphics.plot_results(rt_simulator.data)
 plt.show()
 input('Press any key to exit.')

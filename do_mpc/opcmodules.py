@@ -27,7 +27,10 @@ import pdb
 import pickle
 import do_mpc
 import opcua
-
+import time
+from do_mpc.simulator import Simulator
+from do_mpc.estimator import Estimator
+from do_mpc.controller import MPC
 
 class Server:
     """**do-mpc** OPCUA Server. An instance of this class is created for all active **do-mpc** classes,
@@ -65,7 +68,7 @@ class Server:
         # If TRUE, the predictions of the optimizer are also stored 
         self.store_predictions = opts['_store_predictions']
         
-        # TODO: n_aux not existing
+        # TODO:fix number predictions
         #self._aux = np.empty((0, model.n_aux))
         # Dictionary with possible data_fields in the class and their respective dimension. All data is numpy ndarray.
         self.data_structure = {
@@ -81,6 +84,13 @@ class Server:
             'nr_flags'   : 5,
             'nr_switches': 5
         }
+        # TODO: use the namespace to create the structure further down
+        self.namespace = {
+            'PlantData':{'x':"States.X",'z':"States.Z",'u':"Inputs",'y':"Measurements",'p':"Parameters"},
+            'ControllerData':{'x0':"InitialGuess",'u_opt':"OptimalOutputs"},
+            'EstimatorData':{'flags':"Flags",'switches':"Switches"},
+            'UserData':{'flags':"Flags",'switches':"Switches"}
+            }
         try:
             self.opcua_server = opcua.Server()
         except RuntimeError:
@@ -99,42 +109,56 @@ class Server:
         objects = self.opcua_server.get_objects_node()
         
         # Create the basic data structure, which consists of the simulator and the optimizer
-        localvar = objects.add_object(opcua.ua.NodeId("SimulatorData", idx), "SimulatorData")
-        datavector = localvar.add_variable(opcua.ua.NodeId("States.X", idx), "States.X", self.data_structure['nr_x_states'])
+        localvar = objects.add_object(opcua.ua.NodeId("PlantData", idx), "PlantData")
+        
+        placeholder = [0 for x in range(self.data_structure['nr_x_states'])]
+        datavector = localvar.add_variable(opcua.ua.NodeId("States.X", idx), "States.X", placeholder)
         datavector.set_writable()
-        datavector = localvar.add_variable(opcua.ua.NodeId("States.Z", idx), "States.Z", self.data_structure['nr_z_states'])
+        placeholder = [0 for x in range(self.data_structure['nr_z_states'])] if self.data_structure['nr_z_states']>0 else [0]
+        datavector = localvar.add_variable(opcua.ua.NodeId("States.Z", idx), "States.Z",  placeholder)
         datavector.set_writable()
-        datavector = localvar.add_variable(opcua.ua.NodeId("Measurements", idx), "Measurements", self.data_structure['nr_meas'])
+        placeholder = [0 for x in range(self.data_structure['nr_meas'])] if self.data_structure['nr_meas']>0 else [0]
+        datavector = localvar.add_variable(opcua.ua.NodeId("Measurements", idx), "Measurements", placeholder)
         datavector.set_writable()
-        datavector = localvar.add_variable(opcua.ua.NodeId("Inputs", idx), "Inputs", self.data_structure['nr_inputs'])
+        placeholder = [0 for x in range(self.data_structure['nr_inputs'])] if self.data_structure['nr_inputs']>0 else [0]
+        datavector = localvar.add_variable(opcua.ua.NodeId("Inputs", idx), "Inputs", placeholder)
         datavector.set_writable()
         if self.server_type == 'with_parameters':
-            datavector = localvar.add_variable(opcua.ua.NodeId("Parameters", idx), "Parameters", self.data_structure['nr_x_states'])
+            placeholder = [0 for x in range(self.data_structure['nr_p'])] if self.data_structure['nr_p']>0 else [0]
+            datavector = localvar.add_variable(opcua.ua.NodeId("Parameters", idx), "Parameters", placeholder)
             datavector.set_writable()
         
-        localvar = objects.add_object(opcua.ua.NodeId("OptimizerData", idx), "OptimizerData")
-        datavector = localvar.add_variable(opcua.ua.NodeId("InitialGuess", idx), "InitialGuess", self.data_structure['nr_x_states'])
+        localvar = objects.add_object(opcua.ua.NodeId("ControllerData", idx), "ControllerData")
+        
+        placeholder = [0 for x in range(self.data_structure['nr_x_states'])] if self.data_structure['nr_x_states']>0 else [0]
+        datavector = localvar.add_variable(opcua.ua.NodeId("InitialGuess", idx), "InitialGuess", placeholder)
         datavector.set_writable()
-        datavector = localvar.add_variable(opcua.ua.NodeId("OptimalOutputs", idx), "OptimalOutputs", self.data_structure['nr_inputs'])
+        placeholder = [0 for x in range(self.data_structure['nr_inputs'])] if self.data_structure['nr_inputs']>0 else [0]
+        datavector = localvar.add_variable(opcua.ua.NodeId("OptimalOutputs", idx), "OptimalOutputs", placeholder)
         datavector.set_writable()
         if self.server_type == 'with_parameters':
-            datavector = localvar.add_variable(opcua.ua.NodeId("TVParameters", idx), "TVParameters", self.data_structure['nr_tv_pars'])
+            placeholder = [0 for x in range(self.data_structure['nr_tvp'])] if self.data_structure['nr_p']>0 else [0]
+            datavector = localvar.add_variable(opcua.ua.NodeId("TVParameters", idx), "TVParameters",  placeholder)
             datavector.set_writable()
-        if self.store_preditions == True:
-            datavector = localvar.add_variable(opcua.ua.NodeId("Predictions", idx), "Predictions", self.data_structure['nr_x_states'])
+        if self.store_predictions == True:
+            placeholder = [0 for x in range(self.data_structure['nr_pred'])] if self.data_structure['nr_pred']>0 else [0]
+            datavector = localvar.add_variable(opcua.ua.NodeId("Predictions", idx), "Predictions", placeholder)
             datavector.set_writable()    
         
         if self.server_type == 'with_estimatior':
             localvar = objects.add_object(opcua.ua.NodeId("EstimatorData", idx), "EstimatorData")
-            datavector = localvar.add_variable(opcua.ua.NodeId("States", idx), "States", self.data_structure['nr_x_states'])
+            datavector = localvar.add_variable(opcua.ua.NodeId("States", idx), "EstimatedStates",  placeholder)
             datavector.set_writable()
             
         # The flags are defined by default 
-        localvar = objects.add_object(opcua.ua.NodeId("User", idx), "User")
-        datavector = localvar.add_variable(opcua.ua.NodeId("Flags", idx), "Flags", self.data_structure['nr_flags'])
+        localvar = objects.add_object(opcua.ua.NodeId("UserData", idx), "UserData")
+        
+        placeholder = [0 for x in range(self.data_structure['nr_flags'])] if self.data_structure['nr_flags']>0 else [0]
+        datavector = localvar.add_variable(opcua.ua.NodeId("Flags", idx), "Flags",  placeholder)
         datavector.set_writable()
         # The switches allow for manual control of the real-time modules remotely
-        datavector = localvar.add_variable(opcua.ua.NodeId("Switches", idx), "Switches", self.data_structure['nr_switches'])
+        placeholder = [0 for x in range(self.data_structure['nr_switches'])] if self.data_structure['nr_switches']>0 else [0]
+        datavector = localvar.add_variable(opcua.ua.NodeId("Switches", idx), "Switches", placeholder)
         datavector.set_writable()
         self.created = True
         self.running = False
@@ -145,7 +169,7 @@ class Server:
         try:
             self.opcua_server.start()
 
-            print("Server was started successfully")
+            print("Server was started @ ",time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
             self.running = True
             return True
         except RuntimeError as err:
@@ -158,7 +182,7 @@ class Server:
         try:
             self.opcua_server.stop()
 
-            print("Server was stopped successfully")
+            print("Server was stopped successfully @ ",time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
             self.running = False
             return True
         except RuntimeError as err:
@@ -222,68 +246,219 @@ class Server:
 
 
 class Client:
+        """**do-mpc** OPCUA Client. An instance of this class is created for all active **do-mpc** classes,
+        e.g. :py:class:`do_mpc.simulator.Simulator`, :py:class:`do_mpc.controller.MPC`, :py:class:`do_mpc.estimator.MHE`.
     
+        The class is initialized with relevant instances of the **do-mpc** configuration, e.g :py:class:`do_mpc.model.Model`, :py:class:`do_mpc.model.Optimizer` etc, which contain all
+        information about variables (e.g. states, inputs, optimization outputs etc.).
+    
+        The :py:class:`Client` class has a public API, which can be used to manually create and launch a server from the interpreter. However, it is recommended to use the real-time manager object
+        :py:class:`Manager`
+        """
         def __init__(self, opts):
             self.server_address = opts['_address']
             self.port           = opts['_port']
-            self.type           = opts['_type']
-            
+            self.type           = opts['_client_type']
+            self.namespace      = opts['_namespace']
+            #self.namespace = {
+            #'PlantData':{'x':"States.X",'z':"States.Z",'u':"Inputs",'y':"Measurements",'p':"Parameters"},
+            #'ControllerData':{},
+            #'EstimatorData':{}
+            #'UserData':{'flags':"Flags",'switches':"Switches"}
+            #}
             try:
                 self.opcua_client = opcua.Client(self.server_address)
-                print("A client of the type", self.type, "was created")
+                print("A client of the type -", self.type, "- was created")
             except RuntimeError:
                 # TODO: catch the correct error and parse message
-                print("The connection to the server could not be established\n", self.settings["server"], "is not responding")
+                print("The connection to the server could not be established\n", self.server_address, "is not responding")
 
-        self.created = True
-        return
+            self.created = True
+            return
     
-    def connect(self):
-        # This function implements (re)connection to the designated server
-        try:
-            self.opcua_client.connect()
-            print("A client of the type", self.settings["type"], "was created")
-            self.status["connected"] = True
-        except RuntimeError:
-            # TODO: catch the correct error and parse message
-            print("The connection to the server could not be established\n", self.settings["server"],
-                  " is not responding")
-            return False
+        def connect(self):
+            # This function implements (re)connection to the designated server
+            try:
+                self.opcua_client.connect()
+                print("The -", self.type, "- has just connected to ",self.server_address)
+                self.connected = True
+            except RuntimeError:
+                # TODO: catch the correct error and parse message
+                print("The connection to the server could not be established\n", self.server_address,
+                      " is not responding")
+    
+        def disconnect(self):
+            self.opcua_client.disconnect()
+            self.connected = False
+            print("A client of type", self.type,"disconnected from server",self.server_address)
+            #TODO: disconnecting is done automatically upon console termination?
+            
+    
+        def writeData(self, dataVal):
+            # This function can write data to any of the server defined namespaces
+            # TODO: handle also type of writing e.g status data, operation flags etc
+            assert type(dataVal) == list, "The data you provided is not arranged as a list. See the instructions for passing data to the server."
+            if self.type == "simulator":
+                plant_update = "ns=2;s="+self.namespace['PlantData']['x']
+                contr_update = "ns=2;s="+self.namespace['ControllerData']['x0']
+            if self.type == "controller":
+                plant_update = "ns=2;s="+self.namespace['PlantData']['u']
+                contr_update = "ns=2;s="+self.namespace['ControllerData']['u_opt']
+            try:
+                out1 = self.opcua_client.get_node(plant_update).set_value(dataVal)
+                out2 = self.opcua_client.get_node(contr_update).set_value(dataVal)
+            except ConnectionRefusedError:
+                print("Write operation by:", self.type, " failed @ time:", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
+                return False
+            return (out1 and out2)
+    
+        def readData(self):
+            # This function can read any data field from the server
+    
+            dataVal = []
+            if self.type == "simulator":
+                readVar = "ns=2;s="+self.namespace['PlantData']['u']
+            if self.type == "controller":
+                readVar = "ns=2;s="+self.namespace['ControllerData']['x0']
+            try:
+                dataVal = self.opcua_client.get_node(readVar).get_value()
+            except ConnectionRefusedError:
+                print("Read operation by:", self.type, "failed @ time: ", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
+            return dataVal
+        
+        
+class RealtimeSimulator(Simulator):
+    """The basic real-time, asynchronous simulator, which expands on the ::do-mpc class Simulator.
+    This class implements an asynchronous operation, making use of a connection to a predefined OPCUA server, as
+    a means of exchanging information with other modules, e.g. an NMPC controller or an estimator.
+    """
+    def __init__(self, model, opts):
+        """
+        
+        :param model: Initial state
+        :type model: numpy array
+        :opts: a dictionary of parameters, mainly cycle_time and data structure of the server
+        :type opts: cycle_time: float
+                    opc_opts: dict, see Client settings
 
-        return True
+        :return: None
+        :rtype: None
+        """
+        assert opts['_opc_opts']['_client_type'] == 'simulator', "You must define this module with asimulator OPC Client. Review your opts dictionary."
 
-    def disconnect(self):
-        self.opcua_client.disconnect()
-        print("A client of type", self.settings["type"],"disconnected from server",self.settings["server"])
-        #TODO disconnecting is by default done
-        return
+        super().__init__(model)
+        self.enabled    = True
+        self.cycle_time = opts['_cycle_time']
+        self.opc_client = Client(opts['_opc_opts'])
+        self.feedback = do_mpc.estimator.StateFeedback(model)
+        
+        self.opc_client.connect()
+        
+        # The server must be initialized with the x0 values of the simulator
+        self.opc_client.writeData(self._x0.cat.toarray(1).tolist())
+        
+    def run_asynchronously(self):
+        """
+        This function implements the server calls and simulator step with a predefined frequency
+        :param no params: because the cycle is stored by the object
+        
+        :return: none
+        :rtype: none
+        """
+        while self.enabled:
+            #Read the latest control inputs from server and execute step
+            uk = np.array(self.opc_client.readData())
+            
+            yk = self.make_step(uk)
+            xk = self.feedback.make_step(yk)
+            
+            # The full state vector is written back to the server
+            self.opc_client.writeData(xk.tolist())
+            
+            # The simulator must wait for a predefined time
+            time.sleep(self.cycle_time)
+            
+    def run_once(self):
+        #Read the latest control inputs from server and execute step
+        uk = np.array(self.opc_client.readData())
+        
+        yk = self.make_step(uk)
+        xk = self.feedback.make_step(yk)
+        
+        # The full state vector is written back to the server
+        self.opc_client.writeData(xk.tolist())
+        
+        # The simulator must wait for a predefined time
+        time.sleep(self.cycle_time)
+        
+class RealtimeController(MPC):
+    """The basic real-time, asynchronous simulator, which expands on the ::do-mpc class Simulator.
+    This class implements an asynchronous operation, making use of a connection to a predefined OPCUA server, as
+    a means of exchanging information with other modules, e.g. an NMPC controller or an estimator.
+    """
+    def __init__(self, model, opts):
+        """
+        
+        :param model: Initial state
+        :type model: numpy array
+        :opts: a dictionary of parameters, mainly cycle_time and data structure of the server
+        :type opts: cycle_time: float
+                    opc_opts: dict, see Client settings
 
-    def writeData(self, dataType, dataVal):
-        # This function can write data to any of the server defined namespaces
-        # TODO: handle also typed of writing e.g status data, operation flags etc
+        :return: None
+        :rtype: None
+        """
+        assert opts['_opc_opts']['_client_type'] == 'controller', "You must define this module with a controller OPC Client. Review your opts dictionary."
 
-        if self.type == "simulator":
-            writevar = "ns=2;s=States.vector"
-
-        if self.type == "optimizer":
-            writevar = "ns=2;s=Inputs.vector"
-        try:
-            out = self.opcua_client.get_node(writevar).set_value(dataVal)
-        except ConnectionRefusedError:
-            print("Write operation by:", self.type, " failed @ time:", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
-            return False
-        return out
-
-    def readData(self, dataType):
-        # This function can read any data from the server
-
-        dataVal = []
-        if self.type == "simulator":
-            readVar = "ns=2;s=Inputs.vector"
-        if self.type == "optimizer":
-            readVar = "ns=2;s=States.vector"
-        try:
-            dataVal = self.opcua_client.get_node(readVar).get_value()
-        except ConnectionRefusedError:
-            print("Read operation by:", self.type, "failed @ time: ", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
-        return dataVal
+        super().__init__(model)
+        self.enabled    = True
+        self.cycle_time = opts['_cycle_time']
+        self.opc_client = Client(opts['_opc_opts'])
+        
+        
+        self.opc_client.connect()
+        
+        # The server must be initialized with the x0 values of the simulator
+        self.opc_client.writeData(model._u(0).cat.toarray(1).tolist())
+        
+    def run_asynchronously(self):
+        """
+        This function implements the server calls and simulator step with a predefined frequency
+        :param no params: because the cycle is stored by the object
+        
+        :return: none
+        :rtype: none
+        """
+        while self.enabled:
+            #Read the latest plant state from server and execute optimization step
+            xk = np.array(self.opc_client.readData())
+            
+            uk = self.make_step(xk)
+            
+            # The optimal inputs are written back to the server
+            self.opc_client.writeData(uk.tolist())
+            
+            # The controller must wait for a predefined time
+            time_left = self.cycle_time-self.solver_stats['t_wall_S']
+            if time_left>0: time.sleep(time_left)
+            
+    def run_once(self):
+        """
+        This function implements the server calls and simulator step with a predefined frequency
+        :param no params: because the cycle is stored by the object
+        
+        :return: none
+        :rtype: none
+        """
+        
+        #Read the latest plant state from server and execute optimization step
+        xk = np.array(self.opc_client.readData())
+        
+        uk = self.make_step(xk)
+        
+        # The optimal inputs are written back to the server
+        self.opc_client.writeData(uk.tolist())
+        
+        # The controller must wait for a predefined time
+        time_left = self.cycle_time-self.solver_stats['t_wall_S']
+        if time_left>0: time.sleep(time_left)

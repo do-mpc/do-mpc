@@ -18,7 +18,7 @@
 #   GNU Lesser General Public License for more details.
 #
 #   You should have received a copy of the GNU General Public License
-#   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
+#   along with do-controller.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
 from casadi import *
@@ -27,15 +27,15 @@ import pdb
 import sys
 sys.path.append('../../')
 import do_mpc
+from opcmodules import RealtimeSimulator, RealtimeController
 
-
-def template_mpc(model):
+def template_mpc(model, opc_opts):
     """
     --------------------------------------------------------------------------
     template_mpc: tuning parameters
     --------------------------------------------------------------------------
     """
-    mpc = do_mpc.controller.MPC(model)
+    controller = RealtimeController(model,opc_opts)
 
     setup_mpc = {
         'n_horizon': 20,
@@ -48,58 +48,58 @@ def template_mpc(model):
         #'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
     }
 
-    mpc.set_param(**setup_mpc)
+    controller.set_param(**setup_mpc)
 
-    _x, _u, _z, _tvp, p, _aux,  *_ = mpc.model.get_variables()
+    _x, _u, _z, _tvp, p, _aux,  *_ = controller.model.get_variables()
 
     mterm = - _x['m_P']
     lterm = - _x['m_P']
 
-    mpc.set_objective(mterm=mterm, lterm=lterm)
-    mpc.set_rterm(m_dot_f=0.002, T_in_M=0.004, T_in_EK=0.002)
+    controller.set_objective(mterm=mterm, lterm=lterm)
+    controller.set_rterm(m_dot_f=0.002, T_in_M=0.004, T_in_EK=0.002)
 
     temp_range = 2.0
 
-    mpc.bounds['lower','_x','m_W'] = 0.0
-    mpc.bounds['lower','_x','m_A'] = 0.0
-    mpc.bounds['lower','_x','m_P'] = 26.0
+    controller.bounds['lower','_x','m_W'] = 0.0
+    controller.bounds['lower','_x','m_A'] = 0.0
+    controller.bounds['lower','_x','m_P'] = 26.0
 
-    mpc.bounds['lower','_x','T_R'] = 363.15 - temp_range
-    mpc.bounds['lower','_x','T_S'] = 298.0
-    mpc.bounds['lower','_x','Tout_M'] = 298.0
-    mpc.bounds['lower','_x','T_EK'] = 288.0
-    mpc.bounds['lower','_x','Tout_AWT'] = 288.0
-    mpc.bounds['lower','_x','accum_monom'] = 0.0
+    controller.bounds['lower','_x','T_R'] = 363.15 - temp_range
+    controller.bounds['lower','_x','T_S'] = 298.0
+    controller.bounds['lower','_x','Tout_M'] = 298.0
+    controller.bounds['lower','_x','T_EK'] = 288.0
+    controller.bounds['lower','_x','Tout_AWT'] = 288.0
+    controller.bounds['lower','_x','accum_monom'] = 0.0
 
-    mpc.bounds['upper','_x','T_R'] = 363.15 + temp_range + 10.0
-    mpc.bounds['upper','_x','T_S'] = 400.0
-    mpc.bounds['upper','_x','Tout_M'] = 400.0
-    mpc.bounds['upper','_x','T_EK'] = 400.0
-    mpc.bounds['upper','_x','Tout_AWT'] = 400.0
-    mpc.bounds['upper','_x','accum_monom'] = 30000.0
-    mpc.bounds['upper','_x','T_adiab'] = 382.15 + 10.0
+    controller.bounds['upper','_x','T_R'] = 363.15 + temp_range + 10.0
+    controller.bounds['upper','_x','T_S'] = 400.0
+    controller.bounds['upper','_x','Tout_M'] = 400.0
+    controller.bounds['upper','_x','T_EK'] = 400.0
+    controller.bounds['upper','_x','Tout_AWT'] = 400.0
+    controller.bounds['upper','_x','accum_monom'] = 30000.0
+    controller.bounds['upper','_x','T_adiab'] = 382.15 + 10.0
 
-    mpc.bounds['lower','_u','m_dot_f'] = 0.0
-    mpc.bounds['lower','_u','T_in_M'] = 333.15
-    mpc.bounds['lower','_u','T_in_EK'] = 333.15
+    controller.bounds['lower','_u','m_dot_f'] = 0.0
+    controller.bounds['lower','_u','T_in_M'] = 333.15
+    controller.bounds['lower','_u','T_in_EK'] = 333.15
 
-    mpc.bounds['upper','_u','m_dot_f'] = 3.0e4
-    mpc.bounds['upper','_u','T_in_M'] = 373.15
-    mpc.bounds['upper','_u','T_in_EK'] = 373.15
+    controller.bounds['upper','_u','m_dot_f'] = 3.0e4
+    controller.bounds['upper','_u','T_in_M'] = 373.15
+    controller.bounds['upper','_u','T_in_EK'] = 373.15
 
     # Scaling
-    mpc.scaling['_x','m_W'] = 10
-    mpc.scaling['_x','m_A'] = 10
-    mpc.scaling['_x','m_P'] = 10
-    mpc.scaling['_x','accum_monom'] = 10
+    controller.scaling['_x','m_W'] = 10
+    controller.scaling['_x','m_A'] = 10
+    controller.scaling['_x','m_P'] = 10
+    controller.scaling['_x','accum_monom'] = 10
 
-    mpc.scaling['_u','m_dot_f'] = 100
+    controller.scaling['_u','m_dot_f'] = 100
 
 
     delH_R_var = np.array([950.0, 950.0 * 1.30, 950.0 * 0.70])
     k_0_var = np.array([7.0*1.00, 7.0*1.30, 7.0*0.70])
-    mpc.set_uncertainty_values([delH_R_var, k_0_var])
+    controller.set_uncertainty_values([delH_R_var, k_0_var])
 
-    mpc.setup()
+    controller.setup()
 
-    return mpc
+    return controller
