@@ -161,7 +161,7 @@ class Model:
 
     def set_expression(self, expr_name, expr):
         """Introduce new expression to the model class. Expressions are not required but can be used
-        to extract further information from the model. They can also be use for the objective function or constraints.
+        to extract further information from the model. They can also be used for the objective function or constraints.
         Expressions must be formulated with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
 
         **Example:**
@@ -203,7 +203,7 @@ class Model:
         .. note::
 
             For moving horizon estimation it is suggested to declare all inputs (``_u``) and a subset of states (``_x``) as
-            measurable output. Some other MHE formulations treat inputs seperately.
+            measurable output. Some other MHE formulations treat inputs separately.
 
         **Example:**
 

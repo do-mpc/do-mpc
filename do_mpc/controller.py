@@ -208,10 +208,12 @@ class MPC(do_mpc.optimizer.Optimizer):
 
         .. math::
 
-           \min_{x,u,z}\quad \sum_{k=0}^{n-1} ( l(x_k,u_k,z_k,p) + \Delta u_k^T R \Delta u_k ) + m(x_n)
+           J(x,u,z)\quad \\sum_{k=0}^{N}\\left( \underbrace{l(x_k,u_k,z_k,p)}_{\\text{lagrange term}}
+           + \underbrace{\\Delta u_k^T R \\Delta u_k}_{\\text{r-term}}\\right)
+           + \underbrace{m(x_{N+1})}_{\\text{meyer term}}
 
-        :py:func:`optimizer.set_objective` is used to set the :math:`l(x_k,u_k,z_k,p)` (``lterm``) and :math:`m(x_N)` (``lterm``), where ``N`` is the prediction horizon.
-        Please see :py:func:`optimizer.set_rterm` for the ``rterm``.
+        :py:func:`MPC.set_objective` is used to set the :math:`l(x_k,u_k,z_k,p)` (``lterm``) and :math:`m(x_N)` (``mterm``), where ``N`` is the prediction horizon.
+        Please see :py:func:`MPC.set_rterm` for the ``rterm``.
 
         :param lterm: Stage cost - **scalar** symbolic expression with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``
         :type lterm:  CasADi SX or MX
