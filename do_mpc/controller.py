@@ -207,10 +207,9 @@ class MPC(do_mpc.optimizer.Optimizer):
         """Sets the objective of the optimal control problem (OCP). We introduce the following notation:
 
         .. math::
-
-           J(x,u,z)\quad \\sum_{k=0}^{N}\\left( \underbrace{l(x_k,u_k,z_k,p)}_{\\text{lagrange term}}
-           + \underbrace{\\Delta u_k^T R \\Delta u_k}_{\\text{r-term}}\\right)
-           + \underbrace{m(x_{N+1})}_{\\text{meyer term}}
+           J(x,u,z)\\quad \\sum_{k=0}^{N}\\left(\\underbrace{l(x_k,u_k,z_k,p)}_{\\text{lagrange term}}
+           + \\underbrace{\\Delta u_k^T R \\Delta u_k}_{\\text{r-term}}\\right)
+           + \\underbrace{m(x_{N+1})}_{\\text{meyer term}}
 
         :py:func:`MPC.set_objective` is used to set the :math:`l(x_k,u_k,z_k,p)` (``lterm``) and :math:`m(x_N)` (``mterm``), where ``N`` is the prediction horizon.
         Please see :py:func:`MPC.set_rterm` for the ``rterm``.
