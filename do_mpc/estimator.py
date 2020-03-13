@@ -706,7 +706,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         y_traj = self.y_fun(t0)
 
-        self.opt_p_num['_x_prev'] = x0
+        self.opt_p_num['_x_prev'] = self.opt_x_num['_x', 1, -1]*self._x_scaling
         self.opt_p_num['_p_est_prev'] = p_est0
         self.opt_p_num['_p_set'] = p_set0
         self.opt_p_num['_tvp'] = tvp0['_tvp']
