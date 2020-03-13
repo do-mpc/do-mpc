@@ -204,10 +204,10 @@ class MPC(do_mpc.optimizer.Optimizer):
 
 
     def set_objective(self, mterm=None, lterm=None):
-        """Sets the objective of the optimal control problem (OCP). We introduce the following notation:
+        """Sets the objective of the optimal control problem (OCP). We introduce the following cost function:
 
         .. math::
-           J(x,u,z)\\quad \\sum_{k=0}^{N}\\left(\\underbrace{l(x_k,u_k,z_k,p)}_{\\text{lagrange term}}
+           J(x,u,z) =  \\sum_{k=0}^{N}\\left(\\underbrace{l(x_k,u_k,z_k,p)}_{\\text{lagrange term}}
            + \\underbrace{\\Delta u_k^T R \\Delta u_k}_{\\text{r-term}}\\right)
            + \\underbrace{m(x_{N+1})}_{\\text{meyer term}}
 
