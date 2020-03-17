@@ -4,7 +4,7 @@
 #   do-mpc: An environment for the easy, modular and efficient implementation of
 #        robust nonlinear model predictive control
 #
-#   Copyright (c) 2014-2019 Sergio Lucia, Alexandru Tatulea-Codrean
+#   Copyright (c) 2014-2020 Sergio Lucia, Alexandru Tatulea-Codrean
 #                        TU Dortmund. All rights reserved
 #
 #   do-mpc is free software: you can redistribute it and/or modify
@@ -38,7 +38,7 @@ def template_mpc(model):
     mpc = do_mpc.controller.MPC(model)
 
     setup_mpc = {
-        'n_horizon': 20,
+        'n_horizon': 50,
         'n_robust': 0,
         'open_loop': 0,
         't_step': 0.02,
@@ -56,38 +56,40 @@ def template_mpc(model):
 
     _x, _u, _z, _tvp, p, _aux,  *_ = mpc.model.get_variables()
     #pdb.set_trace()
-    mterm = (_x['x'] - 0.0)**2
-    lterm = 10*(_x['theta'] - 0.0)**2
+    mterm = 100*(_x['x'] - 0.0)**2
+    lterm = (_x['theta'] - 0.0)**2
 
     mpc.set_objective(mterm=mterm, lterm=lterm)
 
-    mpc.set_rterm(F=0.001)
+    mpc.set_rterm(F=1e-2)
 
-    mpc.bounds['lower', '_x', 'x'] = -10.0
-    mpc.bounds['lower', '_x', 'v'] = -10.0
+    mpc.bounds['lower', '_x', 'x']     = -10.0
+    mpc.bounds['lower', '_x', 'v']     = -100.0
     mpc.bounds['lower', '_x', 'theta'] = -100*pi
-    mpc.bounds['lower', '_x', 'omega'] = -10.0
+    mpc.bounds['lower', '_x', 'omega'] = -100.0
 
-    mpc.bounds['upper', '_x', 'x'] = 10.0
-    mpc.bounds['upper', '_x', 'v'] = 10.0
+    mpc.bounds['upper', '_x', 'x']     = 10.0
+    mpc.bounds['upper', '_x', 'v']     = 100.0
     mpc.bounds['upper', '_x', 'theta'] = 100*pi
-    mpc.bounds['upper', '_x', 'omega'] = 10.0
+    mpc.bounds['upper', '_x', 'omega'] = 100.0
     
-    mpc.bounds['lower', '_u', 'F'] = -1.0
+    mpc.bounds['lower', '_u', 'F']     = -10.0
 
-    mpc.bounds['upper', '_u', 'F'] = 1.0
+    mpc.bounds['upper', '_u', 'F']     = 10.0
 
 
     # Instead of having a regular bound on T_R:
-    #mpc.bounds['upper', '_x', 'T_R'] = 140
+    #mpc.bounds['upper', '_x', 'x'] = 5.0
     # We can also have soft consraints as part of the set_nl_cons method:
-    #mpc.set_nl_cons('x_pendulum', _aux['x_pedulum'], ub=5.0, soft_constraint=True, penalty_term_cons=1e2)
+    mpc.set_nl_cons('oscillations', _x['theta'], ub=pi/10, soft_constraint=True, penalty_term_cons=1e4)
 
 
-    mpc._x0['x'] = -1.0
-    mpc._x0['v'] = 0.0
-    mpc._x0['theta'] = 0.3
+    mpc._x0['x']     = -2.0
+    mpc._x0['v']     = 0.0
+    mpc._x0['theta'] = 0.0
     mpc._x0['omega'] = 0.0
+    
+    mpc._u0['F'] = 0.0
 
     D_var = np.array([0., -0.5, 0.5])
 

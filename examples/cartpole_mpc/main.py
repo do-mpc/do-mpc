@@ -4,7 +4,7 @@
 #   do-mpc: An environment for the easy, modular and efficient implementation of
 #        robust nonlinear model predictive control
 #
-#   Copyright (c) 2014-2019 Sergio Lucia, Alexandru Tatulea-Codrean
+#   Copyright (c) 2014-2020 Sergio Lucia, Alexandru Tatulea-Codrean
 #                        TU Dortmund. All rights reserved
 #
 #   do-mpc is free software: you can redistribute it and/or modify
@@ -44,10 +44,10 @@ simulator = template_simulator(model)
 estimator = do_mpc.estimator.StateFeedback(model)
 
 # Set the initial state of mpc and simulator:
-x_0 = -1.0 # This is the initial concentration inside the tank [mol/l]
-v_0 = 0.0 # This is the controlled variable [mol/l]
-theta_0 = 0.3 #[C]
-omega_0 = 0.0 #[C]
+x_0     = -2.0 # This is the initial position of the cart on the X-axis
+v_0     = 0.0  # This is the initial velocity
+theta_0 = 0.0  # This is the initial vertical orientation of the pendulum
+omega_0 = 0.0  # And finally the initial angular velocity
 x0 = np.array([x_0, v_0, theta_0, omega_0]).reshape(-1,1)
 
 mpc.set_initial_state(x0, reset_history=True)
@@ -71,7 +71,7 @@ fig.align_ylabels()
 plt.ion()
 
 time_list = []
-for k in range(int(5/mpc.t_step)):
+for k in range(int(7/mpc.t_step)):
     tic = time.time()
     u0 = mpc.make_step(x0)
     y_next = simulator.make_step(u0)
