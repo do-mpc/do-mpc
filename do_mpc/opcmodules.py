@@ -348,6 +348,7 @@ class RealtimeSimulator(Simulator):
 
         super().__init__(model)
         self.enabled    = True
+        self.iter_count = 0
         self.cycle_time = opts['_cycle_time']
         self.opc_client = Client(opts['_opc_opts'])
         self.feedback = do_mpc.estimator.StateFeedback(model)
@@ -378,7 +379,7 @@ class RealtimeSimulator(Simulator):
             # The simulator must wait for a predefined time
             time.sleep(self.cycle_time)
             
-    def run_once(self):
+    def asynchronous_step(self):
         #Read the latest control inputs from server and execute step
         uk = np.array(self.opc_client.readData())
         
@@ -388,13 +389,88 @@ class RealtimeSimulator(Simulator):
         # The full state vector is written back to the server
         self.opc_client.writeData(xk.tolist())
         
+        self.iter_count = self.iter_count + 1
         # The simulator must wait for a predefined time
-        time.sleep(self.cycle_time)
+        #time.sleep(self.cycle_time)
         
 class RealtimeController(MPC):
     """The basic real-time, asynchronous simulator, which expands on the ::do-mpc class Simulator.
     This class implements an asynchronous operation, making use of a connection to a predefined OPCUA server, as
     a means of exchanging information with other modules, e.g. an NMPC controller or an estimator.
+    """
+    def __init__(self, model, opts):
+        """
+        
+        :param model: Initial state
+        :type model: numpy array
+        :opts: a dictionary of parameters, mainly cycle_time and data structure of the server
+        :type opts: cycle_time: float
+                    opc_opts: dict, see Client settings
+
+        :return: None
+        :rtype: None
+        """
+        assert opts['_opc_opts']['_client_type'] == 'controller', "You must define this module with a controller OPC Client. Review your opts dictionary."
+
+        super().__init__(model)
+        self.enabled    = True
+        self.iter_count = 0
+        self.cycle_time = opts['_cycle_time']
+        self.opc_client = Client(opts['_opc_opts'])
+        
+        
+        self.opc_client.connect()
+        
+        # The server must be initialized with the x0 values of the simulator
+        self.opc_client.writeData(model._u(0).cat.toarray(1).tolist())
+        
+    def run_asynchronously(self):
+        """
+        This function implements the server calls and simulator step with a predefined frequency
+        :param no params: because the cycle is stored by the object
+        
+        :return: none
+        :rtype: none
+        """
+        while self.enabled:
+            #Read the latest plant state from server and execute optimization step
+            xk = np.array(self.opc_client.readData())
+            
+            uk = self.make_step(xk)
+            
+            # The optimal inputs are written back to the server
+            self.opc_client.writeData(uk.tolist())
+            
+            # The controller must wait for a predefined time
+            time_left = self.cycle_time-self.solver_stats['t_wall_S']
+            if time_left>0: time.sleep(time_left)
+            
+    def asynchronous_step(self):
+        """
+        This function implements the server calls and simulator step with a predefined frequency
+        :param no params: because the cycle is stored by the object
+        
+        :return: none
+        :rtype: none
+        """
+        
+        #Read the latest plant state from server and execute optimization step
+        xk = np.array(self.opc_client.readData())
+        
+        uk = self.make_step(xk)
+        
+        # The optimal inputs are written back to the server
+        self.opc_client.writeData(uk.tolist())
+        
+        self.iter_count = self.iter_count + 1
+        # The controller must wait for a predefined time
+        time_left = self.cycle_time-self.solver_stats['t_wall_S']
+        #if time_left>0: time.sleep(time_left)
+
+class RealtimeEstimator(Estimator):
+    """The basic real-time, asynchronous estimator, which expands on the ::do-mpc class Estimator.
+    This class implements an asynchronous operation, making use of a connection to a predefined OPCUA server, as
+    a means of exchanging information with other modules, e.g. an NMPC controller or a simulator.
     """
     def __init__(self, model, opts):
         """
@@ -442,7 +518,7 @@ class RealtimeController(MPC):
             time_left = self.cycle_time-self.solver_stats['t_wall_S']
             if time_left>0: time.sleep(time_left)
             
-    def run_once(self):
+    def asynchronous_step(self):
         """
         This function implements the server calls and simulator step with a predefined frequency
         :param no params: because the cycle is stored by the object
@@ -461,4 +537,47 @@ class RealtimeController(MPC):
         
         # The controller must wait for a predefined time
         time_left = self.cycle_time-self.solver_stats['t_wall_S']
-        if time_left>0: time.sleep(time_left)
+        #if time_left>0: time.sleep(time_left)
+
+
+from threading import Timer
+
+class RealtimeTrigger(object):
+    """
+    This class is employed in timing the execution of your real-time ::do-mpc modules. One RealtimeTrigger is required 
+    for every module, i.e. one for the simulator, one for the controller and one for the estimator, if the latter is present.
+    """
+        
+    def __init__(self, interval, function, *args, **kwargs):
+        """
+        This function implements the server calls and simulator step with a predefined frequency
+        :interval: because the cycle is stored by the object
+        :function: a function to be called every 'interval' seconds
+        :args : arguments to pass to the tareget function
+        :return: none
+        :rtype: none
+        """
+        self._timer = None
+        self.interval = interval
+        self.function = function
+        self.args = args
+        self.kwargs = kwargs
+        self.is_running = False
+        self.next_call = time.time()
+        self.start()
+    
+    def _run(self):
+        self.is_running = False
+        self.start()
+        self.function(*self.args, **self.kwargs)
+  
+    def start(self):
+        if not self.is_running:
+            self.next_call += self.interval
+            self._timer = Timer(self.next_call - time.time(), self._run)
+            self._timer.start()
+            self.is_running = True
+  
+    def stop(self):
+        self._timer.cancel()
+        self.is_running = False
