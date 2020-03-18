@@ -24,6 +24,7 @@ import numpy as np
 from casadi import *
 from casadi.tools import *
 import pdb
+import warnings
 
 
 class Model:
@@ -67,7 +68,8 @@ class Model:
     :raises assertion: model_type must be string
     :raises assertion: model_type must be either discrete or continuous
     """
-    def __init__(self, model_type=None):
+
+    def __init__(self, model_type=None, symvar_type = 'SX'):
         assert isinstance(model_type, str), 'model_type must be string, you have: {}'.format(type(model_type))
         assert model_type in ['discrete', 'continuous'], 'model_type must be either discrete or continuous, you have: {}'.format(model_type)
 
@@ -75,16 +77,16 @@ class Model:
 
         # Initilize lists for variables, expressions and rhs to be added to the model
         self.var_list = {
-            '_x': [],
-            '_u': [{'var_name': 'default', 'value':SX.sym('default',(0,0))}],
-            '_z': [{'var_name': 'default', 'value':SX.sym('default',(0,0))}],
-            '_y': [{'var_name': 'default', 'value':SX.sym('default',(0,0))}],
-            '_p': [{'var_name': 'default', 'value':SX.sym('default',(0,0))}],
-            '_tvp': [{'var_name': 'default', 'value':SX.sym('default',(0,0))}],
-            '_aux': [{'var_name': 'default', 'value':SX.sym('default',(0,0))}],
+            '_x':   [],
+            '_u':   [entry('default', shape=(0,0))],
+            '_z':   [entry('default', shape=(0,0))],
+            '_y':   [entry('default', shape=(0,0))],
+            '_p':   [entry('default', shape=(0,0))],
+            '_tvp': [entry('default', shape=(0,0))],
+            '_aux': [entry('default', shape=(0,0))],
         }
         self.expr_list = [
-            {'expr_name': 'default', 'expr': DM()}
+            entry('default', expr=DM(0))
         ]
         self.rhs_list = []
         self.meas_list = []
@@ -143,19 +145,22 @@ class Model:
         assert isinstance(var_name, str), 'var_name must be str, you have: {}'.format(type(var_name))
         assert isinstance(shape, (tuple,int)), 'shape must be tuple or int, you have: {}'.format(type(shape))
 
-        var = SX.sym(var_name,shape)
-        if var_type in ['states', '_x']:
-            self.var_list['_x'].extend([{'var_name': var_name, 'value':var}])
-        elif var_type in ['inputs', '_u']:
-            self.var_list['_u'].extend([{'var_name': var_name, 'value':var}])
-        elif var_type in ['algebraic', '_z']:
-            self.var_list['_z'].extend([{'var_name': var_name, 'value':var}])
-        elif var_type in ['parameter', '_p']:
-            self.var_list['_p'].extend([{'var_name': var_name, 'value':var}])
-        elif var_type in ['timevarying_parameter', '_tvp']:
-            self.var_list['_tvp'].extend([{'var_name': var_name, 'value':var}])
-        else:
-            warning('Trying to set non-existing variable var_type: {} with var_name {}'.format(var_type, var_name))
+        # Get short names:
+        var_type =var_type.replace('states', '_x'
+            ).replace('inputs', '_u'
+            ).replace('algebraic', '_z'
+            ).replace('parameter', '_p'
+            ).replace('timevarying_parameter', '_tvp')
+
+        # Check validity of var_type:
+        assert var_type in ['_x','_u','_z','_p','_tvp'], 'Trying to set non-existing variable var_type: {} with var_name {}'.format(var_type, var_name)
+        # Check validity of var_name:
+        assert var_name not in [entry_i.name for entry_i in self.var_list[var_type]], 'The variable name {} for type {} already exists.'.format(var_name, var_type)
+        # Create variable:
+        var = SX.sym(var_name, shape)
+
+        # Extend var_list with new entry:
+        self.var_list[var_type].extend([entry(var_name, sym=var)])
 
         return var
 
@@ -191,8 +196,8 @@ class Model:
         assert self.flags['setup'] == False, 'Cannot call .set_expression after :py:func:`Model.setup_model`'
         assert isinstance(expr_name, str), 'expr_name must be str, you have: {}'.format(type(expr_name))
         assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
-        self.expr_list.extend([{'expr_name': expr_name, 'expr': expr}])
-        self.var_list['_aux'].extend([{'var_name': expr_name, 'value':SX.sym(expr_name, expr.shape)}])
+        self.expr_list.extend([entry(expr_name, expr = expr)])
+        self.var_list['_aux'].extend([entry(expr_name, shape=expr.shape)])
 
         return expr
 
@@ -234,8 +239,8 @@ class Model:
         assert self.flags['setup'] == False, 'Cannot call .set_meas after :py:func:`Model.setup_model`'
         assert isinstance(meas_name, str), 'meas_name must be str, you have: {}'.format(type(meas_name))
         assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
-        self.meas_list.extend([{'meas_name': meas_name, 'expr': expr}])
-        self.var_list['_y'].extend([{'var_name': meas_name, 'value':SX.sym(meas_name,expr.shape)}])
+        self.meas_list.extend([entry(meas_name, expr = expr)])
+        self.var_list['_y'].extend([entry(meas_name, shape=expr.shape)])
 
         return expr
 
@@ -285,7 +290,7 @@ class Model:
         assert self.flags['setup'] == False, 'Cannot call .set_rhs after .setup_model.'
         assert isinstance(var_name, str), 'var_name must be str, you have: {}'.format(type(var_name))
         assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
-        _x_names = [_x_dict_i['var_name']  for _x_dict_i in self.var_list['_x']]
+        _x_names = [entry_i.name for entry_i in self.var_list['_x']]
         assert var_name in _x_names, 'var_name must refer to the previously defined states ({}). You have: {}'.format(_x_names, var_name)
         self.rhs_list.extend([{'var_name': var_name, 'expr': expr}])
 
@@ -333,8 +338,19 @@ class Model:
         return self._x, self._u, self._z, self._tvp, self._p, self._aux_expression, self._y, self._y_expression
 
 
-
     def setup_model(self):
+        """Legacy method.
+
+        .. warning::
+
+            The method is depreciated and will be removed in a later version.
+            Please call :py:func:`Model.setup` instead.
+        """
+
+        warnings.warn('This method is depreciated. Please use Model.setup instead. This will become an error in a future release', DeprecationWarning)
+        self.setup()
+
+    def setup(self):
         """Setup method must be called to finalize the modelling process.
         All required model variables ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p`` must be declared.
         The right hand side expression for ``_x`` must have been set with :py:func:`model.set_rhs`.
@@ -356,36 +372,27 @@ class Model:
         # Write self._x, self._u, self._z, self._y, self._tvp, self.p with the respective struct_symSX structures.
         # Use the previously defined SX.sym variables to declare shape and symbolic variable.
         for var_type_i, var_list_i in self.var_list.items():
-            struct_i  = struct_symSX([
-                entry(var_ik['var_name'], sym=var_ik['value']) for var_ik in var_list_i
-            ])
+            struct_i  = struct_symSX(var_list_i)
             setattr(self, var_type_i, struct_i)
 
         # Write self._aux_expression.
         # Use the previously defined SX.sym variables to declare shape and symbolic variable.
-        self._aux_expression = struct_SX([
-            entry(expr_i['expr_name'], expr=expr_i['expr']) for expr_i in self.expr_list
-        ])
+        self._aux_expression = struct_SX(self.expr_list)
 
         # Write self._y_expression (measurement equations) as struct_SX symbolic expression structures.
         # Use the previously defined SX.sym variables to declare shape and symbolic variable.
         # If no measurement expressions are declared, use state-feedback as default measurement.
         if not self.meas_list:
-            self._y_expression = struct_SX([
-                entry(var_k['var_name'], expr=var_k['value']) for var_k in self.var_list['_x']
-            ])
+            self._y_expression = struct_SX(self.var_list['_x'])
         else:
-            self._y_expression = struct_SX([
-                entry(meas_i['meas_name'], expr=meas_i['expr']) for meas_i in self.meas_list
-            ])
-        #assert set(symvar(self._y_expression)).issubset(set(symvar(self._x))), 'Measurement equation must be solely depending on states (_x).'
+            self._y_expression = struct_SX(self.meas_list)
 
         # Create mutable struct_SX with identical structure as self._x to hold the right hand side.
         self._rhs = struct_SX(self._x)
 
         # Set the expressions in self._rhs with the previously defined SX.sym variables.
         # Check if an expression is set for every state of the system.
-        _x_names = set([_x_dict_i['var_name']  for _x_dict_i in self.var_list['_x']])
+        _x_names = set(self._x.keys())
         for rhs_i in self.rhs_list:
             self._rhs[rhs_i['var_name']] = rhs_i['expr']
             _x_names -= set([rhs_i['var_name']])
