@@ -161,6 +161,96 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
     :type p_est_list: list
 
     """
+
+    opt_x_num = None
+    """Full MHE solution and initial guess.
+
+    This is the core attribute of the MHE class.
+    It is used as the initial guess when solving the optimization problem
+    and then overwritten with the current solution.
+
+    The attribute is a CasADi numeric structure with nested power indices.
+    It can be indexed as follows:
+
+    ::
+
+        # dynamic states:
+        opt_x_num['_x', time_step, collocation_point, _x_name]
+        # algebraic states:
+        opt_x_num['_z', time_step, collocation_point, _z_name]
+        # inputs:
+        opt_x_num['_u', time_step, _u_name]
+        # estimated parameters:
+        opt_x_Num['_p_est', _p_names]
+        # slack variables for soft constraints:
+        opt_x_num['_eps', time_step, _nl_cons_name]
+
+    The names refer to those given in the :py:class:`do_mpc.model.Model` configuration.
+    Further indices are possible, if the variables are itself vectors or matrices.
+
+    The attribute can be used **to manually set a custom initial guess or for debugging purposes**.
+
+    .. note::
+
+        The attribute ``opt_x_num`` carries the scaled values of all variables. See ``opt_x_num_unscaled``
+        for the unscaled values (these are not used as the initial guess).
+
+    .. warning::
+
+        Do not tweak or overwrite this attribute unless you known what you are doing.
+
+    .. note::
+
+        The attribute is populated when calling :py:func:`MHE.setup`
+    """
+
+    opt_p_num = None
+    """Full MHE parameter vector.
+
+    This attribute is used when calling the solver to pass all required parameters,
+    including
+
+    * previously estimated state(s)
+
+    * previously estimated parameter(s)
+
+    * known parameters
+
+    * sequence of time-varying parameters
+
+    * sequence of measurements parameters
+
+    **do-mpc** handles setting these parameters automatically in the :py:func:`MHE.make_step`
+    method. However, you can set these values manually and directly call :py:func:`MHE.solve`.
+
+    The attribute is a CasADi numeric structure with nested power indices.
+    It can be indexed as follows:
+
+    ::
+
+        # previously estimated state:
+        opt_p_num['_x_prev', _x_name]
+        # previously estimated parameters:
+        opt_p_num['_p_est_prev', _x_name]
+        # known parameters
+        opt_p_num['_p_set', _p_name]
+        # time-varying parameters:
+        opt_p_num['_tvp', time_step, _tvp_name]
+        # sequence of measurements:
+        opt_p_num['_y_meas', time_step, _y_name]
+
+    The names refer to those given in the :py:class:`do_mpc.model.Model` configuration.
+    Further indices are possible, if the variables are itself vectors or matrices.
+
+    .. warning::
+
+        Do not tweak or overwrite this attribute unless you known what you are doing.
+
+    .. note::
+
+        The attribute is populated when calling :py:func:`MHE.setup`
+
+    """
     def __init__(self, model, p_est_list=[]):
         Estimator.__init__(self, model)
         do_mpc.optimizer.Optimizer.__init__(self)

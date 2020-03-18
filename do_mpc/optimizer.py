@@ -492,7 +492,7 @@ class Optimizer:
         ``self.opt_p_num`` CasADi structured Data.
         These include the initial condition, the parameters, the time-varying paramters and the previous input.
         Typically, ``self.opt_p_num`` is prepared for the current iteration in the ``.make_step()`` (in MHE/MPC) method.
-        It is, however, valid and possible to directly set paramters in ``self.opt_p_num ``before calling ``.solve()``.
+        It is, however, valid and possible to directly set paramters in ``self.opt_p_num`` before calling ``.solve()``.
 
         Solve updates the ``opt_x_num``, and ``lam_g_num`` attributes of the class.
         In resetting, ``opt_x_num`` to the current solution, the method implicitly
