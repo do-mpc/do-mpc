@@ -52,15 +52,15 @@ class Model:
 
     Configuring and setting up the optimizer involves the following steps:
 
-    1. Use :py:func:`Model.set_variable` to introduce new variables to the model. It is important to declare the variable type (states, inputs, etc.).
+    1. Use :py:func:`set_variable` to introduce new variables to the model. It is important to declare the variable type (states, inputs, etc.).
 
-    2. Optionally introduce "auxiliary" expressions as functions of the previously defined variables with :py:func:`Model.set_expression`. The expressions can be used for monitoring or be reused as constraints, the cost function etc.
+    2. Optionally introduce "auxiliary" expressions as functions of the previously defined variables with :py:func:`set_expression`. The expressions can be used for monitoring or be reused as constraints, the cost function etc.
 
-    3. Optionally introduce measurement equations with :py:func:`Model.set_meas`. The syntax is identical to :py:func:`Model.set_expression`. By default state-feedback is assumed.
+    3. Optionally introduce measurement equations with :py:func:`set_meas`. The syntax is identical to :py:func:`set_expression`. By default state-feedback is assumed.
 
-    4. Define the right-hand-side of the `discrete` or `continuous` model as a function of the previously defined variables with :py:func:`Model.set_rhs`. This method must be called once for each introduced state.
+    4. Define the right-hand-side of the `discrete` or `continuous` model as a function of the previously defined variables with :py:func:`set_rhs`. This method must be called once for each introduced state.
 
-    5. Call :py:func:`Model.setup` to finalize the :py:class:`Model`. No further changes are possible afterwards.
+    5. Call :py:func:`setup` to finalize the :py:class:`Model`. No further changes are possible afterwards.
 
     :param model_type: Set if the model is ``discrete`` or ``continuous``.
     :type var_type: str
