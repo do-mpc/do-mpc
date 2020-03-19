@@ -617,7 +617,7 @@ class Model:
         .. warning::
 
             The method is depreciated and will be removed in a later version.
-            Please call :py:func:`setup` instead.
+            Please query class attributes (variables) directly.
 
         This method is convenient when creating the model in a different file
         than the, e.g. the :py:class:`do_mpc.optimizer`. Returns the variables as a list with the following order:
