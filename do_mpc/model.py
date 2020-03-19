@@ -91,7 +91,7 @@ class Model:
 
 
 
-    def __init__(self, model_type=None, symvar_type = 'SX'):
+    def __init__(self, model_type=None):
         assert isinstance(model_type, str), 'model_type must be string, you have: {}'.format(type(model_type))
         assert model_type in ['discrete', 'continuous'], 'model_type must be either discrete or continuous, you have: {}'.format(model_type)
 
