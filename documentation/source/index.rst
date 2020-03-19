@@ -100,6 +100,7 @@ Table of contents
 
    license
    installation
+   credit
 
 .. toctree::
    :maxdepth: 5
