@@ -121,5 +121,4 @@ def template_model():
     # Build the model
     model.setup_model()
 
-
     return model

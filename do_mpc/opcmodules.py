@@ -29,12 +29,12 @@ import do_mpc
 import opcua
 import time
 from do_mpc.simulator import Simulator
-from do_mpc.estimator import Estimator
+from do_mpc.estimator import *
 from do_mpc.controller import MPC
 
 class Server:
     """**do-mpc** OPCUA Server. An instance of this class is created for all active **do-mpc** classes,
-    e.g. :py:class:`do_mpc.simulator.Simulator`, :py:class:`do_mpc.controller.MPC`, :py:class:`do_mpc.estimator.MHE`.
+    e.g. :py:class:`do_mpc.simulator.Simulator`, :py:class:`do_mpc.controller.MPC`, :py:class:`do_mpc.estimator.EKF`.
 
     The class is initialized with relevant instances of the **do-mpc** configuration, e.g :py:class:`do_mpc.model.Model`, :py:class:`do_mpc.model.Optimizer` etc, which contain all
     information about variables (e.g. states, inputs, optimization outputs etc.).
@@ -45,12 +45,8 @@ class Server:
     def __init__(self, opts):
         self.dtype = 'default'
         model = opts['_model']
-        assert model.flags['setup'] == True, 'Model was not setup. After the complete model creation call model.setup_model().'
-        #assert optimizer.flags['setup'] == True, 'Optimizer was not setup. After the complete model creation call model.setup_model().'
-        #assert simulator.flags['setup'] == True, 'Simulator was not setup. After the complete model creation call model.setup_model().'
         #TODO: signal to the user that the server structure is initialized without the observer
-        #assert observer.flags['setup'] == True, 'Observer was not setup. After the complete model creation call model.setup_model().'
-
+       
         # The basic OPCUA server definition contains a name, address and a port numer
         # The user can decide if they want to activate the SQL database option (_with_db=TRUE)
         self.name    = opts['_name']
@@ -88,7 +84,7 @@ class Server:
         self.namespace = {
             'PlantData':{'x':"States.X",'z':"States.Z",'u':"Inputs",'y':"Measurements",'p':"Parameters"},
             'ControllerData':{'x0':"InitialGuess",'u_opt':"OptimalOutputs"},
-            'EstimatorData':{'flags':"Flags",'switches':"Switches"},
+            'EstimatorData':{'xhat':"Estimates.X",'phat':"Estimates.P"},
             'UserData':{'flags':"Flags",'switches':"Switches"}
             }
         try:
@@ -124,7 +120,7 @@ class Server:
         datavector = localvar.add_variable(opcua.ua.NodeId("Inputs", idx), "Inputs", placeholder)
         datavector.set_writable()
         if self.server_type == 'with_parameters':
-            placeholder = [0 for x in range(self.data_structure['nr_p'])] if self.data_structure['nr_p']>0 else [0]
+            placeholder = [0 for x in range(self.data_structure['nr_mod_pars'])] if self.data_structure['nr_p']>0 else [0]
             datavector = localvar.add_variable(opcua.ua.NodeId("Parameters", idx), "Parameters", placeholder)
             datavector.set_writable()
         
@@ -145,9 +141,13 @@ class Server:
             datavector = localvar.add_variable(opcua.ua.NodeId("Predictions", idx), "Predictions", placeholder)
             datavector.set_writable()    
         
-        if self.server_type == 'with_estimatior':
+        if self.server_type == 'with_estimator':
             localvar = objects.add_object(opcua.ua.NodeId("EstimatorData", idx), "EstimatorData")
-            datavector = localvar.add_variable(opcua.ua.NodeId("States", idx), "EstimatedStates",  placeholder)
+            placeholder = [0 for x in range(self.data_structure['nr_x_states'])]
+            datavector = localvar.add_variable(opcua.ua.NodeId("Estimates.X", idx), "Estimates.X",  placeholder)
+            datavector.set_writable()
+            placeholder = [0 for x in range(self.data_structure['nr_mod_pars'])]
+            datavector = localvar.add_variable(opcua.ua.NodeId("Estimates.P", idx), "Estimates.P",  placeholder)
             datavector.set_writable()
             
         # The flags are defined by default 
@@ -294,39 +294,47 @@ class Client:
             #TODO: disconnecting is done automatically upon console termination?
             
     
-        def writeData(self, dataVal):
+        def writeData(self, dataVal, tag):
             # This function can write data to any of the server defined namespaces
             # TODO: handle also type of writing e.g status data, operation flags etc
             assert type(dataVal) == list, "The data you provided is not arranged as a list. See the instructions for passing data to the server."
-            if self.type == "simulator":
-                plant_update = "ns=2;s="+self.namespace['PlantData']['x']
-                contr_update = "ns=2;s="+self.namespace['ControllerData']['x0']
-            if self.type == "controller":
-                plant_update = "ns=2;s="+self.namespace['PlantData']['u']
-                contr_update = "ns=2;s="+self.namespace['ControllerData']['u_opt']
+            assert "ns=2;s=" in tag, "The data destination you have provided is invalid. Refer to the OPCUA server namespace and define a correct source."
+            
             try:
-                out1 = self.opcua_client.get_node(plant_update).set_value(dataVal)
-                out2 = self.opcua_client.get_node(contr_update).set_value(dataVal)
+                wr_result = self.opcua_client.get_node(tag).set_value(dataVal)
             except ConnectionRefusedError:
                 print("Write operation by:", self.type, " failed @ time:", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
                 return False
-            return (out1 and out2)
+            
+            # if self.type == "simulator":
+            #     plant_update = "ns=2;s="+self.namespace['PlantData']['x']
+            #     contr_update = "ns=2;s="+self.namespace['ControllerData']['x0']
+            # if self.type == "controller":
+            #     plant_update = "ns=2;s="+self.namespace['PlantData']['u']
+            #     contr_update = "ns=2;s="+self.namespace['ControllerData']['u_opt']
+            # try:
+            #     out1 = self.opcua_client.get_node(plant_update).set_value(dataVal)
+            #     out2 = self.opcua_client.get_node(contr_update).set_value(dataVal)
+            # except ConnectionRefusedError:
+            #     print("Write operation by:", self.type, " failed @ time:", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
+            #     return False
+            return wr_result
     
-        def readData(self):
-            # This function can read any data field from the server
-    
-            dataVal = []
-            if self.type == "simulator":
-                readVar = "ns=2;s="+self.namespace['PlantData']['u']
-            if self.type == "controller":
-                readVar = "ns=2;s="+self.namespace['ControllerData']['x0']
+        def readData(self, tag):
+            # This function can read any data field from the server, from the source defined by the tag
+            assert "ns=2;s=" in tag, "The data source you have provided is invalid. Refer to the OPCUA server namespace and define a correct source."
+           
+            # if self.type == "simulator":
+            #     readVar = "ns=2;s="+self.namespace['PlantData']['u']
+            # if self.type == "controller":
+            #     readVar = "ns=2;s="+self.namespace['ControllerData']['x0']
             try:
-                dataVal = self.opcua_client.get_node(readVar).get_value()
+                dataVal = self.opcua_client.get_node(tag).get_value()
             except ConnectionRefusedError:
                 print("Read operation by:", self.type, "failed @ time: ", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
             return dataVal
-        
-        
+
+
 class RealtimeSimulator(Simulator):
     """The basic real-time, asynchronous simulator, which expands on the ::do-mpc class Simulator.
     This class implements an asynchronous operation, making use of a connection to a predefined OPCUA server, as
@@ -356,8 +364,27 @@ class RealtimeSimulator(Simulator):
         self.opc_client.connect()
         
         # The server must be initialized with the x0 values of the simulator
-        self.opc_client.writeData(self._x0.cat.toarray(1).tolist())
+        tag = "ns=2;s="+self.opc_client.namespace['PlantData']['x']
+        self.opc_client.writeData(self._x0.cat.toarray().tolist(), tag)
+    
+    def init_server(self, dataVal):
+         # The server must be initialized with the x0 values of the simulator
+        tag = "ns=2;s="+self.opc_client.namespace['PlantData']['x']
+        try:
+            self.opc_client.writeData(dataVal, tag)
+        except RuntimeError:
+            self.enabled = False
+            print("The real-time simulator could not connect to the server. Please correct the server setup.")
         
+        
+    def stop(self):
+        try:
+            self.opc_client.disconnect()
+            self.enabled = False
+        except RuntimeError:
+            # TODO: catch the correct error and parse message
+            print("The real-time simulator could not be stopped due to server issues.")
+              
     def run_asynchronously(self):
         """
         This function implements the server calls and simulator step with a predefined frequency
@@ -380,19 +407,21 @@ class RealtimeSimulator(Simulator):
             time.sleep(self.cycle_time)
             
     def asynchronous_step(self):
+        
+        tag_in  = "ns=2;s="+self.opc_client.namespace['ControllerData']['u_opt']
+        tag_out = "ns=2;s="+self.opc_client.namespace['PlantData']['x']
         #Read the latest control inputs from server and execute step
-        uk = np.array(self.opc_client.readData())
+        uk = np.array(self.opc_client.readData(tag_in))
         
         yk = self.make_step(uk)
         xk = self.feedback.make_step(yk)
         
         # The full state vector is written back to the server
-        self.opc_client.writeData(xk.tolist())
+        self.opc_client.writeData(xk.tolist(), tag_out)
         
         self.iter_count = self.iter_count + 1
-        # The simulator must wait for a predefined time
-        #time.sleep(self.cycle_time)
-        
+
+     
 class RealtimeController(MPC):
     """The basic real-time, asynchronous simulator, which expands on the ::do-mpc class Simulator.
     This class implements an asynchronous operation, making use of a connection to a predefined OPCUA server, as
@@ -415,14 +444,78 @@ class RealtimeController(MPC):
         super().__init__(model)
         self.enabled    = True
         self.iter_count = 0
+        self.output_feedback = opts['_output_feedback']
         self.cycle_time = opts['_cycle_time']
         self.opc_client = Client(opts['_opc_opts'])
         
-        
-        self.opc_client.connect()
-        
+        try:
+            self.opc_client.connect()
+        except RuntimeError:
+            # TODO: catch the correct error and parse message
+            print("The real-time controller could not connect to the server.")
+            self.is_ready = False
+            
         # The server must be initialized with the x0 values of the simulator
-        self.opc_client.writeData(model._u(0).cat.toarray(1).tolist())
+        if self.opc_client.connected:
+            tag = "ns=2;s="+self.opc_client.namespace['ControllerData']['u_opt']
+            self.opc_client.writeData(model._u(0).cat.toarray().tolist(), tag)
+            self.is_ready = True
+        else:
+            print("The server data could not be initialized by the controller!")
+            self.is_ready = False 
+            
+    def init_server(self, dataVal):
+         # The server must be initialized with the u0 values of the simulator
+        tag = "ns=2;s="+self.opc_client.namespace['ControllerData']['u_opt']
+        try:
+            self.opc_client.writeData(dataVal, tag)
+        except RuntimeError:
+            self.enabled = False
+            print("The real-time controller could not connect to the server. Please correct the server setup.")
+        # One optimizer iteration is called before starting the cyclical operation
+        self.asynchronous_step()
+
+    def stop(self):
+        try:
+            self.opc_client.disconnect()
+            self.enabled = False
+        except RuntimeError:
+            # TODO: catch the correct error and parse message
+            print("The real-time controller could not be stopped due to server issues.")
+                
+    def check_status(self):
+        """
+        This function is called before every optimization step to ensure that the server data
+        is sane and a call to the optimizer can be made in good faith, i.e. the plant state
+        contains meaningful data and that no flags have been raised.
+        
+        :param no params: this function onyl needs internal data
+        
+        :return: check_result is the result of all the check done by the controller before executing the step
+        :rtype: bool
+        """
+        check_result = self.is_ready
+        # Step 1: check that the server is running
+        check_result = self.opc_client.connected and check_result
+        # Step 2: check whether the controller should run and no controller flags have been raised
+        
+        # Step 2: check that the plant/simulator is running and no simulator flags have been raised
+        
+        self.is_ready = check_result
+        return check_result
+    
+    def _initialize_optimizer(self):
+        """
+        This is an internal function meant to be called before each controller step to reinitialize the initial guess of 
+        the NLP solver with the most recent plant data.
+        
+        :param no params: because the cycle is stored by the object
+        
+        :return: none
+        :rtype: none
+        """
+        x0 = np.array(self.opc_client.readData())
+        # TODO: implement a more "clever" initialization, e.g by running the integrator over the prediction horizon
         
     def run_asynchronously(self):
         """
@@ -450,24 +543,38 @@ class RealtimeController(MPC):
         This function implements the server calls and simulator step with a predefined frequency
         :param no params: because the cycle is stored by the object
         
-        :return: none
-        :rtype: none
+        :return: time_left, the remaining time on the clock when the optimizer has finished the routine
+        :rtype: float
         """
+        if self.output_feedback:
+            tag_in  = "ns=2;s="+self.opc_client.namespace['PlantData']['x']
+        else:
+            tag_in  = "ns=2;s="+self.opc_client.namespace['EstimatorData']['xhat']
+        tag_out = "ns=2;s="+self.opc_client.namespace['ControllerData']['u_opt']
         
-        #Read the latest plant state from server and execute optimization step
-        xk = np.array(self.opc_client.readData())
+        # Read the latest plant state from server and execute optimization step
+        xk = np.array(self.opc_client.readData(tag_in))
         
-        uk = self.make_step(xk)
-        
+        # The NLP must be reinitialized with the most current data from the plant readings
+        self.set_initial_state(np.array(self.opc_client.readData(tag_in)), reset_history=True)
+        self.set_initial_guess()
+
+        # Check the current status before running the optimizer step 
+        if self.check_status():
+            uk = self.make_step(xk)
+        else: 
+            print("The controller failed executing the step @ ", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
         # The optimal inputs are written back to the server
-        self.opc_client.writeData(uk.tolist())
+        self.opc_client.writeData(uk.tolist(), tag_out)
         
         self.iter_count = self.iter_count + 1
         # The controller must wait for a predefined time
         time_left = self.cycle_time-self.solver_stats['t_wall_S']
-        #if time_left>0: time.sleep(time_left)
+       
+        return time_left
 
-class RealtimeEstimator(Estimator):
+
+class RealtimeFeedback(StateFeedback):
     """The basic real-time, asynchronous estimator, which expands on the ::do-mpc class Estimator.
     This class implements an asynchronous operation, making use of a connection to a predefined OPCUA server, as
     a means of exchanging information with other modules, e.g. an NMPC controller or a simulator.
@@ -484,60 +591,68 @@ class RealtimeEstimator(Estimator):
         :return: None
         :rtype: None
         """
-        assert opts['_opc_opts']['_client_type'] == 'controller', "You must define this module with a controller OPC Client. Review your opts dictionary."
+        assert opts['_opc_opts']['_client_type'] == 'estimator', "You must define this module with an estimator OPC Client. Please review the opts dictionary."
 
         super().__init__(model)
         self.enabled    = True
+        self.iter_count = 0
         self.cycle_time = opts['_cycle_time']
         self.opc_client = Client(opts['_opc_opts'])
         
-        
-        self.opc_client.connect()
-        
+        try:
+            self.opc_client.connect()
+        except RuntimeError:
+            self.enabled = False
+            print("The real-time estimator could not connect to the server. Please correct the server setup.")
+            
         # The server must be initialized with the x0 values of the simulator
-        self.opc_client.writeData(model._u(0).cat.toarray(1).tolist())
+        tag = "ns=2;s="+self.opc_client.namespace['EstimatorData']['xhat']
+        self.opc_client.writeData(self._x0.cat.toarray().tolist(), tag)
+    
+    def init_server(self, dataVal):
+         # The server must be initialized with the x0 values of the simulator
+        tag = "ns=2;s="+self.opc_client.namespace['EstimatorData']['xhat']
+        try:
+            self.opc_client.writeData(dataVal, tag)
+        except RuntimeError:
+            self.enabled = False
+            print("The real-time estimator could not connect to the server. Please correct the server setup.")
         
-    def run_asynchronously(self):
-        """
-        This function implements the server calls and simulator step with a predefined frequency
-        :param no params: because the cycle is stored by the object
         
-        :return: none
-        :rtype: none
-        """
-        while self.enabled:
-            #Read the latest plant state from server and execute optimization step
-            xk = np.array(self.opc_client.readData())
+    def stop(self):
+        try:
+            self.opc_client.disconnect()
+            self.enabled = False
+        except RuntimeError:
+            # TODO: catch the correct error and parse message
+            print("The real-time estimator could not be stopped due to server issues.")
             
-            uk = self.make_step(xk)
-            
-            # The optimal inputs are written back to the server
-            self.opc_client.writeData(uk.tolist())
-            
-            # The controller must wait for a predefined time
-            time_left = self.cycle_time-self.solver_stats['t_wall_S']
-            if time_left>0: time.sleep(time_left)
             
     def asynchronous_step(self):
         """
-        This function implements the server calls and simulator step with a predefined frequency
-        :param no params: because the cycle is stored by the object
+        This function implements the server calls and estimator step with a predefined frequency
+        :param no params: all parameters are stored by the object
         
-        :return: none
+        :return: time_left, represents the leftover time until the max cycle time of the estimator
         :rtype: none
         """
         
         #Read the latest plant state from server and execute optimization step
-        xk = np.array(self.opc_client.readData())
+        tag_in  = "ns=2;s="+self.opc_client.namespace['PlantData']['x']
+        tag_out = "ns=2;s="+self.opc_client.namespace['EstimatorData']['xhat']
+        tic = time.time()
+        xk = np.array(self.opc_client.readData(tag_in))
         
-        uk = self.make_step(xk)
+        xk_hat = self.make_step(xk)
         
         # The optimal inputs are written back to the server
-        self.opc_client.writeData(uk.tolist())
-        
+        self.opc_client.writeData(xk_hat.tolist(), tag_out)
+        toc = time.time()
         # The controller must wait for a predefined time
-        time_left = self.cycle_time-self.solver_stats['t_wall_S']
-        #if time_left>0: time.sleep(time_left)
+        time_left = self.cycle_time-(toc-tic)
+        
+        self.iter_count = self.iter_count + 1
+        return time_left
 
 
 from threading import Timer
@@ -551,9 +666,9 @@ class RealtimeTrigger(object):
     def __init__(self, interval, function, *args, **kwargs):
         """
         This function implements the server calls and simulator step with a predefined frequency
-        :interval: because the cycle is stored by the object
-        :function: a function to be called every 'interval' seconds
-        :args : arguments to pass to the tareget function
+        :interval: the cycle time in seconds representing the frquency with which the target function is executed
+        :function: a function to be called cyclically
+        :args : arguments to pass to the target function
         :return: none
         :rtype: none
         """

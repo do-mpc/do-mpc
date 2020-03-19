@@ -25,34 +25,20 @@ from casadi import *
 from casadi.tools import *
 import pdb
 import sys
-sys.path.append('../../')
 import do_mpc
-from opcmodules import RealtimeSimulator, RealtimeController
+from opcmodules import RealtimeFeedback
 
-def template_simulator(model, opc_opts):
+def template_estimator(model, opc_opts):
     """
     --------------------------------------------------------------------------
-    template_simulator: tuning parameters
+    template_estimator: no parameters to pass, this is a "mock" state estimator
     --------------------------------------------------------------------------
     """    
-    simulator = RealtimeSimulator(model,opc_opts)
+    # The estimator is just a delayed state feedback estimator in this case 
 
-    params_simulator = {
-        'integration_tool': 'cvodes',
-        'abstol': 1e-10,
-        'reltol': 1e-10,
-        't_step': 5.0/3600.0
-    }
+    opc_opts['_opc_opts']['_client_type'] = "estimator"
+    opc_opts['_cycle_time'] = 10.0
 
-    simulator.set_param(**params_simulator)
-
-    p_num = simulator.get_p_template()
-    p_num['delH_R'] = 950
-    p_num['k_0'] = 7
-    def p_fun(t_now):
-        return p_num
-    simulator.set_p_fun(p_fun)
-
-    simulator.setup()
-
-    return simulator
+    estimator = RealtimeFeedback(model,opc_opts)
+    # Use calls to : RealtimeEKF or RealtimeMHE for actual estimators
+    return estimator

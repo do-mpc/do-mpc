@@ -33,7 +33,7 @@ def template_opcua(model):
                    "_name":"Poly Reactor OPCUA",
                    "_address":"opc.tcp://localhost:4840/freeopcua/server/",
                    "_port": 4840,
-                   "_server_type": "basic",
+                   "_server_type": "with_estimator", #"basic",
                    "_store_predictions": False,
                    "_with_db": False}
     opc_server = Server(server_opts)
@@ -47,6 +47,6 @@ def template_opcua(model):
                    "_port": 4840,
                    "_client_type": "simulator",
                    "_namespace": opc_server.namespace}
-    opc_opts ={'_cycle_time': 1.0, '_opc_opts': client_opts}
+    opc_opts ={'_cycle_time': 5.0, '_opc_opts': client_opts, '_output_feedback': False}
 
     return opc_server, opc_opts

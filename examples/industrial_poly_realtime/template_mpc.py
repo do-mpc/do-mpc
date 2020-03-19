@@ -35,6 +35,11 @@ def template_mpc(model, opc_opts):
     template_mpc: tuning parameters
     --------------------------------------------------------------------------
     """
+    # The controller is typically run less often than the simulator/estimator
+    opc_opts['_opc_opts']['_client_type'] = "controller"
+    opc_opts['_opc_opts']['_output_feedback'] = True
+    opc_opts['_cycle_time'] = 50.0
+
     controller = RealtimeController(model,opc_opts)
 
     setup_mpc = {
