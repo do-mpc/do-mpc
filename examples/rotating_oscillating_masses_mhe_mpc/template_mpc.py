@@ -48,7 +48,7 @@ def template_mpc(model):
 
     mpc.set_param(**setup_mpc)
 
-    _x, _u, _z, _tvp, p, _aux, *_ = model.get_variables()
+    _x, _tvp  = model['x', 'tvp']
 
     lterm = (_x['phi_2'] - _tvp['phi_2_set'])**2
     mterm = DM(1)

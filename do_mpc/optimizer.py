@@ -396,7 +396,7 @@ class Optimizer:
             entry(expr_i['expr_name'], expr=expr_i['expr']) for expr_i in self.nl_cons_list
         ])
         # Make function from these expressions:
-        _x, _u, _z, _tvp, _p, _aux, *_ = self.model.get_variables()
+        _x, _u, _z, _tvp, _p = self.model['x', 'u', 'z', 'tvp', 'p']
         self._nl_cons_fun = Function('nl_cons_fun', [_x, _u, _z, _tvp, _p, _eps], [self._nl_cons])
         # Create bounds:
         self._nl_cons_ub = self._nl_cons(np.inf)
@@ -535,7 +535,7 @@ class Optimizer:
 
         There is no point in calling this method as part of the public API.
         """
-        _x, _u, _z, _tvp, _p, *_ = self.model.get_variables()
+        _x, _u, _z, _tvp, _p = self.model['x', 'u', 'z', 'tvp', 'p']
 
         rhs = substitute(self.model._rhs, _x, _x*self._x_scaling.cat)
         rhs = substitute(rhs, _u, _u*self._u_scaling.cat)

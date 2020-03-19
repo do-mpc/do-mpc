@@ -310,7 +310,7 @@ class MPC(do_mpc.optimizer.Optimizer):
         assert lterm.shape == (1,1), 'lterm must have shape=(1,1). You have {}'.format(lterm.shape)
         assert self.flags['setup'] == False, 'Cannot call .set_objective after .setup_model.'
 
-        _x, _u, _z, _tvp, _p, _aux,  *_ = self.model.get_variables()
+        _x, _u, _z, _tvp, _p = self.model['x','u','z','tvp','p']
 
         # If the mterm is a symbolic expression:
         try:

@@ -612,7 +612,14 @@ class Model:
         self.rhs_list.extend([{'var_name': var_name, 'expr': expr}])
 
     def get_variables(self):
-        """Method to retrieve the variables of the model. This method is convenient when creating the model in a different file
+        """Method to retrieve the variables of the model.
+
+        .. warning::
+
+            The method is depreciated and will be removed in a later version.
+            Please call :py:func:`setup` instead.
+
+        This method is convenient when creating the model in a different file
         than the, e.g. the :py:class:`do_mpc.optimizer`. Returns the variables as a list with the following order:
 
         * ``_x`` (states)
@@ -650,6 +657,7 @@ class Model:
         :return: List of model variables (``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``, ``_aux``, ``_y``, ``_y_expression``)
         :rtype: list
         """
+        warnings.warn('This method is depreciated. Please use class getitem method instead. This will become an error in a future release', DeprecationWarning)
         assert self.flags['setup'] == True, 'Model was not setup. Finish model creation by calling model.setup_model().'
 
         return self._x, self._u, self._z, self._tvp, self._p, self._aux_expression, self._y, self._y_expression
@@ -699,7 +707,7 @@ class Model:
         # Write self._y_expression (measurement equations) as struct_SX symbolic expression structures.
         # Check if it is an empty list (no user input)
         if not self._y_expression:
-            self._y_expression = struct_SX(self._x)
+            self._y_expression = self._x
         else:
             self._y_expression = struct_SX(self._y_expression)
         self._y = struct_symSX(self._y)
