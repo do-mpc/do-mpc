@@ -67,6 +67,8 @@ class Model:
 
     :raises assertion: model_type must be string
     :raises assertion: model_type must be either discrete or continuous
+
+    .. automethod:: __getitem__
     """
     # Define private class attributes
 
@@ -100,6 +102,36 @@ class Model:
         self.flags = {
             'setup': False
         }
+
+    def __getitem__(self, ind):
+        """The :py:class:`Model` class supports the ``__getitem__`` method,
+        which can be used to retrieve the model variables (see attribute list).
+
+        ::
+
+            # Query the states like this:
+            x = model.x
+            # or like this:
+            x = model['x']
+
+        This also allows to retrieve multiple variables simultaneously:
+
+        ::
+
+            x, u, z = model['x','u','z']
+        """
+        var_names = ['x','u','z','p','tvp','y','aux']
+        if isinstance(ind, tuple):
+            val = []
+            for ind_i in ind:
+                assert ind_i in var_names, 'The queried variable {} is not valid. Choose from {}.'.format(ind_i, var_names)
+                val.append(getattr(self, ind_i))
+            return val
+        else:
+            val = getattr(self,ind)
+
+        return val
+
 
     @property
     def x(self):
