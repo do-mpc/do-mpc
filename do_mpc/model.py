@@ -60,7 +60,7 @@ class Model:
 
     4. Define the right-hand-side of the `discrete` or `continuous` model as a function of the previously defined variables with :py:func:`Model.set_rhs`. This method must be called once for each introduced state.
 
-    5. Call :py:func:`Model.setup_model` to finalize the :py:class:`Model`. No further changes are possible afterwards.
+    5. Call :py:func:`Model.setup` to finalize the :py:class:`Model`. No further changes are possible afterwards.
 
     :param model_type: Set if the model is ``discrete`` or ``continuous``.
     :type var_type: str
@@ -68,6 +68,26 @@ class Model:
     :raises assertion: model_type must be string
     :raises assertion: model_type must be either discrete or continuous
     """
+    # Define private class attributes
+
+    _x = []
+
+    _u =   [entry('default', shape=(0,0))]
+
+    _z =   [entry('default', shape=(0,0))]
+
+    _p =   [entry('default', shape=(0,0))]
+
+    _tvp = [entry('default', shape=(0,0))]
+
+    _aux = [entry('default', shape=(0,0))]
+    _aux_expression = [entry('default', expr=DM(0))]
+
+    _y =   [entry('default', shape=(0,0))]
+    _y_expression = []
+
+
+
 
     def __init__(self, model_type=None, symvar_type = 'SX'):
         assert isinstance(model_type, str), 'model_type must be string, you have: {}'.format(type(model_type))
@@ -75,25 +95,288 @@ class Model:
 
         self.model_type = model_type
 
-        # Initilize lists for variables, expressions and rhs to be added to the model
-        self.var_list = {
-            '_x':   [],
-            '_u':   [entry('default', shape=(0,0))],
-            '_z':   [entry('default', shape=(0,0))],
-            '_y':   [entry('default', shape=(0,0))],
-            '_p':   [entry('default', shape=(0,0))],
-            '_tvp': [entry('default', shape=(0,0))],
-            '_aux': [entry('default', shape=(0,0))],
-        }
-        self.expr_list = [
-            entry('default', expr=DM(0))
-        ]
         self.rhs_list = []
-        self.meas_list = []
 
         self.flags = {
             'setup': False
         }
+
+    @property
+    def x(self):
+        """ Dynamic states.
+            CasADi symbolic structure, can be indexed with user-defined variable names.
+
+            .. note ::
+
+                Variables are introduced with :py:func:`Model.set_variable` Use this property only to query
+                variables.
+
+            **Example:**
+
+            ::
+
+                model = do_mpc.model.Model('continuous')
+                model.set_variable('_x','temperature', shape=(4,1))
+                # Query:
+                model.x['temperature', 0] # 0th element of variable
+                model.x['temperature']    # all elements of variable
+                model.x['temperature', 0:2]    # 0th and 1st element
+
+            Usefull CasADi symbolic structure methods:
+
+            * ``.shape``
+
+            * ``.keys()``
+
+            * ``.labels()``
+
+
+            :raises assertion: Cannot set model variables direcly. Use set_variable instead.
+        """
+        if self.flags['setup']:
+            return self._x
+        else:
+            return struct_symSX(self._x)
+    @x.setter
+    def x(self, val):
+        raise Exception('Cannot set model variables direcly. Use set_variable instead.')
+
+    @property
+    def u(self):
+        """ Inputs.
+            CasADi symbolic structure, can be indexed with user-defined variable names.
+
+            .. note ::
+
+                Variables are introduced with :py:func:`Model.set_variable` Use this property only to query
+                variables.
+
+            **Example:**
+
+            ::
+
+                model = do_mpc.model.Model('continuous')
+                model.set_variable('_u','heating', shape=(4,1))
+                # Query:
+                model.u['heating', 0] # 0th element of variable
+                model.u['heating']    # all elements of variable
+                model.u['heating', 0:2]    # 0th and 1st element
+
+            Usefull CasADi symbolic structure methods:
+
+            * ``.shape``
+
+            * ``.keys()``
+
+            * ``.labels()``
+
+            :raises assertion: Cannot set model variables direcly. Use set_variable instead.
+        """
+        if self.flags['setup']:
+            return self._u
+        else:
+            return struct_symSX(self._u)
+    @u.setter
+    def u(self, val):
+        raise Exception('Cannot set model variables direcly. Use set_variable instead.')
+
+    @property
+    def z(self):
+        """ Algebraic states.
+        CasADi symbolic structure, can be indexed with user-defined variable names.
+
+        .. note ::
+
+            Variables are introduced with :py:func:`Model.set_variable` Use this property only to query
+            variables.
+
+        **Example:**
+
+        ::
+
+            model = do_mpc.model.Model('continuous')
+            model.set_variable('_z','temperature', shape=(4,1))
+            # Query:
+            model.z['temperature', 0] # 0th element of variable
+            model.z['temperature']    # all elements of variable
+            model.z['temperature', 0:2]    # 0th and 1st element
+
+        Usefull CasADi symbolic structure methods:
+
+        * ``.shape``
+
+        * ``.keys()``
+
+        * ``.labels()``
+
+
+        :raises assertion: Cannot set model variables direcly. Use set_variable instead.
+        """
+        if self.flags['setup']:
+            return self._z
+        else:
+            return struct_symSX(self._z)
+    @z.setter
+    def z(self, val):
+        raise Exception('Cannot set model variables direcly. Use set_variable instead.')
+
+    @property
+    def p(self):
+        """ Static parameters.
+        CasADi symbolic structure, can be indexed with user-defined variable names.
+
+        .. note ::
+
+            Variables are introduced with :py:func:`Model.set_variable` Use this property only to query
+            variables.
+
+        **Example:**
+
+        ::
+
+            model = do_mpc.model.Model('continuous')
+            model.set_variable('_p','temperature', shape=(4,1))
+            # Query:
+            model.p['temperature', 0] # 0th element of variable
+            model.p['temperature']    # all elements of variable
+            model.p['temperature', 0:2]    # 0th and 1st element
+
+        Usefull CasADi symbolic structure methods:
+
+        * ``.shape``
+
+        * ``.keys()``
+
+        * ``.labels()``
+
+
+        :raises assertion: Cannot set model variables direcly. Use set_variable instead.
+        """
+        if self.flags['setup']:
+            return self._p
+        else:
+            return struct_symSX(self._p)
+    @p.setter
+    def p(self, val):
+        raise Exception('Cannot set model variables direcly. Use set_variable instead.')
+
+    @property
+    def tvp(self):
+        """ Time-varying parameters.
+            CasADi symbolic structure, can be indexed with user-defined variable names.
+
+            .. note ::
+
+                Variables are introduced with :py:func:`Model.set_variable` Use this property only to query
+                variables.
+
+            **Example:**
+
+            ::
+
+                model = do_mpc.model.Model('continuous')
+                model.set_variable('_tvp','temperature', shape=(4,1))
+                # Query:
+                model.tvp['temperature', 0] # 0th element of variable
+                model.tvp['temperature']    # all elements of variable
+                model.tvp['temperature', 0:2]    # 0th and 1st element
+
+            Usefull CasADi symbolic structure methods:
+
+            * ``.shape``
+
+            * ``.keys()``
+
+            * ``.labels()``
+
+            :raises assertion: Cannot set model variables direcly. Use set_variable instead.
+        """
+        if self.flags['setup']:
+            return self._tvp
+        else:
+            return struct_symSX(self._tvp)
+    @tvp.setter
+    def tvp(self, val):
+        raise Exception('Cannot set model variables direcly. Use set_variable instead.')
+
+    @property
+    def y(self):
+        """ Measurements.
+            CasADi symbolic structure, can be indexed with user-defined variable names.
+
+            .. note ::
+
+                Measured variables are introduced with :py:func:`Model.set_meas` Use this property only to query
+                variables.
+
+            **Example:**
+
+            ::
+
+                model = do_mpc.model.Model('continuous')
+                model.set_variable('_x','temperature', 4) # 4 states
+                model.set_meas('temperature', model.x['temperature',:2]) # first 2 measured
+                # Query:
+                model.y['temperature', 0] # 0th element of variable
+                model.y['temperature']    # all elements of variable
+
+            Usefull CasADi symbolic structure methods:
+
+            * ``.shape``
+
+            * ``.keys()``
+
+            * ``.labels()``
+
+            :raises assertion: Cannot set model variables direcly. Use set_meas instead.
+        """
+        if self.flags['setup']:
+            return self._y_expression
+        else:
+            return struct_SX(self._y_expression)
+    @y.setter
+    def y(self, val):
+        raise Exception('Cannot set model variables direcly. Use set_variable instead.')
+
+    @property
+    def aux(self):
+        """ Auxiliary expressions.
+            CasADi symbolic structure, can be indexed with user-defined variable names.
+
+            .. note ::
+
+                Expressions are introduced with :py:func:`Model.set_expression` Use this property only to query
+                variables.
+
+            **Example:**
+
+            ::
+
+                model = do_mpc.model.Model('continuous')
+                model.set_variable('_x','temperature', 4) # 4 states
+                dt = model.x['temperature',0]- model.x['temperature', 1]
+                model.set_expression('dtemp', dt)
+                # Query:
+                model.y['dtemp', 0] # 0th element of variable
+                model.y['dtemp']    # all elements of variable
+
+            Usefull CasADi symbolic structure methods:
+
+            * ``.shape``
+
+            * ``.keys()``
+
+            * ``.labels()``
+
+            :raises assertion: Cannot set aux direcly. Use set_expression instead.
+        """
+        if self.flags['setup']:
+            return self._aux_expression
+        else:
+            return struct_SX(self._aux_expression)
+    @aux.setter
+    def aux(self, val):
+        raise Exception('Cannot set model variables direcly. Use set_variable instead.')
 
 
     def set_variable(self, var_type, var_name, shape=(1,1)):
@@ -155,12 +438,12 @@ class Model:
         # Check validity of var_type:
         assert var_type in ['_x','_u','_z','_p','_tvp'], 'Trying to set non-existing variable var_type: {} with var_name {}'.format(var_type, var_name)
         # Check validity of var_name:
-        assert var_name not in [entry_i.name for entry_i in self.var_list[var_type]], 'The variable name {} for type {} already exists.'.format(var_name, var_type)
+        assert var_name not in [entry_i.name for entry_i in getattr(self,var_type)], 'The variable name {} for type {} already exists.'.format(var_name, var_type)
         # Create variable:
         var = SX.sym(var_name, shape)
 
-        # Extend var_list with new entry:
-        self.var_list[var_type].extend([entry(var_name, sym=var)])
+        # Extend var list with new entry:
+        getattr(self, var_type).append(entry(var_name, sym=var))
 
         return var
 
@@ -196,8 +479,9 @@ class Model:
         assert self.flags['setup'] == False, 'Cannot call .set_expression after :py:func:`Model.setup_model`'
         assert isinstance(expr_name, str), 'expr_name must be str, you have: {}'.format(type(expr_name))
         assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
-        self.expr_list.extend([entry(expr_name, expr = expr)])
-        self.var_list['_aux'].extend([entry(expr_name, shape=expr.shape)])
+
+        self._aux_expression.append(entry(expr_name, expr = expr))
+        self._aux.append(entry(expr_name, shape=expr.shape))
 
         return expr
 
@@ -239,8 +523,9 @@ class Model:
         assert self.flags['setup'] == False, 'Cannot call .set_meas after :py:func:`Model.setup_model`'
         assert isinstance(meas_name, str), 'meas_name must be str, you have: {}'.format(type(meas_name))
         assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
-        self.meas_list.extend([entry(meas_name, expr = expr)])
-        self.var_list['_y'].extend([entry(meas_name, shape=expr.shape)])
+
+        self._y_expression.append(entry(meas_name, expr = expr))
+        self._y.append(entry(meas_name, shape=expr.shape))
 
         return expr
 
@@ -290,7 +575,7 @@ class Model:
         assert self.flags['setup'] == False, 'Cannot call .set_rhs after .setup_model.'
         assert isinstance(var_name, str), 'var_name must be str, you have: {}'.format(type(var_name))
         assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
-        _x_names = [entry_i.name for entry_i in self.var_list['_x']]
+        _x_names = self.x.keys()
         assert var_name in _x_names, 'var_name must refer to the previously defined states ({}). You have: {}'.format(_x_names, var_name)
         self.rhs_list.extend([{'var_name': var_name, 'expr': expr}])
 
@@ -320,7 +605,7 @@ class Model:
 
         ::
 
-            _x = model._x
+            x = model.x
 
         Note that structures can be indexed with the previously defined variable names:
 
@@ -344,7 +629,7 @@ class Model:
         .. warning::
 
             The method is depreciated and will be removed in a later version.
-            Please call :py:func:`Model.setup` instead.
+            Please call :py:func:`setup` instead.
         """
 
         warnings.warn('This method is depreciated. Please use Model.setup instead. This will become an error in a future release', DeprecationWarning)
@@ -353,7 +638,7 @@ class Model:
     def setup(self):
         """Setup method must be called to finalize the modelling process.
         All required model variables ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p`` must be declared.
-        The right hand side expression for ``_x`` must have been set with :py:func:`model.set_rhs`.
+        The right hand side expression for ``_x`` must have been set with :py:func:`set_rhs`.
 
         Sets default measurement function (state feedback) if :py:func:`set_meas` was not called.
 
@@ -367,25 +652,25 @@ class Model:
         :return: None
         :rtype: None
         """
-        self.flags['setup'] = True
 
         # Write self._x, self._u, self._z, self._y, self._tvp, self.p with the respective struct_symSX structures.
-        # Use the previously defined SX.sym variables to declare shape and symbolic variable.
-        for var_type_i, var_list_i in self.var_list.items():
-            struct_i  = struct_symSX(var_list_i)
-            setattr(self, var_type_i, struct_i)
+        self._x = _x = struct_symSX(self._x)
+        self._u = _u =  struct_symSX(self._u)
+        self._z = _z = struct_symSX(self._z)
+        self._p = _p = struct_symSX(self._p)
+        self._tvp = _tvp =  struct_symSX(self._tvp)
 
         # Write self._aux_expression.
-        # Use the previously defined SX.sym variables to declare shape and symbolic variable.
-        self._aux_expression = struct_SX(self.expr_list)
+        self._aux_expression = struct_SX(self._aux_expression)
+        self._aux = struct_symSX(self._aux)
 
         # Write self._y_expression (measurement equations) as struct_SX symbolic expression structures.
-        # Use the previously defined SX.sym variables to declare shape and symbolic variable.
-        # If no measurement expressions are declared, use state-feedback as default measurement.
-        if not self.meas_list:
-            self._y_expression = struct_SX(self.var_list['_x'])
+        # Check if it is an empty list (no user input)
+        if not self._y_expression:
+            self._y_expression = struct_SX(self._x)
         else:
-            self._y_expression = struct_SX(self.meas_list)
+            self._y_expression = struct_SX(self._y_expression)
+        self._y = struct_symSX(self._y)
 
         # Create mutable struct_SX with identical structure as self._x to hold the right hand side.
         self._rhs = struct_SX(self._x)
@@ -399,7 +684,6 @@ class Model:
         assert len(_x_names) == 0, 'Definition of right hand side (rhs) is incomplete. Missing: {}. Use: set_rhs to define expressions.'.format(_x_names)
 
         # Declare functions for the right hand side and the aux_expressions.
-        _x, _u, _z, _tvp, _p, _aux,  *_ = self.get_variables()
         self._rhs_fun = Function('rhs_fun', [_x, _u, _z, _tvp, _p], [self._rhs])
         self._aux_expression_fun = Function('aux_expression_fun', [_x, _u, _z, _tvp, _p], [self._aux_expression])
         self._meas_fun = Function('meas_fun', [_x, _u, _z, _tvp, _p], [self._y_expression])
@@ -415,7 +699,9 @@ class Model:
         self.n_aux = self._aux_expression.shape[0]
 
         # Remove temporary storage for the symbolic variables. This allows to pickle the class.
-        delattr(self, 'var_list')
-        delattr(self, 'meas_list')
-        delattr(self, 'expr_list')
+        #delattr(self, 'var_list')
+        #delattr(self, 'meas_list')
+        #delattr(self, 'expr_list')
         delattr(self, 'rhs_list')
+
+        self.flags['setup'] = True
