@@ -4,7 +4,7 @@
 #   do-mpc: An environment for the easy, modular and efficient implementation of
 #        robust nonlinear model predictive control
 #
-#   Copyright (c) 2014-2019 Sergio Lucia, Alexandru Tatulea-Codrean
+#   Copyright (c) 2014-2020 Sergio Lucia, Alexandru Tatulea-Codrean
 #                        TU Dortmund. All rights reserved
 #
 #   do-mpc is free software: you can redistribute it and/or modify
@@ -39,7 +39,7 @@ def template_mpc(model):
 
     setup_mpc = {
         'n_horizon': 20,
-        'n_robust': 1,
+        'n_robust': 0,
         'open_loop': 0,
         't_step': 0.005,
         'state_discretization': 'collocation',

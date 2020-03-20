@@ -4,7 +4,7 @@
 #   do-mpc: An environment for the easy, modular and efficient implementation of
 #        robust nonlinear model predictive control
 #
-#   Copyright (c) 2014-2019 Sergio Lucia, Alexandru Tatulea-Codrean
+#   Copyright (c) 2014-2020 Sergio Lucia, Alexandru Tatulea-Codrean
 #                        TU Dortmund. All rights reserved
 #
 #   do-mpc is free software: you can redistribute it and/or modify
@@ -73,6 +73,10 @@ def template_model():
     alpha = model.set_variable(var_type='_p', var_name='alpha')
     beta = model.set_variable(var_type='_p', var_name='beta')
 
+    # Set the outputs, to be used by the EKF estimator
+    #T_R_meas = model.set_variable(var_type='_y', var_name='T_R_meas', shape=(1,1))
+    #T_K_meas = model.set_variable(var_type='_y', var_name='T_K_meas', shape=(1,1))
+    
     # Set expression. These can be used in the cost function, as non-linear constraints
     # or just to monitor another output.
     T_dif = model.set_expression(expr_name='T_dif', expr=T_R-T_K)
@@ -89,6 +93,10 @@ def template_model():
     model.set_rhs('T_R', ((K_1*C_a*H_R_ab + K_2*C_b*H_R_bc + K_3*(C_a**2)*H_R_ad)/(-Rou*Cp)) + F*(T_in-T_R) +(((K_w*A_R)*(-T_dif))/(Rou*Cp*V_R)))
     model.set_rhs('T_K', (Q_dot + K_w*A_R*(T_dif))/(m_k*Cp_k))
 
+    # The output function, in this case a linear dependency
+    model.set_meas('T_R_meas', T_R)
+    model.set_meas('T_K_meas', T_K)
+    
     # Build the model
     model.setup_model()
 

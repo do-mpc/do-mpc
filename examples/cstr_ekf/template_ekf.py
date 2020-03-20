@@ -4,7 +4,7 @@
 #   do-mpc: An environment for the easy, modular and efficient implementation of
 #        robust nonlinear model predictive control
 #
-#   Copyright (c) 2014-2019 Sergio Lucia, Alexandru Tatulea-Codrean
+#   Copyright (c) 2014-2020 Sergio Lucia, Alexandru Tatulea-Codrean
 #                        TU Dortmund. All rights reserved
 #
 #   do-mpc is free software: you can redistribute it and/or modify
@@ -35,17 +35,33 @@ def template_ekf(model):
     template_mhe: tuning parameters
     --------------------------------------------------------------------------
     """
-    ekf = do_mpc.estimator.EKF(model, ['k1'])
-
+    ekf = do_mpc.estimator.EKF(model, ['K_1', 'K_2']) # ['K_1', 'K_2']
+    
+    
+    C = np.matrix([[0,0,1,0],[0,0,0,1]])   # only temperatures are measured
+    
+    Q1 = np.matrix([[0.01, 0.0, 0.0, 0.0],[0.0, 0.01, 0.0, 0.0],[0.0, 0.0, 0.01, 0.0],[0.0, 0.0, 0.0, 0.01]])
+    Q2 = np.matrix([[0.1, 0.0, 0.0, 0.0],[0.0, 0.1, 0.0, 0.0],[0.0, 0.0, 0.2, 0.0],[0.0, 0.0, 0.0, 0.5]])       #  Different tunning
+    Q  = Q2
+    P0 = 100*Q
+    R  = np.matrix([[0.01,0],[0,0.01]])
+    
     setup_ekf = {
-        '_P0': P0,
-        '_Q': Q,
-        '_R': R,
-        '_t_step': 0.1,
-        '_type': "continuous_discrete"
+        'P0': P0,
+        'Q': Q,
+        'R': R,
+        't_step': 0.005,
+        'type': "continuous_discrete",
+        'output_func':'linear', 
+        'C_mat': C,
+        'x_hat': [0, 0, 0, 0],
+        'noise_level':0.2
+        #'output_func':'nonlinear',
+        #'H_func': h
     }
 
-    ekf.set_param(**setup_mhe)
-
-
+    ekf.set_param(**setup_ekf)
+    
+    ekf.setup()
+    
     return ekf

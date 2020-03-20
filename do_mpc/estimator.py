@@ -21,6 +21,7 @@
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
+from scipy import linalg
 from casadi import *
 from casadi.tools import *
 import pdb
@@ -99,25 +100,161 @@ class StateFeedback(Estimator):
 
 class EKF(Estimator):
     """Extended Kalman Filter. Setup this class and use :py:func:`EKF.make_step`
-    during runtime to obtain the currently estimated states given the measurements ``y0``.
+    during runtime to obtain the currently estimated states given the measurements ``yk``.
 
-    .. warning::
-        Not currently implemented.
+    
     """
-    def __init__(self, model):
-        raise Exception('EKF is not currently supported. This is a placeholder.')
+    def __init__(self, model,  p_est_list=[]):
         super().__init__(model)
-
+        
+        self.data_fields = [
+            'type',
+            'output_func',
+            'noise_level',
+            't_step',
+            'P0',
+            'Q',
+            'R',
+            'C_mat',
+            'H_func',
+            'x_hat',
+            'p_hat'
+        ]
         # Flags are checked when calling .setup.
         self.flags = {
             'setup': False,
+            'params': False
         }
-
-    def make_step(self, y0):
+        
+        self.iter_count = 0
+        self._t0  = 0.0
+        self._x   = model._x
+        self._n_x = model.n_x
+        self._z   = model._z
+        self._n_z = model.n_z
+        self._n_y = model.n_y
+        self._u   = model._u
+        self._rhs = model._rhs
+        self._p   = model._p 
+        self._p_est = p_est_list
+        
+        
+    def setup(self):
+        assert self.flags['params'] == True, 'You must define all mandatory EKF parameters before calling setup.'
+        assert self._n_y == getattr(self,'C_mat').shape[0], 'The measurement vector does not fit the output matrix provided. Please redefine these two parameters.'
+        
+        self.nl = getattr(self,'noise_level') if getattr(self,'noise_level') > 0 else 0.0
+        # Create the EKF simulator
+        # TODO: extend the model with p_est dummy derivatives
+        opts = {"t0":0.0, "tf":getattr(self,'t_step'),"abstol":1e-6,"reltol":1e-6}
+        ode_dict = {"x":self._x, "p":vertcat(self._u,self._p), "ode":self._rhs}
+        self.ekf_simulator = casadi.integrator('ekf_simulator','cvodes',ode_dict, opts)
+        
+        # Create the linearization model
+        self.Jx = casadi.Function("Jx",[self._x,vertcat(self._u,self._p)],[casadi.jacobian(self._rhs,self._x)]) 
+        
+        # The EKF can now be used in the mpc loop
+        self.flags['setup'] = True
+        
+    def make_step(self, yk, uk, pk):
         """Main method during runtime. Pass the most recent measurement and
         retrieve the estimated state."""
         assert self.flags['setup'] == True, 'EKF was not setup yet. Please call EKF.setup().'
-        None
+        
+        xk_old = getattr(self,'x_hat')
+        C  = getattr(self,'C_mat')
+        P0 = getattr(self,'P0')
+        Q  = getattr(self,'Q')
+        R  = getattr(self,'R')
+
+        dt = getattr(self,'t_step')
+        
+        "This is the Kalman code"
+        "Compute gain matrix K and do measurement correction"
+        K = P0*C.transpose()*np.linalg.inv(C*P0*C.transpose()+R)
+        P = P0-K*C*P0
+       
+        "The noise can be applied anywhere, why not here, inside the filter..."
+        #pdb.set_trace()
+        yk += np.random.normal(-self.nl,self.nl,self._n_y).reshape(-1,1) 
+         
+        "Exectute the correction part xk=K*(y-yhat)"
+        corr = K.dot((yk -C.dot(xk_old)))
+        #corr = np.resize(np.array(corr),(self._n_x))
+        #pdb.set_trace()
+        xk_new = xk_old + corr
+        #pdb.set_trace()
+        
+        # TODO: implement different routines: continuous discrete, continuous, discrete EKFs
+        "Execute the simulation part"
+        x_hat = self.ekf_simulator(x0 = xk_new, p = vertcat(uk, pk))['xf']
+        p_hat = pk
+        "Discrete time update of system matrix A"
+        A = self.Jx(x_hat,vertcat(uk,pk))
+        #pdb.set_trace()
+        Ak = linalg.expm(np.matrix(A)*dt)
+        P = Ak*P*Ak.transpose() + Q
+        
+        "Update the EKF parameters"
+        setattr(self,'P0', P)
+        setattr(self,'x_hat', x_hat.toarray()) #np.resize(np.array(x_hat),(self._n_x)))
+        setattr(self,'p_hat', pk) #TODO: update the parameter estimation method
+        
+        "Update internal states and save data for plotting"
+        self._t0 = self._t0  + dt
+        self.iter_count  = self.iter_count + 1
+        
+        self.data.update(_x = x_hat.toarray())
+        self.data.update(_u = uk)
+        self.data.update(_p = p_hat)
+        self.data.update(_time = self._t0)
+        
+        return x_hat.toarray()
+    
+    def set_param(self, **kwargs):
+        
+        assert self.flags['setup'] == False, 'Setting parameters after setup is prohibited.'
+
+        for key, value in kwargs.items():
+            if not (key in self.data_fields):
+                print('Warning: Key {} does not exist for the EKF estimator.'.format(key))
+            else:
+                setattr(self, key, value)
+                
+        self.flags['params'] = True
+        
+    def set_initial_state(self, x0, reset_history=False):
+        """Set the intial state of the EKF estimator.
+        Optionally resets the history. The history is empty upon creation of the estimator.
+
+        :param x0_hat: Initial state estimate
+        :type x0_hat: numpy array
+        :param reset_history: Resets the history of the simulator, defaults to False
+        :type reset_history: bool (optional)
+
+        :return: None
+        :rtype: None
+        """
+        assert x0.size == self.model._x.size, 'Intial state cannot be set because the supplied vector has the wrong size. You have {} and the model is setup for {}'.format(x0.size, self.model._x.size)
+        assert isinstance(reset_history, bool), 'reset_history parameter must be of type bool. You have {}'.format(type(reset_history))
+        if isinstance(x0, (np.ndarray, casadi.DM)):
+            self._x0 = self.model._x(x0)
+            setattr(self,'x_hat',x0)
+        elif isinstance(x0, structure3.DMStruct):
+            self._x0 = self.model._x(x0.cat)
+            setattr(self,'x_hat',x0.cat.toarray())
+        else:
+            raise Exception('x0_hat must be of tpye (np.ndarray, casadi.DM, structure3.DMStruct). You have: {}'.format(type(x0)))
+
+        if reset_history:
+            self.reset_history()
+
+    def reset_history(self):
+        """Reset the history of the EKF estimator.
+        """
+        self._t0 = np.array([0])
+        self.data.init_storage()
+
 
 class MHE(do_mpc.optimizer.Optimizer, Estimator):
     """Moving horizon estimator. THE MHE estimator extends the :py:class:`do_mpc.optimizer.Optimizer` base class
