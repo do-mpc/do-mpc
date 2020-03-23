@@ -24,6 +24,8 @@ do-mpc: Model Predictive Control in Python
 .. image:: https://travis-ci.org/do-mpc/do-mpc.svg?branch=master
     :target: https://travis-ci.org/do-mpc/do-mpc
     :alt: Build Status
+.. image:: https://badge.fury.io/py/do-mpc.svg
+    :target: https://badge.fury.io/py/do-mpc
 
 **do-mpc** is a comprehensive open-source toolbox for robust **Model Predictive Control (MPC)**
 and **Moving Horizon Estimation (MHE)**.
