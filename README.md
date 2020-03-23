@@ -1,4 +1,4 @@
-<img align="left" src="https://raw.githubusercontent.com/do-mpc/do-mpc/master/documentation/source/static/dompc_var_02_rtd_blue.png">
+<img align="left" width="30%" src="https://raw.githubusercontent.com/do-mpc/do-mpc/master/documentation/source/static/dompc_var_02_rtd_blue.png">
 
 # do-mpc: Robust optimal control toolbox
 
