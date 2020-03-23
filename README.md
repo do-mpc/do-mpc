@@ -1,9 +1,10 @@
-<img align="left" src="https://github.com/do-mpc/do-mpc/blob/master/documentation/source/static/dompc_var_02_rtd_blue.svg">
+<img align="left" src="https://www.do-mpc.com/en/latest/_static/dompc_var_02_white.svg">
 
 # do-mpc: Robust optimal control toolbox
 
 [![Documentation Status](https://readthedocs.org/projects/do-mpc/badge/?version=latest)](https://www.do-mpc.com)
 [![Build Status](https://travis-ci.org/do-mpc/do-mpc.svg?branch=master)](https://travis-ci.org/do-mpc/do-mpc)
+[![PyPI version](https://badge.fury.io/py/do-mpc.svg)](https://badge.fury.io/py/do-mpc)
 
 **do-mpc** proposes a new, modularized implementation for optimization based model predictive control (MPC) and moving horizon estimation (MHE). **do-mpc** enables the efficient formulation and solution of control and estimation problems for nonlinear systems, including tools to deal with uncertainty and time discretization. The modular structure of do-mpc contains simulation, estimation and control components that can be easily extended and combined to fit many different applications.
 
