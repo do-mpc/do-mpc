@@ -26,6 +26,8 @@ import matplotlib.axes as maxes
 from casadi import *
 from casadi.tools import *
 import pdb
+from do_mpc.tools import IndexedProperty, Structure
+
 
 
 class Graphics:
@@ -90,10 +92,17 @@ class Graphics:
             graphics.plot_predictions(mpc.data, mpc.opt_x_num, mpc.opt_aux_num)
             plt.show()
     """
-    def __init__(self):
+    def __init__(self, data):
         self.line_list = []
         self.ax_list  = []
         self.color = plt.rcParams['axes.prop_cycle'].by_key()['color']
+
+        self.data = data
+
+        #self._result_lines = {key: {} for key in data.data_fields.keys()}
+        self.result_lines = Structure()
+        self._pred_lines = {'_x':{}, '_u':{}, '_z':{}, '_tvp':{}, '_aux':{}, '_eps':{}}
+
 
     def reset_axes(self):
         """Clears the lines on all axes which were passed with :py:func:`Graphics.add_line`.
@@ -138,9 +147,10 @@ class Graphics:
         assert var_type in ['_x', '_u', '_z', '_tvp', '_p', '_aux'], 'var_type argument must reference to the valid var_types of do-mpc models. Note that _aux_expression are currently not supported for plotting.'
         assert isinstance(axis, maxes.Axes), 'axis argument must be matplotlib axes object.'
 
-        self.line_list.append(
-            {'var_type': var_type, 'var_name': var_name, 'ax': axis, 'reskwargs': pltkwargs, 'predkwargs':pltkwargs.copy()}
-        )
+        self.result_lines[var_type, var_name] = axis.plot(self.data['_time'] , self.data[var_type, var_name])
+
+
+
         self.ax_list.append(axis)
 
 
@@ -165,27 +175,34 @@ class Graphics:
         :return: All plotted lines on all supplied axes.
         :rtype:  list
         """
-        if t_ind is not None:
-            assert isinstance(t_ind, int), 'The t_ind param must be of type int. You have: {}'.format(type(t_ind))
-            assert t_ind <= data._time.shape[0], 'The t_ind param must not exceed the length of the results. You choose t_ind={}, where only n={} elements are available.'.format(t_ind, data._time.shape[0])
-        # Make index "inclusive", if it is passed. This means that for index 1, the elements at 0 AND 1 are plotted.
-        if t_ind is not None:
-            t_ind+=1
+        # if t_ind is not None:
+        #     assert isinstance(t_ind, int), 'The t_ind param must be of type int. You have: {}'.format(type(t_ind))
+        #     assert t_ind <= data._time.shape[0], 'The t_ind param must not exceed the length of the results. You choose t_ind={}, where only n={} elements are available.'.format(t_ind, data._time.shape[0])
+        # # Make index "inclusive", if it is passed. This means that for index 1, the elements at 0 AND 1 are plotted.
+        # if t_ind is not None:
+        #     t_ind+=1
+        #
+        # self.reset_prop_cycle()
+        # lines = []
+        # for line_i in self.line_list:
+        #     line_i['reskwargs'].update(pltkwargs)
+        #     time = data._time[:t_ind]
+        #     res_type = getattr(data, line_i['var_type'])
+        #     # The .f() method returns an index of a casadi Struct, given a name.
+        #     var_ind = data.model[line_i['var_type']].f[line_i['var_name']]
+        #     if line_i['var_type'] in ['_u']:
+        #         lines.extend(line_i['ax'].step(time, res_type[:t_ind, var_ind], **line_i['reskwargs']))
+        #     else:
+        #         lines.extend(line_i['ax'].plot(time, res_type[:t_ind, var_ind], **line_i['reskwargs']))
+        #
+        # return lines
 
-        self.reset_prop_cycle()
-        lines = []
-        for line_i in self.line_list:
-            line_i['reskwargs'].update(pltkwargs)
-            time = data._time[:t_ind]
-            res_type = getattr(data, line_i['var_type'])
-            # The .f() method returns an index of a casadi Struct, given a name.
-            var_ind = data.model[line_i['var_type']].f[line_i['var_name']]
-            if line_i['var_type'] in ['_u']:
-                lines.extend(line_i['ax'].step(time, res_type[:t_ind, var_ind], **line_i['reskwargs']))
-            else:
-                lines.extend(line_i['ax'].plot(time, res_type[:t_ind, var_ind], **line_i['reskwargs']))
+        for line_i, ind_i in zip(self.result_lines.master, self.result_lines.index):
+            line_i.set_data(self.data['_time'] , self.data[ind_i])
 
-        return lines
+        for ax_i in self.ax_list:
+            ax_i.relim()
+            ax_i.autoscale()
 
     def plot_predictions(self, data, opt_x_num=None, opt_aux_num=None, t_ind=-1, **pltkwargs):
         """Plots the predicted trajectories for the plot configuration.
