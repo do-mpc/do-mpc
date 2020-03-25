@@ -26,6 +26,7 @@ from casadi.tools import *
 import pdb
 import pickle
 import do_mpc
+from do_mpc.tools.indexedproperty import IndexedProperty
 
 
 class Data:
@@ -65,6 +66,75 @@ class Data:
 
         self.init_storage()
         self.meta_data = {}
+
+    def __getitem__(self, ind):
+        """Query data fields. This method can be used to obtain the stored results in the :py:class:`Data` instance.
+
+        The full list of available fields can be inspected with:
+
+        ::
+
+            print(data.data_fields)
+
+        The dict also denotes the dimension of each field.
+
+        The method allows for power indexing the results for the fields
+        ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``, ``_aux``, ``_y``
+        where further indices refer to the configured variables in the :py:class:`do_mpc.model.Model` instance.
+
+        **Example:**
+
+        ::
+
+            # Assume the following model was used (excerpt):
+            model = do_mpc.model.Model('continuous')
+
+            model.set_variable('_x', 'Temperature', shape=(5,1)) # Vector
+            model.set_variable('_p', 'disturbance', shape=(3,3)) # Matrix
+            model.set_variable('_u', 'heating')                  # scalar
+
+            ...
+
+            # the model was used (among others) for the MPC controller
+            mpc = do_mpc.controller.MPC(model)
+
+            ...
+
+            # Query the mpc.data instance:
+            mpc.data['_x']                      # Return all states
+            mpc.data['_x', 'Temperature']       # Return the 5 temp states
+            mpc.data['_x', 'Temperature', :2]   # Return the first 2 temp. states
+            mpc.data['_p', 'disturbance', 0, 2] # Matrix allows for further indices
+
+            # Other fields can also be queried, e.g.:
+            mpc.data['_time']                   # current time
+            mpc.data['t_wall_S']               # optimizer runtime
+            # These do not allow further indices.
+
+        :return: Returns the queried data field (for all time instances)
+        :rtype: numpy.ndarray
+
+        """
+        # ensure list:
+        if not isinstance(ind, tuple):
+            ind = [ind]
+
+        # First element is the data_field:
+        data_field = ind[0]
+        # Check validity:
+        keys = self.data_fields.keys()
+        assert data_field in keys, 'Your queried variable {} is not available. Please choose from {}'.format(data_field, keys)
+
+        if len(ind)>1:
+            # If further indices exist:
+            powerind = ind[1:]
+            f_ind = self.model[data_field].f[powerind]
+            out = getattr(self, data_field)[:, f_ind]
+        else:
+            # If not just return the field:
+            out = getattr(self, data_field)
+        return out
+
 
     def init_storage(self):
         """Create new (empty) arrays for all variables.
