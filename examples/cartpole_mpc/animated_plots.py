@@ -92,7 +92,7 @@ fig3, ax3 = plt.subplots(1, sharex=True, figsize=(8,6))
 fig3.suptitle("Inverted Pendulum NMPC: Animated CartPole", fontsize=16)
 #fig3.tight_layout()
 
-Theta_text = ax3.text(-1,-3, '', fontsize = 14)
+Theta_text = ax3.text(-1.0,-3, '', fontsize = 14)
 F_text     = ax3.text(-1.2,-5, '', fontsize = 14)
 
 cart       = patches.Rectangle((-1,-0.5),2.0, 1.0, edgecolor='none',facecolor='steelblue')

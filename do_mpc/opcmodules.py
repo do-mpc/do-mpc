@@ -306,28 +306,12 @@ class Client:
                 print("Write operation by:", self.type, " failed @ time:", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
                 return False
             
-            # if self.type == "simulator":
-            #     plant_update = "ns=2;s="+self.namespace['PlantData']['x']
-            #     contr_update = "ns=2;s="+self.namespace['ControllerData']['x0']
-            # if self.type == "controller":
-            #     plant_update = "ns=2;s="+self.namespace['PlantData']['u']
-            #     contr_update = "ns=2;s="+self.namespace['ControllerData']['u_opt']
-            # try:
-            #     out1 = self.opcua_client.get_node(plant_update).set_value(dataVal)
-            #     out2 = self.opcua_client.get_node(contr_update).set_value(dataVal)
-            # except ConnectionRefusedError:
-            #     print("Write operation by:", self.type, " failed @ time:", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
-            #     return False
             return wr_result
     
         def readData(self, tag):
             # This function can read any data field from the server, from the source defined by the tag
             assert "ns=2;s=" in tag, "The data source you have provided is invalid. Refer to the OPCUA server namespace and define a correct source."
            
-            # if self.type == "simulator":
-            #     readVar = "ns=2;s="+self.namespace['PlantData']['u']
-            # if self.type == "controller":
-            #     readVar = "ns=2;s="+self.namespace['ControllerData']['x0']
             try:
                 dataVal = self.opcua_client.get_node(tag).get_value()
             except ConnectionRefusedError:
