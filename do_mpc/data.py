@@ -126,14 +126,61 @@ class Data:
         assert data_field in keys, 'Your queried variable {} is not available. Please choose from {}'.format(data_field, keys)
 
         if len(ind)>1:
-            # If further indices exist:
+        # If further indices exist:
             powerind = ind[1:]
             f_ind = self.model[data_field].f[powerind]
             out = getattr(self, data_field)[:, f_ind]
+
         else:
             # If not just return the field:
             out = getattr(self, data_field)
         return out
+
+    @IndexedProperty
+    def prediction(self, ind):
+        assert self.dtype == 'MPC', 'Optimal trajectory is only available for MPC controller.'
+        assert self.meta_data['store_full_solution'], 'Optimal trajectory is not stored. Please update your MPC settings.'
+
+        structure_scenario = self.meta_data['structure_scenario']
+
+        if self._opt_x_num.shape[0]==0:
+            _opt_x_num = np.zeros((1,self.opt_x.shape[0]))
+            _opt_p_num = np.zeros((1,self.opt_p.shape[0]))
+            _opt_aux_num = np.zeros((1,self.opt_aux.shape[0]))
+        else:
+            _opt_x_num = self._opt_x_num
+            _opt_p_num = self.opt_p_num
+            _opt_aux_num = self._opt_aux_num
+
+        if ind[0] in ['_x', '_z']:
+            f_ind = vertcat(*self.opt_x.f[(ind[0], slice(None), lambda v: horzcat(*v),slice(None), -1)+ind[1:]])
+            try:
+                # sort pred such that each column belongs to one scenario
+                f_ind = f_ind.full()[range(f_ind.shape[0]),structure_scenario.T].T
+            except:
+                raise Exception('You are trying to query multiple trajectories of a vectorized variable. Please use further indices.')
+            out = _opt_x_num[-1,f_ind]
+
+        elif ind[0] =='_u':
+            f_ind = vertcat(*self.opt_x.f[(ind[0], slice(None), lambda v: horzcat(*v),slice(None))+ind[1:]])
+            f_ind = f_ind.full()[range(f_ind.shape[0]),structure_scenario[:-1,:].T].T
+            out = _opt_x_num[-1,f_ind]
+
+
+        elif ind[0]=='_tvp':
+            f_ind = vertcat(*self.opt_p.f[(ind[0], slice(None))+ind[1:]])
+            out = _opt_p_num[-1,f_ind]
+
+        elif ind[0]=='_aux':
+            f_ind = vertcat(*self.opt_aux.f[(ind[0], slice(None), lambda v: horzcat(*v),slice(None))+ind[1:]])
+            f_ind = f_ind.full()[range(f_ind.shape[0]),structure_scenario[:-1,:].T].T
+            out = _opt_aux_num[-1,f_ind]
+
+        return out
+
+    @prediction.setter
+    def prediction(self, ind, val):
+        None
 
 
     def init_storage(self):
