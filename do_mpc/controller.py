@@ -144,7 +144,7 @@ class MPC(do_mpc.optimizer.Optimizer):
         self.model = model
 
         assert model.flags['setup'] == True, 'Model for optimizer was not setup. After the complete model creation call model.setup_model().'
-        self.data = do_mpc.data.Data(self.model)
+        self.data = do_mpc.data.MPCData(self.model)
         self.data.dtype = 'MPC'
 
         # Initialize structure for intial conditions:
