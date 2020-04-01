@@ -30,8 +30,8 @@ from do_mpc.tools.indexedproperty import IndexedProperty
 
 
 class Data:
-    """**do-mpc** data container. An instance of this class is created for all active **do-mpc** classes,
-    e.g. :py:class:`do_mpc.simulator.Simulator`, :py:class:`do_mpc.controller.MPC`, :py:class:`do_mpc.estimator.MHE`.
+    """**do-mpc** data container. An instance of this class is created for the active **do-mpc** classes,
+    e.g. :py:class:`do_mpc.simulator.Simulator`, :py:class:`do_mpc.estimator.MHE`.
 
     The class is initialized with an instance of the :py:class:`do_mpc.model.Model` which contains all
     information about variables (e.g. states, inputs etc.).
@@ -211,9 +211,13 @@ class Data:
 
 
 class MPCData(Data):
+    """**do-mpc** data container for the :py:class:`do_mpc.controller.MPC` instance.
+    This method inherits from :py:class:`Data` and extends it to query the MPC predictions.
+    """
 
     def __init__(self, model):
         super().__init__(model)
+        # Accelerate prediction calls by saving indices of previous queries.
         self.prediction_queries = {'ind':[], 'f_ind':[]}
 
     @IndexedProperty
@@ -221,6 +225,7 @@ class MPCData(Data):
         assert self.meta_data['store_full_solution'], 'Optimal trajectory is not stored. Please update your MPC settings.'
 
         structure_scenario = self.meta_data['structure_scenario']
+
         if self._opt_x_num.shape[0]==0:
             _opt_x_num = np.zeros((1,self.opt_x.shape[0]))
             _opt_p_num = np.zeros((1,self.opt_p.shape[0]))
@@ -231,29 +236,57 @@ class MPCData(Data):
             _opt_aux_num = self._opt_aux_num
 
         if ind[0] in ['_x', '_z']:
-            f_ind = self.opt_x.f[(ind[0], slice(None), lambda v: horzcat(*v),slice(None), -1)+ind[1:]]
-            f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind])
-            # sort pred such that each column belongs to one scenario
-            f_ind = f_ind[range(f_ind.shape[0]),:,structure_scenario.T].T
+            if ind in self.prediction_queries['ind']:
+                i = self.prediction_queries['ind'].index(ind)
+                f_ind = self.prediction_queries['f_ind'][i]
+            else:
+                f_ind = self.opt_x.f[(ind[0], slice(None), lambda v: horzcat(*v),slice(None), -1)+ind[1:]]
+                f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind])
+                # sort pred such that each column belongs to one scenario
+                f_ind = f_ind[range(f_ind.shape[0]),:,structure_scenario.T].T
+                # Store f_ind:
+                self.prediction_queries['ind'].append(ind)
+                self.prediction_queries['f_ind'].append(f_ind)
             out = _opt_x_num[-1,f_ind]
 
         elif ind[0] =='_u':
-            f_ind = self.opt_x.f[(ind[0], slice(None), lambda v: horzcat(*v),slice(None))+ind[1:]]
-            f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind])
-            # sort pred such that each column belongs to one scenario
-            f_ind = f_ind[range(f_ind.shape[0]),:,structure_scenario[:-1,:].T].T
+            if ind in self.prediction_queries['ind']:
+                i = self.prediction_queries['ind'].index(ind)
+                f_ind = self.prediction_queries['f_ind'][i]
+            else:
+                f_ind = self.opt_x.f[(ind[0], slice(None), lambda v: horzcat(*v),slice(None))+ind[1:]]
+                f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind])
+                # sort pred such that each column belongs to one scenario
+                f_ind = f_ind[range(f_ind.shape[0]),:,structure_scenario[:-1,:].T].T
+                # Store f_ind:
+                self.prediction_queries['ind'].append(ind)
+                self.prediction_queries['f_ind'].append(f_ind)
             out = _opt_x_num[-1,f_ind]
 
         elif ind[0]=='_tvp':
-            f_ind = self.opt_p.f[(ind[0], slice(None))+ind[1:]]
-            f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind])
+            if ind in self.prediction_queries['ind']:
+                i = self.prediction_queries['ind'].index(ind)
+                f_ind = self.prediction_queries['f_ind'][i]
+            else:
+                f_ind = self.opt_p.f[(ind[0], slice(None))+ind[1:]]
+                f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind])
+                # Store f_ind:
+                self.prediction_queries['ind'].append(ind)
+                self.prediction_queries['f_ind'].append(f_ind)
             out = _opt_p_num[-1,f_ind]
 
         elif ind[0]=='_aux':
-            f_ind = self.opt_aux.f[(ind[0], slice(None), lambda v: horzcat(*v),slice(None))+ind[1:]]
-            f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind])
-            # sort pred such that each column belongs to one scenario
-            f_ind = f_ind[range(f_ind.shape[0]),:,structure_scenario[:-1,:].T].T
+            if ind in self.prediction_queries['ind']:
+                i = self.prediction_queries['ind'].index(ind)
+                f_ind = self.prediction_queries['f_ind'][i]
+            else:
+                f_ind = self.opt_aux.f[(ind[0], slice(None), lambda v: horzcat(*v),slice(None))+ind[1:]]
+                f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind])
+                # sort pred such that each column belongs to one scenario
+                f_ind = f_ind[range(f_ind.shape[0]),:,structure_scenario[:-1,:].T].T
+                # Store f_ind:
+                self.prediction_queries['ind'].append(ind)
+                self.prediction_queries['f_ind'].append(f_ind)
             out = _opt_aux_num[-1,f_ind]
 
         return out

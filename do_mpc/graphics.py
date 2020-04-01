@@ -146,6 +146,9 @@ class Graphics:
         assert var_type in ['_x', '_u', '_z', '_tvp', '_p', '_aux'], 'var_type argument must reference to the valid var_types of do-mpc models. Note that _aux_expression are currently not supported for plotting.'
         assert isinstance(axis, maxes.Axes), 'axis argument must be matplotlib axes object.'
 
+        if var_type == '_u':
+            pltkwargs.update(drawstyle='steps')
+
         self.result_lines[var_type, var_name] = axis.plot(self.data['_time'] , self.data[var_type, var_name], **pltkwargs)
 
         if self.data.dtype == 'MPC' and self.data.meta_data['store_full_solution']:
