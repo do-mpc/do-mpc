@@ -54,7 +54,7 @@ mpc.set_initial_state(x0, reset_history=True)
 simulator.set_initial_state(x0, reset_history=True)
 
 # Initialize graphic:
-graphics = do_mpc.graphics.Graphics()
+graphics = do_mpc.graphics.Graphics(mpc.data)
 
 
 fig, ax = plt.subplots(5, sharex=True)
@@ -85,9 +85,9 @@ for k in range(100):
     time_list.append(toc-tic)
 
     if True:
-        graphics.reset_axes()
         graphics.plot_results(mpc.data, linewidth=3)
         graphics.plot_predictions(mpc.data, linestyle='--', linewidth=1)
+        graphics.reset_axes()
         plt.show()
         input('next step')
 

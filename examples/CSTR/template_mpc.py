@@ -47,7 +47,7 @@ def template_mpc(model):
         'collocation_deg': 2,
         'collocation_ni': 1,
         # Use MA27 linear solver in ipopt for faster calculations:
-        #'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
+        'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
     }
 
     mpc.set_param(**setup_mpc)
