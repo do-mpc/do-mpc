@@ -99,9 +99,8 @@ class Graphics:
 
         self.data = data
 
-        #self._result_lines = {key: {} for key in data.data_fields.keys()}
         self.result_lines = Structure()
-        self._pred_lines = {'_x':{}, '_u':{}, '_z':{}, '_tvp':{}, '_aux':{}, '_eps':{}}
+        self.pred_lines = Structure()
 
 
     def reset_axes(self):
@@ -109,8 +108,8 @@ class Graphics:
         Method is called internally, before each plot.
         """
         for ax_i in self.ax_list:
-            ax_i.lines = []
-        self.reset_prop_cycle()
+            ax_i.relim()
+            ax_i.autoscale()
 
     def reset_prop_cycle(self):
         """Resets the property cycle for all axes which were passed with :py:func:`Graphics.add_line`.
@@ -147,9 +146,18 @@ class Graphics:
         assert var_type in ['_x', '_u', '_z', '_tvp', '_p', '_aux'], 'var_type argument must reference to the valid var_types of do-mpc models. Note that _aux_expression are currently not supported for plotting.'
         assert isinstance(axis, maxes.Axes), 'axis argument must be matplotlib axes object.'
 
-        self.result_lines[var_type, var_name] = axis.plot(self.data['_time'] , self.data[var_type, var_name])
+        self.result_lines[var_type, var_name] = axis.plot(self.data['_time'] , self.data[var_type, var_name], **pltkwargs)
 
-
+        if self.data.dtype == 'MPC' and self.data.meta_data['store_full_solution']:
+            # y_data has shape (n_elem, n_horizon, n_scenario), where n_elem = 1 for scalars and >1 for vectors.
+            y_data = self.data.prediction[var_type, var_name]
+            x_data = np.zeros(y_data.shape[1])
+            for i in range(y_data.shape[0]):
+                # Loop is only meaningful is variable is a vector.
+                color = self.result_lines[var_type, var_name][i].get_color()
+                # Default values:
+                pltkwargs.update(color=color, linestyle='--')
+                self.pred_lines[var_type, var_name, i] = axis.plot(x_data, y_data[i], **pltkwargs)
 
         self.ax_list.append(axis)
 
@@ -172,37 +180,11 @@ class Graphics:
         :raises assertion: t_ind argument must be a int
         :raises assertion: t_ind argument must not exceed the length of the results
 
-        :return: All plotted lines on all supplied axes.
-        :rtype:  list
         """
-        # if t_ind is not None:
-        #     assert isinstance(t_ind, int), 'The t_ind param must be of type int. You have: {}'.format(type(t_ind))
-        #     assert t_ind <= data._time.shape[0], 'The t_ind param must not exceed the length of the results. You choose t_ind={}, where only n={} elements are available.'.format(t_ind, data._time.shape[0])
-        # # Make index "inclusive", if it is passed. This means that for index 1, the elements at 0 AND 1 are plotted.
-        # if t_ind is not None:
-        #     t_ind+=1
-        #
-        # self.reset_prop_cycle()
-        # lines = []
-        # for line_i in self.line_list:
-        #     line_i['reskwargs'].update(pltkwargs)
-        #     time = data._time[:t_ind]
-        #     res_type = getattr(data, line_i['var_type'])
-        #     # The .f() method returns an index of a casadi Struct, given a name.
-        #     var_ind = data.model[line_i['var_type']].f[line_i['var_name']]
-        #     if line_i['var_type'] in ['_u']:
-        #         lines.extend(line_i['ax'].step(time, res_type[:t_ind, var_ind], **line_i['reskwargs']))
-        #     else:
-        #         lines.extend(line_i['ax'].plot(time, res_type[:t_ind, var_ind], **line_i['reskwargs']))
-        #
-        # return lines
 
         for line_i, ind_i in zip(self.result_lines.master, self.result_lines.index):
             line_i.set_data(self.data['_time'] , self.data[ind_i])
 
-        for ax_i in self.ax_list:
-            ax_i.relim()
-            ax_i.autoscale()
 
     def plot_predictions(self, data, opt_x_num=None, opt_aux_num=None, t_ind=-1, **pltkwargs):
         """Plots the predicted trajectories for the plot configuration.
@@ -227,74 +209,18 @@ class Graphics:
         :return: All plotted lines on all supplied axes.
         :rtype:  list
         """
-        assert data.dtype == 'MPC', 'Can only call plot_predictions with data object from do-mpc optimizer.'
-        assert isinstance(t_ind, int), 'The t_ind param must be of type int. You have: {}'.format(type(t_ind))
+        assert self.data.dtype == 'MPC', 'Plotting predictions is only possible for MPC data.'
+        assert self.data.meta_data['store_full_solution'], 'Optimal trajectory is not stored. Please update your MPC settings.'
 
         t_now = data._time[t_ind]
-        # These fields only exist, if data type (dtype) os optimizer:
         t_step = data.meta_data['t_step']
-        n_horizon = data.meta_data['n_horizon']
-        structure_scenario = data.meta_data['structure_scenario']
 
-        # Check if full solution is stored in data, or supplied as optional input. Raise error is neither is the case.
-        if opt_x_num is None and data.meta_data['store_full_solution']:
-            opt_x_num = data.opt_x(data._opt_x_num[t_ind])
-        elif opt_x_num is not None:
-            pass
-        else:
-            raise Exception('Cannot plot predictions if full solution is not stored or supplied (opt_x_num) when calling the method.')
-        if opt_aux_num is None and data.meta_data['store_full_solution']:
-            opt_aux_num = data.opt_aux(data._opt_aux_num[t_ind])
-        elif opt_aux_num is not None:
-            pass
-        else:
-            raise Exception('Cannot plot predictions if full solution is not stored or supplied (opt_aux_num) when calling the method.')
-
-        opt_p_num = data.opt_p(data.opt_p_num[t_ind])
-
-        # Plot predictions:
-        self.reset_prop_cycle()
-        lines = []
-        for line_i in self.line_list:
-            line_i['predkwargs'].update(pltkwargs)
-            # Fix color for the robust trajectories according to the current state of the cycler.
-            if 'color' not in line_i['predkwargs']:
-                color = next(line_i['ax']._get_lines.prop_cycler)['color']
-                line_i['predkwargs'].update({'color':color})
+        for line_i, ind_i in zip(self.pred_lines.master, self.pred_lines.index):
+            y_data = self.data.prediction[ind_i[:-1]][0, :,ind_i[-1]]
+            x_data = t_now + np.arange(y_data.shape[0])*t_step
+            line_i.set_data(x_data , y_data)
 
 
-            # Choose time array depending on variable type (states with n+1 steps)
-            if line_i['var_type'] in ['_x', '_z']:
-                time = t_now + np.arange(n_horizon+1)*t_step
-            else:
-                time = t_now + np.arange(n_horizon)*t_step
-
-            # Plot states etc. as continous quantities and inputs as steps.
-            if line_i['var_type'] in ['_x', '_z']:
-                # Loop over all element of the variable (in case it is a vector)
-                for i in range(data.model[line_i['var_type']][line_i['var_name']].shape[0]):
-                    # pred is a n_horizon x n_branches array.
-                    pred = vertcat(*opt_x_num[line_i['var_type'],:,lambda v: horzcat(*v),:, -1, line_i['var_name'], i])
-                    # sort pred such that each column belongs to one scenario
-                    pred = pred.full()[range(pred.shape[0]),structure_scenario.T].T
-                    lines.extend(line_i['ax'].plot(time, pred, **line_i['predkwargs']))
-            elif line_i['var_type'] in ['_u']:
-                for i in range(data.model[line_i['var_type']][line_i['var_name']].shape[0]):
-                    pred = vertcat(*opt_x_num[line_i['var_type'],:,lambda v: horzcat(*v),:,line_i['var_name'], i])
-                    pred = pred.full()[range(pred.shape[0]),structure_scenario[:-1,:].T].T
-                    lines.extend(line_i['ax'].step(time, pred, **line_i['predkwargs']))
-            elif line_i['var_type'] in ['_aux']:
-                for i in range(data.model[line_i['var_type']][line_i['var_name']].shape[0]):
-                    pred = vertcat(*opt_aux_num['_aux',:,lambda v: horzcat(*v),:,line_i['var_name'], i])
-                    pred = pred.full()[range(pred.shape[0]),structure_scenario[:-1,:].T].T
-                    lines.extend(line_i['ax'].plot(time, pred, **line_i['predkwargs']))
-            elif line_i['var_type'] in ['_tvp']:
-                for i in range(data.model[line_i['var_type']][line_i['var_name']].shape[0]):
-                    pred = vertcat(*opt_p_num['_tvp',:, line_i['var_name'], i]).full()
-                    lines.extend(line_i['ax'].plot(time, pred, **line_i['predkwargs']))
-
-
-        return lines
 
 def default_plot(model, states_list=None, inputs_list=None, aux_list=None, **kwargs):
     """Pass a :py:class:`do_mpc.model.Model` object and create a default **do-mpc** plot.
