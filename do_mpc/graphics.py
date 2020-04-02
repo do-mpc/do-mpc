@@ -185,7 +185,7 @@ class Graphics:
 
         """
 
-        for line_i, ind_i in zip(self.result_lines.master, self.result_lines.index):
+        for line_i, ind_i in zip(self.result_lines.master, self.result_lines.powerindex):
             line_i.set_data(self.data['_time'] , self.data[ind_i])
 
 
@@ -218,7 +218,7 @@ class Graphics:
         t_now = data._time[t_ind]
         t_step = data.meta_data['t_step']
 
-        for line_i, ind_i in zip(self.pred_lines.master, self.pred_lines.index):
+        for line_i, ind_i in zip(self.pred_lines.master, self.pred_lines.powerindex):
             y_data = self.data.prediction[ind_i[:-1]][0, :,ind_i[-1]]
             x_data = t_now + np.arange(y_data.shape[0])*t_step
             line_i.set_data(x_data , y_data)
