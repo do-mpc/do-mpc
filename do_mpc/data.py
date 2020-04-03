@@ -229,8 +229,58 @@ class MPCData(Data):
         # Accelerate prediction calls by saving indices of previous queries.
         self.prediction_queries = {'ind':[], 'f_ind':[]}
 
-    def prediction(self, ind, t_ind=-1, opt_x_num=None):
+    def prediction(self, ind, t_ind=-1):
+        """Query the MPC trajectories.
+        Use this method to obtain specific MPC trajectories from the data object.
+
+        .. warning::
+
+            This method requires that the optimal solution is stored in the :py:class:`do_mpc.data.MPCData` instance.
+            Storing the optimal solution must be activated with :py:func:`do_mpc.controller.MPC.set_param`.
+
+
+        Querying predicted trajectories requires the use of power indices, which is passed as tuple e.g.:
+
+        ::
+
+            data.prediction((var_type, var_name, i), t_ind)
+
+        where
+
+        * ``var_type`` refers to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``, ``_aux``
+
+        * ``var_name`` refers to the user-defined names in the :py:class:`do_mpc.model.Model`
+
+        * Use ``i`` to index vector valued variables.
+
+        The method returns a multidimensional numpy.ndarray. The dimensions refer to:
+
+        ::
+
+            arr = data.prediction(('_x', 'x_1'))
+            arr.shape
+            >> (n_size, n_horizon, n_scenario)
+
+        with:
+
+        * ``n_size`` denoting the number of elements in ``x_1``, where ``n_size = 1`` is a scalar variable.
+
+        * ``n_horizon`` is the MPC horizon defined with :py:func:`do_mpc.controller.MPC.set_param`
+
+        * ``n_scenario`` refers to the number of uncertain scenarios (for robust MPC).
+
+        Additional to the power index tuple, a time index (``t_ind``) can be passed to access the prediction for a certain
+        time.
+
+        :param ind: Power index to query the prediction of a specific variable.
+        :type ind: tuple
+
+        :return: Predicted trajectories for the queries variable.
+        :rtype: numpy.ndarray
+        """
+
         assert self.meta_data['store_full_solution'], 'Optimal trajectory is not stored. Please update your MPC settings.'
+        assert isinstance(ind, tuple), 'Query index must be of type tuple.'
 
         structure_scenario = self.meta_data['structure_scenario']
 
