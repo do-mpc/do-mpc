@@ -97,7 +97,6 @@ fig.align_ylabels()
 fig.tight_layout()
 plt.ion()
 
-time_list = []
 for k in range(50):
     u0 = mpc.make_step(x0)
     y_next = simulator.make_step(u0)

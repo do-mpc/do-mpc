@@ -23,9 +23,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.axes as maxes
+from matplotlib.animation import FuncAnimation, FFMpegWriter, ImageMagickWriter
 from casadi import *
 from casadi.tools import *
 import pdb
+import os
 from do_mpc.tools import IndexedProperty, Structure
 
 
@@ -443,3 +445,75 @@ def default_plot(data, states_list=None, inputs_list=None, aux_list=None, **kwar
     fig.tight_layout()
 
     return fig, ax, graphics
+
+def animate(graphics, fig, n_steps=None, export_path='./', export_name='animation', overwrite=False, format='gif', fps=5, writer=None):
+    """Animation helper function.
+
+    Call this function with a configured :py:class:`Graphics` instance and the respective figure.
+    This function will export an animation with the results from the :py:class:`do_mpc.data.Data` object.
+
+    Either specify ``format`` and ``fps`` or supply a configured writer (e.g. ``ImageMagickWriter`` for gifs).
+
+
+    :param graphics: Configured :py:class:`Graphics` instance.
+    :type graphics: :py:class:`Graphics`
+    :param fig: Matplotlib Figure.
+    :type fig: Matplotlib Figure.
+    :param n_steps: (Optional) number of time steps for the animation.
+    :type n_steps: int
+    :param export_path: (Optional) Path where to export the animation. Directory will be created if it doesn't exist.
+    :type: export_path: str
+    :param export_name: (Optional) Name of the resulting animation (gif/mp4) file.
+    :type export_name: str
+    :param overwrite: (Optional) Check if export_name already exists in the supplied directory and overwrite or alter export_name.
+    :type overwrite: bool
+    :param format: (Optional) Choose between gif or mp4.
+    :type format: str
+    :param fps: (Optional) Frames per second for the resulting animation.
+    :type fps: int
+    :param writer: (Optional) If supplied, the ``fps`` and ``format argument are discarded. Use this to configure your own writer.
+
+    :return: None
+
+    """
+
+    if n_steps==None:
+        n_steps = graphics.data['_time'].shape[0]
+
+    def update(t_ind):
+        print('Writing frame: {} of {}.'.format(t_ind, n_steps))
+        graphics.plot_results(t_ind=t_ind)
+        graphics.plot_predictions(t_ind=t_ind)
+        graphics.reset_axes()
+        lines = graphics.result_lines.full+graphics.pred_lines.full
+        return lines
+
+
+    anim = FuncAnimation(fig, update, frames=n_steps, blit=True)
+
+    if writer==None:
+        if 'mp4' in format:
+            writer = FFMpegWriter(fps=fps, extra_args=['-vcodec', 'libx264'])
+            extension='mp4'
+
+        elif 'gif' in format:
+            writer = ImageMagickWriter(fps=fps)
+            extension='gif'
+        else:
+            raise Exception('Invalid output format {}. Please choose mp4 or gif.'.format(format))
+    else:
+        extension=''
+
+
+    if not os.path.exists(export_path):
+        os.makedirs(export_path)
+    # Dynamically generate new result name if name is already taken in result_path.
+    if overwrite==False:
+        ind = 1
+        ext_export_name = export_name
+        while os.path.isfile(export_path+ext_export_name+'.pkl'):
+            ext_export_name = '{ind:03d}_{name}'.format(ind=ind, name=export_name)
+            ind += 1
+        export_name = ext_export_name
+
+    anim.save('{}{}.{}'.format(export_path, export_name, extension), writer=writer)
