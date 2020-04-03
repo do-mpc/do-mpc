@@ -152,8 +152,8 @@ class Graphics:
         self.result_lines[var_type, var_name] = axis.plot(self.data['_time'] , self.data[var_type, var_name], **pltkwargs)
 
         if self.data.dtype == 'MPC' and self.data.meta_data['store_full_solution']:
-            # y_data has shape (n_elem, n_horizon, n_scenario), where n_elem = 1 for scalars and >1 for vectors.
-            y_data = self.data.prediction[var_type, var_name]
+            # y_data has shape (n_elem, n_horizon, n_scenario), where n_elem = 1 for scalars and >1 for vectors
+            y_data = self.data.prediction((var_type, var_name))
             x_data = np.zeros(y_data.shape[1])
             for i in range(y_data.shape[0]):
                 # Loop is only meaningful is variable is a vector.
@@ -165,11 +165,15 @@ class Graphics:
         self.ax_list.append(axis)
 
 
-    def plot_results(self, data, t_ind=None, **pltkwargs):
+    def plot_results(self, t_ind=-1, **pltkwargs):
         """Plots the results stored in the passed data object for the plot configuration.
         Each **do-mpc** module has an individual data object.
         Use the ``t_ind`` parameter to plot only until the given time index. This is mostly used in post-processing for animations.
         Optionally pass an arbitrary number of valid pyplot.plot arguments (e.g. ``linewidth``, ``color``, ``alpha``), which is applied to ALL lines.
+
+        .. warning:
+
+            Further ``**pltkwargs`` are depreciated and without effect. Set linestyle options directly by querying ``graphics.result_lines``
 
         :param data: do-mpc data object. Either from unpickled results or the created modules. The data object is updated at each ``make_step``  call.
         :type data: do-mpc data object
@@ -184,18 +188,26 @@ class Graphics:
         :raises assertion: t_ind argument must not exceed the length of the results
 
         """
-
         for line_i, ind_i in zip(self.result_lines.master, self.result_lines.powerindex):
-            line_i.set_data(self.data['_time'] , self.data[ind_i])
+            # ind_i will look something like: ('_x', 'Temperature', 0) and is a tuple.
+            if t_ind == -1:
+                # Non-inclusive indexing: Last element is missing due to slice ...
+                line_i.set_data(self.data['_time'] , self.data[ind_i])
+            else:
+                line_i.set_data(self.data['_time'][:t_ind+1] , self.data[ind_i][:t_ind+1])
 
 
-    def plot_predictions(self, data, opt_x_num=None, opt_aux_num=None, t_ind=-1, **pltkwargs):
+    def plot_predictions(self, t_ind=-1, opt_x_num=None, opt_aux_num=None, **pltkwargs):
         """Plots the predicted trajectories for the plot configuration.
         The predicted trajectories are part of the optimal solution at each timestep and can be passed either as the optional
         argument (``opt_x_num``) or they are part of the data structure, if the optimizer was set to store the optimal solution (see :py:func:do_mpc.controller.MPC.set_param)
         The plot predictions method can only be called with data from the :py:class:`do_mpc.controller.MPC` object and raises an error if called with data from other objects.
         Use the ``t_ind`` parameter to plot the prediction for the given time instance. This is mostly used in post-processing for animations.
         Optionally pass an arbitrary number of valid pyplot.plot arguments (e.g. ``linewidth``, ``color``, ``alpha``), which is applied to ALL lines.
+
+        .. warning:
+
+            Further ``**pltkwargs`` are depreciated and without effect. Set linestyle options directly by querying ``graphics.pred_lines``
 
         :param data: do-mpc (optimizer) data object. Either from unpickled results or the created modules.
         :type data: do-mpc (optimizer) data object
@@ -215,11 +227,11 @@ class Graphics:
         assert self.data.dtype == 'MPC', 'Plotting predictions is only possible for MPC data.'
         assert self.data.meta_data['store_full_solution'], 'Optimal trajectory is not stored. Please update your MPC settings.'
 
-        t_now = data._time[t_ind]
-        t_step = data.meta_data['t_step']
+        t_now = self.data._time[t_ind]
+        t_step = self.data.meta_data['t_step']
 
         for line_i, ind_i in zip(self.pred_lines.master, self.pred_lines.powerindex):
-            y_data = self.data.prediction[ind_i[:-1]][0, :,ind_i[-1]]
+            y_data = self.data.prediction(ind_i[:-1], t_ind=t_ind)[0, :,ind_i[-1]]
             x_data = t_now + np.arange(y_data.shape[0])*t_step
             line_i.set_data(x_data , y_data)
 

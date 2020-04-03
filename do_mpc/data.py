@@ -67,6 +67,9 @@ class Data:
         self.init_storage()
         self.meta_data = {}
 
+        # Accelerate __getitem__ calls (to retrieve results) by saving indices of previous queries.
+        self.result_queries = {'ind':[], 'f_ind':[]}
+
     def __getitem__(self, ind):
         """Query data fields. This method can be used to obtain the stored results in the :py:class:`Data` instance.
 
@@ -126,9 +129,15 @@ class Data:
         assert data_field in keys, 'Your queried variable {} is not available. Please choose from {}'.format(data_field, keys)
 
         if len(ind)>1:
-        # If further indices exist:
-            powerind = ind[1:]
-            f_ind = self.model[data_field].f[powerind]
+            # If further indices exist:
+            if ind in self.result_queries['ind']:
+                i = self.result_queries['ind'].index(ind)
+                f_ind = self.result_queries['f_ind'][i]
+            else:
+                powerind = ind[1:]
+                f_ind = self.model[data_field].f[powerind]
+                self.result_queries['ind'].append(ind)
+                self.result_queries['f_ind'].append(f_ind)
             out = getattr(self, data_field)[:, f_ind]
 
         else:
@@ -220,8 +229,7 @@ class MPCData(Data):
         # Accelerate prediction calls by saving indices of previous queries.
         self.prediction_queries = {'ind':[], 'f_ind':[]}
 
-    @IndexedProperty
-    def prediction(self, ind):
+    def prediction(self, ind, t_ind=-1, opt_x_num=None):
         assert self.meta_data['store_full_solution'], 'Optimal trajectory is not stored. Please update your MPC settings.'
 
         structure_scenario = self.meta_data['structure_scenario']
@@ -241,13 +249,13 @@ class MPCData(Data):
                 f_ind = self.prediction_queries['f_ind'][i]
             else:
                 f_ind = self.opt_x.f[(ind[0], slice(None), lambda v: horzcat(*v),slice(None), -1)+ind[1:]]
-                f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind])
+                f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind], dtype='int32')
                 # sort pred such that each column belongs to one scenario
                 f_ind = f_ind[range(f_ind.shape[0]),:,structure_scenario.T].T
                 # Store f_ind:
                 self.prediction_queries['ind'].append(ind)
                 self.prediction_queries['f_ind'].append(f_ind)
-            out = _opt_x_num[-1,f_ind]
+            out = _opt_x_num[t_ind,f_ind]
 
         elif ind[0] =='_u':
             if ind in self.prediction_queries['ind']:
@@ -255,13 +263,13 @@ class MPCData(Data):
                 f_ind = self.prediction_queries['f_ind'][i]
             else:
                 f_ind = self.opt_x.f[(ind[0], slice(None), lambda v: horzcat(*v),slice(None))+ind[1:]]
-                f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind])
+                f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind], dtype='int32')
                 # sort pred such that each column belongs to one scenario
                 f_ind = f_ind[range(f_ind.shape[0]),:,structure_scenario[:-1,:].T].T
                 # Store f_ind:
                 self.prediction_queries['ind'].append(ind)
                 self.prediction_queries['f_ind'].append(f_ind)
-            out = _opt_x_num[-1,f_ind]
+            out = _opt_x_num[t_ind,f_ind]
 
         elif ind[0]=='_tvp':
             if ind in self.prediction_queries['ind']:
@@ -269,11 +277,11 @@ class MPCData(Data):
                 f_ind = self.prediction_queries['f_ind'][i]
             else:
                 f_ind = self.opt_p.f[(ind[0], slice(None))+ind[1:]]
-                f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind])
+                f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind], dtype='int32')
                 # Store f_ind:
                 self.prediction_queries['ind'].append(ind)
                 self.prediction_queries['f_ind'].append(f_ind)
-            out = _opt_p_num[-1,f_ind]
+            out = _opt_p_num[t_ind,f_ind]
 
         elif ind[0]=='_aux':
             if ind in self.prediction_queries['ind']:
@@ -281,19 +289,16 @@ class MPCData(Data):
                 f_ind = self.prediction_queries['f_ind'][i]
             else:
                 f_ind = self.opt_aux.f[(ind[0], slice(None), lambda v: horzcat(*v),slice(None))+ind[1:]]
-                f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind])
+                f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind], dtype='int32')
                 # sort pred such that each column belongs to one scenario
                 f_ind = f_ind[range(f_ind.shape[0]),:,structure_scenario[:-1,:].T].T
                 # Store f_ind:
                 self.prediction_queries['ind'].append(ind)
                 self.prediction_queries['f_ind'].append(f_ind)
-            out = _opt_aux_num[-1,f_ind]
+            out = _opt_aux_num[t_ind,f_ind]
 
         return out
 
-    @prediction.setter
-    def prediction(self, ind, val):
-        None
 
 
 def save_results(save_list, result_name='results', result_path='./results/', overwrite=False):
