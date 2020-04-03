@@ -131,7 +131,7 @@ class Graphics:
         * Index ``i`` is applicable if the selecte variable is vector valued.
 
         Note that (e.g.) ``result_lines['_x']`` will return all lines for all states and
-        ``result_lines.full`` can be used to retreive all line objects.
+        ``result_lines.full`` can be used to retrieve all line objects.
 
         This property can be used to query and configure specific lines in the current graphic.
 
@@ -164,7 +164,7 @@ class Graphics:
 
         ::
 
-            result_lines[var_type, var_name, i, k]
+            pred_lines[var_type, var_name, i, k]
 
         where
 
@@ -176,8 +176,8 @@ class Graphics:
 
         * Use ``k`` to select the k-th scenario (for robust MPC). Note the ``k=0`` is the nominal case.
 
-        Note that (e.g.) ``result_lines['_x']`` will return all lines for all states and
-        ``result_lines.full`` can be used to retreive all line objects.
+        Note that (e.g.) ``pred_lines['_x']`` will return all lines for all states and
+        ``pred_lines.full`` can be used to retrieve all line objects.
 
         This property can be used to query and configure specific lines in the current graphic.
 
@@ -462,7 +462,7 @@ def animate(graphics, fig, n_steps=None, export_path='./', export_name='animatio
     :param n_steps: (Optional) number of time steps for the animation.
     :type n_steps: int
     :param export_path: (Optional) Path where to export the animation. Directory will be created if it doesn't exist.
-    :type: export_path: str
+    :type export_path: str
     :param export_name: (Optional) Name of the resulting animation (gif/mp4) file.
     :type export_name: str
     :param overwrite: (Optional) Check if export_name already exists in the supplied directory and overwrite or alter export_name.
@@ -474,7 +474,6 @@ def animate(graphics, fig, n_steps=None, export_path='./', export_name='animatio
     :param writer: (Optional) If supplied, the ``fps`` and ``format argument are discarded. Use this to configure your own writer.
 
     :return: None
-
     """
 
     if n_steps==None:
