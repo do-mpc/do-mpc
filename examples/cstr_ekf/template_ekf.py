@@ -35,27 +35,44 @@ def template_ekf(model):
     template_mhe: tuning parameters
     --------------------------------------------------------------------------
     """
-    ekf = do_mpc.estimator.EKF(model, ['K_1', 'K_2']) # ['K_1', 'K_2']
+    "Create an EKF object. By default a state-only estimation structure is created"
+    "If parameter estimation is desired, a subset of available model parameters must be defined"
+    ekf = do_mpc.estimator.EKF(model,['alpha']) # Template for parameters: ['alpha',('beta')]
     
+    "IMPORTANT Note: Make sure that all matrices and functions you pass to the EKF have correct structures and sizes!"
+    #C = np.matrix([[0,0,1,0],[0,0,0,1]])          # Only temperatures are measured, no estimated parameters
+    C = np.matrix([[0,0,1,0,0],[0,0,0,1,0]])      # Estimate only 'alpha', one of the reaction rate coefficients
+    #C = np.matrix([[0,0,1,0,0,0],[0,0,0,1,0,0]])  # Estimate both 'alpha' and 'beta'
     
-    C = np.matrix([[0,0,1,0],[0,0,0,1]])   # only temperatures are measured
+    # Basic tuning for state estimation in the CSTR, with high model credibility 
+    Q11 = np.matrix([[0.01, 0.0, 0.0, 0.0],[0.0, 0.01, 0.0, 0.0],[0.0, 0.0, 0.01, 0.0],[0.0, 0.0, 0.0, 0.01]])
+    # Different tunning for CSTR state estimation, lower model credibility relative to measurements
+    Q12 = np.matrix([[0.1, 0.0, 0.0, 0.0],[0.0, 0.1, 0.0, 0.0],[0.0, 0.0, 0.2, 0.0],[0.0, 0.0, 0.0, 0.5]])      
+    # New Q matrix for state-AND-parameter estimation in the CSTR (note one extra column and row)
+    # Estimating the parameter `alpha` and `beta` as well
+    Q21 = np.matrix([[0.01, 0.0, 0.0, 0.0, 0.0],[0.0, 0.01, 0.0, 0.0, 0.0],[0.0, 0.0, 0.01, 0.0, 0.0],[0.0, 0.0, 0.0, 0.01, 0.0],[0.0, 0.0, 0.0, 0.0, 0.01]])
+    Q22 = np.matrix([[0.01, 0.0, 0.0, 0.0, 0.0, 0.0],[0.0, 0.01, 0.0, 0.0, 0.0, 0.0],[0.0, 0.0, 0.01, 0.0, 0.0, 0.0],[0.0, 0.0, 0.0, 0.01, 0.0, 0.0],[0.0, 0.0, 0.0, 0.0, 0.01, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.01]])
     
-    Q1 = np.matrix([[0.01, 0.0, 0.0, 0.0],[0.0, 0.01, 0.0, 0.0],[0.0, 0.0, 0.01, 0.0],[0.0, 0.0, 0.0, 0.01]])
-    Q2 = np.matrix([[0.1, 0.0, 0.0, 0.0],[0.0, 0.1, 0.0, 0.0],[0.0, 0.0, 0.2, 0.0],[0.0, 0.0, 0.0, 0.5]])       #  Different tunning
-    Q  = Q2
+    # Select one of the tuning matrices Q from above and P0 will be tuned accoridngly
+    Q  = Q21
     P0 = 100*Q
+    # The structure of matrix R stays unchanged (only temperature measurements available)
     R  = np.matrix([[0.01,0],[0,0.01]])
     
+    "Note: Currently only a limited set of parameters is available for the following settings: "
+    " type = continuous_discrete, as fully discret or continuous EKFs are not considered in the current implementation"
+    " output_func = linear, while a fully nonlinear output model for the EKF will follow in the next release"
+    " noise_level must be defined if the addition of a white-noise-like measurement is to be simulated, otherwise set to 0.0"
     setup_ekf = {
         'P0': P0,
-        'Q': Q,
-        'R': R,
+        'Q' : Q,
+        'R' : R,
+        'C_mat': C,
         't_step': 0.005,
         'type': "continuous_discrete",
+        'estimate_params': True,
         'output_func':'linear', 
-        'C_mat': C,
-        'x_hat': [0, 0, 0, 0],
-        'noise_level':0.2
+        'noise_level':0.1
         #'output_func':'nonlinear',
         #'H_func': h
     }

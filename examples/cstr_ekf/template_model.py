@@ -83,8 +83,8 @@ def template_model():
 
     # Expressions can also be formed without beeing explicitly added to the model.
     # The main difference is that they will not be monitored and can only be used within the current file.
-    K_1 = beta * K0_ab * exp((-E_A_ab)/((T_R+273.15)))
-    K_2 =  K0_bc * exp((-E_A_bc)/((T_R+273.15)))
+    K_1 = alpha * K0_ab * exp((-E_A_ab)/((T_R+273.15)))
+    K_2 = beta * K0_bc * exp((-E_A_bc)/((T_R+273.15)))
     K_3 = K0_ad * exp((-alpha*E_A_ad)/((T_R+273.15)))
 
     # Differential equations

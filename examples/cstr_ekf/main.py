@@ -45,16 +45,21 @@ simulator = template_simulator(model)
 estimator = template_ekf(model)
 
 # Set the initial state of mpc and simulator:
-C_a_0 = 0.8 # This is the initial concentration inside the tank [mol/l]
-C_b_0 = 0.5 # This is the controlled variable [mol/l]
-T_R_0 = 134.14 #[C]
-T_K_0 = 130.0 #[C]
+C_a_0   = 0.8       # This is the initial concentration inside the tank [mol/l]
+C_b_0   = 0.5       # This is the controlled variable [mol/l]
+T_R_0   = 134.14    # [C]
+T_K_0   = 130.0     # [C]
+alpha_0 = 0.9       # The reaction rate coeff of A-->B to be estimated (nominal = 1)
+beta_0  = 0.95      # The reaction rate coeff of B-->C to be estimated (nominal = 1)
+
 x0 = np.array([C_a_0, C_b_0, T_R_0, T_K_0]).reshape(-1,1)
 
 mpc.set_initial_state(x0, reset_history=True)
 simulator.set_initial_state(x0, reset_history=True)
 
-x0_hat = np.array([0.5, 0.4, 100.0, 100.0]).reshape(-1,1)
+"Estimator initialization: select 1) only state estimation or 2) state and parameter estimation"
+#x0_hat = np.array([0.8, 0.5, 100.0, 100.0]).reshape(-1,1)          # 1) only state estimation
+x0_hat = np.array([0.8, 0.5, 100.0, 100.0, alpha_0]).reshape(-1,1)  # 2) state and parameter estimation
 estimator.set_initial_state(x0_hat, reset_history=True)
 
 # Initialize graphic:
@@ -79,20 +84,31 @@ plt.ion()
 
 time_list = []
 for k in range(100):
+    
     if k==0: xk = x0; xk_hat = x0
+    "Note: This is an output-feedback NMPC scheme. If state-feedback is desired, use `xk` in the mpc call"
+    
     tic = time.time()
-    uk = mpc.make_step(xk_hat)
+    "Step 1: Call the NMPC controller and obtain the new optimal inputs `uk`"
+    uk = mpc.make_step(xk)
+    "Step 2: Call the simulator. A predefined output vector is returned `yk`"
     yk = simulator.make_step(uk)
+    xk = simulator._x0.cat
+    "Note: The EKF needs both the inputs and the current parameter values"
     pk = simulator.p_fun(simulator._t0).cat.toarray()
-    xk_hat = estimator.make_step(yk, uk, pk)
+    "Step 3: Call the EKF with previously obtained data at step `k`"
+    xk_hat, pk_hat = estimator.make_step(yk, uk, pk)
+    #pdb.set_trace()
+    "Note: If parameter estimation was selected, pk_hat will be non-empty. Otherwise pk_hat=[]"
     toc = time.time()
     time_list.append(toc-tic)
 
 time_arr = np.array(time_list)
 print('Total run-time: {tot:5.2f} s, step-time {mean:.3f}+-{std:.3f} s.'.format(tot=np.sum(time_arr), mean=np.mean(time_arr), std=np.sqrt(np.var(time_arr))))
 
+est_lines = graphics.plot_results(estimator.data)#, color='black', linestyle='-.')
 sim_lines = graphics.plot_results(simulator.data)
-est_lines = graphics.plot_results(estimator.data)
+
 
 plt.sca(ax[0])
 ax[0].add_artist(plt.legend(sim_lines[:2], ['Ca', 'Cb'], title='Estimator', loc=1))
