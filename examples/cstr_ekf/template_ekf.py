@@ -67,7 +67,7 @@ def template_ekf(model):
         'P0': P0,
         'Q' : Q,
         'R' : R,
-        'C_mat': C,
+        'C' : C,
         't_step': 0.005,
         'type': "continuous_discrete",
         'estimate_params': True,

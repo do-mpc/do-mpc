@@ -101,13 +101,32 @@ class StateFeedback(Estimator):
 class EKF(Estimator):
     """Extended Kalman Filter. Setup an object of this type by first setting its parameters via :py:func:`EKF.set_params`, 
     after which you can setup the EKF model by calling :py:func:`EKF.setup`. The basic EKF step is called through :py:func:`EKF.make_step`
-    during runtime to obtain the currently state (and parameter) estimates given the current measurements ``yk`` and the optimal inputs ``uk``.
+    during runtime to obtain the currently state (and parameter) estimates given the current measurements ``yk``, the current parameter values ``pk``and the optimal inputs ``uk``.
 
+    **Configuration and setup:**
+    In order to set up the EKF in do-mpc, the user is advised to follow the model dscribed in template_ekf(). The steps are the following:
+        
+    1) Create an EKF object by instancing this class with a *do-mpc* :py:class:`Model` instance.
     
+    2) Define the type of estimator, sampling rate, estimation scheme and other parameters before using the estimator. See the documentation for :py:func:`EKF.set_params` for further details.
+    
+    3) After defining the parameters, call the :py:func:`EKF.setup` in order to finalize the creation procedure. Pay attention to any warnings or error. If everything went well, you now have a functioning EKF object.
+    
+    From now on, let's switch to the main routine for the usage of the EKF estimator.'
+    4) Before actually using the estimator, you should set the initial guess. Do this by calling :py:func:`EKF.set_initial_state` with an appropriate x0_hat vector.
+    
+    5) In your main control loop, you can call the estimator via the routine :py:func:`EKF.make_step`. This call will return two vectors: xk_hat - the current state estimate, and pk_hat - the current parameter estimate.
+    
+    6) That's it! The data is automatically stored inside the EKF data object and can be accessed and plotted just like any other *do-mpc* data source.
+    
+    ..note:: 
+        By default the EKF always returns both xk_hat and pk_hat, even if no parameters were defined to be estimated. In this case the vector pk_hat 
+        will contain only the static values of the paramaters, as passed on by the simulator. Otherwise the vector pk_hat contains a mixture of the 
+        estimated parameters (always the first ones in the vector) and the constant parameters (the remaining positions in the vector).
     """
     def __init__(self, model,  p_est_list=[]):
         super().__init__(model)
-        
+        # The following attributes must be defined in set_param()
         self.data_fields = [
             'type',
             'estimate_params',
@@ -117,16 +136,16 @@ class EKF(Estimator):
             'P0',
             'Q',
             'R',
-            'C_mat',
-            'H_func'
-        ]
+            'C',
+            'H']
         # Flags are checked when calling .setup.
         self.flags = {
             'setup': False,
             'params': False
         }
-        self.x0_hat = []
-        self.p0_hat = []
+        # The internal variables are used by member functions like setup() and make_step() 
+        self.xk_hat = []
+        self.Pk   = []
         self.iter_count = 0
         self._t0  = 0.0
         self._x   = model._x
@@ -141,13 +160,35 @@ class EKF(Estimator):
         
         
     def setup(self):
-        """Define the EKF model and implement a selective parameter estimation scheme. Must be called after having set up the 
-        estimator parameters. This function works without any specific call parameters, but here's what you should keep in mind:
-            
+        """Define the EKF model and implement a selective parameter estimation scheme. This function must be called after having set up the 
+           estimator parameters. This function works without any specific call parameters, but here's what you should keep in mind.
+        
+         **The general algorithm**
+         The setup of this estimator is relatively straightforward and follows the well known pattern for EKFs. Small differences are explained bellow:
+         
+         1) The model variables (states, outputs, parameters) are read together with their sizes. They will be used in defining the EKF model.
+    
+         2) By default, the EKF model is identical to the simulator model, unless specifically selected by the user in template_ekf(). 
+            Upon creating the EKF with a different model, the user should make sure that the model contains all variables and vector sizes required.
+         
+         3) By default, this class makes use of the CasADi symbolic structures in order to define the model and create the EKF integrator. The jacobians used during 
+            the linearization procedure are thus computed automatically from the given process model and variable structure.
+         
+         4) Note: the EKF model will always differ from the simulator if parameter estimation has been selected. All parameters will introduce individual dummy states 
+            that augment the EKF model with the respective number of variables. These parameters also pass from the parameter vector to the state vector, so that no inconsistency 
+            in the integrator call occurs. Internally, the EKF object handles all the data in appropriate fashion, such that the use does not have to worry about it.
+         
+         5) The EKF stores internally the process model in the form of an integartor, which is called during the prediction step of the estimator. 
+    
+         6) In addition to the integrator, the jacobians of the model and output are stored by the object.
+    
+         7) Variations on the EKF algorith are planned for future releases, amongst which: discrete EKF, adaptive EKF, multi-rate EKF
+    
+         For further information about the EKF, please consider reading the tutorial on getting started with estimation in *do-mpc*.
         """
         assert self.flags['params'] == True, 'You must define all mandatory EKF parameters before calling setup.'
-        assert self._n_y == getattr(self,'C_mat').shape[0], 'The measurement vector does not fit the output matrix provided. Please check these two parameters.'
-        assert self._n_x + len(self._p_est) == getattr(self,'C_mat').shape[1], 'The (augmented) state vector size does not fit the output matrix provided. Please check these two parameters.'
+        assert self._n_y == getattr(self,'C').shape[0], 'The measurement vector does not fit the output matrix provided. Please check these two parameters.'
+        assert self._n_x + len(self._p_est) == getattr(self,'C').shape[1], 'The (augmented) state vector size does not fit the output matrix provided. Please check these two parameters.'
         for par in self._p_est: 
             assert par in self._p.cat.str(), 'The parameters you want to estimate are not amongst the model parameters. Pay attention to the spelling and spaces!'
         
@@ -181,56 +222,70 @@ class EKF(Estimator):
         
         # Create the linearization model
         self.Jx = casadi.Function("Jx",[x_ekf,vertcat(self._u,p_rest)],[casadi.jacobian(rhs_ekf,x_ekf)])
-        #self.Jx = casadi.Function("Jx",[self._x,vertcat(self._u,self._p)],[casadi.jacobian(self._rhs,self._x)]) 
-        
+      
         # The EKF can now be used in the mpc loop, after setting the setup flag
         self.flags['setup'] = True
         
     def make_step(self, yk, uk, pk):
-        """Main method during runtime. Pass the most recent measurement and
-        retrieve the estimated state."""
+        """Main method during the runtime of the EKF. Pass the most recent measurement and retrieve the estimated state.
+
+        :param yk: Current plant/simulator output. Has a size defined by the output structure of the model.
+        :type yk: numpy array
+        :param uk: The current inputs provided to the plant by the controller are also passed to the estimator
+        :type uk: numpy array
+        :param pk: The current model parameters. 
+        :type pk: numpy array
+        
+        :return: xk_hat, pk_hat
+        :rtype: numpy array, numpy array
+        
+        .. note::
+        The state vector of the estimator can have a different length compared to the model. When true, this is due to additional dummy states that 
+        are internally used when parameters are estimated. The user is expected to take care of properly defining and passing the initial state of the estimator.   
+        .. note::
+        The parameter vector contains all the dynamic model parameters. They are internally split by the estimator into estimated and not-estimated sets and updated accordingly.
+        By convention the first entries in the vector al always the estimated parameters. The remaining entries are the uncertain parameters that are not estimated and therefore will 
+        always appear unchanged in the output of the estimator. No change to the parameter vector is visible to/from the outside.
+        """
+
         assert self.flags['setup'] == True, 'EKF was not setup yet. Please call EKF.setup().'
         
-        xk_old = self.x0_hat
-        C  = getattr(self,'C_mat')
-        P0 = getattr(self,'P0')
+        C  = getattr(self,'C')
         Q  = getattr(self,'Q')
         R  = getattr(self,'R')
         dt = getattr(self,'t_step')
+        Pk = getattr(self,'P0')  if self.iter_count == 0 else self.Pk
         
+        "The routine starts from the previously saved estimate, which is updated in every cycle. Initially this must be set by the user"
+        xk_old = self.xk_hat
         
         "Compute gain Kalman matrix K and do measurement correction"
-        K = P0*C.transpose()*np.linalg.inv(C*P0*C.transpose()+R)
-        P = P0-K*C*P0
+        K = Pk*C.transpose()*np.linalg.inv(C*Pk*C.transpose()+R)
+        P = Pk - K*C*Pk
        
         "The noise can be applied anywhere, why not here, inside the filter..."
         yk += np.random.normal(-self.nl,self.nl,self._n_y).reshape(-1,1) 
          
         "Exectute the correction part xk=K*(y-yhat)"
-        corr = K.dot((yk -C.dot(xk_old)))
-        #corr = np.resize(np.array(corr),(self._n_x))
-
+        corr = K.dot((yk - C.dot(xk_old)))
         xk_new = xk_old + corr
         
         # TODO: implement different routines: continuous discrete, continuous, discrete EKFs
         "Execute the simulation part"
         x_hat = self.ekf_simulator(x0 = xk_new, p = vertcat(uk, pk[len(self._p_est):]))['xf']
         
-        
         "Discrete time update of system matrix A"
-        A = self.Jx(x_hat,vertcat(uk,pk[len(self._p_est):]))
-        #pdb.set_trace()
+        A  = self.Jx(x_hat,vertcat(uk,pk[len(self._p_est):]))
         Ak = linalg.expm(np.matrix(A)*dt)
-        P = Ak*P*Ak.transpose() + Q
+        P  = Ak*P*Ak.transpose() + Q
         
         # The states are always first and the parameters are always in the last entries in the vector
         xk_hat = x_hat[0:self._n_x]
         pk_hat = vertcat(x_hat[self._n_x:self._n_x+len(self._p_est)], pk[len(self._p_est):])
         
         "Update the EKF parameters"
-        self.x0_hat = x_hat
-        #self.p0_hat = p_hat
-        setattr(self,'P0', P)
+        self.xk_hat = copy.deepcopy(x_hat)
+        self.Pk     = copy.deepcopy(P)
         
         "Rewrite internal states and update the data for plotting"        
         self.data.update(_x = xk_hat.toarray())
@@ -244,11 +299,27 @@ class EKF(Estimator):
         return xk_hat.toarray(), pk_hat.toarray()
     
     def set_param(self, **kwargs):
+        """Set the base EKF parameters. This function must be called before setting up the estimator!
         
+        :param **kwargs: The dictionary of parameters that should be written. Can be a subset of the general EKF parameter set.
+        :type **kwargs: python dict
+        
+        **Short description of the parameters**
+            'type': This is the general type of EKF estimator, which describes the EKF algorithm. The most relevant one is 'continuous_discrete', but 'discrete' or 'continuous' will be available in the future.
+            't_step': This is the sampling time of the estimator. Only relevant for discrete implementations, this will be used in computing the future system matrix A and co-varaiance P0.
+            'estimate_params': Tells the setup routine if it has to set up a pure state estimation (False), or state-and-parameter estimation (True)
+            'output_func': Tells the estimator whether the algorithm for updating the state is based on a 'linear' output function, or on a 'non-linear' one. 
+            'noise_level': By default, white noise can be added inside the estimation step. Set to non-zero positive values if desired, set to zero otherwise.
+            'P0': This is the initial guess of the co-variance matrix. It is used only in the first estimation step, after which the algorithms deffers to Pk, which is being updated at every step.
+            'Q': This is the state co-variance matrix used by the EKF auto-update co-variance step. 
+            'R': This is the measurement co-variance matrix, used in computing the corection step.
+            'C': Must be an output matrix of type (m x n), where m is the number of states in the estimator state vector and n is the number of measurements defined in the simulator.
+            'H': This parameter is used to pass onto the estimator a python-CasADi function that returns the output of the model as a function of states and inputs. Not used now. 
+        """
         assert self.flags['setup'] == False, 'Modifying parameters after setup will not change the existing EKF.'
 
         for key, value in kwargs.items():
-            if not (key in self.data_fields):
+            if not (key in self.data_fields): 
                 print('Warning: Key {} does not exist for the EKF estimator.'.format(key))
             else:
                 setattr(self, key, value)
@@ -259,8 +330,8 @@ class EKF(Estimator):
         """Set the intial state of the EKF estimator.
         Optionally resets the history. The history is empty upon creation of the estimator.
 
-        :param x0_hat: Initial state estimate
-        :type x0_hat: numpy array
+        :param x0: Initial state estimate. Contains all model states and, potentially, initial guesses of estimated parameters in the last positions.  
+        :type x0: numpy array
         :param reset_history: Resets the history of the simulator, defaults to False
         :type reset_history: bool (optional)
 
@@ -270,11 +341,9 @@ class EKF(Estimator):
         assert x0.size == self.model._x.size + len(self._p_est), 'Intial state cannot be set because the supplied vector has the wrong size. You have {} and the model is setup for {}'.format(x0.size, self.model._x.size)
         assert isinstance(reset_history, bool), 'reset_history parameter must be of type bool. You have {}'.format(type(reset_history))
         if isinstance(x0, (np.ndarray, casadi.DM)):
-            self.x0_hat = x0
-            #setattr(self,'x_hat',x0)
+            self.xk_hat = x0
         elif isinstance(x0, structure3.DMStruct):
-            self.x0_hat = x0.cat.toarray()
-            #setattr(self,'x_hat',x0.cat.toarray())
+            self.xk_hat = x0.cat.toarray()
         else:
             raise Exception('x0_hat must be of tpye (np.ndarray, casadi.DM, structure3.DMStruct). You have: {}'.format(type(x0)))
 
@@ -282,7 +351,7 @@ class EKF(Estimator):
             self.reset_history()
         
     def reset_history(self):
-        """Reset the history of the EKF estimator.
+        """Reset the history of the EKF estimator. Sets the time to t0=0 and flushes the data storage of the object.
         """
         self._t0 = np.array([0])
         self.data.init_storage()
