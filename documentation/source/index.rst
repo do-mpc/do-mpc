@@ -15,19 +15,21 @@
       https://www.do-mpc.com/en/latest/
 
 
-do-mpc: Model Predictive Control in Python
-==================================================
+Model predictive control python toolbox
+=======================================
 
 .. image:: https://readthedocs.org/projects/do-mpc/badge/?version=latest
-    :target: https://do-mpc.readthedocs.io/en/latest/?badge=latest
+    :target: https://www.do-mpc.com
     :alt: Documentation Status
 .. image:: https://travis-ci.org/do-mpc/do-mpc.svg?branch=master
     :target: https://travis-ci.org/do-mpc/do-mpc
     :alt: Build Status
+.. image:: https://badge.fury.io/py/do-mpc.svg
+    :target: https://badge.fury.io/py/do-mpc
 
 **do-mpc** is a comprehensive open-source toolbox for robust **Model Predictive Control (MPC)**
 and **Moving Horizon Estimation (MHE)**.
-It enables the efficient formulation and solution of control and estimation problems for nonlinear systems,
+**do-mpc** enables the efficient formulation and solution of control and estimation problems for nonlinear systems,
 including tools to deal with uncertainty and time discretization.
 The modular structure of **do-mpc** contains simulation, estimation and control components
 that can be easily extended and combined to fit many different applications.
@@ -43,7 +45,7 @@ In summary, **do-mpc** offers the following features:
 * modular design that can be easily extended
 ​
 The **do-mpc** software is Python based and works therefore on any OS with a Python 3.x distribution.
-**do-mpc** has been developed at the DYN chair of the TU Dortmund by Sergio Lucia and Alexandru Tatulea.
+**do-mpc** has been developed by Sergio Lucia and Alexandru Tatulea at the DYN chair of the TU Dormund lead by Sebastian Engell.
 The development is continued at the IOT chair of the TU Berlin by Felix Fiedler and Sergio Lucia.
 
 
@@ -100,6 +102,7 @@ Table of contents
 
    license
    installation
+   credit
 
 .. toctree::
    :maxdepth: 5

@@ -76,7 +76,7 @@ class TestRotatingMasses(unittest.TestCase):
         """
         Store results (from reference run):
         """
-        #do_mpc.data.save_results([mpc, simulator, mhe], 'results_rotatingMasses')
+        #do_mpc.data.save_results([mpc, simulator, mhe], 'results_rotatingMasses', overwrite=True)
 
         """
         Compare results to reference run:

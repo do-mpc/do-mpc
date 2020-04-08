@@ -46,10 +46,8 @@ def template_mpc(model):
 
     mpc.set_param(**setup_mpc)
 
-    _x, _u, _z, _tvp, p, _aux, *_ = model.get_variables()
-
-    mterm = _aux['cost']
-    lterm = sum1(_x.cat**2)
+    mterm = model.aux['cost']
+    lterm = sum1(model.x.cat**2)
 
     mpc.set_objective(mterm=mterm, lterm=lterm)
     mpc.set_rterm(u=1e-4)

@@ -63,12 +63,15 @@ def template_mhe(model):
     dx = x_0.cat - x_prev.cat
     dp = p_0.cat - p_prev.cat
 
-    P_x = np.eye(8)
+    P_x = 1e-4*np.eye(8)
     P_p = np.eye(1)
 
-    arrival_cost = 1e-4*dx.T@P_x@dx + 1e0*dp.T@P_p@dp
+    arrival_cost = dx.T@P_x@dx + dp.T@P_p@dp
 
-    mhe.set_objective(stage_cost, arrival_cost)
+    #mhe.set_objective(stage_cost, arrival_cost)
+
+    # Or take the shortcut and just pass the tuning matrices for the default objective:
+    mhe.set_default_objective(P_x, P_y, P_p)
 
 
     # The timevarying paramters have no effect on the simulator (they are only part of the cost function).
