@@ -59,7 +59,7 @@ def template_mpc(model):
     mpc._u_scaling['Q_dot'] = 2000
     mpc._u_scaling['F'] = 100
 
-    _x, _u, _z, _tvp, p, _aux,  *_ = mpc.model.get_variables()
+    _x = model.x
 
     mterm = (_x['C_b'] - 0.6)**2
     lterm = (_x['C_b'] - 0.6)**2

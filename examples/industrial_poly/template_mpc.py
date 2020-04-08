@@ -50,7 +50,7 @@ def template_mpc(model):
 
     mpc.set_param(**setup_mpc)
 
-    _x, _u, _z, _tvp, p, _aux,  *_ = mpc.model.get_variables()
+    _x = model.x
 
     mterm = - _x['m_P']
     lterm = - _x['m_P']

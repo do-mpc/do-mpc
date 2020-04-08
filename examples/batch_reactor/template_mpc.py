@@ -52,10 +52,8 @@ def template_mpc(model):
 
     mpc.set_param(**setup_mpc)
 
-    _x, _u, _z, _tvp, p, _aux,  *_ = mpc.model.get_variables()
-
-    mterm = -_x['P_s']
-    lterm = -_x['P_s']
+    mterm = -model.x['P_s']
+    lterm = -model.x['P_s']
 
     mpc.set_objective(mterm=mterm, lterm=lterm)
     mpc.set_rterm(inp=1.0)

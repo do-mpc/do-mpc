@@ -20,6 +20,7 @@
    .. rubric:: Methods
    .. autosummary::
       :toctree:
+      :nosignatures:
    {% for item in methods %}
     {%- if not item.startswith('__') %}
       {{ name }}.{{ item }}
@@ -27,3 +28,6 @@
    {% endfor %}
    {% endif %}
    {% endblock %}
+
+
+This page is auto-generated. Page source is not available on Github.

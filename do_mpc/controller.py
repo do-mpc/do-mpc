@@ -43,21 +43,102 @@ class MPC(do_mpc.optimizer.Optimizer):
 
     1. Use :py:func:`MPC.set_param` to configure the :py:class:`MPC` instance.
 
-    2. Use :py:meth:`do_mpc.model.Model.get_variables` to obtain the variables defined in :py:class:`do_mpc.model.Model`.
+    2. Set the objective of the control problem with :py:func:`MPC.set_objective` and :py:func:`MPC.set_rterm`
 
-    3. Set the objective of the control problem with :py:func:`MPC.set_objective` with variables from step 2.
+    3. Set upper and lower bounds with :py:func:`do_mpc.optimizer.Optimizer.bounds` (optional).
 
-    4. Use :py:func:`MPC.get_rterm` to obtain the structure of weighting parameters to penalize changes in the input and set appropriate values.
+    4. Set further (non-linear) constraints with :py:func:`do_mpc.optimizer.Optimizer.set_nl_cons` (optional).
 
-    5. Set upper and lower bounds.
+    5. Use the low-level API (:py:func:`MPC.get_p_template` and :py:func:`MPC.set_p_fun`) or high level API (:py:func:`MPC.set_uncertainty_values`) to create scenarios for robust MPC (optional).
 
-    6. Optionally, set further (non-linear) constraints with :py:func:`do_mpc.optimizer.Optimizer.set_nl_cons`.
-
-    7. Use the low-level API (:py:func:`MPC.get_p_template` and :py:func:`MPC.set_p_fun`) or high level API (:py:func:`MPC.set_uncertainty_values`) to create scenarios for robust MPC.
-
-    8. Finally, call :py:func:`MPC.setup`.
+    6. Finally, call :py:func:`MPC.setup`.
 
     """
+
+    opt_x_num = None
+    """Full MPC solution and initial guess.
+
+    This is the core attribute of the MPC class.
+    It is used as the initial guess when solving the optimization problem
+    and then overwritten with the current solution.
+
+    The attribute is a CasADi numeric structure with nested power indices.
+    It can be indexed as follows:
+
+    ::
+
+        # dynamic states:
+        opt_x_num['_x', time_step, scenario, collocation_point, _x_name]
+        # algebraic states:
+        opt_x_num['_z', time_step, scenario, collocation_point, _z_name]
+        # inputs:
+        opt_x_num['_u', time_step, scenario, _u_name]
+        # slack variables for soft constraints:
+        opt_x_num['_eps', time_step, scenario, _nl_cons_name]
+
+    The names refer to those given in the :py:class:`do_mpc.model.Model` configuration.
+    Further indices are possible, if the variables are itself vectors or matrices.
+
+    The attribute can be used **to manually set a custom initial guess or for debugging purposes**.
+
+    .. note::
+
+        The attribute ``opt_x_num`` carries the scaled values of all variables. See ``opt_x_num_unscaled``
+        for the unscaled values (these are not used as the initial guess).
+
+    .. warning::
+
+        Do not tweak or overwrite this attribute unless you known what you are doing.
+
+    .. note::
+
+        The attribute is populated when calling :py:func:`MPC.setup`
+    """
+
+    opt_p_num = None
+    """Full MPC parameter vector.
+
+    This attribute is used when calling the MPC solver to pass all required parameters,
+    including
+
+    * initial state
+
+    * uncertain scenario parameters
+
+    * time-varying parameters
+
+    * previous input sequence
+
+    **do-mpc** handles setting these parameters automatically in the :py:func:`MPC.make_step`
+    method. However, you can set these values manually and directly call :py:func:`MPC.solve`.
+
+    The attribute is a CasADi numeric structure with nested power indices.
+    It can be indexed as follows:
+
+    ::
+
+        # initial state:
+        opt_p_num['_x0', _x_name]
+        # uncertain scenario parameters
+        opt_p_num['_p', scenario, _p_name]
+        # time-varying parameters:
+        opt_p_num['_tvp', time_step, _tvp_name]
+        # input at time k-1:
+        opt_p_num['_u_prev', time_step, scenario]
+
+    The names refer to those given in the :py:class:`do_mpc.model.Model` configuration.
+    Further indices are possible, if the variables are itself vectors or matrices.
+
+    .. warning::
+
+        Do not tweak or overwrite this attribute unless you known what you are doing.
+
+    .. note::
+
+        The attribute is populated when calling :py:func:`MPC.setup`
+
+    """
+
     def __init__(self, model):
 
         self.model = model
@@ -204,14 +285,15 @@ class MPC(do_mpc.optimizer.Optimizer):
 
 
     def set_objective(self, mterm=None, lterm=None):
-        """Sets the objective of the optimal control problem (OCP). We introduce the following notation:
+        """Sets the objective of the optimal control problem (OCP). We introduce the following cost function:
 
         .. math::
+           J(x,u,z) =  \\sum_{k=0}^{N}\\left(\\underbrace{l(x_k,u_k,z_k,p)}_{\\text{lagrange term}}
+           + \\underbrace{\\Delta u_k^T R \\Delta u_k}_{\\text{r-term}}\\right)
+           + \\underbrace{m(x_{N+1})}_{\\text{meyer term}}
 
-           \min_{x,u,z}\quad \sum_{k=0}^{n-1} ( l(x_k,u_k,z_k,p) + \Delta u_k^T R \Delta u_k ) + m(x_n)
-
-        :py:func:`optimizer.set_objective` is used to set the :math:`l(x_k,u_k,z_k,p)` (``lterm``) and :math:`m(x_N)` (``lterm``), where ``N`` is the prediction horizon.
-        Please see :py:func:`optimizer.set_rterm` for the ``rterm``.
+        :py:func:`MPC.set_objective` is used to set the :math:`l(x_k,u_k,z_k,p)` (``lterm``) and :math:`m(x_N)` (``mterm``), where ``N`` is the prediction horizon.
+        Please see :py:func:`MPC.set_rterm` for the ``rterm``.
 
         :param lterm: Stage cost - **scalar** symbolic expression with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``
         :type lterm:  CasADi SX or MX
@@ -228,7 +310,7 @@ class MPC(do_mpc.optimizer.Optimizer):
         assert lterm.shape == (1,1), 'lterm must have shape=(1,1). You have {}'.format(lterm.shape)
         assert self.flags['setup'] == False, 'Cannot call .set_objective after .setup_model.'
 
-        _x, _u, _z, _tvp, _p, _aux,  *_ = self.model.get_variables()
+        _x, _u, _z, _tvp, _p = self.model['x','u','z','tvp','p']
 
         # If the mterm is a symbolic expression:
         try:
@@ -482,19 +564,17 @@ class MPC(do_mpc.optimizer.Optimizer):
             self.set_p_fun(p_fun)
 
     def setup(self):
-        """Setup the MPC class. After this call, the :py:func:`do_mpc.optimizer.Optimizer.solve` method is applicable.
-        The method wraps the following calls:
+        """Setup the MPC class.
+        Internally, this method will create the MPC optimization problem under consideration
+        of the supplied dynamic model and the given :py:class:`MPC` class instance configuration.
+        The method also sets the initial guess with :py:func:`MPC.set_initial_guess`.
+        The :py:func:`MPC.setup` method can be called again after changing the configuration
+        (e.g. adapting bounds) and will simply overwrite the previous optimization problem.
 
-        * :py:func:`do_mpc.optimizer.Optimizer._setup_nl_cons`
+        After setup, the :py:class:`MPC` instance enables the :py:func:`make_step` method.
+        This method is used during runtime to obtain the MPC current control input given the current state.
 
-        * :py:func:`MPC._check_validity`
-
-        * :py:func:`MPC._setup_mpc_optim_problem`
-
-        * :py:func:`MPC.set_initial_guess`
-
-        and sets the setup flag = True.
-
+        The method sets ``flags['setup'] = True``.
         """
 
         self._setup_nl_cons()
@@ -516,8 +596,12 @@ class MPC(do_mpc.optimizer.Optimizer):
         """Initial guess for optimization variables.
         Uses the current class attributes ``_x0``, ``_z0`` and ``_u0`` to create the initial guess.
         The initial guess is simply the initial values for all instances of x, u and z. The method is automatically
-        evoked when calling the .setup() method.
-        However, if no initial values for x, u and z were supplied during setup, these default to zero.
+        evoked when calling the :py:func:`MPC.setup` method.
+        If no initial values for ``_x0``, ``_z0`` and ``_u0`` were supplied during setup, these default to zero.
+
+        .. note::
+            The initial guess is fully customizable by directly setting values on the class attribute:
+            ``opt_x_num``.
         """
         assert self.flags['setup'] == True, 'optimizer was not setup yet. Please call optimizer.setup().'
 
@@ -530,7 +614,7 @@ class MPC(do_mpc.optimizer.Optimizer):
         """Main method of the class during runtime. This method is called at each timestep
         and returns the control input for the current initial state ``x0``.
 
-        The method prepares the MHE by setting the current parameters, calls :py:func:`do_mpc.optimizer.solve`
+        The method prepares the MHE by setting the current parameters, calls :py:func:`do_mpc.optimizer.Optimizer.solve`
         and updates the :py:class:`do_mpc.data.Data` object.
 
         :param x0: Current state of the system.
