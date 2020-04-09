@@ -101,10 +101,11 @@ class StateFeedback(Estimator):
 class EKF(Estimator):
     """Extended Kalman Filter. Setup an object of this type by first setting its parameters via :py:func:`EKF.set_params`, 
     after which you can setup the EKF model by calling :py:func:`EKF.setup`. The basic EKF step is called through :py:func:`EKF.make_step`
-    during runtime to obtain the currently state (and parameter) estimates given the current measurements ``yk``, the current parameter values ``pk``and the optimal inputs ``uk``.
+    during runtime to obtain the currently state (and parameter) estimates given the current measurements ``yk``, the current parameter values ``pk`` and the optimal inputs ``uk``.
 
     **Configuration and setup:**
-    In order to set up the EKF in do-mpc, the user is advised to follow the model dscribed in template_ekf(). The steps are the following:
+    
+    In order to set up the EKF in do-mpc, the user is advised to follow the model dscribed in the *template_ekf()*. The steps are the following:
         
     1) Create an EKF object by instancing this class with a *do-mpc* :py:class:`Model` instance.
     
@@ -160,10 +161,12 @@ class EKF(Estimator):
         
         
     def setup(self):
-        """Define the EKF model and implement a selective parameter estimation scheme. This function must be called after having set up the 
-           estimator parameters. This function works without any specific call parameters, but here's what you should keep in mind.
+        """Defines the EKF model and implements a selective parameter estimation scheme.
+        
+        This function must be called after having set up the estimator parameters. This function works without any specific call parameters, but here's what you should keep in mind.
         
          **The general algorithm**
+         
          The setup of this estimator is relatively straightforward and follows the well known pattern for EKFs. Small differences are explained bellow:
          
          1) The model variables (states, outputs, parameters) are read together with their sizes. They will be used in defining the EKF model.
@@ -227,7 +230,7 @@ class EKF(Estimator):
         self.flags['setup'] = True
         
     def make_step(self, yk, uk, pk):
-        """Main method during the runtime of the EKF. Pass the most recent measurement and retrieve the estimated state.
+        """Main method during the runtime of the EKF, implements one estimation step. Pass the most recent measurement and retrieve the estimated state.
 
         :param yk: Current plant/simulator output. Has a size defined by the output structure of the model.
         :type yk: numpy array
@@ -242,6 +245,7 @@ class EKF(Estimator):
         .. note::
         The state vector of the estimator can have a different length compared to the model. When true, this is due to additional dummy states that 
         are internally used when parameters are estimated. The user is expected to take care of properly defining and passing the initial state of the estimator.   
+        
         .. note::
         The parameter vector contains all the dynamic model parameters. They are internally split by the estimator into estimated and not-estimated sets and updated accordingly.
         By convention the first entries in the vector al always the estimated parameters. The remaining entries are the uncertain parameters that are not estimated and therefore will 
@@ -305,15 +309,25 @@ class EKF(Estimator):
         :type **kwargs: python dict
         
         **Short description of the parameters**
+        
             'type': This is the general type of EKF estimator, which describes the EKF algorithm. The most relevant one is 'continuous_discrete', but 'discrete' or 'continuous' will be available in the future.
+            
             't_step': This is the sampling time of the estimator. Only relevant for discrete implementations, this will be used in computing the future system matrix A and co-varaiance P0.
+            
             'estimate_params': Tells the setup routine if it has to set up a pure state estimation (False), or state-and-parameter estimation (True)
+            
             'output_func': Tells the estimator whether the algorithm for updating the state is based on a 'linear' output function, or on a 'non-linear' one. 
+            
             'noise_level': By default, white noise can be added inside the estimation step. Set to non-zero positive values if desired, set to zero otherwise.
+            
             'P0': This is the initial guess of the co-variance matrix. It is used only in the first estimation step, after which the algorithms deffers to Pk, which is being updated at every step.
+            
             'Q': This is the state co-variance matrix used by the EKF auto-update co-variance step. 
+            
             'R': This is the measurement co-variance matrix, used in computing the corection step.
+            
             'C': Must be an output matrix of type (m x n), where m is the number of states in the estimator state vector and n is the number of measurements defined in the simulator.
+            
             'H': This parameter is used to pass onto the estimator a python-CasADi function that returns the output of the model as a function of states and inputs. Not used now. 
         """
         assert self.flags['setup'] == False, 'Modifying parameters after setup will not change the existing EKF.'
