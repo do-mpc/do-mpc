@@ -37,6 +37,10 @@ from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator
 
+""" User settings: """
+show_animation = True
+store_results = False
+
 """
 Get configured do-mpc modules:
 """
@@ -63,32 +67,27 @@ estimator.set_initial_state(x0, reset_history=True)
 Setup graphic:
 """
 
-fig, ax, graphics = do_mpc.graphics.default_plot(model, figsize=(8,5))
+fig, ax, graphics = do_mpc.graphics.default_plot(mpc.data, figsize=(8,5))
 plt.ion()
 
 """
 Run MPC main loop:
 """
 
-time_list = []
 for k in range(150):
-    tic = time.time()
     u0 = mpc.make_step(x0)
     y_next = simulator.make_step(u0)
     x0 = estimator.make_step(y_next)
-    toc = time.time()
-    time_list.append(toc-tic)
 
-    if True:
+    if show_animation:
+        graphics.plot_results(t_ind=k)
+        graphics.plot_predictions(t_ind=k)
         graphics.reset_axes()
-        graphics.plot_results(mpc.data, linewidth=3)
-        graphics.plot_predictions(mpc.data, mpc.opt_x_num, mpc.opt_aux_num, linestyle='--', linewidth=1)
         plt.show()
-        input('next step')
+        plt.pause(0.01)
 
-time_arr = np.array(time_list)
-print('Total run-time: {tot:5.2f} s, step-time {mean:.3f}+-{std:.3f} s.'.format(tot=np.sum(time_arr), mean=np.mean(time_arr), std=np.sqrt(np.var(time_arr))))
-
-simu_lines = graphics.plot_results(simulator.data)
-plt.show()
 input('Press any key to exit.')
+
+# Store results:
+if store_results:
+    do_mpc.data.save_results([mpc, simulator], 'batch_reactor_MPC')

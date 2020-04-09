@@ -37,6 +37,10 @@ from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator
 
+""" User settings: """
+show_animation = True
+store_results = False
+
 
 model = template_model()
 mpc = template_mpc(model)
@@ -54,7 +58,7 @@ mpc.set_initial_state(x0, reset_history=True)
 simulator.set_initial_state(x0, reset_history=True)
 
 # Initialize graphic:
-graphics = do_mpc.graphics.Graphics()
+graphics = do_mpc.graphics.Graphics(mpc.data)
 
 
 fig, ax = plt.subplots(5, sharex=True)
@@ -67,42 +71,46 @@ graphics.add_line(var_type='_aux', var_name='T_dif', axis=ax[2])
 graphics.add_line(var_type='_u', var_name='Q_dot', axis=ax[3])
 graphics.add_line(var_type='_u', var_name='F', axis=ax[4])
 ax[0].set_ylabel('c [mol/l]')
-ax[1].set_ylabel('Temperature [K]')
-ax[2].set_ylabel('\Delta T [K]')
-ax[3].set_ylabel('Q_heat [kW]')
+ax[1].set_ylabel('T [K]')
+ax[2].set_ylabel('$\Delta$ T [K]')
+ax[3].set_ylabel('Q [kW]')
 ax[4].set_ylabel('Flow [l/h]')
+ax[4].set_xlabel('time [h]')
+
+# Update properties for all prediction lines:
+for line_i in graphics.pred_lines.full:
+    line_i.set_linewidth(1)
+# Highlight nominal case:
+for line_i in np.sum(graphics.pred_lines['_x', :, :,0]):
+    line_i.set_linewidth(3)
+for line_i in np.sum(graphics.pred_lines['_u', :, :,0]):
+    line_i.set_linewidth(3)
+for line_i in np.sum(graphics.pred_lines['_aux', :, :,0]):
+    line_i.set_linewidth(3)
+
+label_lines = graphics.result_lines['_x', 'C_a']+graphics.result_lines['_x', 'C_b']
+ax[0].legend(label_lines, ['C_a', 'C_b'])
+label_lines = graphics.result_lines['_x', 'T_R']+graphics.result_lines['_x', 'T_K']
+ax[1].legend(label_lines, ['T_R', 'T_K'])
 
 fig.align_ylabels()
+fig.tight_layout()
 plt.ion()
 
-time_list = []
-for k in range(100):
-    tic = time.time()
+for k in range(50):
     u0 = mpc.make_step(x0)
     y_next = simulator.make_step(u0)
     x0 = estimator.make_step(y_next)
-    toc = time.time()
-    time_list.append(toc-tic)
 
-    if True:
+    if show_animation:
+        graphics.plot_results(t_ind=k)
+        graphics.plot_predictions(t_ind=k)
         graphics.reset_axes()
-        graphics.plot_results(mpc.data, linewidth=3)
-        graphics.plot_predictions(mpc.data, linestyle='--', linewidth=1)
         plt.show()
-        input('next step')
+        plt.pause(0.01)
 
-time_arr = np.array(time_list)
-print('Total run-time: {tot:5.2f} s, step-time {mean:.3f}+-{std:.3f} s.'.format(tot=np.sum(time_arr), mean=np.mean(time_arr), std=np.sqrt(np.var(time_arr))))
-
-opti_lines = graphics.plot_results(mpc.data)
-simu_lines = graphics.plot_results(simulator.data)
-
-plt.sca(ax[0])
-ax[0].add_artist(plt.legend(opti_lines[:2], ['Ca', 'Cb'], title='mpc', loc=1))
-plt.sca(ax[0])
-ax[0].add_artist(plt.legend(simu_lines[:2], ['Ca', 'Cb'], title='Simulator', loc=2))
-plt.show()
 input('Press any key to exit.')
 
 # Store results:
-do_mpc.data.save_results([mpc, simulator], 'CSTR_robust_MPC')
+if store_results:
+    do_mpc.data.save_results([mpc, simulator], 'CSTR_robust_MPC')
