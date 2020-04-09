@@ -38,13 +38,22 @@ from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator
 
+
+""" User settings: """
+show_animation = True
+store_results = False
+
+"""
+Get configured do-mpc modules:
+"""
+
 model = template_model()
 mpc = template_mpc(model)
 simulator = template_simulator(model)
 estimator = do_mpc.estimator.StateFeedback(model)
 
 # Set the initial state of mpc and simulator:
-x0 = model._x(0)
+x0 = model['x'](0)
 
 delH_R_real = 950.0
 c_pR = 5.0
@@ -67,7 +76,7 @@ mpc.set_initial_state(x0, reset_history=True)
 simulator.set_initial_state(x0, reset_history=True)
 
 # Initialize graphic:
-graphics = do_mpc.graphics.Graphics()
+graphics = do_mpc.graphics.Graphics(mpc.data)
 
 
 fig, ax = plt.subplots(5, sharex=True)
@@ -84,29 +93,25 @@ ax[1].set_ylabel('acc. monom')
 ax[2].set_ylabel('m_dot_f')
 ax[3].set_ylabel('T_in_M [K]')
 ax[4].set_ylabel('T_in_EK [K]')
+ax[4].set_xlabel('time')
 
 fig.align_ylabels()
 plt.ion()
 
-time_list = []
 for k in range(100):
-    tic = time.time()
     u0 = mpc.make_step(x0)
     y_next = simulator.make_step(u0)
     x0 = estimator.make_step(y_next)
-    toc = time.time()
-    time_list.append(toc-tic)
 
-    if True:
+    if show_animation:
+        graphics.plot_results(t_ind=k)
+        graphics.plot_predictions(t_ind=k)
         graphics.reset_axes()
-        graphics.plot_results(mpc.data, linewidth=3)
-        graphics.plot_predictions(mpc.data, linestyle='--', linewidth=1)
         plt.show()
-        input('next step')
+        plt.pause(0.01)
 
-time_arr = np.array(time_list)
-print('Total run-time: {tot:5.2f} s, step-time {mean:.3f}+-{std:.3f} s.'.format(tot=np.sum(time_arr), mean=np.mean(time_arr), std=np.sqrt(np.var(time_arr))))
-
-simu_lines = graphics.plot_results(simulator.data)
-plt.show()
 input('Press any key to exit.')
+
+# Store results:
+if store_results:
+    do_mpc.data.save_results([mpc, simulator], 'industrial_poly')
