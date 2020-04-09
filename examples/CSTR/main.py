@@ -37,7 +37,7 @@ from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator
 
-""" User Setting: """
+""" User settings: """
 show_animation = True
 store_results = False
 

@@ -331,7 +331,8 @@ class MPCData(Data):
                 f_ind = self.prediction_queries['f_ind'][i]
             else:
                 f_ind = self.opt_p.f[(ind[0], slice(None))+ind[1:]]
-                f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind], dtype='int32')
+                f_ind = np.array(f_ind).reshape(1, -1, 1)
+                #f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind], dtype='int32')
                 # Store f_ind:
                 self.prediction_queries['ind'].append(ind)
                 self.prediction_queries['f_ind'].append(f_ind)

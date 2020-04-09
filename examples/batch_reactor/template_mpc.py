@@ -46,6 +46,7 @@ def template_mpc(model):
         'collocation_type': 'radau',
         'collocation_deg': 2,
         'collocation_ni': 2,
+        'store_full_solution': True,
         # Use MA27 linear solver in ipopt for faster calculations:
         #'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
     }
