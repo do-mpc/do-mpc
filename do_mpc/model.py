@@ -82,7 +82,7 @@ class Model:
 
     _tvp = [entry('default', shape=(0,0))]
 
-    _aux = [entry('default', shape=(0,0))]
+    _aux = [entry('default', shape=(1,1))]
     _aux_expression = [entry('default', expr=DM(0))]
 
     _y =   [entry('default', shape=(0,0))]

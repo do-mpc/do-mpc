@@ -42,6 +42,7 @@ def template_mpc(model):
         'n_horizon': 20,
         't_step': 0.1,
         'state_discretization': 'discrete',
+        'store_full_solution':True,
     }
 
     mpc.set_param(**setup_mpc)
