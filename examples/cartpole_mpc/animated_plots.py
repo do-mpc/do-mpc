@@ -33,74 +33,76 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.animation import FuncAnimation, ImageMagickWriter
 import pickle
-plt.ion()
+
+
+""" User settings: """
+show_static      = True     # Displays the pickled results using do-mpc methods
+show_animation1  = False    # Display live animation at runtime using do-mpc and saves the output
+show_animation2  = True     # Alternative animation that displays a moving sketch of the cartpole and the input force
 
 results  = do_mpc.data.load_results('./results/cartpole_results.pkl')
 
 """
 Static plot Example
 """
-static_graph = do_mpc.graphics.Graphics()
+if show_static:
+    
+    static_graph = do_mpc.graphics.Graphics(results['mpc'])
+    
+    fig1, ax1 = plt.subplots(4, sharex=True, figsize=(8,6))
+    # Configure plot:
+    static_graph.add_line(var_type='_x', var_name='x', axis=ax1[0])
+    static_graph.add_line(var_type='_x', var_name='v', axis=ax1[1])
+    static_graph.add_line(var_type='_x', var_name='theta', axis=ax1[2])
+    static_graph.add_line(var_type='_u', var_name='F', axis=ax1[3])
+    ax1[0].set_ylabel('x [m]')
+    ax1[1].set_ylabel('v [m/sec]')
+    ax1[2].set_ylabel('$\Theta$ [rad]')
+    ax1[3].set_ylabel('Force [N]')
+    ax1[3].set_xlabel('Time [h]')
+    
+    fig1.align_ylabels()
+    
+    
+    simu_lines = static_graph.plot_results()
+    
+    fig1.tight_layout()
+    
+    plt.show()
+    plt.ion()
 
-fig1, ax1 = plt.subplots(4, sharex=True, figsize=(8,6))
-# Configure plot:
-static_graph.add_line(var_type='_x', var_name='x', axis=ax1[0])
-static_graph.add_line(var_type='_x', var_name='v', axis=ax1[1])
-static_graph.add_line(var_type='_x', var_name='theta', axis=ax1[2])
-static_graph.add_line(var_type='_u', var_name='F', axis=ax1[3])
-ax1[0].set_ylabel('x [m]')
-ax1[1].set_ylabel('v [m/sec]')
-ax1[2].set_ylabel('$\Theta$ [rad]')
-ax1[3].set_ylabel('Force [N]')
-ax1[3].set_xlabel('Time [h]')
+"""
+Animation example #1 - using do-mpc methods
+"""
+if show_animation1:
+    # This part animnates the time plots of states and inputs
+    dynamic_graph = do_mpc.graphics.Graphics(results['mpc'])
+    
+    fig2, ax2 = plt.subplots(4, sharex=True, figsize=(8,6))
+    fig2.suptitle("Inverted Pendulum NMPC: Animated Trends", fontsize=16)
+    # Configure plot:
+    dynamic_graph.add_line(var_type='_x', var_name='x', axis=ax2[0])
+    dynamic_graph.add_line(var_type='_x', var_name='v', axis=ax2[1])
+    dynamic_graph.add_line(var_type='_x', var_name='theta', axis=ax2[2])
+    dynamic_graph.add_line(var_type='_u', var_name='F', axis=ax2[3])
+    ax2[0].set_ylabel('x [m]')
+    ax2[1].set_ylabel('v [m/sec]')
+    ax2[2].set_ylabel('$\Theta$ [rad]')
+    ax2[3].set_ylabel('Force [N]')
+    ax2[3].set_xlabel('Time [sec]')
+    
+    fig2.align_ylabels()
+    
+    # This code will create a fig animation and save the result in a GIF
+    do_mpc.graphics.animate(dynamic_graph,fig2,n_steps=100, fps=10)
 
-fig1.align_ylabels()
-
-
-simu_lines = static_graph.plot_results(results['simulator'])
-
-fig1.tight_layout()
-
-plt.show()
-#input('press any key.')
 
 
 """
-Animation
+Animation example #2 - using some nifty matplotlib methods and ImageMagick 
 """
-# This part animnates the time plots of states and inputs
-dynamic_graph = do_mpc.graphics.Graphics()
 
-fig2, ax2 = plt.subplots(4, sharex=True, figsize=(8,6))
-fig2.suptitle("Inverted Pendulum NMPC: Animated Trends", fontsize=16)
-# Configure plot:
-dynamic_graph.add_line(var_type='_x', var_name='x', axis=ax2[0])
-dynamic_graph.add_line(var_type='_x', var_name='v', axis=ax2[1])
-dynamic_graph.add_line(var_type='_x', var_name='theta', axis=ax2[2])
-dynamic_graph.add_line(var_type='_u', var_name='F', axis=ax2[3])
-ax2[0].set_ylabel('x [m]')
-ax2[1].set_ylabel('v [m/sec]')
-ax2[2].set_ylabel('$\Theta$ [rad]')
-ax2[3].set_ylabel('Force [N]')
-ax2[3].set_xlabel('Time [sec]')
-
-fig2.align_ylabels()
-
-# And this part animates the pendulum sketch
-
-fig3, ax3 = plt.subplots(1, sharex=True, figsize=(8,6))
-fig3.suptitle("Inverted Pendulum NMPC: Animated CartPole", fontsize=16)
-#fig3.tight_layout()
-
-Theta_text = ax3.text(-1.0,-3, '', fontsize = 14)
-F_text     = ax3.text(-1.2,-5, '', fontsize = 14)
-
-cart       = patches.Rectangle((-1,-0.5),2.0, 1.0, edgecolor='none',facecolor='steelblue')
-pendulum   = patches.Rectangle((-0.15,0),0.3, 4.0, edgecolor='none',facecolor='sienna')
-
-
-output_format = 'gif' #'gif' #'mp4'
-
+# These functions will be called by FuncAnimation
 def update_trends(t_ind):
     dynamic_graph.reset_axes()
     simu_lines = dynamic_graph.plot_results(results['simulator'], t_ind=t_ind, linewidth=3)
@@ -147,14 +149,26 @@ def init_sketch():
   
     return cart, pendulum 
 
-#anim_trends = FuncAnimation(fig2, update_trends, frames=results['simulator']._time.size, interval= 0.5, repeat=False)
-anim_sketch = FuncAnimation(fig3, update_sketch, init_func=init_sketch, frames=results['simulator']._time.size, interval= 20, blit= True, repeat=False)
+if show_animation2:
+    # Select the type of animated result you want to store (none = just plot animation in Python)
+    output_format = 'none' #'gif' #'mp4'
+    
+    fig3, ax3 = plt.subplots(1, sharex=True, figsize=(8,6))
+    fig3.suptitle("Inverted Pendulum NMPC: Animated CartPole", fontsize=16)
+    
+    Theta_text = ax3.text(-1.0,-3, '', fontsize = 14)
+    F_text     = ax3.text(-1.2,-5, '', fontsize = 14)
+    
+    cart       = patches.Rectangle((-1,-0.5),2.0, 1.0, edgecolor='none',facecolor='#1f77b4')
+    pendulum   = patches.Rectangle((-0.15,0),0.3, 4.0, edgecolor='none',facecolor='sienna')
+    
+    anim_sketch = FuncAnimation(fig3, update_sketch, init_func=init_sketch, frames=results['simulator']._time.size, interval= 20, blit= True, repeat=False)
 
-if 'mp4' in output_format:
-    FFWriter = FFMpegWriter(fps=6, extra_args=['-vcodec', 'libx264'])
-    anim_trends.save('anim.mp4', writer=FFWriter)
-elif 'gif' in output_format:
-    gif_writer = ImageMagickWriter(fps=3)
-    anim_sketch.save('anim.gif', writer=gif_writer)
-else:
-    plt.show()
+    if 'mp4' in output_format:
+        FFWriter = FFMpegWriter(fps=6, extra_args=['-vcodec', 'libx264'])
+        anim_trends.save('anim.mp4', writer=FFWriter)
+    elif 'gif' in output_format:
+        gif_writer = ImageMagickWriter(fps=3)
+        anim_sketch.save('anim.gif', writer=gif_writer)
+    else:
+        plt.show()

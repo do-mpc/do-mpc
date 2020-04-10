@@ -78,32 +78,40 @@ mpc_graphics.add_line(var_type='_x', var_name='C_a', axis=ax[0])
 mpc_graphics.add_line(var_type='_x', var_name='C_b', axis=ax[0])
 mpc_graphics.add_line(var_type='_x', var_name='T_R', axis=ax[1])
 mpc_graphics.add_line(var_type='_x', var_name='T_K', axis=ax[1])
-mpc_graphics.add_line(var_type='_aux', var_name='T_dif', axis=ax[2])
+#mpc_graphics.add_line(var_type='_aux', var_name='T_dif', axis=ax[2])
 mpc_graphics.add_line(var_type='_u', var_name='Q_dot', axis=ax[3])
 mpc_graphics.add_line(var_type='_u', var_name='F', axis=ax[4])
 # 2) Add the estimated lines to be compared to the MPC results 
 #   (if output_feedback = False, the lines are only for comparison purposes)
 ekf_graphics.add_line(var_type='_x', var_name='C_a', axis=ax[0], linestyle = '-.', color='#1f77b4')
 ekf_graphics.add_line(var_type='_x', var_name='C_b', axis=ax[0], linestyle = '-.', color='#ff7f0e')
+ekf_graphics.add_line(var_type='_p', var_name='alpha', axis=ax[2], linestyle = '-.')
+ekf_graphics.add_line(var_type='_p', var_name='beta', axis=ax[2])
 
 ax[0].set_ylabel('c [mol/l]')
 ax[1].set_ylabel('T [K]')
-ax[2].set_ylabel('$\Delta$ T [K]')
+ax[2].set_ylabel('$R_{coeff}$')
 ax[3].set_ylabel('Q [kW]')
 ax[4].set_ylabel('Flow [l/h]')
 ax[4].set_xlabel('Time [h]')
 
+# Legends to make distinction between simulated and estimated concentrations 
 label_lines = mpc_graphics.result_lines['_x', 'C_a']+mpc_graphics.result_lines['_x', 'C_b'] + \
               ekf_graphics.result_lines['_x', 'C_a']+ekf_graphics.result_lines['_x', 'C_b']
 ax[0].legend(label_lines, ['True $C_a$', 'True $C_b$', 'Estimated $C_a$', 'Estimated $C_b$'])
+# Only real (measured) temperatures are plotted, but estimation could also be plotted...
 label_lines = mpc_graphics.result_lines['_x', 'T_R']+mpc_graphics.result_lines['_x', 'T_K']
 ax[1].legend(label_lines, ['$T_R$', '$T_K$'])
+# Add legends for the parameters
+label_lines = ekf_graphics.result_lines['_p', 'alpha']+ekf_graphics.result_lines['_p', 'beta']
+ax[2].legend(label_lines, ['alpha', 'beta'])
+ax[2].set_ylim(0.5,1.5)
 
 fig.align_ylabels()
 plt.ion()
 
 time_list = []
-for k in range(100):
+for k in range(77):
     
     if k==0: xk = x0; xk_hat = x0
     "Note: This is an output-feedback NMPC scheme. If state-feedback is desired, update the setting at the top of this script"   
@@ -138,8 +146,10 @@ for k in range(100):
 time_arr = np.array(time_list)
 print('Total run-time: {tot:5.2f} s, step-time {mean:.3f}+-{std:.3f} s.'.format(tot=np.sum(time_arr), mean=np.mean(time_arr), std=np.sqrt(np.var(time_arr))))
 
-est_lines = ekf_graphics.plot_results()
-sim_lines = mpc_graphics.plot_results()
+est_lines = ekf_graphics.plot_results(t_ind=k)
+sim_lines = mpc_graphics.plot_results(t_ind=k)
+mpc_graphics.reset_axes()
+plt.show()
 
 input('Press any key to exit.')
 

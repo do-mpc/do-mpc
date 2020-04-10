@@ -37,11 +37,14 @@ from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator
 
+""" User settings: """
+show_animation  = True      # Display live animation at runtime
+store_results   = True     # Do not store pickled results (if True, creates a new result folder and stores each run under different name)
 
 model = template_model()
+sim = template_simulator(model)
 mpc = template_mpc(model)
-simulator = template_simulator(model)
-estimator = do_mpc.estimator.StateFeedback(model)
+sfb = do_mpc.estimator.StateFeedback(model)
 
 # Set the initial state of mpc and simulator:
 x_0     = -2.0 # This is the initial position of the cart on the X-axis
@@ -51,10 +54,10 @@ omega_0 = 0.0  # And finally the initial angular velocity
 x0 = np.array([x_0, v_0, theta_0, omega_0]).reshape(-1,1)
 
 mpc.set_initial_state(x0, reset_history=True)
-simulator.set_initial_state(x0, reset_history=True)
+sim.set_initial_state(x0, reset_history=True)
 
 # Initialize graphic:
-graphics = do_mpc.graphics.Graphics()
+graphics = do_mpc.graphics.Graphics(mpc.data)
 
 
 fig, ax = plt.subplots(3, sharex=True)
@@ -62,42 +65,49 @@ fig, ax = plt.subplots(3, sharex=True)
 graphics.add_line(var_type='_x', var_name='x', axis=ax[0])
 graphics.add_line(var_type='_x', var_name='theta', axis=ax[1])
 graphics.add_line(var_type='_u', var_name='F', axis=ax[2])
-ax[0].set_ylabel('x [m]')
+ax[0].set_ylabel('$x_{cart}$ [m]')
 ax[1].set_ylabel('$\Theta$ [°]')
 ax[2].set_ylabel('$F_u$ [N]')
+
+# Draw the references for comparison's sake
+ax[0].plot([0,7],[0,0], color='#ff7f0e', linewidth = 1, linestyle='--')
+ax[1].plot([0,7],[0,0], color='#ff7f0e', linewidth = 1, linestyle='--')
+
+# Create simple legend entries
+label_lines = graphics.result_lines['_x', 'x']+[ax[0].get_lines()[2]]
+ax[0].legend(label_lines, ['Cart position','Reference'])
+label_lines = graphics.result_lines['_x', 'theta']+ [ax[1].get_lines()[2]]
+ax[1].legend(label_lines, ['Vertical angle', 'Reference'])
+label_lines = graphics.result_lines['_u', 'F']
+ax[2].legend(label_lines, ['Push Force'])
+
 
 
 fig.align_ylabels()
 plt.ion()
 
 time_list = []
+# Run for a predefined number of seconds, here 7 sec is enough to see the cart stabilizing
 for k in range(int(7/mpc.t_step)):
     tic = time.time()
     u0 = mpc.make_step(x0)
-    y_next = simulator.make_step(u0)
-    x0 = estimator.make_step(y_next)
+    y_next = sim.make_step(u0)
+    x0 = sfb.make_step(y_next)
     toc = time.time()
     time_list.append(toc-tic)
 
-    # if True:
-    #     graphics.reset_axes()
-    #     graphics.plot_results(mpc.data, linewidth=3)
-    #     graphics.plot_predictions(mpc.data, linestyle='--', linewidth=1)
-    #     plt.show()
-    #     input('next step')
+    if show_animation:
+        graphics.plot_results(t_ind=k)
+        graphics.plot_predictions(t_ind=k)
+        graphics.reset_axes()
+        plt.show()
+        plt.pause(0.001)
 
 time_arr = np.array(time_list)
 print('Total run-time: {tot:5.2f} s, step-time {mean:.3f}+-{std:.3f} s.'.format(tot=np.sum(time_arr), mean=np.mean(time_arr), std=np.sqrt(np.var(time_arr))))
 
-opti_lines = graphics.plot_results(mpc.data)
-simu_lines = graphics.plot_results(simulator.data)
-
-# plt.sca(ax[0])
-# ax[0].add_artist(plt.legend(opti_lines[:0], ['x'], title='mpc', loc=1))
-# plt.sca(ax[0])
-# ax[0].add_artist(plt.legend(simu_lines[:0], ['x'], title='Simulator', loc=2))
-# plt.show()
-# input('Press any key to exit.')
+graphics.plot_results(t_ind=k)
 
 # Store results for animated plotting and more
-do_mpc.data.save_results([mpc, simulator], 'cartpole_results')
+if store_results:
+    do_mpc.data.save_results([mpc, sim], 'cartpole_results')
