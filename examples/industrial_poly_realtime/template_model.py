@@ -39,17 +39,17 @@ def template_model():
     model = do_mpc.model.Model(model_type)
 
     # Certain parameters
-    R           = 8.314    			#gas constant
-    T_F         = 25 + 273.15       #feed temperature
-    E_a         = 8500.0     			#activation energy
-    delH_R      = 950.0*1.00      			#sp reaction enthalpy
-    A_tank      = 65.0       			#area heat exchanger surface jacket 65
+    R           = 8.314    	  #gas constant
+    T_F         = 25 + 273.15 #feed temperature
+    E_a         = 8500.0      #activation energy
+    delH_R      = 950.0*1.00  #sp reaction enthalpy
+    A_tank      = 65.0        #area heat exchanger surface jacket 65
 
-    k_0         = 7.0*1.00      	#sp reaction rate
-    k_U2        = 32.0     	#reaction parameter 1
-    k_U1        = 4.0      	#reaction parameter 2
-    w_WF        = .333      #mass fraction water in feed
-    w_AF        = .667      #mass fraction of A in feed
+    k_0         = 7.0*1.00    #sp reaction rate
+    k_U2        = 32.0     	  #reaction parameter 1
+    k_U1        = 4.0      	  #reaction parameter 2
+    w_WF        = .333        #mass fraction water in feed
+    w_AF        = .667        #mass fraction of A in feed
 
     m_M_KW      = 5000.0      #mass of coolant in jacket
     fm_M_KW     = 300000.0    #coolant flow in jacket 300000;
@@ -59,8 +59,8 @@ def template_model():
     fm_AWT      = 20000.0     #product flow in EHE
     m_S         = 39000.0     #mass of reactor steel
 
-    c_pW        = 4.2      #sp heat cap coolant
-    c_pS        = .47       #sp heat cap steel
+    c_pW        = 4.2         #sp heat cap coolant
+    c_pS        = .47         #sp heat cap steel
     c_pF        = 3.0         #sp heat cap feed
     c_pR        = 5.0         #sp heat cap reactor contents
 
@@ -118,6 +118,16 @@ def template_model():
     model.set_rhs('accum_monom', m_dot_f)
     model.set_rhs('T_adiab', delH_R/(m_ges*c_pR)*dot_m_A-(dot_m_A+dot_m_W+dot_m_P)*(m_A*delH_R/(m_ges*m_ges*c_pR))+dot_T_R)
 
+    
+    # The output function, in this case a linear dependency
+    model.set_meas('m_W_meas', m_W)
+    model.set_meas('T_S_meas', T_S)
+    model.set_meas('T_R_meas', T_R)
+    model.set_meas('T_M_meas', Tout_M)
+    model.set_meas('T_EK_meas', T_EK)
+    model.set_meas('T_AWT_meas', Tout_AWT)
+    model.set_meas('accum_monom_meas', accum_monom)
+    
     # Build the model
     model.setup_model()
 

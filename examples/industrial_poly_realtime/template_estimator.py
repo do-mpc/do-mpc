@@ -26,7 +26,7 @@ from casadi.tools import *
 import pdb
 import sys
 import do_mpc
-from opcmodules import RealtimeFeedback
+from opcmodules import RealtimeEstimator
 
 def template_estimator(model, opc_opts):
     """
@@ -37,8 +37,47 @@ def template_estimator(model, opc_opts):
     # The estimator is just a delayed state feedback estimator in this case 
 
     opc_opts['_opc_opts']['_client_type'] = "estimator"
-    opc_opts['_cycle_time'] = 10.0
+    opc_opts['_cycle_time'] = 3.0   # execute every 3 seconds
+    opc_opts['_opc_opts']['_output_feedback'] = True
 
-    estimator = RealtimeFeedback(model,opc_opts)
-    # Use calls to : RealtimeEKF or RealtimeMHE for actual estimators
+    # Use type 'SFB' for a full state feedback or 'EKF'/'MHE' for an actual estimator
+    etype = 'SFB'
+    if etype == 'SFB':
+        estimator = RealtimeEstimator('SFB', model, opc_opts)
+    if etype == 'EKF':
+        estimator = RealtimeEstimator('EKF', model, opc_opts)
+        
+        # Tuning paramaters EKF
+        # x    = [m_W, m_A, m_P, T_R, T_S, Tout_M, T_EK, T_AWT, accum_monom, T_adiab]
+        # meas =   |    0    0    |    |      |     |     |          |        0
+        
+        C = np.matrix([[1,0,0,0,0,0,0,0,0,0],
+                       [0,0,0,1,0,0,0,0,0,0],
+                       [0,0,0,0,1,0,0,0,0,0],
+                       [0,0,0,0,0,1,0,0,0,0],
+                       [0,0,0,0,0,0,1,0,0,0],
+                       [0,0,0,0,0,0,0,1,0,0],
+                       [0,0,0,0,0,0,0,0,1,0]])  
+        
+        Q = 0.001*np.eye(10)
+        R = 0.01*np.eye(7)
+        P0 = 100*Q
+        
+        setup_ekf = {
+        'P0': P0,
+        'Q' : Q,
+        'R' : R,
+        'C' : C,
+        't_step': 3.0/3600.0,
+        'type': "continuous_discrete",
+        'estimate_params': False,
+        'output_func':'linear', 
+        'noise_level':0.01
+        #'output_func':'nonlinear',
+        #'H_func': h
+        }
+
+        estimator.set_param(**setup_ekf) 
+        estimator.setup()
+        
     return estimator

@@ -38,7 +38,7 @@ def template_mpc(model, opc_opts):
     # The controller is typically run less often than the simulator/estimator
     opc_opts['_opc_opts']['_client_type'] = "controller"
     opc_opts['_opc_opts']['_output_feedback'] = True
-    opc_opts['_cycle_time'] = 50.0
+    opc_opts['_cycle_time'] = 10.0
 
     controller = RealtimeController(model,opc_opts)
 
@@ -46,7 +46,7 @@ def template_mpc(model, opc_opts):
         'n_horizon': 20,
         'n_robust': 1,
         'open_loop': 0,
-        't_step': 50.0/3600.0,
+        't_step': 10.0/3600.0,
         'state_discretization': 'collocation',
         'store_full_solution': True,
         # Use MA27 linear solver in ipopt for faster calculations:

@@ -35,20 +35,23 @@ def template_simulator(model, opc_opts):
     template_simulator: tuning parameters
     --------------------------------------------------------------------------
     """    
+    # The simulator is the one that typically run the fastest (most often, e.g every second)
+    opc_opts['_opc_opts']['_client_type'] = "simulator"
+    opc_opts['_cycle_time'] = 2.0
     simulator = RealtimeSimulator(model,opc_opts)
 
     params_simulator = {
         'integration_tool': 'cvodes',
         'abstol': 1e-10,
         'reltol': 1e-10,
-        't_step': 5.0/3600.0
+        't_step': 2.0/3600.0
     }
 
     simulator.set_param(**params_simulator)
 
     p_num = simulator.get_p_template()
-    p_num['delH_R'] = 950
-    p_num['k_0'] = 7
+    p_num['delH_R'] = 950.0
+    p_num['k_0'] = 7.0
     def p_fun(t_now):
         return p_num
     simulator.set_p_fun(p_fun)
