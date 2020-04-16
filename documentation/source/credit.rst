@@ -1,5 +1,10 @@
 Credit
 ======
+The developers of **do-mpc** own credit to CasADi_ and Ipopt_ which run at the core of our MPC and MHE implementation. 
+
+.. _CasADi: https://web.casadi.org/
+.. _Ipopt: https://coin-or.github.io/Ipopt/
+
 
 If you use **do-mpc** for published work please cite it as:
 
