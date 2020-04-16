@@ -38,13 +38,8 @@ e.g. write extensions.
 
 2. Get example documents:
 
-Download our examples here_. You can also get the MPC_ Jupyter Notebook and the MHE_ Jupyter Notebook from the introduction.
-
-.. _here: https://minhaskamal.github.io/DownGit/#/home?url=https://github.com/do-mpc/do-mpc/tree/master/examples
-.. _MPC: https://minhaskamal.github.io/DownGit/#/home?url=https://github.com/do-mpc/do-mpc/blob/master/documentation/source/getting_started.ipynb
-.. _MHE: https://minhaskamal.github.io/DownGit/#/home?url=https://github.com/do-mpc/do-mpc/blob/master/documentation/source/mhe_example.ipynb
-
-All these resources can also be obtained by simply cloning the repository as shown below.
+All resources can be obtained from our  `GitHub <https://github.com/do-mpc/do-mpc>`_ repository.
+Clone or download the repository and obtain the files from the examples directory.
 
 Option 2: **Clone from Github**
 *******************************
