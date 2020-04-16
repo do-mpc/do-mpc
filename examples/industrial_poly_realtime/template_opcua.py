@@ -45,8 +45,12 @@ def template_opcua(model):
     # Defining the settings for the OPCUA clients, which MUST match the server
     client_opts = {"_address":"opc.tcp://localhost:4840/freeopcua/server/",
                    "_port": 4840,
-                   "_client_type": "simulator",
+                   "_client_type": "simulator/estimator/controller",
                    "_namespace": opc_server.namespace}
-    opc_opts ={'_cycle_time': 5.0, '_opc_opts': client_opts, '_output_feedback': False}
+    
+    opc_opts ={'_cycle_time': 5.0,                  # the frequency with which a module is executed (can be different for each real-time module)
+               '_output_feedback': False,           # specifies the feedback scheme: False = state feedback, True = output feedback (implies an estimator must be running)
+               '_user_controlled': True,           # specifies whether the user should start and stop the modules manually
+               '_opc_opts': client_opts }           # passes on the client options for each real-time module to be able to connect
 
     return opc_server, opc_opts

@@ -63,6 +63,15 @@ rt_controller = template_mpc(model,opc_opts)
 """
 Initialization and preparation of the server data base
 """
+
+# The user is an object that lets the main thread access the OPCUA server for status and flag checks
+opc_opts['_opc_opts']['_client_type'] = 'ManualUser'
+user = Client(opc_opts['_opc_opts'])
+user.connect()
+# Start all modules if the manual mode is enabled and avoid delays
+if opc_opts['_user_controlled']: 
+    user.updateSwitches(pos = -1, switchVal=[1,1,1])
+
 # Set the initial state of mpc and simulator:
 x0 = model._x(0)
 
@@ -106,19 +115,30 @@ trigger_controller = RealtimeTrigger(rt_controller.cycle_time, rt_controller.asy
 The real-time do-mpc will keep running until you manually stop it via the flags (use an OPCUA Client to set the flags).
 Alternatively, use the routine below to check when the maximum nr of iterations is reached and stop the real-time modules.
 """
-# The user is an object that lets the main thread access the OPCUA server for status and flag checks
-user = Client(opc_opts['_opc_opts'])
-max_iter = 80
+max_iter = 10
 manual_stop = False
+
 while rt_controller.iter_count < max_iter and manual_stop == False:
     # The code below is executed on the main thread (e.g the Ipython console you're using to start do-mpc)
     print("Waiting on the main thread...Checking flags...Executing your main code...")
-    # TODO: read flags and update the manual stop
-    if user.checkFlags() == 'ERROR':
+    
+    if user.checkFlags(pos=0) == 1:
         print("The controller has failed! Better take backup action ...")
-    if user.checkFlags() == 'OK': print("All systems OK @ ", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
+    if user.checkFlags(pos=0) == 0: print("All systems OK @ ", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
+    
+    # Checking the status of the modules
+    switches = user.checkSwitches()
+    print("The controller is:", 'ON' if switches[0] else 'OFF')
+    print("The simulator  is:", 'ON' if switches[1] else 'OFF')
+    print("The estimator  is:", 'ON' if switches[2] else 'OFF')
+    
+    # Check the 5th flag and stop all modules at once if the user has raised the flag
+    # Alternatively, the user can individually stop modules by setting the switch to 0
+    if user.checkFlags(pos=4) == 1: 
+        user.updateSwitches(pos = -1, switchVal=[0,0,0])
+        manual_stop = True
     # The main thread sleeps for 7 seconds and repeats
-    time.sleep(7)
+    time.sleep(10)
 
 # Once the main thread reaches this point, all real-time modules will be stopped
 trigger_controller.stop()

@@ -80,9 +80,11 @@ class Server:
             'nr_aux'     : model.n_aux,
             'nr_pred'    : model.n_x * 20,
             'nr_flags'   : 5,
-            'nr_switches': 5
+            'nr_switches': 4
         }
-        # TODO: use the namespace to create the structure further down
+        """ 
+        The user defined server namespace to be implemented on the OPCUA server. Contains pairs of the form (elementary MPC variable - readable user name) 
+        """
         self.namespace = {
             'PlantData':{'x':"States.X",'z':"States.Z",'u':"Inputs",'y':"Measurements",'p':"Parameters"},
             'ControllerData':{'x0':"InitialGuess",'u_opt':"OptimalOutputs"},
@@ -191,11 +193,6 @@ class Server:
         except RuntimeError as err:
             print("The server could not be stopped, returned error message :\n", err)
             return False
-
-    def checkStatus(self):
-        # This function returns status flags on the server
-        #TODO: implement status flags and error checkup
-        return True
 
     def update(self, **kwargs):
         """Update value(s) of the data structure with key word arguments.
@@ -331,7 +328,7 @@ class Client:
             print("A read operation by:", self.type, "failed @ time: ", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
         return dataVal
 
-    def checkFlags(self):
+    def checkFlags(self, pos=-1):
         """ Checks the controller related flags on the server and returns the overall state of the controller. The result can be either
         'OK' if there is nothing wrong with the optimizer or 'ERROR', when the optimization finished with an error flag. By default, any 
         flag that does not mean that the optimization step has finished successfully will be treated as a fault. Please consult
@@ -343,39 +340,87 @@ class Client:
         :return result: A string containing the result of the flag checks.
         :rtype result: string
         """
+        assert pos<5 and pos>-2, "Please provide a flag position in the interval [-1,4]"
         
-        result = 'OK'
+        tag = "ns=2;s=Flags"
+        try:
+            dataVal = self.opcua_client.get_node(tag).get_value()
+        except ConnectionRefusedError:
+            print("A read operation attempted by the base client failed @ time: ", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
+        if pos == -1: 
+            result = dataVal
+        else:
+            result =  dataVal[pos]
         return result
     
-    def updateFlags(self, flagVal):
+    def updateFlags(self, pos=0, flagVal=[]):
         """ Writes the flags  Asserts if the string has the right format and whether the data is a list.
             
             :param flagVal: a list of data to be wtitten on a tag
             :type flagVal: list
             
+            :param pos: position of the flag to be checked. If =-1, all flags will be returned
+            :type pos: int
+            
             :return wr_result: The writing result as returned by the OPCUA writing method
             :rtype wr_result: boolean
         """
         assert type(flagVal) == list, "The flag data you provided is not arranged as a list. See the instructions for passing data to the server."
-       
+        assert pos<5 and pos>-1, "Please provide a flag position in the interval [-1,4]"
+        
         tag = "ns=2;s=Flags"
+        if pos == -1: dataVal = flagVal
+        else:
+            dataVal = self.opcua_client.get_node(tag).get_value()
+            dataVal[pos] = flagVal
         try:
-            wr_result = self.opcua_client.get_node(tag).set_value(flagVal)
+            wr_result = self.opcua_client.get_node(tag).set_value(dataVal)
         except ConnectionRefusedError:
-            print("A write operation by:", self.type, " failed @ time:", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
+            print("A write operation by the base client failed @ time:", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
             return False
         return wr_result
     
-    def checkStatus(self, pos=0):
+    def checkSwitches(self, pos=-1):
+        """ Reads the status of the real-time modules from the OPC-UA server. If pos=-1 will return the entire status vector,
+        otherwise will return only the value at the required position. 
         
-        status = []
-        return status
-    
-    def updateStatus(self, pos=0, statusVal=[1]):
-
-        tag = "ns=2;s=Status"
+        :param pos: position in the check vector between [-1, 4]
+        :type pos: integer
+        
+        :return result: the value read from the server
+        :rtype result: list of integer
+        """
+        tag = "ns=2;s=Switches"
         try:
-            wr_result = self.opcua_client.get_node(tag).set_value(statusVal)
+            dataVal = self.opcua_client.get_node(tag).get_value()
+        except ConnectionRefusedError:
+            print("A status read operation attempted by the base client failed @ time: ", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
+        if pos == -1: 
+            result = dataVal
+        else:
+            result =  dataVal[pos]
+        return result
+    
+    def updateSwitches(self, pos=3, switchVal=[1]):
+        """ Updates the status of the real-time modules on the OPC-UA server. If pos=-1, it writes the entire status vector,
+        otherwise will update only the value at the required position. 
+        
+        :param pos: position in the status vector between [-1, 4]
+        :type pos: integer
+        
+        :return result: success status of the status write operation
+        :rtype status: boolean
+        """
+        assert type(switchVal) == list, "The flag data you provided is not arranged as a list. See the instructions for passing data to the server."
+        assert pos<4 and pos>-2, "Please provide a flag position in the interval [-1,4]"
+        
+        tag = "ns=2;s=Switches"
+        if pos == -1: dataVal = switchVal
+        else:
+            dataVal = self.opcua_client.get_node(tag).get_value()
+            dataVal[pos] = switchVal
+        try:
+            wr_result = self.opcua_client.get_node(tag).set_value(dataVal)
         except ConnectionRefusedError:
             print("A write operation by:", self.type, " failed @ time:", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
             return False
@@ -405,13 +450,18 @@ class RealtimeSimulator(Simulator):
         assert opts['_opc_opts']['_client_type'] == 'simulator', "You must define this module with asimulator OPC Client. Review your opts dictionary."
 
         super().__init__(model)
-        self.enabled    = True
+        self.enabled    = False       
         self.iter_count = 0
         self.cycle_time = opts['_cycle_time']
         self.opc_client = Client(opts['_opc_opts'])
-        self.feedback = do_mpc.estimator.StateFeedback(model)
+        self.user_controlled = opts['_user_controlled']
         
-        self.opc_client.connect()
+        try:
+            self.opc_client.connect()
+            self.enabled = True
+        except RuntimeError:
+            self.enabled = False
+            print("The real-time simulator could not connect to the server. Please check the server setup.")
 
         # The server must be initialized with the x0 and p0 values of the simulator
         tag = "ns=2;s="+self.opc_client.namespace['PlantData']['x']
@@ -419,7 +469,15 @@ class RealtimeSimulator(Simulator):
 
     
     def init_server(self, dataVal):
-         # The server must be initialized with the x0 values of the simulator
+        """Initializes the OPC-UA server with the first plant values. The simulator is typcially the one that starts first and writes state and output values.
+        If the operation does not succeed, the simulator is deemed unable to carry on and the `self.enable` attribute is set to `False`.
+        
+        :param dataVal: the first optimal input vector at time t=0
+        :type dataVal: list of float
+        
+        :return result: The result of server write operation
+        :rtype result: boolean
+        """
         tag = "ns=2;s="+self.opc_client.namespace['PlantData']['x']
         try:
             self.opc_client.writeData(dataVal, tag)
@@ -428,14 +486,34 @@ class RealtimeSimulator(Simulator):
             print("The real-time simulator could not connect to the server. Please correct the server setup.")
         
         
+    def start(self):
+        """Alternative method to start the simulator from the console. The client is usually automatically connected upon instantiation.
+        
+        :return result: The result of the connection attempt to the OPC-UA server.
+        :rtype result: boolean
+        """
+        try:
+            self.opc_client.connect()
+            self.enabled = True
+        except RuntimeError:
+            self.enabled = False
+            print("The real-time simulator could not connect to the server. Please check the server setup.")
+        return self.enabled
+        
     def stop(self):
+        """ Stops the execution of the real-time estimator by disconnecting the OPC-UA client from the server. 
+        Throws an error if the operation cannot be performed.
+        
+        :return result: The result of the disconnect operation
+        :rtype: boolean
+        """
         try:
             self.opc_client.disconnect()
             self.enabled = False
         except RuntimeError:
-            # TODO: catch the correct error and parse message
-            print("The real-time simulator could not be stopped due to server issues.")
-            
+            print("The real-time simulator could not be stopped due to server issues. Please stop the client manually and delete the object!")
+        return self.enabled
+
     def asynchronous_step(self):
         """ This function implements the server calls and simulator step. It must be used in combination 
             with a real-time trigger of the type ::py:class:`RealtimeTrigger`, which calls this routine with a predefined frequency. 
@@ -456,7 +534,7 @@ class RealtimeSimulator(Simulator):
         uk = np.array(self.opc_client.readData(tag_in))
         
         yk = self.make_step(uk)
-        xk = self._x0.cat.toarray() #self.feedback.make_step(yk)
+        xk = self._x0.cat.toarray() 
         # The parameters can't be read using p_fun because the internal timestamp is not relevant 
         pk = self.sim_p_num['_p'].toarray()
         
@@ -495,15 +573,15 @@ class RealtimeController(MPC):
         self.output_feedback = opts['_output_feedback']
         self.cycle_time = opts['_cycle_time']
         self.opc_client = Client(opts['_opc_opts'])
+        self.user_controlled = opts['_user_controlled']
         
         try:
             self.opc_client.connect()
         except RuntimeError:
-            # TODO: catch the correct error and parse message
             print("The real-time controller could not connect to the server.")
             self.is_ready = False
             
-        # The server must be initialized with the x0 values of the simulator
+        # The server must be initialized with the nonzero values for the inputs and the correct input structure
         if self.opc_client.connected:
             tag = "ns=2;s="+self.opc_client.namespace['ControllerData']['u_opt']
             self.opc_client.writeData(model._u(0).cat.toarray().tolist(), tag)
@@ -513,7 +591,15 @@ class RealtimeController(MPC):
             self.is_ready = False 
             
     def init_server(self, dataVal):
-         # The server must be initialized with the u0 values of the simulator
+        """Initializes the OPC-UA server with the first MPC values for the optimal inputs to prevent simulator or estimator crashes.
+        If the operation does not succeed, the controller is deemed unable to carry on and the `self.enable` attribute is set to `False`.
+        
+        :param dataVal: the first optimal input vector at time t=0
+        :type dataVal: list of float
+        
+        :return result: The result of server write operation
+        :rtype result: boolean
+        """
         tag = "ns=2;s="+self.opc_client.namespace['ControllerData']['u_opt']
         try:
             self.opc_client.writeData(dataVal, tag)
@@ -522,39 +608,77 @@ class RealtimeController(MPC):
             print("The real-time controller could not connect to the server. Please correct the server setup.")
         # One optimizer iteration is called before starting the cyclical operation
         self.asynchronous_step()
-
+        
+        return self.enabled
+    
+    def start(self):
+        """Alternative method to start the client from the console. The client is usually automatically connected upon instantiation.
+        
+        :return result: The result of the connection attempt to the OPC-UA server.
+        :rtype result: boolean
+        """
+        try:
+            self.opc_client.connect()
+            self.enabled = True
+        except RuntimeError:
+            self.enabled = False
+            print("The real-time controller could not connect to the server. Please check the server setup.")
+        return self.enabled
+        
     def stop(self):
+        """ Stops the execution of the real-time estimator by disconnecting the OPC-UA client from the server. 
+        Throws an error if the operation cannot be performed.
+        
+        :return result: The result of the disconnect operation
+        :rtype: boolean
+        """
         try:
             self.opc_client.disconnect()
             self.enabled = False
         except RuntimeError:
-            # TODO: catch the correct error and parse message
-            print("The real-time controller could not be stopped due to server issues.")
-                
+            print("The real-time controller could not be stopped due to server issues. Please stop the client manually and delete the object!")
+        return self.enabled
+    
     def check_status(self):
-        """
-        This function is called before every optimization step to ensure that the server data
+        """This function is called before every optimization step to ensure that the server data
         is sane and a call to the optimizer can be made in good faith, i.e. the plant state
         contains meaningful data and that no flags have been raised.
         
         :param no params: this function onyl needs internal data
         
         :return: check_result is the result of all the check done by the controller before executing the step
-        :rtype: bool
+        :rtype: boolean
         """
         check_result = self.is_ready
-        # Step 1: check that the server is running
+        # Step 1: check that the server is running and the client is connected
         check_result = self.opc_client.connected and check_result
-        # Step 2: check whether the controller should run and no controller flags have been raised
+        if check_result == False: 
+            print("The controller check failed because: controller not connected to server.")
+            return False
         
-        # Step 2: check that the plant/simulator is running and no simulator flags have been raised
+        # Step 2: check whether the user has requested to run the optimizer
+        if self.user_controlled:
+            check_result = check_result and self.opc_client.checkSwitches(pos=0)
+            if check_result == False: 
+                print("The controller check failed because: controller not manually enabled on the server.")
+                return False
         
+        # Step 3: check whether the controller should run and no controller flags have been raised
+        # flags = [0-controller, 1-simulator, 2-estimator, 3-monitoring, 4-extra]
+        check_result = check_result and not self.opc_client.checkFlags(pos=0)
+        if check_result == False: 
+            print("The controller check failed because: controller has raised a failure flag.")
+            return False
+        
+        # Step 4: check that the plant/simulator is running and no simulator flags have been raised
+        check_result = check_result and  not (self.opc_client.checkFlags(pos=1) or self.opc_client.checkFlags(pos=2))
         self.is_ready = check_result
+        if check_result == False: 
+            print("The controller check failed because: either the simulator or estimator have reported crap data. Unsafe to run the controller!")
         return check_result
     
     def initialize_optimizer(self, style='static'):
-        """
-        This is an internal function meant to be called before each controller step to reinitialize the initial guess of 
+        """This is an internal function meant to be called before each controller step to reinitialize the initial guess of 
         the NLP solver with the most recent plant data.
         
         :param style: The type of initialization to be performed. A choice of three options is available. `static` denotes a crude 
@@ -591,6 +715,7 @@ class RealtimeController(MPC):
             tag_in  = "ns=2;s="+self.opc_client.namespace['PlantData']['x']
         else:
             tag_in  = "ns=2;s="+self.opc_client.namespace['EstimatorData']['xhat']
+        
         tag_out = "ns=2;s="+self.opc_client.namespace['ControllerData']['u_opt']
         
         # Read the latest plant state from server and execute optimization step
@@ -602,16 +727,24 @@ class RealtimeController(MPC):
 
         # Check the current status before running the optimizer step 
         if self.check_status():
+            # The controller can be executed
             uk = self.make_step(xk)
+            # The iteration count is incremented regardless of the outcome
+            self.iter_count = self.iter_count + 1
+            
+            if self.solver_stats['return_status'] == 'Solve_Succeeded':
+                # The optimal inputs are written back to the server
+                self.opc_client.writeData(uk.tolist(), tag_out)
+            else:
+                print("The controller failed at time ", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
+                print("The optimal inputs have not been updated on the server.")
+            # The controller must wait for a predefined time
+            time_left = self.cycle_time-self.solver_stats['t_wall_S']
+            
         else: 
-            print("The controller failed executing the step @ ", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
-        # The optimal inputs are written back to the server
-        self.opc_client.writeData(uk.tolist(), tag_out)
+            time_left = self.cycle_time
+            print("The controller is still waiting to be manually activated. When you're ready set the status bit to 1.")
         
-        self.iter_count = self.iter_count + 1
-        # The controller must wait for a predefined time
-        time_left = self.cycle_time-self.solver_stats['t_wall_S']
-       
         return time_left
 
 
@@ -647,43 +780,66 @@ class RealtimeEstimator():
 
         super().__init__(model)
         self.etype      = etype
-        self.enabled    = True
+        self.enabled    = False
         self.iter_count = 0
         self.cycle_time = opts['_cycle_time']
         self.opc_client = Client(opts['_opc_opts'])
+        self.user_controlled = opts['_user_controlled']
         
         try:
             self.opc_client.connect()
+            self.enabled = True
         except RuntimeError:
             self.enabled = False
-            print("The real-time estimator could not connect to the server. Please correct the server setup.")
+            print("The real-time estimator could not connect to the server. Please check the server setup.")
             
         # The server must be initialized with the x0 values of the simulator
         tag = "ns=2;s="+self.opc_client.namespace['EstimatorData']['xhat']
         self.opc_client.writeData(self._x0.cat.toarray().tolist(), tag)
     
     def init_server(self, dataVal):
-        # The server must be initialized with the x0 values of the simulator
+        """Initializes the OPC-UA server with the initial estimator values (states and parameters). If the operation does
+        not succeed, the estimator is deemed unable to carry on and the `self.enable` attribute is set to `False`.
+        """
         tag = "ns=2;s="+self.opc_client.namespace['EstimatorData']['xhat']
         try:
             self.opc_client.writeData(dataVal, tag)
         except RuntimeError:
             self.enabled = False
             print("The real-time estimator could not connect to the server. Please correct the server setup.")
+    
+    def start(self):
+        """Alternative method to start the client from the console. The client is usually automatically connected upon instantiation.
         
+        :return result: The result of the connection attempt to the OPC-UA server.
+        :rtype result: boolean
+        """
+        try:
+            self.opc_client.connect()
+            self.enabled = True
+        except RuntimeError:
+            self.enabled = False
+            print("The real-time estimator could not connect to the server. Please check the server setup.")
+        return self.enabled
         
     def stop(self):
+        """ Stops the execution of the real-time estimator by disconnecting the OPC-UA client from the server. 
+        Throws an error if the operation cannot be performed.
+        
+        :return result: The result of the disconnect operation
+        :rtype: boolean
+        """
         try:
             self.opc_client.disconnect()
             self.enabled = False
         except RuntimeError:
             # TODO: catch the correct error and parse message
             print("The real-time estimator could not be stopped because the connection to the server was interrupted. Please stop the client manually and delete the object!")
-            
+        return self.enabled
             
     def asynchronous_step(self):
-        """
-        This function implements the server calls and estimator step with a predefined frequency
+        """This function implements one server call and estimator step, after which it writes output data back to the server.
+        
         :param no params: all parameters are stored by the underlying estimator object
         
         :return: time_left, represents the leftover time until the max cycle time of the estimator
