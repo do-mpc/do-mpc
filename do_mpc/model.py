@@ -88,6 +88,8 @@ class Model:
     _y =   [entry('default', shape=(0,0))]
     _y_expression = []
 
+    _w = [entry('default', shape=(0,0))]
+
 
 
 
@@ -120,7 +122,7 @@ class Model:
 
             x, u, z = model['x','u','z']
         """
-        var_names = ['x','u','z','p','tvp','y','aux']
+        var_names = ['x','u','z','p','tvp','y','aux', 'w']
         if isinstance(ind, tuple):
             val = []
             for ind_i in ind:
@@ -410,6 +412,33 @@ class Model:
     def aux(self, val):
         raise Exception('Cannot set model variables direcly. Use set_variable instead.')
 
+    @property
+    def w(self):
+        """ Process noise.
+            CasADi symbolic structure, can be indexed with user-defined variable names.
+
+            The process noise structure is created automatically, whenever the
+            :py:func:`Model.set_rhs` method is called with the argument ``process_noise``.
+
+            Usefull CasADi symbolic structure methods:
+
+            * ``.shape``
+
+            * ``.keys()``
+
+            * ``.labels()``
+
+            :raises assertion: Cannot set w direcly.
+        """
+        if self.flags['setup']:
+            return self._w
+        else:
+            return struct_SX(self._w)
+
+        @w.setter
+        def w(self, val):
+            raise Exception('Cannot set process noise directly.')
+
 
     def set_variable(self, var_type, var_name, shape=(1,1)):
         """Introduce new variables to the model class. Define variable type, name and shape (optional).
@@ -561,7 +590,7 @@ class Model:
 
         return expr
 
-    def set_rhs(self, var_name, expr):
+    def set_rhs(self, var_name, expr, process_noise=False):
         """Formulate the right hand side (rhs) of the ODE:
 
         .. math::
@@ -591,10 +620,16 @@ class Model:
             model.set_rhs('tank_level', tank_level_next)
             model.set_rhs('tank_temp', tank_temp_next)
 
+        Optionally, set ``process_noise = True`` to introduce an additive process noise variable.
+        This is currently only meaningful for the :py:class:`do_mpc.estimator.MHE`.
+
+
         :param var_name: Name of any of the previously defined states with: ``model.set_variable('states', [NAME])``
         :type var_name: string
         :param expr: CasADi SX or MX function depending on ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
         :type expr: CasADi SX or MX
+        :param process_noise: (optional) Make the respective state variable non-deterministic.
+        :type process_noise: boolean
 
         :raises assertion: var_name must be str
         :raises assertion: expr must be a casadi SX or MX type
@@ -606,9 +641,14 @@ class Model:
         """
         assert self.flags['setup'] == False, 'Cannot call .set_rhs after .setup_model.'
         assert isinstance(var_name, str), 'var_name must be str, you have: {}'.format(type(var_name))
-        assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
+        assert isinstance(expr, (casadi.SX, casadi.MX, casadi.DM)), 'expr must be a casadi SX, MX or DM type, you have:{}'.format(type(expr))
         _x_names = self.x.keys()
         assert var_name in _x_names, 'var_name must refer to the previously defined states ({}). You have: {}'.format(_x_names, var_name)
+
+        if process_noise:
+            var = SX.sym(var_name+'_noise', expr.shape[0])
+            self._w.append(entry(var_name, sym=var))
+            expr += var
         self.rhs_list.extend([{'var_name': var_name, 'expr': expr}])
 
     def get_variables(self):
@@ -695,6 +735,7 @@ class Model:
 
         # Write self._x, self._u, self._z, self._y, self._tvp, self.p with the respective struct_symSX structures.
         self._x = _x = struct_symSX(self._x)
+        self._w = _w = struct_symSX(self._w)
         self._u = _u =  struct_symSX(self._u)
         self._z = _z = struct_symSX(self._z)
         self._p = _p = struct_symSX(self._p)
@@ -724,7 +765,7 @@ class Model:
         assert len(_x_names) == 0, 'Definition of right hand side (rhs) is incomplete. Missing: {}. Use: set_rhs to define expressions.'.format(_x_names)
 
         # Declare functions for the right hand side and the aux_expressions.
-        self._rhs_fun = Function('rhs_fun', [_x, _u, _z, _tvp, _p], [self._rhs])
+        self._rhs_fun = Function('rhs_fun', [_x, _u, _z, _tvp, _p, _w], [self._rhs])
         self._aux_expression_fun = Function('aux_expression_fun', [_x, _u, _z, _tvp, _p], [self._aux_expression])
         self._meas_fun = Function('meas_fun', [_x, _u, _z, _tvp, _p], [self._y_expression])
 
@@ -737,6 +778,7 @@ class Model:
         self.n_tvp = self._tvp.shape[0]
         self.n_p = self._p.shape[0]
         self.n_aux = self._aux_expression.shape[0]
+        self.n_w = self._w.shape[0]
 
         # Remove temporary storage for the symbolic variables. This allows to pickle the class.
         #delattr(self, 'var_list')

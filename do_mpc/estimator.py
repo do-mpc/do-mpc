@@ -325,6 +325,8 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self._p_est_prev = copy.copy(self._p_est)
         self._p_est = self._p_est
 
+        self._w = self.model._w
+
         # Flags are checked when calling .setup.
         self.flags = {
             'setup': False,
@@ -504,8 +506,8 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         assert self.flags['setup'] == False, 'Cannot call .set_objective after .setup.'
 
 
-        stage_cost_input = self.model._x, self.model._u, self.model._z, self.model._tvp, self.model._p, self._y_meas
-        assert set(symvar(stage_cost)).issubset(set(symvar(vertcat(*stage_cost_input)))), 'objective cost equation must be solely depending on x, u, z, p, tvp, y_meas.'
+        stage_cost_input = self.model._x, self.model._u, self.model._z, self._w, self.model._tvp, self.model._p, self._y_meas
+        assert set(symvar(stage_cost)).issubset(set(symvar(vertcat(*stage_cost_input)))), 'objective cost equation must be solely depending on x, u, z, p, tvp, y_meas, w.'
         self.stage_cost_fun = Function('stage_cost_fun', [*stage_cost_input], [stage_cost])
 
         arrival_cost_input = self._x, self._x_prev, self._p_est, self._p_est_prev
@@ -514,7 +516,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         self.flags['set_objective'] = True
 
-    def set_default_objective(self, P_x, P_y, P_p=None):
+    def set_default_objective(self, P_x, P_y, P_p=None, P_w=None):
         """ Wrapper function to set the suggested default MHE objective:
 
         .. math::
@@ -542,8 +544,10 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         assert isinstance(P_x, np.ndarray), 'P_x must be of type numpy.ndarray'
         assert isinstance(P_y, np.ndarray), 'P_y must be of type numpy.ndarray'
         assert isinstance(P_p, (np.ndarray, type(None))), 'P_p must be of type numpy.ndarray or None object.'
+        assert isinstance(P_w, (np.ndarray, type(None))), 'P_w must be of type numpy.ndarray or None object.'
         n_x = self.model.n_x
         n_y = self.model.n_y
+        n_w = self.model.n_w
         n_p = self.n_p_est
         assert P_x.shape == (n_x, n_x), 'P_x has wrong shape:{}, must be {}'.format(P_x.shape, (n_x,n_x))
         assert P_y.shape == (n_y, n_y), 'P_y has wrong shape:{}, must be {}'.format(P_y.shape, (n_y,n_y))
@@ -555,6 +559,15 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         dy = y_meas.cat-y_calc.cat
 
         stage_cost = dy.T@P_y@dy
+
+        if P_w is None:
+            assert n_w == 0, 'Must pass weighting factor P_w, since you have process noise on some states (configured in model).'
+        else:
+            assert P_w.shape == (n_w, n_w), 'P_w has wrong shape:{}, must be {}'.format(P_w.shape, (n_w,n_w))
+            w = self._w.cat
+            stage_cost += w.T@P_w@w
+
+
 
         # Calculate arrival cost:
         x_0 = self._x
@@ -572,6 +585,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             p_prev = self._p_est_prev
             dp = p_0.cat - p_prev.cat
             arrival_cost += dp.T@P_p@dp
+
 
         # Set MHE objective:
         self.set_objective(stage_cost, arrival_cost)
@@ -860,6 +874,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             entry('_x', repeat=[self.n_horizon+1, 1+n_total_coll_points], struct=self.model._x),
             entry('_z', repeat=[self.n_horizon,   1+n_total_coll_points], struct=self.model._z),
             entry('_u', repeat=[self.n_horizon], struct=self.model._u),
+            entry('_w', repeat=[self.n_horizon], struct=self.model._w),
             entry('_eps', repeat=[self.n_horizon], struct=self._eps),
             entry('_p_est', struct=self._p_est),
         ])
@@ -871,6 +886,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         # Create scaling struct as assign values for _x, _u, _z.
         self.opt_x_scaling = opt_x_scaling = opt_x(1)
         opt_x_scaling['_x'] = self._x_scaling
+        # TODO: Should _w be scaled?
         opt_x_scaling['_z'] = self._z_scaling
         opt_x_scaling['_u'] = self._u_scaling
         opt_x_scaling['_p_est'] = self._p_est_scaling
@@ -923,7 +939,8 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         for k in range(self.n_horizon):
             # Compute constraints and predicted next state of the discretization scheme
             [g_ksb, xf_ksb] = ifcn(opt_x['_x', k, -1], vertcat(*opt_x['_x', k+1, :-1]),
-                                   opt_x['_u', k], vertcat(*opt_x['_z', k, :]), opt_p['_tvp', k], _p)
+                                   opt_x['_u', k], vertcat(*opt_x['_z', k, :]), opt_p['_tvp', k],
+                                   _p, opt_x['_w', k])
 
             # Add the collocation equations
             cons.append(g_ksb)
@@ -947,7 +964,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
             obj += self.stage_cost_fun(
                 opt_x_unscaled['_x', k+1, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1],
-                opt_p['_tvp', k], _p, opt_p['_y_meas', k]
+                opt_x_unscaled['_w', k], opt_p['_tvp', k], _p, opt_p['_y_meas', k],
             )
             # Add slack variables to the cost
             obj += self.epsterm_fun(opt_x_unscaled['_eps', k])

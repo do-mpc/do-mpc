@@ -169,13 +169,15 @@ class Simulator:
             entry('_p', struct=self.model._p),
             entry('_tvp', struct=self.model._tvp),
         ])
+        # Process noise
+        _w =self.model._w(0)
 
         self.sim_p_num = self.sim_p(0)
 
         if self.model.model_type == 'discrete':
 
             # Build the rhs expression with the newly created variables
-            x_next = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_x['_z'],sim_p['_tvp'],sim_p['_p'])
+            x_next = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_x['_z'],sim_p['_tvp'],sim_p['_p'], _w)
 
             # Build the simulator function
             self.simulator = Function('simulator',[sim_x,sim_p],[x_next])
@@ -184,7 +186,7 @@ class Simulator:
         elif self.model.model_type == 'continuous':
 
             # Define the ODE
-            xdot = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_x['_z'],sim_p['_tvp'],sim_p['_p'])
+            xdot = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_x['_z'],sim_p['_tvp'],sim_p['_p'], _w)
             dae = {
                 'x': sim_x['_x'],
                 'z': sim_x['_z'],

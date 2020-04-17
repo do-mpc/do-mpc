@@ -535,7 +535,7 @@ class Optimizer:
 
         There is no point in calling this method as part of the public API.
         """
-        _x, _u, _z, _tvp, _p = self.model['x', 'u', 'z', 'tvp', 'p']
+        _x, _u, _z, _tvp, _p, _w = self.model['x', 'u', 'z', 'tvp', 'p', 'w']
 
         rhs = substitute(self.model._rhs, _x, _x*self._x_scaling.cat)
         rhs = substitute(rhs, _u, _u*self._u_scaling.cat)
@@ -545,10 +545,10 @@ class Optimizer:
         if self.state_discretization == 'discrete':
             _i = SX.sym('i', 0)
             # discrete integrator ifcs mimics the API the collocation ifcn.
-            ifcn = Function('ifcn', [_x, _i, _u, _z, _tvp, _p], [[], rhs/self._x_scaling.cat])
+            ifcn = Function('ifcn', [_x, _i, _u, _z, _tvp, _p, _w], [[], rhs/self._x_scaling.cat])
             n_total_coll_points = 0
         if self.state_discretization == 'collocation':
-            ffcn = Function('ffcn', [_x, _u, _z, _tvp, _p], [rhs/self._x_scaling.cat])
+            ffcn = Function('ffcn', [_x, _u, _z, _tvp, _p, _w], [rhs/self._x_scaling.cat])
             # Get collocation information
             coll = self.collocation_type
             deg = self.collocation_deg
@@ -559,6 +559,7 @@ class Optimizer:
             n_u = self.model.n_u
             n_p = self.model.n_p
             n_z = self.model.n_z
+            n_w = self.model.n_w
             n_tvp = self.model.n_tvp
             n_total_coll_points = (deg + 1) * ni
 
@@ -611,6 +612,7 @@ class Optimizer:
             pk = SX.sym("pk", n_p)
             tv_pk = SX.sym("tv_pk", n_tvp)
             uk = SX.sym("uk", n_u)
+            wk = SX.sym("uk", n_w)
 
             # State trajectory
             n_ik = ni * (deg + 1) * n_x
@@ -653,7 +655,7 @@ class Optimizer:
                         xp_ij += C[r, j] * ik_split[i, r]
 
                     # Add collocation equations to the NLP
-                    f_ij = ffcn(ik_split[i, j], uk, zk, tv_pk, pk)
+                    f_ij = ffcn(ik_split[i, j], uk, zk, tv_pk, pk, wk)
                     gk.append(h * f_ij - xp_ij)
                     lbgk.append(np.zeros(n_x))  # equality constraints
                     ubgk.append(np.zeros(n_x))  # equality constraints
@@ -677,7 +679,7 @@ class Optimizer:
             assert(gk.shape[0] == ik.shape[0])
 
             # Create the integrator function
-            ifcn = Function("ifcn", [xk0, ik, uk, zk, tv_pk, pk], [gk, xkf])
+            ifcn = Function("ifcn", [xk0, ik, uk, zk, tv_pk, pk, wk], [gk, xkf])
 
             # Return the integration function and the number of collocation points
         return ifcn, n_total_coll_points

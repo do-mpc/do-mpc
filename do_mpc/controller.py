@@ -717,8 +717,10 @@ class MPC(do_mpc.optimizer.Optimizer):
             entry('_x0', struct=self.model._x),
             entry('_tvp', repeat=self.n_horizon, struct=self.model._tvp),
             entry('_p', repeat=self.n_combinations, struct=self.model._p),
-            entry('_u_prev', struct=self.model._u)
+            entry('_u_prev', struct=self.model._u),
         ])
+        _w = self.model._w(0)
+
         self.n_opt_p = opt_p.shape[0]
 
         # Dummy struct with symbolic variables
@@ -761,7 +763,8 @@ class MPC(do_mpc.optimizer.Optimizer):
 
                     # Compute constraints and predicted next state of the discretization scheme
                     [g_ksb, xf_ksb] = ifcn(opt_x['_x', k, s, -1], vertcat(*opt_x['_x', k+1, child_scenario[k][s][b], :-1]),
-                                           opt_x['_u', k, s], vertcat(*opt_x['_z', k, s, :]), opt_p['_tvp', k], opt_p['_p', current_scenario])
+                                           opt_x['_u', k, s], vertcat(*opt_x['_z', k, s, :]), opt_p['_tvp', k],
+                                           opt_p['_p', current_scenario], _w)
 
                     # Add the collocation equations
                     cons.append(g_ksb)
