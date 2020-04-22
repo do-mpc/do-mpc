@@ -71,13 +71,18 @@ This family of trajectories will always obey to set constraints for states and i
 
 Next steps
 **********
-We suggest you start by skimming over the selected examples below to get an first impression of the above mentioned features.
+We suggest you start by skimming over the selected examples below to get a first impression of the above mentioned features.
 A great further read for interested viewers is the `getting started: MPC`_ page, where we show how to setup **do-mpc** for the
 robust control task of a triple-mass-spring system.
 A state and parameter moving horizon estimator is configured and used for the same system in `getting started: MHE`_.
 
+For those of you interested in developing NMPC solutions for a real laboratory test case or for a pilot plant, we recommend having a look at our
+real-time **do-mpc** features. This allows you to design and test the platform in an asynchronous environment, using an OPCUA server-client structure, which
+is easily translatable to real applications. We offer an example based on the polymerization reactor model in `getting started: Real-time MPC`_.
+
 .. _`getting started: MPC`: getting_started.ipynb
 .. _`getting started: MHE`: mhe_example.ipynb
+.. _`getting started: Real-time MPC`: rt_example.ipynb
 
 To install **do-mpc** please see our `installation instructions`_.
 
@@ -95,6 +100,7 @@ Table of contents
 
    getting_started
    mhe_example
+   rt_example
 
 .. toctree::
    :maxdepth: 5

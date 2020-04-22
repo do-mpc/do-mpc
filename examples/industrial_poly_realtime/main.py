@@ -115,7 +115,7 @@ trigger_controller = RealtimeTrigger(rt_controller.cycle_time, rt_controller.asy
 The real-time do-mpc will keep running until you manually stop it via the flags (use an OPCUA Client to set the flags).
 Alternatively, use the routine below to check when the maximum nr of iterations is reached and stop the real-time modules.
 """
-max_iter = 10
+max_iter = 100
 manual_stop = False
 
 while rt_controller.iter_count < max_iter and manual_stop == False:
@@ -137,7 +137,8 @@ while rt_controller.iter_count < max_iter and manual_stop == False:
     if user.checkFlags(pos=4) == 1: 
         user.updateSwitches(pos = -1, switchVal=[0,0,0])
         manual_stop = True
-    # The main thread sleeps for 7 seconds and repeats
+    
+    # The main thread sleeps for 10 seconds and repeats
     time.sleep(10)
 
 # Once the main thread reaches this point, all real-time modules will be stopped

@@ -36,7 +36,7 @@ def template_opcua(model):
                    "_server_type": "with_estimator", # to use with either SFB or EKF estimators or select "basic" for no estimates
                    "_store_params": True,            # should always be set to True to spare yourself the headaches
                    "_store_predictions": False,      # set to True only if you plan to do fancy things with the predictions
-                   "_with_db": False}                # set to True if you plan to use the SQL database during/after the runtime 
+                   "_with_db": True}                # set to True if you plan to use the SQL database during/after the runtime 
     opc_server = Server(server_opts)
 
     # The server can only be started if it hasn't been already created 

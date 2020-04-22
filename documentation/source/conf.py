@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.abspath('../../'))
 # -- Project information -----------------------------------------------------
 
 project = 'do-mpc'
-copyright = '2020, Sergio Lucia and Felix Fiedler'
+copyright = '2020, Sergio Lucia, Alexandru Tatulea and Felix Fiedler'
 author = 'Sergio Lucia and Felix Fiedler'
 
 # The full version, including alpha/beta/rc tags
@@ -56,6 +56,9 @@ mathjax_config = {
     'extensions': ['tex2jax.js'],
     'jax': ['input/TeX', 'output/HTML-CSS'],
 }
+# Avoid errors in ipynb files by not executing the notebooks
+# nbsphinx_allow_errors = True
+nbsphinx_execute = 'never'
 
 # Order methods in documentation by their appearence in the sourcecode:
 autodoc_member_order = 'bysource'
