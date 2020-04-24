@@ -223,6 +223,18 @@ class Graphics:
         """
         for ax_i in self.ax_list:
             ax_i.set_prop_cycle(None)
+            
+    def clear(self, lines=None):
+        """Clears all data from lines.
+
+        """
+        if lines==None:
+            for line_i in self.result_lines.master:
+                line_i.set_data([],[])
+        else:
+            assert isinstance(lines, list), 'lines must be of type list.'
+            for line_i in lines:
+                line_i.set_data([],[])
 
     def add_line(self, var_type, var_name, axis, **pltkwargs):
         """``add_line`` is called during setting up the :py:class:`Graphics` class. This is typically the last step of configuring **do-mpc**.
