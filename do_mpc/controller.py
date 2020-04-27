@@ -474,45 +474,93 @@ class MPC(do_mpc.optimizer.Optimizer):
         self.flags['set_p_fun'] = True
         self.p_fun = p_fun
 
-    def set_uncertainty_values(self, uncertainty_values):
+    def set_uncertainty_values(self, uncertainty_values=None, **kwargs):
         """Define scenarios for the uncertain parameters.
-        High-level API method to conveniently set all possible scenarios for multistage MPC, given a list of uncertainty values.
+        High-level API method to conveniently set all possible scenarios for multistage MPC.
+
+        Pass a number of keyword arguments, where each keyword refers to a user defined parameter name from the model definition.
+        The value for each parameter must be an array (or list), with an arbitrary number of possible values for this parameter.
+        The first element is the nominal case.
+
+        **Example:**
+
+        ::
+
+                # in model definition:
+                alpha = model.set_variable(var_type='_p', var_name='alpha')
+                beta = model.set_variable(var_type='_p', var_name='beta')
+                gamma = model.set_variable(var_type='_p', var_name='gamma')
+                ...
+                # in MPC configuration:
+                alpha_var = np.array([1., 0.9, 1.1])
+                beta_var = np.array([1., 1.05])
+                MPC.set_uncertainty_values(
+                    alpha = alpha_var,
+                    beta = beta_var
+                )
+
+        .. note::
+
+            Parameters that are not imporant for the MPC controller (e.g. MHE tuning matrices)
+            can be ignored with the new interface (see ``gamma`` in the example above).
+
+        ** Legacy interface: **
+        Pass a list of arrays for the uncertain parameters.
         This list must have the same number of elements as uncertain parameters in the model definition. The first element is the nominal case.
         Each list element can be an array or list of possible values for the respective parameter.
         Note that the order of elements determine the assignment.
 
-        Example:
-
+        **Example:**
         ::
 
             # in model definition:
             alpha = model.set_variable(var_type='_p', var_name='alpha')
             beta = model.set_variable(var_type='_p', var_name='beta')
             ...
-            # in optimizer configuration:
+            # in MPC configuration:
             alpha_var = np.array([1., 0.9, 1.1])
             beta_var = np.array([1., 1.05])
-            optimizer.set_uncertainty_values([alpha_var, beta_var])
+            MPC.set_uncertainty_values([alpha_var, beta_var])
 
         Note the nominal case is now:
         alpha = 1
         beta = 1
         which is determined by the order in the arrays above (first element is nominal).
 
-        :param uncertainty_values: List of lists / numpy arrays with the same number of elements as number of parameters in model.
+        :param kwargs: Arbitrary number of keyword arguments.
+        :param uncertainty_values: (Depreciated) List of lists / numpy arrays with the same number of elements as number of parameters in model.
         :type uncertainty_values: list
 
-        :raises asssertion: uncertainty values must be of type list
 
         :return: None
         :rtype: None
         """
-        assert isinstance(uncertainty_values, list), 'uncertainty values must be of type list, you have: {}'.format(type(uncertainty_values))
 
-        p_scenario = list(itertools.product(*uncertainty_values))
+        # If uncertainty values are passed as dictionary, extract values and keys:
+        if kwargs:
+            assert isinstance(kwargs, dict), 'Pass keyword arguments, where each keyword refers to a user-defined parameter name.'
+            names = [i for i in kwargs.keys()]
+            valid_names = self.model.p.keys()
+            err_msg = 'You passed keywords {}. Valid keywords are: {} (refering to user-defined parameter names).'
+            assert set(names).issubset(set(valid_names)), err_msg.format(names, valid_names)
+            values = kwargs.values()
+        else:
+            assert isinstance(uncertainty_values, (list, None)), 'uncertainty values must be of type list, you have: {}'.format(type(uncertainty_values))
+            err_msg = 'Received a list of {} elements. You have defined {} parameters in your model.'
+            assert len(uncertainty_values) == self.model.n_p, err_msg.format(len(uncertainty_values), self.model.n_p)
+            values = uncertainty_values
+
+
+        p_scenario = list(itertools.product(*values))
         n_combinations = len(p_scenario)
         p_template = self.get_p_template(n_combinations)
-        p_template['_p', :] = p_scenario
+
+        if kwargs:
+            # Dict case (only parameters with name are set):
+            p_template['_p', :, names] = p_scenario
+        else:
+            # List case (assume ALL parameters are given ...)
+            p_template['_p', :] = p_scenario
 
         def p_fun(t_now):
             return p_template
