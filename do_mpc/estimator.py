@@ -336,22 +336,6 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             'set_objective': False,
         }
 
-    # @IndexedProperty
-    # def vars(self, ind):
-    #     if isinstance(ind, tuple):
-    #         assert ind[0] in self.__dict__.keys(), '{} is not a MHE variable.'.format(ind[0])
-    #         rval = self.__dict__[ind[0]][ind[1:]]
-    #     elif isinstance(ind, str):
-    #         assert ind in self.__dict__.keys(), '{} is not a MHE variable.'.format(ind)
-    #         rval = self.__dict__[ind]
-    #     else:
-    #         raise Exception('Index {} is not valid.'.format(ind))
-    #     return rval
-    #
-    # @vars.setter
-    # def vars(self, ind, val):
-    #     raise Exception('Setting MHE variables is not allowed.')
-
 
     def set_param(self, **kwargs):
         """Method to set the parameters of the :py:class:`MHE` class. Parameters must be passed as pairs of valid keywords and respective argument.
@@ -507,44 +491,65 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
 
         stage_cost_input = self.model._x, self.model._u, self.model._z, self._w, self.model._tvp, self.model._p, self._y_meas
-        assert set(symvar(stage_cost)).issubset(set(symvar(vertcat(*stage_cost_input)))), 'objective cost equation must be solely depending on x, u, z, p, tvp, y_meas, w.'
+        err_msg = 'objective cost equation must be solely depending on x, u, z, p, tvp, y_meas, w.'
+        assert set(symvar(stage_cost)).issubset(set(symvar(vertcat(*stage_cost_input)))), err_msg
         self.stage_cost_fun = Function('stage_cost_fun', [*stage_cost_input], [stage_cost])
 
-        arrival_cost_input = self._x, self._x_prev, self._p_est, self._p_est_prev
-        assert set(symvar(arrival_cost)).issubset(set(symvar(vertcat(*arrival_cost_input)))), 'Arrival cost equation must be solely depending on x_0, x_prev, p_0, p_prev.'
+        arrival_cost_input = self._x, self._x_prev, self._p_est, self._p_est_prev, self._p_set
+        err_msg = 'Arrival cost equation must be solely depending on x_0, x_prev, p_0, p_prev, p_set'
+        assert set(symvar(arrival_cost)).issubset(set(symvar(vertcat(*arrival_cost_input)))), err_msg
         self.arrival_cost_fun = Function('arrival_cost_fun', arrival_cost_input, [arrival_cost])
 
         self.flags['set_objective'] = True
 
     def set_default_objective(self, P_x, P_y, P_p=None, P_w=None):
-        """ Wrapper function to set the suggested default MHE objective:
+        """ Wrapper function to set the suggested default MHE formulation:
 
         .. math::
 
-           J= & \\underbrace{(x_0 - \\tilde{x}_0)^T P_x (x_0 - \\tilde{x}_0)}_{\\text{arrival cost states}} +
+            \\min_{\\textbf{x}_{0:N},\\textbf{u}_{0:N-1},\\textbf{w}_{0:N-1}}\\
+            & \\underbrace{(x_0 - \\tilde{x}_0)^T P_x (x_0 - \\tilde{x}_0)}_{\\text{arrival cost states}} +
            \\underbrace{(p_0 - \\tilde{p}_0)^T P_p (p_0 - \\tilde{p}_0)}_{\\text{arrival cost params.}} \\\\
            & +\\sum_{k=0}^{n-1} \\underbrace{(h(x_k, u_k, p_k) - y_k)^T P_{y,k} (h(x_k, u_k, p_k) - y_k)}_{\\text{stage cost}}
+           + w_k^T P_w w_k \\\\
+           \\text{s.t.:}\\quad & x_{k+1}=f(x_{k},u_{k},z_{k},p_{k},p_{tv,k}) + w_{k}
 
-        Pass the weighting matrices :math:`P_x`, :math:`P_p` and :math:`P_y`.
-        The matrices must be of appropriate dimension (and numpy nd.arrays).
-        In the case that no parameters are estimated, the weighting matrix :math:`P_p` is not required.
+        Pass the weighting matrices :math:`P_x`, :math:`P_p` and :math:`P_y` and :math:`P_w`.
+        The matrices must be of appropriate dimension and array-like.
 
         .. note::
-            Use :py:func:`MHE.set_objective` as a low-level alternative for this method,
+
+            It is possible to pass parameters or time-varying parameters defined in the
+            :py:class:`do_mpc.model.Model` as weighting.
+            You'll probably choose time-varying parameters (``_tvp``) for ``P_y`` and ``P_w``
+            and paramters (``_p``) for ``P_x`` and ``P_p``.
+            Use :py:func:`MHE.set_p_fun` and :py:func:`set_tvp_fun` to configure how these values
+            are determined at each time step.
+
+        In the case that no parameters are estimated, the weighting matrix :math:`P_p` is not required.
+        Furthermore, in the case that the :py:class:`do_mpc.model.Model` is configured without process-noise
+        (see :py:func:`do_mpc.model.Model.set_rhs`) the parameter ``P_w`` is not required.
+        The respective terms are not present in the MHE formulation in that case.
+
+        .. note::
+            Use :py:meth:`MHE.set_objective` as a low-level alternative for this method,
             if you want to use a custom objective function.
 
-        :param P_x: Tuning matrix :math:`P_x` of dimension :math:`n \\times n` (:math:`x \\in \\mathbb{R}^{n}`)
-        :type P_x: numpy.ndarray
-        :param P_y: Tuning matrix :math:`P_y` of dimension :math:`m \\times m` (:math:`y \\in \\mathbb{R}^{m}`)
-        :type P_y: numpy.ndarray
-        :param P_p: Tuning matrix :math:`P_p` of dimension :math:`l \\times l` (:math:`p_{\text{est}} \\in \\mathbb{R}^{l}`)
-        :type P_p: numpy.ndarray, optional
+        :param P_x: Tuning matrix :math:`P_x` of dimension :math:`n \\times n` :math:`(x \\in \\mathbb{R}^{n})`
+        :type P_x: numpy.ndarray, casadi.SX, casadi.DM
+        :param P_y: Tuning matrix :math:`P_y` of dimension :math:`m \\times m` :math:`(y \\in \\mathbb{R}^{m})`
+        :type P_y: numpy.ndarray, casadi.SX, casadi.DM
+        :param P_p: Tuning matrix :math:`P_p` of dimension :math:`l \\times l` :math:`(p_{\\text{est}} \\in \\mathbb{R}^{l})`)
+        :type P_p: numpy.ndarray, casadi.SX, casadi.DM
         """
 
-        assert isinstance(P_x, np.ndarray), 'P_x must be of type numpy.ndarray'
-        assert isinstance(P_y, np.ndarray), 'P_y must be of type numpy.ndarray'
-        assert isinstance(P_p, (np.ndarray, type(None))), 'P_p must be of type numpy.ndarray or None object.'
-        assert isinstance(P_w, (np.ndarray, type(None))), 'P_w must be of type numpy.ndarray or None object.'
+        input_types = (np.ndarray, casadi.SX, casadi.DM)
+        err_msg = '{name} must be of type {type_set}, you have {type_is}'
+        assert isinstance(P_x, input_types), err_msg.format(name='P_x', type_set = input_types, type_is = type(P_x))
+        assert isinstance(P_y, input_types), err_msg.format(name='P_y', type_set = input_types, type_is = type(P_y))
+        input_types = (np.ndarray, casadi.SX, casadi.DM, type(None))
+        assert isinstance(P_p, (np.ndarray, type(None))), err_msg.format(name='P_p', type_set = input_types, type_is = type(P_p))
+        assert isinstance(P_w, (np.ndarray, type(None))), err_msg.format(name='P_w', type_set = input_types, type_is = type(P_w))
         n_x = self.model.n_x
         n_y = self.model.n_y
         n_w = self.model.n_w
@@ -928,6 +933,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             opt_p['_x_prev'],#/self._x_scaling,
             opt_x_unscaled['_p_est'],
             opt_p['_p_est_prev'],#/self._p_est_scaling
+            opt_p['_p_set']
             )
 
         obj += arrival_cost

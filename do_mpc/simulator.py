@@ -169,7 +169,7 @@ class Simulator:
             entry('_p', struct=self.model._p),
             entry('_tvp', struct=self.model._tvp),
         ])
-        # Process noise
+        # Process noise (model is simulated without noise)
         _w =self.model._w(0)
 
         self.sim_p_num = self.sim_p(0)

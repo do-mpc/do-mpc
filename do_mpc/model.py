@@ -420,6 +420,10 @@ class Model:
             The process noise structure is created automatically, whenever the
             :py:func:`Model.set_rhs` method is called with the argument ``process_noise``.
 
+            .. note::
+
+                The process noise is currently only used for the :py:class:`do_mpc.estimator.MHE`.
+
             Usefull CasADi symbolic structure methods:
 
             * ``.shape``
@@ -622,9 +626,10 @@ class Model:
 
         Optionally, set ``process_noise = True`` to introduce an additive process noise variable.
         This is currently only meaningful for the :py:class:`do_mpc.estimator.MHE`.
+        See :py:func:`do_mpc.estimator.MHE.set_default_objective` for more details.
 
 
-        :param var_name: Name of any of the previously defined states with: ``model.set_variable('states', [NAME])``
+        :param var_name: Reference to previously introduced state names (with :py:func:`Model.set_variable`)
         :type var_name: string
         :param expr: CasADi SX or MX function depending on ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
         :type expr: CasADi SX or MX
@@ -645,6 +650,7 @@ class Model:
         _x_names = self.x.keys()
         assert var_name in _x_names, 'var_name must refer to the previously defined states ({}). You have: {}'.format(_x_names, var_name)
 
+        # Create a new process noise variable and add it to the rhs equation.
         if process_noise:
             var = SX.sym(var_name+'_noise', expr.shape[0])
             self._w.append(entry(var_name, sym=var))
