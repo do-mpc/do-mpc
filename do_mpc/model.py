@@ -70,32 +70,31 @@ class Model:
 
     .. automethod:: __getitem__
     """
-    # Define private class attributes
-
-    _x = []
-
-    _u =   [entry('default', shape=(0,0))]
-
-    _z =   [entry('default', shape=(0,0))]
-
-    _p =   [entry('default', shape=(0,0))]
-
-    _tvp = [entry('default', shape=(0,0))]
-
-    _aux = [entry('default', shape=(1,1))]
-    _aux_expression = [entry('default', expr=DM(0))]
-
-    _y =   [entry('default', shape=(0,0))]
-    _y_expression = []
-
-    _w = [entry('default', shape=(0,0))]
-
-
-
 
     def __init__(self, model_type=None):
         assert isinstance(model_type, str), 'model_type must be string, you have: {}'.format(type(model_type))
         assert model_type in ['discrete', 'continuous'], 'model_type must be either discrete or continuous, you have: {}'.format(model_type)
+
+        # Define private class attributes
+
+        self._x = []
+
+        self._u =   [entry('default', shape=(0,0))]
+
+        self._z =   [entry('default', shape=(0,0))]
+
+        self._p =   [entry('default', shape=(0,0))]
+
+        self._tvp = [entry('default', shape=(0,0))]
+
+        self._aux = [entry('default', shape=(1,1))]
+        self._aux_expression = [entry('default', expr=DM(0))]
+
+        self._y =   [entry('default', shape=(0,0))]
+        self._y_expression = []
+
+        self._w = [entry('default', shape=(0,0))]
+
 
         self.model_type = model_type
 
