@@ -548,8 +548,8 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         assert isinstance(P_x, input_types), err_msg.format(name='P_x', type_set = input_types, type_is = type(P_x))
         assert isinstance(P_y, input_types), err_msg.format(name='P_y', type_set = input_types, type_is = type(P_y))
         input_types = (np.ndarray, casadi.SX, casadi.DM, type(None))
-        assert isinstance(P_p, (np.ndarray, type(None))), err_msg.format(name='P_p', type_set = input_types, type_is = type(P_p))
-        assert isinstance(P_w, (np.ndarray, type(None))), err_msg.format(name='P_w', type_set = input_types, type_is = type(P_w))
+        assert isinstance(P_p, input_types), err_msg.format(name='P_p', type_set = input_types, type_is = type(P_p))
+        assert isinstance(P_w, input_types), err_msg.format(name='P_w', type_set = input_types, type_is = type(P_w))
         n_x = self.model.n_x
         n_y = self.model.n_y
         n_w = self.model.n_w
