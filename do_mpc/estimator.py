@@ -510,8 +510,8 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             \\min_{\\textbf{x}_{0:N},\\textbf{u}_{0:N-1},\\textbf{w}_{0:N-1}}\\
             & \\underbrace{(x_0 - \\tilde{x}_0)^T P_x (x_0 - \\tilde{x}_0)}_{\\text{arrival cost states}} +
            \\underbrace{(p_0 - \\tilde{p}_0)^T P_p (p_0 - \\tilde{p}_0)}_{\\text{arrival cost params.}} \\\\
-           & +\\sum_{k=0}^{n-1} \\underbrace{(h(x_k, u_k, p_k) - y_k)^T P_{y,k} (h(x_k, u_k, p_k) - y_k)}_{\\text{stage cost}}
-           + w_k^T P_w w_k \\\\
+           & +\\sum_{k=0}^{n-1} \\underbrace{(h(x_k, u_k, p_k) - y_k)^T P_{y,k} (h(x_k, u_k, p_k) - y_k)
+           + w_k^T P_w w_k}_{\\text{stage cost}} \\\\
            \\text{s.t.:}\\quad & x_{k+1}=f(x_{k},u_{k},z_{k},p_{k},p_{tv,k}) + w_{k}
 
         Pass the weighting matrices :math:`P_x`, :math:`P_p` and :math:`P_y` and :math:`P_w`.
@@ -522,17 +522,17 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             It is possible to pass parameters or time-varying parameters defined in the
             :py:class:`do_mpc.model.Model` as weighting.
             You'll probably choose time-varying parameters (``_tvp``) for ``P_y`` and ``P_w``
-            and paramters (``_p``) for ``P_x`` and ``P_p``.
-            Use :py:func:`MHE.set_p_fun` and :py:func:`set_tvp_fun` to configure how these values
+            and parameters (``_p``) for ``P_x`` and ``P_p``.
+            Use :py:func:`set_p_fun` and :py:func:`set_tvp_fun` to configure how these values
             are determined at each time step.
 
         In the case that no parameters are estimated, the weighting matrix :math:`P_p` is not required.
         Furthermore, in the case that the :py:class:`do_mpc.model.Model` is configured without process-noise
-        (see :py:func:`do_mpc.model.Model.set_rhs`) the parameter ``P_w`` is not required.
+        (see :py:meth:`do_mpc.model.Model.set_rhs`) the parameter ``P_w`` is not required.
         The respective terms are not present in the MHE formulation in that case.
 
         .. note::
-            Use :py:meth:`MHE.set_objective` as a low-level alternative for this method,
+            Use :py:meth:`set_objective` as a low-level alternative for this method,
             if you want to use a custom objective function.
 
         :param P_x: Tuning matrix :math:`P_x` of dimension :math:`n \\times n` :math:`(x \\in \\mathbb{R}^{n})`
