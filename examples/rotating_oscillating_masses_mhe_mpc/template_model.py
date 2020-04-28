@@ -58,6 +58,12 @@ def template_model():
     # Set point for the central mass:
     phi_2_set = model.set_variable(var_type='_tvp', var_name='phi_2_set')
 
+    # Parameter for the MHE: Weighting of the arrival cost (parameters):
+    P_p = model.set_variable(var_type='_p', var_name='P_p')
+
+    # Time-varying parameter for the MHE: Weighting of the measurements (tvp):
+    P_y = model.set_variable(var_type='_tvp', var_name='P_y', shape=(5, 5))
+
     # State measurements
     phi_meas = model.set_meas('phi_1_meas', phi)
 

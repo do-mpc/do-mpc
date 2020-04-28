@@ -82,12 +82,14 @@ def template_mpc(model):
 
     mpc.set_tvp_fun(tvp_fun)
 
-    inertia_mass_1 = 2.25*1e-4*np.array([1.,])
+    inertia_mass_1 = 2.25*1e-4*np.array([1.,1.1])
     inertia_mass_2 = 2.25*1e-4*np.array([1.,])
     inertia_mass_3 = 2.25*1e-4*np.array([1.])
 
-    mpc.set_uncertainty_values([inertia_mass_1, inertia_mass_2, inertia_mass_3])
-
+    mpc.set_uncertainty_values(
+        Theta_1 = inertia_mass_1,
+        Theta_2 = inertia_mass_2,
+        Theta_3 = inertia_mass_3,)
 
     mpc.bounds['lower','_u','phi_m_set'] = -5
     mpc.bounds['upper','_u','phi_m_set'] = 5

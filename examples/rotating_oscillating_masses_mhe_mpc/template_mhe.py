@@ -46,37 +46,25 @@ def template_mhe(model):
 
     mhe.set_param(**setup_mhe)
 
-    # MHE cost function:
-    y_meas = mhe._y_meas
-    y_calc = mhe._y_calc
 
-    dy = y_meas.cat-y_calc.cat
-    P_y = np.diag(np.array([1,1,1,20,20]))
-
-    stage_cost = dy.T@P_y@dy
-
-    x_0 = mhe._x
-    x_prev = mhe._x_prev
-    p_0 = mhe._p_est
-    p_prev = mhe._p_est_prev
-
-    dx = x_0.cat - x_prev.cat
-    dp = p_0.cat - p_prev.cat
-
+    # P_y = np.diag(np.array([1,1,1,20,20]))
+    P_y = model.tvp['P_y']
     P_x = 1e-4*np.eye(8)
-    P_p = np.eye(1)
+    # P_p = np.eye(1)
+    P_p = model.p['P_p']
 
-    arrival_cost = dx.T@P_x@dx + dp.T@P_p@dp
-
-    #mhe.set_objective(stage_cost, arrival_cost)
-
-    # Or take the shortcut and just pass the tuning matrices for the default objective:
+    # Set the default MHE objective by passing the weighting matrices:
     mhe.set_default_objective(P_x, P_y, P_p)
 
 
-    # The timevarying paramters have no effect on the simulator (they are only part of the cost function).
-    # We simply use the default values:
+
+    # P_y is listed in the time-varying parameters and must be set.
+    # This is more of a proof of concept (P_y is not actually changing over time).
+    # We therefore do the following:
     tvp_template = mhe.get_tvp_template()
+    tvp_template['_tvp', :, 'P_y'] = np.diag(np.array([1,1,1,20,20]))
+    # Typically, the values would be reset at each call of tvp_fun.
+    # Here we just return the fixed values:
     def tvp_fun(t_now):
         return tvp_template
     mhe.set_tvp_fun(tvp_fun)
@@ -87,6 +75,8 @@ def template_mhe(model):
     def p_fun_mhe(t_now):
         p_template_mhe['Theta_2'] = 2.25e-4
         p_template_mhe['Theta_3'] = 2.25e-4
+        # And our previously set P_x:
+        p_template_mhe['P_p'] = np.eye(1)
         return p_template_mhe
     mhe.set_p_fun(p_fun_mhe)
 
