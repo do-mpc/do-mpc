@@ -13,4 +13,4 @@ documentation/source/_autosummary/
 
 documentation/source/api/
 
-documentation/source/.DS_Store
+*.DS_Store

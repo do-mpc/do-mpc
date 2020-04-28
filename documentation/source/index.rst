@@ -98,6 +98,14 @@ Table of contents
 
 .. toctree::
    :maxdepth: 5
+   :caption: Background
+
+   theory_mpc
+   theory_mhe
+
+
+.. toctree::
+   :maxdepth: 5
    :caption: How to get it?
 
    license
