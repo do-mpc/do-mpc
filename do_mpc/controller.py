@@ -55,90 +55,6 @@ class MPC(do_mpc.optimizer.Optimizer):
 
     """
 
-    opt_x_num = None
-    """Full MPC solution and initial guess.
-
-    This is the core attribute of the MPC class.
-    It is used as the initial guess when solving the optimization problem
-    and then overwritten with the current solution.
-
-    The attribute is a CasADi numeric structure with nested power indices.
-    It can be indexed as follows:
-
-    ::
-
-        # dynamic states:
-        opt_x_num['_x', time_step, scenario, collocation_point, _x_name]
-        # algebraic states:
-        opt_x_num['_z', time_step, scenario, collocation_point, _z_name]
-        # inputs:
-        opt_x_num['_u', time_step, scenario, _u_name]
-        # slack variables for soft constraints:
-        opt_x_num['_eps', time_step, scenario, _nl_cons_name]
-
-    The names refer to those given in the :py:class:`do_mpc.model.Model` configuration.
-    Further indices are possible, if the variables are itself vectors or matrices.
-
-    The attribute can be used **to manually set a custom initial guess or for debugging purposes**.
-
-    .. note::
-
-        The attribute ``opt_x_num`` carries the scaled values of all variables. See ``opt_x_num_unscaled``
-        for the unscaled values (these are not used as the initial guess).
-
-    .. warning::
-
-        Do not tweak or overwrite this attribute unless you known what you are doing.
-
-    .. note::
-
-        The attribute is populated when calling :py:func:`MPC.setup`
-    """
-
-    opt_p_num = None
-    """Full MPC parameter vector.
-
-    This attribute is used when calling the MPC solver to pass all required parameters,
-    including
-
-    * initial state
-
-    * uncertain scenario parameters
-
-    * time-varying parameters
-
-    * previous input sequence
-
-    **do-mpc** handles setting these parameters automatically in the :py:func:`MPC.make_step`
-    method. However, you can set these values manually and directly call :py:func:`MPC.solve`.
-
-    The attribute is a CasADi numeric structure with nested power indices.
-    It can be indexed as follows:
-
-    ::
-
-        # initial state:
-        opt_p_num['_x0', _x_name]
-        # uncertain scenario parameters
-        opt_p_num['_p', scenario, _p_name]
-        # time-varying parameters:
-        opt_p_num['_tvp', time_step, _tvp_name]
-        # input at time k-1:
-        opt_p_num['_u_prev', time_step, scenario]
-
-    The names refer to those given in the :py:class:`do_mpc.model.Model` configuration.
-    Further indices are possible, if the variables are itself vectors or matrices.
-
-    .. warning::
-
-        Do not tweak or overwrite this attribute unless you known what you are doing.
-
-    .. note::
-
-        The attribute is populated when calling :py:func:`MPC.setup`
-
-    """
-
     def __init__(self, model):
 
         self.model = model
@@ -162,6 +78,11 @@ class MPC(do_mpc.optimizer.Optimizer):
         self._x_terminal_ub = model._x(np.inf)
 
         self.rterm_factor = self.model._u(0.0)
+
+        # Initialize structure to hold the optimial solution and initial guess:
+        self._opt_x_num = None
+        # Initialize structure to hold the parameters for the optimization problem:
+        self._opt_p_num = None
 
         # Parameters that can be set for the optimizer:
         self.data_fields = [
@@ -203,6 +124,102 @@ class MPC(do_mpc.optimizer.Optimizer):
             'set_tvp_fun': False,
             'set_p_fun': False,
         }
+
+    @property
+    def opt_x_num(self):
+        """Full MPC solution and initial guess.
+
+        This is the core attribute of the MPC class.
+        It is used as the initial guess when solving the optimization problem
+        and then overwritten with the current solution.
+
+        The attribute is a CasADi numeric structure with nested power indices.
+        It can be indexed as follows:
+
+        ::
+
+            # dynamic states:
+            opt_x_num['_x', time_step, scenario, collocation_point, _x_name]
+            # algebraic states:
+            opt_x_num['_z', time_step, scenario, collocation_point, _z_name]
+            # inputs:
+            opt_x_num['_u', time_step, scenario, _u_name]
+            # slack variables for soft constraints:
+            opt_x_num['_eps', time_step, scenario, _nl_cons_name]
+
+        The names refer to those given in the :py:class:`do_mpc.model.Model` configuration.
+        Further indices are possible, if the variables are itself vectors or matrices.
+
+        The attribute can be used **to manually set a custom initial guess or for debugging purposes**.
+
+        .. note::
+
+            The attribute ``opt_x_num`` carries the scaled values of all variables. See ``opt_x_num_unscaled``
+            for the unscaled values (these are not used as the initial guess).
+
+        .. warning::
+
+            Do not tweak or overwrite this attribute unless you known what you are doing.
+
+        .. note::
+
+            The attribute is populated when calling :py:func:`MPC.setup`
+        """
+        return self._opt_x_num
+
+    @opt_x_num.setter
+    def opt_x_num(self, val):
+        self._opt_x_num = val
+
+    @property
+    def opt_p_num(self):
+        """Full MPC parameter vector.
+
+        This attribute is used when calling the MPC solver to pass all required parameters,
+        including
+
+        * initial state
+
+        * uncertain scenario parameters
+
+        * time-varying parameters
+
+        * previous input sequence
+
+        **do-mpc** handles setting these parameters automatically in the :py:func:`MPC.make_step`
+        method. However, you can set these values manually and directly call :py:func:`MPC.solve`.
+
+        The attribute is a CasADi numeric structure with nested power indices.
+        It can be indexed as follows:
+
+        ::
+
+            # initial state:
+            opt_p_num['_x0', _x_name]
+            # uncertain scenario parameters
+            opt_p_num['_p', scenario, _p_name]
+            # time-varying parameters:
+            opt_p_num['_tvp', time_step, _tvp_name]
+            # input at time k-1:
+            opt_p_num['_u_prev', time_step, scenario]
+
+        The names refer to those given in the :py:class:`do_mpc.model.Model` configuration.
+        Further indices are possible, if the variables are itself vectors or matrices.
+
+        .. warning::
+
+            Do not tweak or overwrite this attribute unless you known what you are doing.
+
+        .. note::
+
+            The attribute is populated when calling :py:func:`MPC.setup`
+
+        """
+        return self._opt_p_num
+
+    @opt_p_num.setter
+    def opt_p_num(self, val):
+        self._opt_p_num = val
 
 
     def set_param(self, **kwargs):
