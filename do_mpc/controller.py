@@ -30,7 +30,7 @@ import time
 import do_mpc.data
 import do_mpc.optimizer
 
-class MPC(do_mpc.optimizer.Optimizer):
+class MPC(do_mpc.optimizer.Optimizer, do_mpc.optimizer.IteratedVariables):
     """Model predictive controller.
     The MPC controller extends the :py:class:`do_mpc.optimizer.Optimizer` base class
     (which is also used for the MHE estimator).
@@ -63,13 +63,8 @@ class MPC(do_mpc.optimizer.Optimizer):
         self.data = do_mpc.data.MPCData(self.model)
         self.data.dtype = 'MPC'
 
-        # Initialize structure for intial conditions:
-        self._x0 = model._x(0.0)
-        self._u0 = model._u(0.0)
-        self._z0 = model._z(0.0)
-        self._t0 = np.array([0.0])
-
         # Initialize parent class:
+        do_mpc.optimizer.IteratedVariables.__init__(self)
         do_mpc.optimizer.Optimizer.__init__(self)
 
         # Initialize further structures specific to the MPC optimization problem.
@@ -689,6 +684,8 @@ class MPC(do_mpc.optimizer.Optimizer):
         :rtype: numpy.ndarray
         """
         assert self.flags['setup'] == True, 'optimizer was not setup yet. Please call optimizer.setup().'
+        types = (np.ndarray, casadi.DM)
+        assert isinstance(x0, types), 'x0 must be of type {}. You have {}.'.format(types, type(x0))
 
         # Get current tvp, p and time (as well as previous u)
         u_prev = self._u0

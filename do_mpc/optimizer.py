@@ -27,7 +27,190 @@ import pdb
 import itertools
 import time
 
+
 from do_mpc.tools.indexedproperty import IndexedProperty
+
+class IteratedVariables:
+    """ Class to initiate properties and attributes for iterated variables.
+    This class is inherited to all iterating **do-mpc** classes.
+
+    .. warning::
+
+        This base class can not be used independently.
+    """
+
+    def __init__(self):
+        assert 'model' in self.__dict__.keys(), 'Cannot initialize variables before assigning the model to the current class instance.'
+
+        # Initialize structure for intial conditions:
+        self._x0 = self.model._x(0.0)
+        self._u0 = self.model._u(0.0)
+        self._z0 = self.model._z(0.0)
+        self._t0 = np.array([0.0])
+
+    @property
+    def x0(self):
+        """ Initial state and current iterate.
+        This is the numerical structure holding the information about the current states
+        in the class. The property can be indexed according to the model definition.
+
+        **Example:**
+
+        ::
+
+            model = do_mpc.model.Model('continuous')
+            model.set_variable('_x','temperature', shape=(4,1))
+
+            ...
+            mhe = do_mpc.estimator.MHE(model)
+            # or
+            mpc = do_mpc.estimator.MPC(model)
+
+            # Get or set current value of variable:
+            mpc.x0['temperature', 0] # 0th element of variable
+            mpc.x0['temperature']    # all elements of variable
+            mpc.x0['temperature', 0:2]    # 0th and 1st element
+
+        Usefull CasADi symbolic structure methods:
+
+        * ``.shape``
+
+        * ``.keys()``
+
+        * ``.labels()``
+
+        """
+        return self._x0
+
+    @x0.setter
+    def x0(self, val):
+        err_msg = 'Variable cannot be set because the supplied vector has the wrong size. You have {} and the model is setup for {}'
+        n_val = np.prod(val.shape)
+        assert n_val == self.model._x.size, err_msg.format(n_val, self.model._x.size)
+        if isinstance(val, (np.ndarray, casadi.DM)):
+            self._x0 = self.model._x(val)
+        elif isinstance(val, structure3.DMStruct):
+            self._x0 = val
+        else:
+            types = (np.ndarray, casadi.DM, structure3.DMStruct)
+            raise Exception('x0 must be of tpye {}. You have: {}'.format(types, type(val)))
+
+    @property
+    def u0(self):
+        """ Initial input and current iterate.
+        This is the numerical structure holding the information about the current input
+        in the class. The property can be indexed according to the model definition.
+
+        **Example:**
+
+        ::
+
+            model = do_mpc.model.Model('continuous')
+            model.set_variable('_u','heating', shape=(4,1))
+
+            ...
+            mhe = do_mpc.estimator.MHE(model)
+            # or
+            mpc = do_mpc.estimator.MPC(model)
+
+            # Get or set current value of variable:
+            mpc.u0['heating', 0] # 0th element of variable
+            mpc.u0['heating']    # all elements of variable
+            mpc.u0['heating', 0:2]    # 0th and 1st element
+
+        Usefull CasADi symbolic structure methods:
+
+        * ``.shape``
+
+        * ``.keys()``
+
+        * ``.labels()``
+
+        """
+        return self._u0
+
+    @u0.setter
+    def u0(self, val):
+        err_msg = 'Variable cannot be set because the supplied vector has the wrong size. You have {} and the model is setup for {}'
+        n_val = np.prod(val.shape)
+        assert n_val == self.model._u.size, err_msg.format(n_val, self.model._u.size)
+        if isinstance(val, (np.ndarray, casadi.DM)):
+            self._u0 = self.model._u(val)
+        elif isinstance(val, structure3.DMStruct):
+            self._u0 = val
+        else:
+            types = (np.ndarray, casadi.DM, structure3.DMStruct)
+            raise Exception('u0 must be of tpye {}. You have: {}'.format(types, type(val)))
+
+    @property
+    def z0(self):
+        """ Initial algebraic state and current iterate.
+        This is the numerical structure holding the information about the current algebraic states
+        in the class. The property can be indexed according to the model definition.
+
+        **Example:**
+
+        ::
+
+            model = do_mpc.model.Model('continuous')
+            model.set_variable('_z','temperature', shape=(4,1))
+
+            ...
+            mhe = do_mpc.estimator.MHE(model)
+            # or
+            mpc = do_mpc.estimator.MPC(model)
+
+            # Get or set current value of variable:
+            mpc.z0['temperature', 0] # 0th element of variable
+            mpc.z0['temperature']    # all elements of variable
+            mpc.z0['temperature', 0:2]    # 0th and 1st element
+
+        Usefull CasADi symbolic structure methods:
+
+        * ``.shape``
+
+        * ``.keys()``
+
+        * ``.labels()``
+
+        """
+        return self._z0
+
+    @z0.setter
+    def z0(self, val):
+        err_msg = 'Variable cannot be set because the supplied vector has the wrong size. You have {} and the model is setup for {}'
+        n_val = np.prod(val.shape)
+        assert n_val == self.model._z.size, err_msg.format(n_val, self.model._z.size)
+        if isinstance(val, (np.ndarray, casadi.DM)):
+            self._z0 = self.model._z(val)
+        elif isinstance(val, structure3.DMStruct):
+            self._z0 = val
+        else:
+            types = (np.ndarray, casadi.DM, structure3.DMStruct)
+            raise Exception('x0 must be of tpye {}. You have: {}'.format(types, type(val)))
+
+    @property
+    def t0(self):
+        """ Current time marker of the class.
+        Use this property to set of query the time.
+
+        Set with ``int``, ``float``, ``numpy.ndarray`` or ``casadi.DM`` type.
+        """
+        return self._t0
+
+    @t0.setter
+    def t0(self,val):
+        if isinstance(val, (int,float)):
+            self._t0 = np.array([val])
+        elif isinstance(val, np.ndarray):
+            assert val.size == 1, 'Cant set time with shape {}. Must contain exactly one element.'.format(val.size)
+            self._t0 = val.flatten()
+        elif isinstance(val, casadi.DM):
+            assert val.size == 1, 'Cant set time with shape {}. Must contain exactly one element.'.format(val.size)
+            self._t0 = val.full().flatten()
+        else:
+            types = (np.ndarray, float, int, casadi.DM)
+            raise Exception('Passing object of type {} to set the current time. Must be of type {}'.format(type(val), types))
 
 
 class Optimizer:
@@ -41,6 +224,7 @@ class Optimizer:
     """
     def __init__(self):
         assert 'model' in self.__dict__.keys(), 'Cannot initialize the optimizer before assigning the model to the current class instance.'
+
 
         # Initialize structures for bounds, scaling, initial values by calling the symbolic structures defined in the model
         # with the default numerical value.
@@ -235,9 +419,11 @@ class Optimizer:
         Optionally resets the history. The history is empty upon creation of the optimizer.
 
         Optionally update the initial guess. The initial guess is first created with the ``.setup()`` method (MHE/MPC)
-        and uses the class attributes ``_x0``, ``_u0``, ``_z0`` for all time instances, collocation points (if applicable)
+        and uses the class attributes ``x0``, ``u0``, ``z0`` for all time instances, collocation points (if applicable)
         and scenarios (if applicable). If these values were not explicitly set by the user, they default to all zeros.
 
+        .. warning::
+            This method is depreciated. Use the `x0` (and `p_est0` for MHE) property of the class to set the intial values instead.
 
         :param x0: Initial state
         :type x0: numpy array
@@ -249,22 +435,12 @@ class Optimizer:
         :return: None
         :rtype: None
         """
-        assert x0.size == self.model._x.size, 'Intial state cannot be set because the supplied vector has the wrong size. You have {} and the model is setup for {}'.format(x0.size, self.model._x.size)
-        assert isinstance(reset_history, bool), 'reset_history parameter must be of type bool. You have {}'.format(type(reset_history))
-        if isinstance(x0, (np.ndarray, casadi.DM)):
-            self._x0 = self.model._x(x0)
-        elif isinstance(x0, structure3.DMStruct):
-            self._x0 = x0
-        else:
-            raise Exception('x0 must be of tpye (np.ndarray, casadi.DM, structure3.DMStruct). You have: {}'.format(type(x0)))
+        warnings.warn('This method is depreciated. Please use x0 property to set the initial state. This will become an error in a future release', DeprecationWarning)
+
+        self.x0 = x0
 
         if p_est0 is not None:
-            if isinstance(p_est0, (np.ndarray, casadi.DM)):
-                self._p_est0 = self._p_est(p_est0)
-            elif isinstance(p_est0, structure3.DMStruct):
-                self._p_est0 = p_est0
-            else:
-                raise Exception('p_est0 must be of type (np.ndarray, casadi.DM, structure3.DMStruct). You have: {}'.format(type(p_est0)))
+            self.p_est0 = p_est0
 
         if reset_history:
             self.reset_history()

@@ -25,12 +25,13 @@ from casadi import *
 from casadi.tools import *
 import pdb
 import copy
+import warnings
 
 import do_mpc.optimizer
 import do_mpc.data
 
 
-class Estimator:
+class Estimator(do_mpc.optimizer.IteratedVariables):
     """The Estimator base class. Used for :py:class:`StateFeedback`, :py:class:`EKF` and :py:class:`MHE`.
     This class cannot be used independently.
 
@@ -41,13 +42,9 @@ class Estimator:
     """
     def __init__(self, model):
         self.model = model
+        do_mpc.optimizer.IteratedVariables.__init__(self)
 
         assert model.flags['setup'] == True, 'Model for estimator was not setup. After the complete model creation call model.setup_model().'
-
-        self._x0 = model._x(0.0)
-        self._u0 = model._u(0.0)
-        self._z0 = model._z(0.0)
-        self._t0 = np.array([0.0])
 
         self.data = do_mpc.data.Data(model)
         self.data.dtype = 'Estimator'
@@ -58,6 +55,9 @@ class Estimator:
         Optionally resets the history. The history is empty upon creation of the estimator.
         This method is overwritten for the :py:class:`MHE` from :py:class:`do_mpc.optimizer.Optimizer`.
 
+        .. warning::
+            This method is depreciated. Use the `x0` property of the class to set the intial state instead.
+
         :param x0: Initial state
         :type x0: numpy array
         :param reset_history: Resets the history of the estimator, defaults to False
@@ -66,14 +66,8 @@ class Estimator:
         :return: None
         :rtype: None
         """
-        assert x0.size == self.model._x.size, 'Intial state cannot be set because the supplied vector has the wrong size. You have {} and the model is setup for {}'.format(x0.size, self.model._x.size)
-        assert isinstance(reset_history, bool), 'reset_history parameter must be of type bool. You have {}'.format(type(reset_history))
-        if isinstance(x0, (np.ndarray, casadi.DM)):
-            self._x0 = self.model._x(x0)
-        elif isinstance(x0, structure3.DMStruct):
-            self._x0 = x0
-        else:
-            raise Exception('x0 must be of tpye (np.ndarray, casadi.DM, structure3.DMStruct). You have: {}'.format(type(x0)))
+        warnings.warn('This method is depreciated. Please use x0 property to set the initial state. This will become an error in a future release', DeprecationWarning)
+        self.x0 = x0
 
         if reset_history:
             self.reset_history()
@@ -151,6 +145,10 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
     7. Use :py:func:`MHE.get_p_template` and :py:func:`MHE.set_p_fun` to set the function for the parameters.
 
     8. Finally, call :py:func:`MHE.setup`.
+
+    .. warning::
+
+        Before running the estimator, make sure to supply a valid initial guess for all estimated variables (states, algebraic states, inputs and parameters).
 
     During runtime use :py:func:`MHE.make_step` with the most recent measurement to obtain the estimated states.
 
@@ -251,6 +249,52 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             'set_y_fun': False,
             'set_objective': False,
         }
+
+    @property
+    def p_est0(self):
+        """ Initial value of estimated parameters and current iterate.
+        This is the numerical structure holding the information about the current
+        estimated parameters in the class.
+        The property can be indexed according to the model definition.
+
+        **Example:**
+
+        ::
+
+            model = do_mpc.model.Model('continuous')
+            model.set_variable('_p','temperature', shape=(4,1))
+
+            # Initiate MHE with list of estimated parameters:
+            mhe = do_mpc.estimator.MHE(model, ['temperature'])
+
+            # Get or set current value of variable:
+            mhe.p_est0['temperature', 0] # 0th element of variable
+            mhe.p_est0['temperature']    # all elements of variable
+            mhe.p_est0['temperature', 0:2]    # 0th and 1st element
+
+        Usefull CasADi symbolic structure methods:
+
+        * ``.shape``
+
+        * ``.keys()``
+
+        * ``.labels()``
+
+        """
+        return self._p_est0
+
+    @p_est0.setter
+    def p_est0(self, val):
+        err_msg = 'Variable cannot be set because the supplied vector has the wrong size. You have {} and the MHE is setup for {}'
+        n_val = np.prod(val.shape)
+        assert n_val == self._p_est.size, err_msg.format(n_val, self._p_est.size)
+        if isinstance(val, (np.ndarray, casadi.DM)):
+            self._p_est0 = self._p_est(val)
+        elif isinstance(x0, structure3.DMStruct):
+            self._p_est0 = val
+        else:
+            types = (np.ndarray, casadi.DM, structure3.DMStruct)
+            raise Exception('x0 must be of tpye {}. You have: {}'.format(types, type(val)))
 
     @property
     def opt_x_num(self):
@@ -762,7 +806,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
 
     def set_initial_guess(self):
-        """Uses the current class attributes ``_x0``, ``_z0`` and ``_u0``, ``_p_est0`` to create an initial guess for the mhe.
+        """Uses the current class attributes ``x0``, ``z0`` and ``u0``, ``p_est0`` to create an initial guess for the MHE.
         The initial guess is simply the initial values for all instances of x, u and z, p_est. The method is automatically
         evoked when calling the :py:func:`MHE.setup` method.
         However, if no initial values for x, u and z were supplied during setup, these default to zero.
