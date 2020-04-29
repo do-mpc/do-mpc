@@ -66,6 +66,6 @@ def template_model():
     x_next = A@_x+B@_u
     model.set_rhs('x', x_next)
 
-    model.setup_model()
+    model.setup()
 
     return model

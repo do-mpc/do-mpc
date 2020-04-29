@@ -93,6 +93,6 @@ def template_model():
     tau = 1e-2
     model.set_rhs('phi_m', 1/tau*(phi_m_set - phi_m))
 
-    model.setup_model()
+    model.setup()
 
     return model

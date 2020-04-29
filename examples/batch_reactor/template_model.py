@@ -68,6 +68,6 @@ def template_model():
     model.set_rhs('V_s', inp)
 
     # Build the model
-    model.setup_model()
+    model.setup()
 
     return model
