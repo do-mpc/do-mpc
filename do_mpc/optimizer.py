@@ -48,6 +48,38 @@ class IteratedVariables:
         self._z0 = self.model._z(0.0)
         self._t0 = np.array([0.0])
 
+
+    def _convert2struct(self, val, struct):
+        """ Convert array to structure.
+        Pass ``val`` which can be an int, float, array, structure and return
+        a numerical structure based on the second argument ``structure``.
+
+        If a structure is passed, return the structure unchanged.
+
+        Performs some sanity checks.
+        """
+
+        # convert to array
+        if isinstance(val, (float, int)):
+            val = np.array([val])
+
+        # Check dimensions
+        err_msg = 'Variable cannot be set because the supplied vector has the wrong size. You have {} and the model is setup for {}'
+        n_val = np.prod(val.shape)
+        n_var = struct.size
+        assert n_val == n_var, err_msg.format(n_val, n_var)
+
+        # Convert to structure (or return structure)
+        if isinstance(val, (np.ndarray, casadi.DM)):
+            val = struct(val)
+        elif isinstance(val, structure3.DMStruct):
+            pass
+        else:
+            types = (np.ndarray, casadi.DM, structure3.DMStruct)
+            raise Exception('x0 must be of tpye {}. You have: {}'.format(types, type(val)))
+
+        return val
+
     @property
     def x0(self):
         """ Initial state and current iterate.
@@ -84,16 +116,7 @@ class IteratedVariables:
 
     @x0.setter
     def x0(self, val):
-        err_msg = 'Variable cannot be set because the supplied vector has the wrong size. You have {} and the model is setup for {}'
-        n_val = np.prod(val.shape)
-        assert n_val == self.model._x.size, err_msg.format(n_val, self.model._x.size)
-        if isinstance(val, (np.ndarray, casadi.DM)):
-            self._x0 = self.model._x(val)
-        elif isinstance(val, structure3.DMStruct):
-            self._x0 = val
-        else:
-            types = (np.ndarray, casadi.DM, structure3.DMStruct)
-            raise Exception('x0 must be of tpye {}. You have: {}'.format(types, type(val)))
+        self._x0 = self._convert2struct(val, self.model._x)
 
     @property
     def u0(self):
@@ -131,16 +154,7 @@ class IteratedVariables:
 
     @u0.setter
     def u0(self, val):
-        err_msg = 'Variable cannot be set because the supplied vector has the wrong size. You have {} and the model is setup for {}'
-        n_val = np.prod(val.shape)
-        assert n_val == self.model._u.size, err_msg.format(n_val, self.model._u.size)
-        if isinstance(val, (np.ndarray, casadi.DM)):
-            self._u0 = self.model._u(val)
-        elif isinstance(val, structure3.DMStruct):
-            self._u0 = val
-        else:
-            types = (np.ndarray, casadi.DM, structure3.DMStruct)
-            raise Exception('u0 must be of tpye {}. You have: {}'.format(types, type(val)))
+        self._u0 = self._convert2struct(val, self.model._u)
 
     @property
     def z0(self):
@@ -178,16 +192,7 @@ class IteratedVariables:
 
     @z0.setter
     def z0(self, val):
-        err_msg = 'Variable cannot be set because the supplied vector has the wrong size. You have {} and the model is setup for {}'
-        n_val = np.prod(val.shape)
-        assert n_val == self.model._z.size, err_msg.format(n_val, self.model._z.size)
-        if isinstance(val, (np.ndarray, casadi.DM)):
-            self._z0 = self.model._z(val)
-        elif isinstance(val, structure3.DMStruct):
-            self._z0 = val
-        else:
-            types = (np.ndarray, casadi.DM, structure3.DMStruct)
-            raise Exception('x0 must be of tpye {}. You have: {}'.format(types, type(val)))
+        self._z0 = self._convert2struct(val, self.model._z)
 
     @property
     def t0(self):

@@ -289,16 +289,8 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
     @p_est0.setter
     def p_est0(self, val):
-        err_msg = 'Variable cannot be set because the supplied vector has the wrong size. You have {} and the MHE is setup for {}'
-        n_val = np.prod(val.shape)
-        assert n_val == self._p_est.size, err_msg.format(n_val, self._p_est.size)
-        if isinstance(val, (np.ndarray, casadi.DM)):
-            self._p_est0 = self._p_est(val)
-        elif isinstance(x0, structure3.DMStruct):
-            self._p_est0 = val
-        else:
-            types = (np.ndarray, casadi.DM, structure3.DMStruct)
-            raise Exception('x0 must be of tpye {}. You have: {}'.format(types, type(val)))
+        self._p_est0 = self._convert2struct(val, self._p_est)
+
 
     @property
     def opt_x_num(self):
