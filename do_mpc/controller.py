@@ -53,6 +53,15 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.optimizer.IteratedVariables):
 
     6. Finally, call :py:func:`MPC.setup`.
 
+    .. warning::
+
+        Before running the controller, make sure to supply a valid initial guess for all optimized variables (states, algebraic states and inputs).
+        Simply set the initial values of :py:attr:`x0`, :py:attr:`z0` and :py:attr:`u0` and then call :py:func:`set_initial_guess`.
+
+        To take full control over the initial guess, modify the values of :py:attr:`opt_x_num`.
+
+    During runtime call :py:func:`MPC.make_step` with the current state :math:`x` to obtain the optimal control input :math:`u`.
+
     """
 
     def __init__(self, model):
@@ -118,6 +127,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.optimizer.IteratedVariables):
             'set_rterm': False,
             'set_tvp_fun': False,
             'set_p_fun': False,
+            'set_initial_guess': False,
         }
 
     @property
@@ -627,23 +637,18 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.optimizer.IteratedVariables):
         """Setup the MPC class.
         Internally, this method will create the MPC optimization problem under consideration
         of the supplied dynamic model and the given :py:class:`MPC` class instance configuration.
-        The method also sets the initial guess with :py:func:`MPC.set_initial_guess`.
+
         The :py:func:`MPC.setup` method can be called again after changing the configuration
         (e.g. adapting bounds) and will simply overwrite the previous optimization problem.
 
-        After setup, the :py:class:`MPC` instance enables the :py:func:`make_step` method.
-        This method is used during runtime to obtain the MPC current control input given the current state.
+        .. note::
+            After this call, the :py:func:`solve` and :py:func:`make_step` method is applicable.
 
-        The method sets ``flags['setup'] = True``.
         """
 
         self._setup_nl_cons()
         self._check_validity()
         self._setup_mpc_optim_problem()
-        self.flags['setup'] = True
-
-
-        self.set_initial_guess()
 
         # Gather meta information:
         meta_data = {key: getattr(self, key) for key in self.data_fields}
@@ -652,22 +657,27 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.optimizer.IteratedVariables):
 
         self._prepare_data()
 
+        self.flags['setup'] = True
+
     def set_initial_guess(self):
         """Initial guess for optimization variables.
-        Uses the current class attributes ``_x0``, ``_z0`` and ``_u0`` to create the initial guess.
-        The initial guess is simply the initial values for all instances of x, u and z. The method is automatically
-        evoked when calling the :py:func:`MPC.setup` method.
-        If no initial values for ``_x0``, ``_z0`` and ``_u0`` were supplied during setup, these default to zero.
+        Uses the current class attributes :py:attr:`x0`, :py:attr:`z0` and :py:attr:`u0` to create the initial guess.
+        The initial guess is simply the initial values for all instances of :py:attr:`x0`, :py:attr:`z0` and :py:attr:`u0`.
+
+        .. warning::
+            If no initial values for :py:attr:`x0`, :py:attr:`z0` and :py:attr:`u0` were supplied during setup, these default to zero.
 
         .. note::
             The initial guess is fully customizable by directly setting values on the class attribute:
-            ``opt_x_num``.
+            :py:attr:`opt_x_num`.
         """
         assert self.flags['setup'] == True, 'optimizer was not setup yet. Please call optimizer.setup().'
 
         self.opt_x_num['_x'] = self._x0.cat/self._x_scaling
         self.opt_x_num['_u'] = self._u0.cat/self._u_scaling
         self.opt_x_num['_z'] = self._z0.cat/self._z_scaling
+
+        self.flags['set_initial_guess'] = True
 
 
     def make_step(self, x0):
@@ -686,6 +696,11 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.optimizer.IteratedVariables):
         assert self.flags['setup'] == True, 'optimizer was not setup yet. Please call optimizer.setup().'
         types = (np.ndarray, casadi.DM)
         assert isinstance(x0, types), 'x0 must be of type {}. You have {}.'.format(types, type(x0))
+        if not self.flags['set_initial_guess']:
+            warnings.warn('Intial guess for the optimizer was not set. The solver call is likely to fail.')
+            time.sleep(5)
+            # Since do-mpc is warmstarting, the initial guess will exist after the first call.
+            self.flags['set_initial_guess'] = True
 
         # Get current tvp, p and time (as well as previous u)
         u_prev = self._u0

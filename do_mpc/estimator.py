@@ -149,6 +149,9 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
     .. warning::
 
         Before running the estimator, make sure to supply a valid initial guess for all estimated variables (states, algebraic states, inputs and parameters).
+        Simply set the intial values of :py:attr:`x0`, :py:attr:`z0`, :py:attr:`u0` and :py:attr:`p_est0` and then call :py:func:`set_initial_guess`.
+
+        To take full control over the initial guess, modify the values of :py:attr:`opt_x_num`.
 
     During runtime use :py:func:`MHE.make_step` with the most recent measurement to obtain the estimated states.
 
@@ -248,6 +251,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             'set_p_fun': False,
             'set_y_fun': False,
             'set_objective': False,
+            'set_intial_guess': False,
         }
 
     @property
@@ -809,7 +813,9 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         """Uses the current class attributes ``x0``, ``z0`` and ``u0``, ``p_est0`` to create an initial guess for the MHE.
         The initial guess is simply the initial values for all instances of x, u and z, p_est. The method is automatically
         evoked when calling the :py:func:`MHE.setup` method.
-        However, if no initial values for x, u and z were supplied during setup, these default to zero.
+
+        .. warning::
+            If no initial values for :py:attr:`x0`, :py:attr:`z0` and :py:attr:`u0` were supplied during setup, these default to zero.
         """
         assert self.flags['setup'] == True, 'mhe was not setup yet. Please call mhe.setup().'
 
@@ -818,21 +824,15 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self.opt_x_num['_z'] = self._z0.cat/self._z_scaling
         self.opt_x_num['_p_est'] = self._p_est0.cat/self._p_est_scaling
 
+        self.flags['set_intial_guess'] = True
+
     def setup(self):
-        """The setup method finalizes the MHE creation. After this call, the :py:func:`do_mpc.optimizer.Optimizer.solve` method is applicable.
-        The method wraps the following calls:
+        """The setup method finalizes the MHE creation.
+        The optimization problem is created based on the configuration of the module.
 
-        * :py:func:`do_mpc.optimizer.Optimizer._setup_nl_cons`
+        .. note::
 
-        * :py:func:`MHE._check_validity`
-
-        * :py:func:`MHE._setup_mhe_optim_problem`
-
-        * :py:func:`MHE.set_initial_guess`
-
-
-        and sets the setup flag = True.
-
+            After this call, the :py:func:`solve` and :py:func:`make_step` method is applicable.
         """
         self._setup_nl_cons()
 
@@ -845,10 +845,9 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         self._check_validity()
         self._setup_mhe_optim_problem()
-        self.flags['setup'] = True
 
-        self.set_initial_guess()
         self._prepare_data()
+        self.flags['setup'] = True
 
     def make_step(self, y0):
         """Main method of the class during runtime. This method is called at each timestep
@@ -864,6 +863,11 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         :rtype: numpy.ndarray
         """
         assert self.flags['setup'] == True, 'ME was not setup yet. Please call ME.setup().'
+        if not self.flags['set_initial_guess']:
+            warnings.warn('Intial guess for the optimizer was not set. The solver call is likely to fail.')
+            time.sleep(5)
+            # Since do-mpc is warmstarting, the initial guess will exist after the first call.
+            self.flags['set_initial_guess'] = True
 
         self.data.update(_y = y0)
 
