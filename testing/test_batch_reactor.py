@@ -61,10 +61,13 @@ class TestBatchReactor(unittest.TestCase):
         S_s_0 = 0.5 # This is the controlled variable [mol/l]
         P_s_0 = 0.0 #[C]
         V_s_0 = 120.0 #[C]
-        x0 = np.array([X_s_0, S_s_0, P_s_0, V_s_0]).reshape(-1,1)
-        mpc.set_initial_state(x0, reset_history=True)
-        simulator.set_initial_state(x0, reset_history=True)
-        estimator.set_initial_state(x0, reset_history=True)
+        x0 = np.array([X_s_0, S_s_0, P_s_0, V_s_0])
+
+        mpc.x0 = x0
+        simulator.x0 = x0
+        estimator.x0 = x0
+
+        mpc.set_initial_guess()
 
         """
         Run some steps:

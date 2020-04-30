@@ -52,11 +52,12 @@ mpc = template_mpc(model)
 simulator = template_simulator(model)
 estimator = do_mpc.estimator.StateFeedback(model)
 
-# Set the initial state of mpc and simulator:
-x0 = model['x'](0)
-
+# Set the initial state of the controller and simulator:
 delH_R_real = 950.0
 c_pR = 5.0
+
+# x0 is a property of the simulator - we obtain it and set values.
+x0 = simulator.x0
 
 x0['m_W'] = 10000.0
 x0['m_A'] = 853.0
@@ -70,10 +71,11 @@ x0['Tout_AWT'] = 35.0 + 273.15
 x0['accum_monom'] = 300.0
 x0['T_adiab'] = x0['m_A']*delH_R_real/((x0['m_W'] + x0['m_A'] + x0['m_P']) * c_pR) + x0['T_R']
 
+# Finally, the controller gets the same initial state.
+mpc.x0 = x0
 
-
-mpc.set_initial_state(x0, reset_history=True)
-simulator.set_initial_state(x0, reset_history=True)
+# Which is used to set the initial guess:
+mpc.set_initial_guess()
 
 # Initialize graphic:
 graphics = do_mpc.graphics.Graphics(mpc.data)

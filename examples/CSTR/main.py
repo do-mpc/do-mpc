@@ -54,8 +54,11 @@ T_R_0 = 134.14 #[C]
 T_K_0 = 130.0 #[C]
 x0 = np.array([C_a_0, C_b_0, T_R_0, T_K_0]).reshape(-1,1)
 
-mpc.set_initial_state(x0, reset_history=True)
-simulator.set_initial_state(x0, reset_history=True)
+mpc.x0 = x0
+simulator.x0 = x0
+
+mpc.set_initial_guess()
+
 
 # Initialize graphic:
 graphics = do_mpc.graphics.Graphics(mpc.data)
