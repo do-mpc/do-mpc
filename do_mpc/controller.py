@@ -600,7 +600,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.optimizer.IteratedVariables):
             raise Exception('Objective is undefined. Please call .set_objective() prior to .setup().')
         # rterm should have been set (throw warning if not)
         if self.flags['set_rterm'] == False:
-            warning('rterm was not set and defaults to zero. Changes in the control inputs are not penalized. Can lead to oscillatory behavior.')
+            warnings.warn('rterm was not set and defaults to zero. Changes in the control inputs are not penalized. Can lead to oscillatory behavior.')
             time.sleep(2)
         # tvp_fun must be set, if tvp are defined in model.
         if self.flags['set_tvp_fun'] == False and self.model._tvp.size > 0:
@@ -610,7 +610,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.optimizer.IteratedVariables):
             raise Exception('You have not supplied a function to obtain the parameters defined in model. Use .set_p_fun() (low-level API) or .set_uncertainty_values() (high-level API) prior to setup.')
 
         if np.any(self.rterm_factor.cat.full() < 0):
-            warning('You have selected negative values for the rterm penalizing changes in the control input.')
+            warnings.warn('You have selected negative values for the rterm penalizing changes in the control input.')
             time.sleep(2)
 
         # Lower bounds should be lower than upper bounds:
@@ -688,14 +688,26 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.optimizer.IteratedVariables):
         and updates the :py:class:`do_mpc.data.Data` object.
 
         :param x0: Current state of the system.
-        :type x0: numpy.ndarray
+        :type x0: numpy.ndarray or casadi.DM
 
         :return: u0
         :rtype: numpy.ndarray
         """
+        # Check setup.
         assert self.flags['setup'] == True, 'optimizer was not setup yet. Please call optimizer.setup().'
-        types = (np.ndarray, casadi.DM)
-        assert isinstance(x0, types), 'x0 must be of type {}. You have {}.'.format(types, type(x0))
+
+        # Check input type.
+        if isinstance(x0, (np.ndarray, casadi.DM)):
+            pass
+        elif isinstance(x0, structure3.DMStruct):
+            x0 = x0.cat
+        else:
+            raise Exception('Invalid type {} for x0. Must be {}'.format(type(x0), (np.ndarray, casadi.DM, structre3.DMStruct)))
+
+        # Check input shape.
+        n_val = np.prod(x0.shape)
+        assert n_val == self.model.n_x, 'Wrong input with shape {}. Expected vector with {} elements'.format(n_val, self.model.n_x)
+        # Check (once) if the initial guess was supplied.
         if not self.flags['set_initial_guess']:
             warnings.warn('Intial guess for the optimizer was not set. The solver call is likely to fail.')
             time.sleep(5)
