@@ -251,7 +251,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             'set_p_fun': False,
             'set_y_fun': False,
             'set_objective': False,
-            'set_intial_guess': False,
+            'set_initial_guess': False,
         }
 
     @property
@@ -748,14 +748,14 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         """
         # Objective mus be defined.
         if self.flags['set_objective'] == False:
-            raise Exception('Objective is undefined. Please call .set_objective() prior to .setup().')
+            raise Exception('Objective is undefined. Please call .set_objective() or .set_default_objective() prior to .setup().')
 
         # tvp_fun must be set, if tvp are defined in model.
         if self.flags['set_tvp_fun'] == False and self.model._tvp.size > 0:
             raise Exception('You have not supplied a function to obtain the time varying parameters defined in model. Use .set_tvp_fun() prior to setup.')
         # p_fun must be set, if p are defined in model.
         if self.flags['set_p_fun'] == False and self._p_set.size > 0:
-            raise Exception('You have not supplied a function to obtain the parameters defined in model. Use .set_p_fun() (low-level API) or .set_uncertainty_values() (high-level API) prior to setup.')
+            raise Exception('You have not supplied a function to obtain the parameters defined in model. Use .set_p_fun() prior to setup.')
 
 
         # Lower bounds should be lower than upper bounds:
@@ -816,7 +816,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self.opt_x_num['_z'] = self._z0.cat/self._z_scaling
         self.opt_x_num['_p_est'] = self._p_est0.cat/self._p_est_scaling
 
-        self.flags['set_intial_guess'] = True
+        self.flags['set_initial_guess'] = True
 
     def setup(self):
         """The setup method finalizes the MHE creation.
@@ -854,7 +854,21 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         :return: x0, estimated state of the system.
         :rtype: numpy.ndarray
         """
-        assert self.flags['setup'] == True, 'ME was not setup yet. Please call ME.setup().'
+        # Check setup.
+        assert self.flags['setup'] == True, 'optimizer was not setup yet. Please call optimizer.setup().'
+
+        # Check input type.
+        if isinstance(y0, (np.ndarray, casadi.DM)):
+            pass
+        elif isinstance(y0, structure3.DMStruct):
+            y0 = y0.cat
+        else:
+            raise Exception('Invalid type {} for y0. Must be {}'.format(type(y0), (np.ndarray, casadi.DM, structre3.DMStruct)))
+
+        # Check input shape.
+        n_val = np.prod(y0.shape)
+        assert n_val == self.model.n_y, 'Wrong input with shape {}. Expected vector with {} elements'.format(n_val, self.model.n_y)
+        # Check (once) if the initial guess was supplied.
         if not self.flags['set_initial_guess']:
             warnings.warn('Intial guess for the optimizer was not set. The solver call is likely to fail.')
             time.sleep(5)
