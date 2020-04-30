@@ -120,6 +120,11 @@ Table of contents
    Debugging
    do_mpc
 
+.. toctree::
+   :maxdepth: 5
+   :caption: Example gallery
+
+   example_CSTR
 
 
 Indices and tables
