@@ -17,7 +17,7 @@ import pdb
 import sys
 import os
 sys.path.insert(0, os.path.abspath('../../'))
-
+sys.path.insert(0, os.path.abspath('./'))
 
 # -- Project information -----------------------------------------------------
 
@@ -45,7 +45,8 @@ extensions = ['sphinx.ext.autodoc',
           'sphinx.ext.graphviz',
           'sphinx.ext.autosummary',
           'sphinx.ext.viewcode',
-          'sphinx_copybutton'
+          'sphinx_copybutton',
+          'recommonmark'
               ]
 
 graphviz_output_format = 'svg'
@@ -92,3 +93,10 @@ html_static_path = ['static']
 
 # -- Options for LaTeX output ---------------------------------------------
 latex_engine ='pdflatex'
+
+
+# -- Run custom script -----------------------------------------------------
+import release_overview
+
+# Get Markdown page with the overview over all releases from Github API.
+release_overview.get_overview()

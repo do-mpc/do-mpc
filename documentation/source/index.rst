@@ -119,12 +119,15 @@ Table of contents
    project_structure
    Debugging
    do_mpc
+   release_notes
 
 .. toctree::
    :maxdepth: 5
    :caption: Example gallery
 
    example_CSTR
+
+
 
 
 Indices and tables

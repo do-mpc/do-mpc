@@ -14,3 +14,5 @@ documentation/source/_autosummary/
 documentation/source/api/
 
 *.DS_Store
+
+documentation/source/release_notes.md
