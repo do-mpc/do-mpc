@@ -9,10 +9,10 @@ assignees: ''
 
 Regarding the documentation on our [do-mpc](do-mpc.com) homepage.
 
-** Link to page / section of the issue ** 
+**Link to page / section of the issue** 
 
 
-** What is wrong / missing? **
+**What is wrong / missing?**
 
 
-** How could it be improved / what should be added?**
+**How could it be improved / what should be added?**
