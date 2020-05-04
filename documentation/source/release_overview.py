@@ -26,5 +26,14 @@ def get_overview():
         text += body_i
         text += '\n'
 
+        try:
+            if release_i['assets']:
+                text += '### Example files'.format(name_i)
+                text += '\n'
+                text += 'Please download the example files for release {} [here]({}).'.format(name_i, release_i['assets'][0]['browser_download_url'])
+                text += '\n'
+        except:
+            print('Couldnt provide download link for example files.')
+
     with open('release_notes.md', 'w') as f:
         f.write(text)

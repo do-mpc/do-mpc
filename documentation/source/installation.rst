@@ -38,8 +38,11 @@ e.g. write extensions.
 
 2. Get example documents:
 
-All resources can be obtained from our  `GitHub <https://github.com/do-mpc/do-mpc>`_ repository.
-Clone or download the repository and obtain the files from the examples directory.
+All resources can be obtained from our  `release notes`_ page.
+Please find the example files that match your currently installed **do-mpc** version
+in the respective section.
+
+.. _`release notes`: release_notes.html
 
 Option 2: **Clone from Github**
 *******************************
