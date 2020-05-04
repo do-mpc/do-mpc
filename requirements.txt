@@ -6,3 +6,4 @@ graphviz
 casadi
 numpy
 matplotlib
+recommonmark
