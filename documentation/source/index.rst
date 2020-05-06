@@ -100,6 +100,7 @@ Table of contents
    :maxdepth: 5
    :caption: Background
 
+   theory_orthogonal_collocation
    theory_mpc
    theory_mhe
 
