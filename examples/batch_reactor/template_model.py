@@ -46,10 +46,10 @@ def template_model():
     Y_p	  = 1.2
 
     # States struct (optimization variables):
-    X_s = model.set_variable('_x',  'X_s')
-    S_s = model.set_variable('_x',  'S_s')
-    P_s = model.set_variable('_x',  'P_s')
-    V_s = model.set_variable('_x',  'V_s')
+    X_s = model.set_variable('_x',  'X_s')  # bio mass
+    S_s = model.set_variable('_x',  'S_s')  # Substrate
+    P_s = model.set_variable('_x',  'P_s')  # Product
+    V_s = model.set_variable('_x',  'V_s')  # Reactor volume
 
     # Input struct (optimization variables):
     inp = model.set_variable('_u',  'inp')
