@@ -152,7 +152,7 @@ The choice of these points is significant and will be discussed in
 Collocation constraints
 =======================
 
-To solution of the ODE, i.e. the values of :math:`x_{i,j}` are now obtained by solving
+The solution of the ODE, i.e. the values of :math:`x_{i,j}` are now obtained by solving
 the following equations:
 
 .. math::
@@ -169,7 +169,7 @@ which explicitly considers the initial state to ensure continuiety between the f
 
 It is important to note that this is an **implict ODE integration scheme**, since we need
 to evaluate the ODE equation for yet to be determined future states of the system.
-While this seems inconvenient for simulation it is straightforward to incorporate in an
+While this seems inconvenient for simulation it is straightforward to incorporate in a
 model predictive control (MPC) or moving horizon estimation (MHE) formulation, which are
 essentially large constrained optimization problems of the form:
 
@@ -186,7 +186,7 @@ Clearly, the equality constraints :math:`h(z)` can be extended with the above me
 where the states :math:`x_{i,j}` are then optimization variables of the problem.
 
 Solving the MPC / MHE optimization problem then implictly calculates the solution of the governing ODE
-and takes it into consideration for cost, constraints etc.
+and it can be taken into consideration for cost, constraints etc.
 
 
 .. _secOrthogonalPoly:
