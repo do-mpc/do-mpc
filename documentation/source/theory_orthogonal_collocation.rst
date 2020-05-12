@@ -88,26 +88,159 @@ To simplify things, we now consider the following ODE:
 
     \dot{x} = f(x), \quad x(0)=x_0,
 
-which we assume can be approximated accurately with a polynomial of order :math:`K+1`:
+where we assume the solution :math:`x(t)` can be approximated accurately with a polynomial of order :math:`K+1`:
 
 .. math::
 
-    x^K(t) = \alpha_0 + \alpha_1 t + \dots + \alpha_{K}  t^K.
+    x^K_i(t) = \alpha_0 + \alpha_1 t + \dots + \alpha_{K}  t^K.
 
-This approximation should be valid on small time-intervals :math:`t\in [t_i, t_{i+1}]`.
+This approximation should be valid on small time-intervals :math:`t\in [t_i, t_{i+1}]`, which
+are the **finite elements** mentioned in the title.
 With :math:`j=0,\dots,K` interpolation points :math:`x_{i,j}` in the interval,
 we can use **Lagrange interpolation polynomials** to obtain:
 
 .. math::
 
-
-    &x^K(t) = \sum_{j=0}^K L_j(\tau) x_{i,j}\\
+    &x^K_i(t) = \sum_{j=0}^K L_j(\tau) x_{i,j}\\
     \text{where:}\quad
     &L_j(\tau) = \prod_{
     \begin{array}{c}k=0\\ k \neq j \end{array}
     }^K \frac{(\tau-\tau_k)}{(\tau_j-\tau_k)}, \quad \tau &= \frac{t-t_i}{\Delta t_i}, \quad \Delta t_i=t_{i+1}-t_i.
 
 This polynomial ensures that for the interpolation points :math:`x^K(t_{i,j})=x_{i,j}`.
+Such a polynomial is fitted to all finite elements, as shown in the figure below.
+
+
+.. _my-reference-label:
+.. figure:: static/orthogonal_collocation.svg
+
+    Lagrange polynomials representing the solution of an ODE on neighboring finite elements.
+
+Note that the collocation points (round circles above) can be choosen freely
+while obeying :math:`\tau_0 = 0` and :math:`\tau_{j}<\tau_{j+1}`.
+There are, however, better choices than others which will be discussed in :ref:`secOrthogonalPoly`.
+
+Solving the ODE
+***************
+
+So far we have seen how to approximate an ODE solution
+with Lagrange polynomials **given a set of values from the solution**.
+This may seem confusing because we are looking for these values in the first place.
+However, it still helps us because we can now state conditions based on this polynomial representation
+that **must hold for the desired solution**:
+
+.. math::
+
+    \left.\frac{d x^K_i}{dt}\right|_{t_{i,k}} = f(x_{i,k}), \quad k=1,\dots,K.
+
+This means that the time derivatives from our polynomial approximation evaluated
+**at the collocation points** must be equal to the original ODE at these same points.
+
+Because we assumed a polynomial structure of :math:`x^K_i(t)` the time derivative can be conveniently expressed as:
+
+.. math::
+
+    \left.\frac{d x^K_i}{dt}\right|_{t_{i,k}} = \sum_{j=0}^K \frac{x_{i,j}}{\Delta t}
+    \underbrace{\left.\frac{d L_j}{d \tau}\right|_{\tau_k}}_{a_{j,k}},
+
+for which we substituted :math:`t` with :math:`\tau`.
+It is important to notice that **for fixed collocation points** the terms :math:`a_{j,k}`
+are constants that can be pre-computed.
+The choice of these points is significant and will be discussed in
+:ref:`secOrthogonalPoly`.
+
+Collocation constraints
+=======================
+
+To solution of the ODE, i.e. the values of :math:`x_{i,j}` are now obtained by solving
+the following equations:
+
+.. math::
+
+    \sum_{j=0}^K a_{j,k} \frac{x_{i,j}}{\Delta t} = f(x_{i,k}), \quad k=1,\dots,K.
+
+and
+
+.. math::
+
+    x^K_i(t_{i}) = x^K_{i-1}(t_{i}),
+
+which explicitly considers the initial state to ensure continuiety between the finite elements.
+
+It is important to note that this is an **implict ODE integration scheme**, since we need
+to evaluate the ODE equation for yet to be determined future states of the system.
+While this seems inconvenient for simulation it is straightforward to incorporate in an
+model predictive control (MPC) or moving horizon estimation (MHE) formulation, which are
+essentially large constrained optimization problems of the form:
+
+.. math::
+
+    \min_z \quad &c(z)\\
+    \text{s.t.:} \quad & h(z) = 0\\
+    & g(z) \leq 0
+
+where :math:`z` now denotes a generic optimization variable,
+:math:`c(z)` a generic cost function and :math:`h(z)` and :math:`g(z)` the equality and inequality constraints.
+
+Clearly, the equality constraints :math:`h(z)` can be extended with the above mentioned collocation constraints,
+where the states :math:`x_{i,j}` are then optimization variables of the problem.
+
+Solving the MPC / MHE optimization problem then implictly calculates the solution of the governing ODE
+and takes it into consideration for cost, constraints etc.
+
+
+.. _secOrthogonalPoly:
+
+Collocation with orthogonal polynomials
+=======================================
+
+Finally we need to discuss how to choose the collocation points :math:`\tau_j,\  j=0,\dots, K`.
+Only for fixed values of the collocation points the collocation constraints become mere algebraic equations.
+
+**Just a short disclaimer**:
+Ideal values for the collocation points are typically found in tables, e.g. in [Biegler2010]_.
+The following simply illustrates how these suggested values are derived and are not implemented in practice.
+
+We recall that the solution of the ODE can also be determined with:
+
+.. math::
+
+    x(t_i) = x(t_{i-1}) + \int_{t_{i-1}}^{t_i} f(x(t)) dt,
+
+which is solved numerically with the quadrature formula:
+
+.. math::
+
+    &x(t_i) = x(t_{i-1}) + \sum_{j=1}^K \omega_j  \Delta t f(x(t_{i,j})\\
+    &t_{i,j} = t_{i-1} + \tau_j \Delta t
+
+The collocation points are now choosen such that the quadrature formula provides an
+exact solution for the original ODE if :math:`f(x(t)` is a polynomial in :math:`t` of order :math:`2K`.
+It shows that this is achieved by choosing :math:`\tau` as the roots of a :math:`k`-th degree polynomial :math:`P_K(\tau)`
+which fulfills the **orthogonal property**:
+
+.. math::
+
+    \int_0^1 P_i(\tau) P_{j}(\tau) = 0, \quad i=0,\dots, K-1,\ j=1,\dots, K
+
+The resulting collocation points are called **Legendre roots**.
+
+Similiarly one can compute collocation points from the more general **Gauss-Jacoby** polynomial:
+
+.. math::
+
+    \int_0^1 (1-\tau)^{\alpha} \tau^{\beta} P_i(\tau) P_{j}(\tau) = 0, \quad i=0,\dots, K-1,\ j=1,\dots, K
+
+which for :math:`\alpha=0,\ \beta=0` results exactly in the Legrendre polynomial from above
+where the truncation error is found to be :math:`\mathcal{O}(\Delta t^{2K})`.
+For :math:`\alpha=0,\ \beta=0` one can determine the **Gauss-Radau** collocation points with truncation error
+:math:`\mathcal{O}(\Delta t^{2K-1})`.
+
+Both, Gauss-Radau and Legrende roots are commonly used for orthogonal collocation and can be selected
+in **do-mpc**.
+
+
+For more details about the procedure and the numerical values for the collocation points we refer to [Biegler2010]_.
 
 
 Bibliography
