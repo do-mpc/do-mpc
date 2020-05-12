@@ -61,6 +61,7 @@ for the continuous case, where ...
 For the problem to be computationally tractable, discretization via  'orthogonal collocation'_.
 
 .. _`orthogonal_collocation`: orthogonal_collocation.html
+
 The discrete-time **OCP** is given by:
 
 .. math::
