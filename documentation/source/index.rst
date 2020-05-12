@@ -125,7 +125,8 @@ Table of contents
    :maxdepth: 5
    :caption: Example gallery
 
-   example_CSTR
+   batch_reactor
+   CSTR
 
 
 
