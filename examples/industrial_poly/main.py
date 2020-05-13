@@ -81,7 +81,7 @@ mpc.set_initial_guess()
 graphics = do_mpc.graphics.Graphics(mpc.data)
 
 
-fig, ax = plt.subplots(5, sharex=True)
+fig, ax = plt.subplots(5, sharex=True, figsize=(16,9))
 plt.ion()
 # Configure plot:
 graphics.add_line(var_type='_x', var_name='T_R', axis=ax[0])
