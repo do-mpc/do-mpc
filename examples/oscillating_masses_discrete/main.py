@@ -53,7 +53,8 @@ Set initial state
 """
 np.random.seed(99)
 
-x0 = np.random.rand(model.n_x)-0.5
+e = np.ones([model.n_x,1])
+x0 = np.random.uniform(-3*e,3*e) # Values between +3 and +3 for all states
 mpc.x0 = x0
 simulator.x0 = x0
 estimator.x0 = x0

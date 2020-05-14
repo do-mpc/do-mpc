@@ -38,7 +38,7 @@ def template_simulator(model):
     simulator = do_mpc.simulator.Simulator(model)
 
 
-    simulator.set_param(t_step = 0.1)
+    simulator.set_param(t_step = 0.5)
 
     simulator.setup()
 
