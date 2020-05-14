@@ -129,7 +129,7 @@ Table of contents
    batch_reactor
    CSTR
    industrial_poly
-
+   oscillating_masses_discrete
 
 
 
