@@ -52,7 +52,7 @@ An (incomplete!) overview and classification of commonly used methods is shown i
         full_disc [label="full discretization"]
         Euler
         RungeKutta [label="Runge-Kutta"]
-        OC [label="orthogonal collocation \n on finte elements", fillcolor="#edf0f2", style="filled"]
+        OC [label="orthogonal collocation \n on finite elements", fillcolor="#edf0f2", style="filled"]
 
 
 
@@ -60,7 +60,7 @@ An (incomplete!) overview and classification of commonly used methods is shown i
         indirect -> PMP
         direct -> simultaneous, sequential
 
-        sequential -> single_shoot
+        sequential -> single_shoot, full_disc
         simultaneous -> mult_shoot, full_disc
         full_disc -> Euler, RungeKutta, OC
     }
