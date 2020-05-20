@@ -270,7 +270,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.optimizer.IteratedVariables):
         :param collocation_deg: Choose the collocation degree for continuous models with collocation as state discretization. Defaults to ``2``.
         :type collocation_deg: int
 
-        :param collocation_ni: Choose the collocation ni for continuous models with collocation as state discretization. Defaults to ``1``.
+        :param collocation_ni: For orthogonal collocation, choose the number of finite elements for the states within a time-step (and during constant control input). Defaults to ``1``. Can be used to avoid high-order polynomials.
         :type collocation_ni: int
 
         :param store_full_solution: Choose whether to store the full solution of the optimization problem. This is required for animating the predictions in post processing. However, it drastically increases the required storage. Defaults to False.
