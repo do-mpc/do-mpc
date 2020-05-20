@@ -78,7 +78,7 @@ class TestOscillatingMassesDiscrete(unittest.TestCase):
         """
         Store results (from reference run):
         """
-        #do_mpc.data.save_results([mpc, simulator, estimator], 'results_oscillatingMasses')
+        #do_mpc.data.save_results([mpc, simulator, estimator], 'results_oscillatingMasses', overwrite=True)
 
         """
         Compare results to reference run:
