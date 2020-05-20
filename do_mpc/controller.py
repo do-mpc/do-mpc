@@ -30,7 +30,7 @@ import time
 import do_mpc.data
 import do_mpc.optimizer
 
-class MPC(do_mpc.optimizer.Optimizer, do_mpc.optimizer.IteratedVariables):
+class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     """Model predictive controller.
     The MPC controller extends the :py:class:`do_mpc.optimizer.Optimizer` base class
     (which is also used for the MHE estimator).
@@ -73,7 +73,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.optimizer.IteratedVariables):
         self.data.dtype = 'MPC'
 
         # Initialize parent class:
-        do_mpc.optimizer.IteratedVariables.__init__(self)
+        do_mpc.model.IteratedVariables.__init__(self)
         do_mpc.optimizer.Optimizer.__init__(self)
 
         # Initialize further structures specific to the MPC optimization problem.

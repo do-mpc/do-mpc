@@ -31,7 +31,7 @@ import do_mpc.optimizer
 import do_mpc.data
 
 
-class Estimator(do_mpc.optimizer.IteratedVariables):
+class Estimator(do_mpc.model.IteratedVariables):
     """The Estimator base class. Used for :py:class:`StateFeedback`, :py:class:`EKF` and :py:class:`MHE`.
     This class cannot be used independently.
 
@@ -42,7 +42,7 @@ class Estimator(do_mpc.optimizer.IteratedVariables):
     """
     def __init__(self, model):
         self.model = model
-        do_mpc.optimizer.IteratedVariables.__init__(self)
+        do_mpc.model.IteratedVariables.__init__(self)
 
         assert model.flags['setup'] == True, 'Model for estimator was not setup. After the complete model creation call model.setup_model().'
 

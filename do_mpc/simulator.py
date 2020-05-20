@@ -25,9 +25,9 @@ from casadi import *
 from casadi.tools import *
 import pdb
 from do_mpc.data import Data
-import do_mpc.optimizer
+import do_mpc.model
 
-class Simulator(do_mpc.optimizer.IteratedVariables):
+class Simulator(do_mpc.model.IteratedVariables):
     """A class for simulating systems. Discrete-time and continuous systems can be considered.
 
     **do-mpc** uses the CasADi interface to popular state-of-the-art tools such as Sundials `CVODES`_
@@ -61,7 +61,7 @@ class Simulator(do_mpc.optimizer.IteratedVariables):
         :rtype: None
         """
         self.model = model
-        do_mpc.optimizer.IteratedVariables.__init__(self)
+        do_mpc.model.IteratedVariables.__init__(self)
 
         assert model.flags['setup'] == True, 'Model for simulator was not setup. After the complete model creation call model.setup_model().'
 
