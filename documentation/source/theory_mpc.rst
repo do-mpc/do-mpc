@@ -86,15 +86,19 @@ In the next section, we will explain how **do-mpc** considers uncertainty to ena
 Robust multi-stage NMPC
 =======================
 
-The basic idea for the multi-stage approach is to consider various scenarios, where a scenario is defined by one possible realization of all uncertain parameters.
+
+General description
+-------------------
+
+The basic idea for the multi-stage approach is to consider various scenarios, where a scenario is defined by one possible realization of all uncertain parameters at every control instant within the horizon.
 The family of all considered discrete scenarios can be represented as a tree structure, called the scenario tree:
 
 .. image:: scenario_tree.png
 
-where one scenario is one path from the root node on the left side to one leaf node on the right.
-At every instant, the MPC problem at the root node is solved while explicitly taking into account the uncertain future evolution and the existence of future decisions, which can exploit the information gained throughout the evolution progress along the branches.
+where one scenario is one path from the root node on the left side to one leaf node on the right, e.g. the state evolution for the first scenario :math:`S_4` would be :math:`x_0 \rightarrow x_1^2 \rightarrow x_2^4 \rightarrow \dots \rightarrow x_5^4`.
+At every instant, the MPC problem at the root node :math:`x_0` is solved while explicitly taking into account the uncertain future evolution and the existence of future decisions, which can exploit the information gained throughout the evolution progress along the branches.
 Through this design, feedback information is considered in the open-loop optimization problem, which reduces the conservativeness of the multi-stage approach.
-Considering feedback information also means, that decisions :math:`u` branching from the same node need to be identical, because they are based on the same information (non-antipacivity constraints).
+Considering feedback information also means, that decisions :math:`u` branching from the same node need to be identical, because they are based on the same information, e.g. :math:`u_1^4 = u_1^5 = u_1^6`.
 
 The system equation for a discretized/discrete system in the mutli-stage setting is given by:
 
@@ -102,57 +106,60 @@ The system equation for a discretized/discrete system in the mutli-stage setting
 
     x_{k+1}^j = f(x_k^{p(j)},u_k^j,z_k^{p(j)},p_k^{r(j)},p_{\text{tv},k}),
 
-where the function :math:`p(j)`` refers to the parent state :math:`x_k^{p(j)}` and the considered realization of the uncertainty is given by :math:`r(j)` via :math:`d_k^{r(j)}`
+where the function :math:`p(j)`` refers to the parent state via :math:`x_k^{p(j)}` and the considered realization of the uncertainty is given by :math:`r(j)` via :math:`d_k^{r(j)}`.
+The set of all occurring exponent/index pairs :math:`(i,j)` are denoted as :math:`I`.
 
-In this exemplary tree, the control problem contains one uncertain parameters :math:`p`, for which 3 explicit values are considered.
-Due to the tree structure of the multi-stage approach, the number of scenarios grows exponentially with the prediction horizon :math:`N`.
-To reduce the computational load, the robust horizon :math:`N_{\text{robust}} \leq N` is introduced, after which the branching stops.
-Hence, the number of considered scenarios is given by:
+Robust horizon
+,,,,,,,,,,,,,,
+
+Because the uncertainty is modeled as a collection of discrete scenarios in the multi-stage approach, every node branches into :math:`\prod_{1}^{n_p} v_{i}` new scenarios, where :math:`n_p` is the number of parameters and :math:`v_{i}` is the number of explicit values considered for the :math:`i`-th parameter.
+This leads to an exponential growth of the scenarios with respect to the horizon.
+To maintain the computational tractability of the multi-stage approach, the robust horizon :math:`N_{\text{robust}}` is introduced, which can be viewed as a tuning parameter.
+Branching is then only applied for the first :math:`N_{\text{robust}}` steps while the values of the uncertain parameters are kept constant for the last :math:`N-N_{\text{robust}}` steps.
+The number of considered scenarios is given by:
 
 .. math::
 
-    N_{\text{s}} = (\prod_{i=1}^{n_p} n_{v,i})^{N_{\text{robust}}}
+    N_{\text{s}} = (\prod_{i=1}^{n_p} v_{i})^{N_{\text{robust}}}
 
-where :math:`n_p` is the number of parameters and :math:`n_{v,i}` is the number of explicit values considered for the :math:`i`-th parameter.
-This results in :math:`N_{\text{s}} = 27` scenarios for the presented scenario tree above.
+This results in :math:`N_{\text{s}} = 9` scenarios for the presented scenario tree above instead of 243 scenarios, if branching would be applied until the prediction horizon.
 
-The collection of child nodes
-Explain scenario tree. Parent nodes, etc.
-The constraints need to satisfied for all possible combinations of the constraints.
-Each parent node branches :math:`\prod_{1}^{n_p} n_{v,i}` times within the robust horizon :math:`N_{\text{robust}}`.
-For the last :math:`N-N_{\text{robust}}` steps the values of the uncertainties are kept constant.
-This requirement is included in the formulation of the optimal control problem:
+The impact of the robust horizon is in general minor, since MPC is based on feedback.
+This means the decisions are recomputed in every step after new information (measurements/state estimate) has been obtained and the branches are updated with respect to the current state.
+
+.. note::
+
+    It the uncertainties :math:`p` are unknown but constant, :math:`N_{\text{robust}}=1` is a common choice, because no branching of the scenario tree occurs after the first time instant (since the uncertainties are constant) and the computational load is kept low.
+
+Mathematical formulation
+------------------------
+
+The formulation of the MPC problem for the multi-stage approach is given by:
 
 .. math::
 
     & \min_{\mathbf{x}_{0:N}} &&\, \tilde{J} & \\
     &\text{subjet to} & & \, x_0 = \hat{x}_0 & \\
-    &&& \, x_{k+1}^j = f(x_k^{p(j)},u_k^j,z_k^{p(j)},p_k^{r(j)},p_{\text{tv},k}) & \, \forall \\
+    &&& \, x_{k+1}^j = f(x_k^{p(j)},u_k^j,z_k^{p(j)},p_k^{r(j)},p_{\text{tv},k}) & \, \forall (j,k) \in I \\
     &&& u_k^i = u_k^j \text{ if }  x_k^{p(i)} = x_k^{p(j)}, & \, \forall (i,k), (j,k) \in I \\
-    &&& g() \leq 0 & \, \forall \\
-    &&& x_{\text{lb}} \leq x_k^j \leq x_{\text{ub}} & \, \forall \\
-    &&& u_{\text{lb}} \leq u_k^j \leq u_{\text{ub}} & \, \forall \\
-    &&& z_{\text{lb}} \leq z_k^j \leq z_{\text{ub}} & \, \forall \\
-    &&& g_{\text{terminal}}(x_N^j,z_N^j) \leq 0     & \, \forall
+    &&& g(x_k^{p(j)},u_k^j,z_k^{p(j)},p_k^{r(j)},p_{\text{tv},k}) \leq 0 & \, \forall (j,k) \in I \\
+    &&& x_{\text{lb}} \leq x_k^j \leq x_{\text{ub}} & \, \forall (j,k) \in I \\
+    &&& u_{\text{lb}} \leq u_k^j \leq u_{\text{ub}} & \, \forall (j,k) \in I \\
+    &&& z_{\text{lb}} \leq z_k^j \leq z_{\text{ub}} & \, \forall (j,k) \in I \\
+    &&& g_{\text{terminal}}(x_N^j,z_N^j) \leq 0     & \, \forall (j,N) \in I
 
 where :math:`\tilde{J} = \left(\sum_{i=1}^{N}(\omega_i J_i)^{\alpha}\right)^{1/\alpha}` is the objective.
-The objective consists of one part for each scenario, which can be weighted according to the probability of the scenarios :math:`\omega_i`, :math:`i=1,\dots,N_{\text{s}}`.
+The objective consists of one term for each scenario, which can be weighted according to the probability of the scenarios :math:`\omega_i`, :math:`i=1,\dots,N_{\text{s}}`.
 The cost for each scenario :math:`S_i` is given by:
 
 .. math::
 
-    J_i = m(x_N^j,z_N^n,p_N^o,p_{\text{tv},N})  + \sum_{k=0}^{N-1} l(x_k^q,u_k^r,z_k^s,p_k^t,p_{\text{tv},k}), \quad \forall x_k^{\cdot}, u_k^{\cdot}, z_k^{\cdot}, p_k^{\cdot}, p_{\text{tv},k}^{\cdot} \in S_i,
+    J_i = m(x_N^j,z_N^j)  + \sum_{k=0}^{N-1} l(x_k^{p(j)},u_k^j,z_k^{p(j)},p_k^{r(j)},p_{\text{tv},k}).
 
-.. note::
+For all scenarios, which are directly considered in the problem formulation, a feasible solution guarantees constraint satisfaction.
+This means if all uncertainties can only take discrete values and those are represented in the scenario tree, constraint satisfaction can be guaranteed.
 
-    For all scenarios, which are directly considered in the problem formulation, constraint satisfaction can be guaranteed.
-    This means if all uncertainties can only take discrete values, which a represented in the scenario tree, constraint satisfaction can be guaranteed.
-    For linear systems, considering the extreme values of the uncertainties in the scenario tree guarantees constraint satisfaction, even if the uncertainties are continuous.
-
-    For nonlinear problems, constraint satisfaction cannot be guaranteed for all possible combinations of the parameters within the uncertainty interval, if the uncertainties are continuous.
-    However, often the worst-case scenarios are at the boundaries of the intervals of the uncertain parameters.
-    So, if the boundaries are considered in the scenario tree, constraint satisfaction for all cases is highly probable.
-
-.. note::
-
-    It the uncertainties :math:`p_k` are unknown but constant, choosing the robust horizon :math:`N_{\text{robust}}=1` is sufficient to include all reasonable scenarios.
+For linear systems if :math:`p_{\text{min}} \leq p \leq p_{\text{max}}`, considering the extreme values of the uncertainties in the scenario tree guarantees constraint satisfaction, even if the uncertainties are continuous and time-varying.
+This design of the scenario tree for nonlinear systems does not guarantee constraint satisfaction for all :math:`p \in [p_{\text{min}}, p_{\text{max}}]`.
+However, also for nonlinear systems the worst-case scenarios are often at the boundaries of the uncertainty intvervals :math:`[p_{\text{min}}, p_{\text{max}}]`.
+In practice, considering only the extreme values for nonlinear systems provides good results.
