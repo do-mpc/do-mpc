@@ -166,16 +166,16 @@ class Simulator(do_mpc.model.IteratedVariables):
             entry('_u', struct=self.model._u),
             entry('_p', struct=self.model._p),
             entry('_tvp', struct=self.model._tvp),
+            entry('_w', struct=self.model._w)
         ])
-        # Process noise (model is simulated without noise)
-        _w =self.model._w(0)
+
 
         self.sim_p_num = self.sim_p(0)
 
         if self.model.model_type == 'discrete':
 
             # Build the rhs expression with the newly created variables
-            x_next = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_x['_z'],sim_p['_tvp'],sim_p['_p'], _w)
+            x_next = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_x['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
 
             # Build the simulator function
             self.simulator = Function('simulator',[sim_x,sim_p],[x_next])
@@ -184,7 +184,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         elif self.model.model_type == 'continuous':
 
             # Define the ODE
-            xdot = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_x['_z'],sim_p['_tvp'],sim_p['_p'], _w)
+            xdot = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_x['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
             dae = {
                 'x': sim_x['_x'],
                 'z': sim_x['_z'],
@@ -411,11 +411,15 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         return x_new
 
-    def make_step(self, u0, x0=None, z0=None):
+    def make_step(self, u0, x0=None, z0=None, v0=None, w0=None):
         """Main method of the simulator class during control runtime. This method is called at each timestep
         and returns the next state for the current control input ``u0``.
         The initial state ``x0`` is stored as a class attribute but can optionally be supplied.
         The algebraic states ``z0`` can also be supplied, if they are defined in the model but are only used as an intial guess.
+
+        Finally, the method can be called with values for the process noise ``w0`` and the measurement noise ``v0``
+        that were (optionally) defined in the :py:class:`do_mpc.model.Model`.
+        Typically, these values should be sampled from a random distribution, e.g. ``np.random.randn`` for a random normal distribution.
 
         The method prepares the simulator by setting the current parameters, calls :py:func:`simulator.simulate`
         and updates the :py:class:`do_mpc.data` object.
@@ -428,6 +432,12 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         :param z0: Initial guess for current algebraic states
         :type z0: numpy.ndarray (optional)
+
+        :param v0: Additive measurement noise
+        :type v0: numpy.ndarray (optional)
+
+        :param w0: Additive process noise
+        :type w0: numpy.ndarray (optional)
 
         :return: x_nsext
         :rtype: numpy.ndarray
@@ -450,6 +460,20 @@ class Simulator(do_mpc.model.IteratedVariables):
             # Just an initial guess.
             self.sim_x_num['_z'] = z0
 
+        if w0 is None:
+            w0 = self.model._w(0)
+        else:
+            input_types = (np.ndarray, casadi.DM, structure3.DMStruct)
+            assert isinstance(w0, input_types), 'w0 is wrong input type. You have: {}. Must be of type'.format(type(w0), input_types)
+            assert w0.shape == self.model._w.shape, 'w0 has incorrect shape. You have: {}, expected: {}'.format(w0.shape, self.model._w.shape)
+
+        if v0 is None:
+            v0 = self.model._v(0)
+        else:
+            input_types = (np.ndarray, casadi.DM, structure3.DMStruct)
+            assert isinstance(v0, input_types), 'v0 is wrong input type. You have: {}. Must be of type'.format(type(v0), input_types)
+            assert v0.shape == self.model._v.shape, 'v0 has incorrect shape. You have: {}, expected: {}'.format(v0.shape, self.model._w.shape)
+
         tvp0 = self.tvp_fun(self._t0)
         p0 = self.p_fun(self._t0)
         t0 = self._t0
@@ -457,6 +481,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         self.sim_p_num['_u'] = u0
         self.sim_p_num['_p'] = p0
         self.sim_p_num['_tvp'] = tvp0
+        self.sim_p_num['_w'] = w0
 
         self.simulate()
 
@@ -465,7 +490,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         aux0 = self.sim_aux_num
 
         # Call measurement function
-        y_next = self.model._meas_fun(x_next, u0, z0, tvp0, p0)
+        y_next = self.model._meas_fun(x_next, u0, z0, tvp0, p0, v0)
 
         self.data.update(_x = x0)
         self.data.update(_u = u0)

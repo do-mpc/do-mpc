@@ -134,9 +134,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
     1. Use :py:func:`MHE.set_param` to configure the :py:class:`MHE`. See docstring for details.
 
-    2. Obtain the following variables from the class: ``MHE._y_meas``, ``MHE._y_calc``, ``MHE._x_prev``, ``MHE._x0``, ``MHE._p_est_prev``, ``MHE._p_est0``
-
-    3. Set the objective of the control problem with :py:func:`MHE.set_objective` or use the high-level interface, :py:func:`MHE.set_default_objective`
+    2. Set the objective of the control problem with :py:func:`MHE.set_default_objective` or use the low-level interface :py:func:`MHE.set_objective`.
 
     5. Set upper and lower bounds.
 
@@ -234,7 +232,6 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         # Introduce aliases / new variables to smoothly and intuitively formulate
         # the MHE objective function.
         self._y_meas = self.model._y
-        self._y_calc = self.model._y_expression
 
         self._x_prev = copy.copy(self.model._x)
         self._x = self.model._x
@@ -243,6 +240,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self._p_est = self._p_est
 
         self._w = self.model._w
+        self._v = self.model._v
 
         # Flags are checked when calling .setup.
         self.flags = {
@@ -473,19 +471,30 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
 
     def set_objective(self, stage_cost, arrival_cost):
-        """Set the objective function for the MHE problem. We suggest to formulate the MHE objective (:math:`J`) such that:
+        """Set the stage cost :math:`l(\cdot)` and arrival cost :math:`m(\cdot)` function for the MHE problem:
 
         .. math::
 
-           J= & \\underbrace{(x_0 - \\tilde{x}_0)^T P_x (x_0 - \\tilde{x}_0)}_{\\text{arrival cost states}} +
-           \\underbrace{(p_0 - \\tilde{p}_0)^T P_p (p_0 - \\tilde{p}_0)}_{\\text{arrival cost params.}} \\\\
-           & +\sum_{k=0}^{n-1} \\underbrace{(h(x_k, u_k, p_k) - y_k)^T P_{y,k} (h(x_k, u_k, p_k) - y_k)}_{\\text{stage cost}}
+            \\underset{
+            \\begin{array}{c}
+            \\mathbf{x}_{0:N}, \\mathbf{u}_{0:N-1}, p,\\\\
+            \\mathbf{w}_{0:N-1}, \\mathbf{v}_{0:N-1}
+            \\end{array}
+            }{\\mathrm{min}}
+            &m(x_0,\\tilde{x}_0, p,\\tilde{p})
+            +\\sum_{k=0}^{N-1} l(v_k, w_k, p, p_{\\text{tv},k}),\\\\
+            &\\left.\\begin{aligned}
+            \\mathrm{s.t.}\\quad
+            x_{k+1} &= f(x_k,u_k,z_k,p,p_{\\text{tv},k})+ w_k,\\\\
+            y_k &= h(x_k,u_k,z_k,p,p_{\\text{tv},k}) + v_k, \\\\
+            &g(x_k,u_k,z_k,p_k,p_{\\text{tv},k}) \\leq 0
+            \\end{aligned}\\right\} k=0,\\dots, N-1
 
         Use the class attributes:
 
-        * ``mhe._y_meas`` as :math:`y_k`
+        * ``mhe._w`` as :math:`w_k`
 
-        * ``mhe._y_calc`` as :math:`h(x_k, u_k, p_k)` (function is defined in :py:class:`do_mpc.model.Model`)
+        * ``mhe._v`` as :math:`v_k`
 
         * ``mhe._x_prev`` as :math:`\\tilde{x}_0`
 
@@ -512,11 +521,9 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         ::
 
             # Get variables:
-            y_meas = mhe._y_meas
-            y_calc = mhe._y_calc
+            v = mhe._v.cat
 
-            dy = y_meas.cat-y_calc.cat
-            stage_cost = dy.T@np.diag(np.array([1,1,1,20,20]))@dy
+            stage_cost = v.T@np.diag(np.array([1,1,1,20,20]))@v
 
             x_0 = mhe._x
             x_prev = mhe._x_prev
@@ -548,8 +555,8 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         assert self.flags['setup'] == False, 'Cannot call .set_objective after .setup.'
 
 
-        stage_cost_input = self.model._x, self.model._u, self.model._z, self._w, self.model._tvp, self.model._p, self._y_meas
-        err_msg = 'objective cost equation must be solely depending on x, u, z, p, tvp, y_meas, w.'
+        stage_cost_input = self._w, self._v, self.model._tvp, self.model._p
+        err_msg = 'objective cost equation must be solely depending on w, v, p and tvp.'
         assert set(symvar(stage_cost)).issubset(set(symvar(vertcat(*stage_cost_input)))), err_msg
         self.stage_cost_fun = Function('stage_cost_fun', [*stage_cost_input], [stage_cost])
 
@@ -560,68 +567,97 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         self.flags['set_objective'] = True
 
-    def set_default_objective(self, P_x, P_y, P_p=None, P_w=None):
+    def set_default_objective(self, P_x, P_v=None, P_p=None, P_w=None, P_y=None):
         """ Wrapper function to set the suggested default MHE formulation:
 
         .. math::
 
-            \\min_{\\textbf{x}_{0:N},\\textbf{u}_{0:N-1},\\textbf{w}_{0:N-1}}\\
-            & \\underbrace{(x_0 - \\tilde{x}_0)^T P_x (x_0 - \\tilde{x}_0)}_{\\text{arrival cost states}} +
-           \\underbrace{(p_0 - \\tilde{p}_0)^T P_p (p_0 - \\tilde{p}_0)}_{\\text{arrival cost params.}} \\\\
-           & +\\sum_{k=0}^{n-1} \\underbrace{(h(x_k, u_k, p_k) - y_k)^T P_{y,k} (h(x_k, u_k, p_k) - y_k)
-           + w_k^T P_w w_k}_{\\text{stage cost}} \\\\
-           \\text{s.t.:}\\quad & x_{k+1}=f(x_{k},u_{k},z_{k},p_{k},p_{tv,k}) + w_{k}
+            \\underset{
+            \\begin{array}{c}
+            \\mathbf{x}_{0:N}, \\mathbf{u}_{0:N-1}, p,\\\\
+            \\mathbf{w}_{0:N-1}, \\mathbf{v}_{0:N-1}
+            \\end{array}
+            }{\\mathrm{min}}
+            &\\frac{1}{2}\|x_0-\\tilde{x}_0\|_{P_x}^2+\\frac{1}{2}\|p-\\tilde{p}\|_{P_p}^2
+            +\\sum_{k=0}^{N-1} \\left(\\frac{1}{2}\|v_k\|_{P_{v,k}}^2
+            + \\frac{1}{2}\|w_k\|_{P_{w,k}}^2\\right),\\\\
+            &\\left.\\begin{aligned}
+            \\mathrm{s.t.}\\quad
+            x_{k+1} &= f(x_k,u_k,z_k,p,p_{\\text{tv},k})+ w_k,\\\\
+            y_k &= h(x_k,u_k,z_k,p,p_{\\text{tv},k}) + v_k, \\\\
+            &g(x_k,u_k,z_k,p_k,p_{\\text{tv},k}) \\leq 0
+            \\end{aligned}\\right\} k=0,\\dots, N-1
 
-        Pass the weighting matrices :math:`P_x`, :math:`P_p` and :math:`P_y` and :math:`P_w`.
+        where we introduce the bold letter notation,
+        e.g. :math:`\mathbf{x}_{0:N}=[x_0, x_1, \dots, x_{N}]^T` to represent sequences and where
+        :math:`\|x\|_P^2=x^T P x` denotes the :math:`P` weighted squared norm.
+
+        Pass the weighting matrices :math:`P_x`, :math:`P_p` and :math:`P_v` and :math:`P_w`.
         The matrices must be of appropriate dimension and array-like.
 
         .. note::
 
             It is possible to pass parameters or time-varying parameters defined in the
             :py:class:`do_mpc.model.Model` as weighting.
-            You'll probably choose time-varying parameters (``_tvp``) for ``P_y`` and ``P_w``
+            You'll probably choose time-varying parameters (``_tvp``) for ``P_v`` and ``P_w``
             and parameters (``_p``) for ``P_x`` and ``P_p``.
             Use :py:func:`set_p_fun` and :py:func:`set_tvp_fun` to configure how these values
             are determined at each time step.
 
-        In the case that no parameters are estimated, the weighting matrix :math:`P_p` is not required.
-        Furthermore, in the case that the :py:class:`do_mpc.model.Model` is configured without process-noise
-        (see :py:meth:`do_mpc.model.Model.set_rhs`) the parameter ``P_w`` is not required.
+        **General remarks: **
+
+        * In the case that no parameters are estimated, the weighting matrix :math:`P_p` is not required.
+
+        * In the case that the :py:class:`do_mpc.model.Model` is configured without process-noise (see :py:meth:`do_mpc.model.Model.set_rhs`) the parameter ``P_w`` is not required.
+
+        * In the case that the :py:class:`do_mpc.model.Model` is configured without measurement-noise (see :py:meth:`do_mpc.model.Model.set_meas`) the parameter ``P_v`` is not required.
+
         The respective terms are not present in the MHE formulation in that case.
 
         .. note::
+
             Use :py:meth:`set_objective` as a low-level alternative for this method,
             if you want to use a custom objective function.
 
         :param P_x: Tuning matrix :math:`P_x` of dimension :math:`n \\times n` :math:`(x \\in \\mathbb{R}^{n})`
         :type P_x: numpy.ndarray, casadi.SX, casadi.DM
-        :param P_y: Tuning matrix :math:`P_y` of dimension :math:`m \\times m` :math:`(y \\in \\mathbb{R}^{m})`
-        :type P_y: numpy.ndarray, casadi.SX, casadi.DM
+        :param P_v: Tuning matrix :math:`P_v` of dimension :math:`m \\times m` :math:`(v \\in \\mathbb{R}^{m})`
+        :type P_v: numpy.ndarray, casadi.SX, casadi.DM
         :param P_p: Tuning matrix :math:`P_p` of dimension :math:`l \\times l` :math:`(p_{\\text{est}} \\in \\mathbb{R}^{l})`)
         :type P_p: numpy.ndarray, casadi.SX, casadi.DM
+        :param P_w: Tuning matrix :math:`P_w` of dimension :math:`k \\times k` :math:`(w \\in \\mathbb{R}^{k})`
+        :type P_w: numpy.ndarray, casadi.SX, casadi.DM
         """
 
         input_types = (np.ndarray, casadi.SX, casadi.DM)
         err_msg = '{name} must be of type {type_set}, you have {type_is}'
         assert isinstance(P_x, input_types), err_msg.format(name='P_x', type_set = input_types, type_is = type(P_x))
-        assert isinstance(P_y, input_types), err_msg.format(name='P_y', type_set = input_types, type_is = type(P_y))
         input_types = (np.ndarray, casadi.SX, casadi.DM, type(None))
+        assert isinstance(P_v, input_types), err_msg.format(name='P_v', type_set = input_types, type_is = type(P_v))
         assert isinstance(P_p, input_types), err_msg.format(name='P_p', type_set = input_types, type_is = type(P_p))
         assert isinstance(P_w, input_types), err_msg.format(name='P_w', type_set = input_types, type_is = type(P_w))
+        if P_y is not None:
+            warnings.warn('Using P_y is depreciated. Please use P_v instead.', DeprecationWarning)
+
         n_x = self.model.n_x
         n_y = self.model.n_y
         n_w = self.model.n_w
+        n_v = self.model.n_v
         n_p = self.n_p_est
         assert P_x.shape == (n_x, n_x), 'P_x has wrong shape:{}, must be {}'.format(P_x.shape, (n_x,n_x))
-        assert P_y.shape == (n_y, n_y), 'P_y has wrong shape:{}, must be {}'.format(P_y.shape, (n_y,n_y))
+        assert P_v.shape == (n_y, n_y), 'P_v has wrong shape:{}, must be {}'.format(P_v.shape, (n_v,n_v))
 
 
         # Calculate stage cost:
-        y_meas = self._y_meas
-        y_calc = self._y_calc
-        dy = y_meas.cat-y_calc.cat
+        stage_cost = 0
 
-        stage_cost = dy.T@P_y@dy
+        if P_v is None:
+            assert n_v == 0, 'Must pass weighting factor P_v, since you have measurement noise on some measurements (configured in model).'
+        else:
+            assert P_v.shape == (n_v, n_v), 'P_v has wrong shape:{}, must be {}'.format(P_v.shape, (n_v,n_v))
+            v = self._v.cat
+            stage_cost += v.T@P_v@v
+
 
         if P_w is None:
             assert n_w == 0, 'Must pass weighting factor P_w, since you have process noise on some states (configured in model).'
@@ -629,7 +665,6 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             assert P_w.shape == (n_w, n_w), 'P_w has wrong shape:{}, must be {}'.format(P_w.shape, (n_w,n_w))
             w = self._w.cat
             stage_cost += w.T@P_w@w
-
 
 
         # Calculate arrival cost:
@@ -952,6 +987,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             entry('_z', repeat=[self.n_horizon,   1+n_total_coll_points], struct=self.model._z),
             entry('_u', repeat=[self.n_horizon], struct=self.model._u),
             entry('_w', repeat=[self.n_horizon], struct=self.model._w),
+            entry('_v', repeat=[self.n_horizon], struct=self.model._v),
             entry('_eps', repeat=[self.n_horizon], struct=self._eps),
             entry('_p_est', struct=self._p_est),
         ])
@@ -1020,6 +1056,10 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
                                    opt_x['_u', k], vertcat(*opt_x['_z', k, :]), opt_p['_tvp', k],
                                    _p, opt_x['_w', k])
 
+            # Compute current measurement
+            yk_calc = self.model._meas_fun(opt_x_unscaled['_x', k+1, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1],
+                opt_p['_tvp', k], _p, opt_x_unscaled['_v', k])
+
             # Add the collocation equations
             cons.append(g_ksb)
             cons_lb.append(np.zeros(g_ksb.shape[0]))
@@ -1029,6 +1069,11 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             cons.append(xf_ksb - opt_x['_x', k+1, -1])
             cons_lb.append(np.zeros((self.model.n_x, 1)))
             cons_ub.append(np.zeros((self.model.n_x, 1)))
+
+            # Add measurement constraints
+            cons.append(yk_calc - opt_p['_y_meas', k])
+            cons_lb.append(np.zeros((self.model.n_y, 1)))
+            cons_ub.append(np.zeros((self.model.n_y, 1)))
 
             # Add nonlinear constraints only on each control step
             nl_cons_k = self._nl_cons_fun(
@@ -1041,9 +1086,9 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
 
             obj += self.stage_cost_fun(
-                opt_x_unscaled['_x', k+1, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1],
-                opt_x_unscaled['_w', k], opt_p['_tvp', k], _p, opt_p['_y_meas', k],
+                opt_x_unscaled['_w', k], opt_x_unscaled['_v', k], opt_p['_tvp', k], _p
             )
+
             # Add slack variables to the cost
             obj += self.epsterm_fun(opt_x_unscaled['_eps', k])
 

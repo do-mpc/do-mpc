@@ -281,7 +281,10 @@ class Model:
         self._y =   [entry('default', shape=(0,0))]
         self._y_expression = []
 
+        # Process noise
         self._w = [entry('default', shape=(0,0))]
+        # Measurement noise
+        self._v = [entry('default', shape=(0,0))]
 
 
         self.model_type = model_type
@@ -737,14 +740,31 @@ class Model:
 
         return expr
 
-    def set_meas(self, meas_name, expr):
-        """Introduce new measurable output to the model class. By default, the model assumes state-feedback (all states are measured outputs).
+    def set_meas(self, meas_name, expr, meas_noise=True):
+        """Introduce new measurable output to the model class.
+
+        .. math::
+
+            y_k = h(x_k,u_k,z_k,p_k,p_{\\text{tv},k})+v_k
+
+        By default, the model assumes state-feedback (all states are measured outputs).
         Expressions must be formulated with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
+
+        Be default, it is assumed that the measurements experience additive noise :math:`v_k`.
+        This can be deactivated for individual measured variables by changing the boolean variable
+        ``meas_noise`` to ``False``.
+        Note that measurement noise is only meaningful for state-estimation and will not affect the controller.
+        Furthermore, it can be set with each :py:class:`do_mpc.simulator.Simulator` call to obtain imperfect outputs.
 
         .. note::
 
-            For moving horizon estimation it is suggested to declare all inputs (``_u``) and a subset of states (``_x``) as
+            For moving horizon estimation it is suggested to declare all inputs (``_u``) and e.g. a subset of states (``_x``) as
             measurable output. Some other MHE formulations treat inputs separately.
+
+        .. note::
+
+            It is often suggested to deactivate measurement noise for "measured" inputs (``_u``).
+            These can typically seen as certain variables.
 
         **Example:**
 
@@ -764,6 +784,8 @@ class Model:
         :type expr_name: string
         :param expr: CasADi SX or MX function depending on ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
         :type expr: CasADi SX or MX
+        :param meas_noise: Set if the measurement equation is disturbed by additive noise.
+        :type meas_noise: bool
 
         :raises assertion: expr_name must be str
         :raises assertion: expr must be a casadi SX or MX type
@@ -775,6 +797,13 @@ class Model:
         assert self.flags['setup'] == False, 'Cannot call .set_meas after :py:func:`Model.setup_model`'
         assert isinstance(meas_name, str), 'meas_name must be str, you have: {}'.format(type(meas_name))
         assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
+        assert isinstance(meas_noise, bool), 'meas_noise must be of type boolean. You have: {}'.format(type(meas_noise))
+
+        # Create a new process noise variable and add it to the rhs equation.
+        if meas_noise:
+            var = SX.sym(meas_name+'_noise', expr.shape[0])
+            self._v.append(entry(meas_name, sym=var))
+            expr += var
 
         self._y_expression.append(entry(meas_name, expr = expr))
         self._y.append(entry(meas_name, shape=expr.shape))
@@ -814,6 +843,13 @@ class Model:
         Optionally, set ``process_noise = True`` to introduce an additive process noise variable.
         This is currently only meaningful for the :py:class:`do_mpc.estimator.MHE`.
         See :py:func:`do_mpc.estimator.MHE.set_default_objective` for more details.
+        The equation can then be understood as:
+
+        .. math::
+
+            x_{k+1} = f(\\dots)+w_k
+
+        Furthermore, it can be set with each :py:class:`do_mpc.simulator.Simulator` call to obtain imperfect outputs.
 
 
         :param var_name: Reference to previously introduced state names (with :py:func:`Model.set_variable`)
@@ -929,6 +965,7 @@ class Model:
         # Write self._x, self._u, self._z, self._y, self._tvp, self.p with the respective struct_symSX structures.
         self._x = _x = struct_symSX(self._x)
         self._w = _w = struct_symSX(self._w)
+        self._v = _v = struct_symSX(self._v)
         self._u = _u =  struct_symSX(self._u)
         self._z = _z = struct_symSX(self._z)
         self._p = _p = struct_symSX(self._p)
@@ -960,7 +997,7 @@ class Model:
         # Declare functions for the right hand side and the aux_expressions.
         self._rhs_fun = Function('rhs_fun', [_x, _u, _z, _tvp, _p, _w], [self._rhs])
         self._aux_expression_fun = Function('aux_expression_fun', [_x, _u, _z, _tvp, _p], [self._aux_expression])
-        self._meas_fun = Function('meas_fun', [_x, _u, _z, _tvp, _p], [self._y_expression])
+        self._meas_fun = Function('meas_fun', [_x, _u, _z, _tvp, _p, _v], [self._y_expression])
 
         # Create and store some information about the model regarding number of variables for
         # _x, _y, _u, _z, _tvp, _p, _aux
@@ -972,6 +1009,7 @@ class Model:
         self.n_p = self._p.shape[0]
         self.n_aux = self._aux_expression.shape[0]
         self.n_w = self._w.shape[0]
+        self.n_v = self._v.shape[0]
 
         # Remove temporary storage for the symbolic variables. This allows to pickle the class.
         #delattr(self, 'var_list')
