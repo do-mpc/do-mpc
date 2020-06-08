@@ -568,8 +568,9 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self.flags['set_objective'] = True
 
     def set_default_objective(self, P_x, P_v=None, P_p=None, P_w=None, P_y=None):
-        """ Wrapper function to set the suggested default MHE formulation:
+        """ Configure the suggested default MHE formulation.
 
+        Use this method to pass tuning matrices for the MHE optimization problem:
         .. math::
 
             \\underset{
