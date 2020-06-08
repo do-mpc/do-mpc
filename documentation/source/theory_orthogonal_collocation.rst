@@ -233,7 +233,7 @@ Similiarly one can compute collocation points from the more general **Gauss-Jaco
 
 which for :math:`\alpha=0,\ \beta=0` results exactly in the Legrendre polynomial from above
 where the truncation error is found to be :math:`\mathcal{O}(\Delta t^{2K})`.
-For :math:`\alpha=0,\ \beta=0` one can determine the **Gauss-Radau** collocation points with truncation error
+For :math:`\alpha=1,\ \beta=0` one can determine the **Gauss-Radau** collocation points with truncation error
 :math:`\mathcal{O}(\Delta t^{2K-1})`.
 
 Both, Gauss-Radau and Legrende roots are commonly used for orthogonal collocation and can be selected
