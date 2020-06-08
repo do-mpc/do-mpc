@@ -28,8 +28,8 @@ or differential algebraic equations (DAE):
 
 .. math::
 
-   \dot{x} &= f(x,u,z,p_{tv},p),\\\\
-   0 &= g(x,u,z,p_{tv},p).\\\\
+   \dot{x} &= f(x(t),u(t),z(t),p_{tv}(t),p(t)),\\\\
+   0 &= g(x(t),u(t),z(t),p_{tv}(t),p(t)).\\\\
 
 Incorporating the ODE/DAE is typically less straight-forward than their discrete-time counterparts and a variety of methods are applicable.
 An (incomplete!) overview and classification of commonly used methods is shown in the diagram below:
@@ -67,7 +67,7 @@ An (incomplete!) overview and classification of commonly used methods is shown i
 
 **do-mpc** is based on **orthogonal collocation on finite elements** which is a direct, simultaneous, full discretization approach.
 
-    **Direct**: The continous time variables are discretized to transform the infinite-dimensional optimal control problem
+    **Direct**: The continuous time variables are discretized to transform the infinite-dimensional optimal control problem
     to a finite dimensional nonlinear programming (NLP) problem.
 
     **Simultaneous**: Both the control inputs and the states are discretized.
@@ -88,7 +88,8 @@ To simplify things, we now consider the following ODE:
 
     \dot{x} = f(x), \quad x(0)=x_0,
 
-where we assume the solution :math:`x(t)` can be approximated accurately with a polynomial of order :math:`K+1`:
+Fundamental for orthogonal collocation is the idea that the solution of the ODE
+:math:`x(t)` can be approximated accurately with a polynomial of order :math:`K+1`:
 
 .. math::
 
@@ -96,8 +97,10 @@ where we assume the solution :math:`x(t)` can be approximated accurately with a 
 
 This approximation should be valid on small time-intervals :math:`t\in [t_i, t_{i+1}]`, which
 are the **finite elements** mentioned in the title.
-With :math:`j=0,\dots,K` interpolation points :math:`x_{i,j}` in the interval,
-we can use **Lagrange interpolation polynomials** to obtain:
+
+The interpolation is based on :math:`j=0,\dots,K` interpolation points :math:`(t_j, x_{i,j})` in the interval :math:`[t_i, t_{i+1}]`.
+We are using the **Lagrange interpolation polynomial**:
+
 
 .. math::
 
@@ -107,9 +110,13 @@ we can use **Lagrange interpolation polynomials** to obtain:
     \begin{array}{c}k=0\\ k \neq j \end{array}
     }^K \frac{(\tau-\tau_k)}{(\tau_j-\tau_k)}, \quad \tau &= \frac{t-t_i}{\Delta t_i}, \quad \Delta t_i=t_{i+1}-t_i.
 
+
+We call :math:`L_j(\tau)` the Lagrangrian basis polynomial with the dimensionless time :math:`\tau \in [0,1]`.
+Note that the basis polynomial :math:`L_j(\tau)` is constructed to be :math:`L_j(\tau_j)=1` and :math:`L_j(\tau_i)=0`
+for all other interpolation points :math:`i\neq j`.
+
 This polynomial ensures that for the interpolation points :math:`x^K(t_{i,j})=x_{i,j}`.
 Such a polynomial is fitted to all finite elements, as shown in the figure below.
-
 
 .. _my-reference-label:
 .. figure:: static/orthogonal_collocation.svg
@@ -117,11 +124,11 @@ Such a polynomial is fitted to all finite elements, as shown in the figure below
     Lagrange polynomials representing the solution of an ODE on neighboring finite elements.
 
 Note that the collocation points (round circles above) can be choosen freely
-while obeying :math:`\tau_0 = 0` and :math:`\tau_{j}<\tau_{j+1}`.
+while obeying :math:`\tau_0 = 0` and :math:`\tau_{j}<\tau_{j+1}\leq1`.
 There are, however, better choices than others which will be discussed in :ref:`secOrthogonalPoly`.
 
-Solving the ODE
-***************
+Deriving the integration equations
+**********************************
 
 So far we have seen how to approximate an ODE solution
 with Lagrange polynomials **given a set of values from the solution**.
@@ -159,17 +166,37 @@ the following equations:
 
     \sum_{j=0}^K a_{j,k} \frac{x_{i,j}}{\Delta t} = f(x_{i,k}), \quad k=1,\dots,K.
 
-and
+Continuity constraints
+======================
+
+The avid reader will have noticed that through the collocation constraints
+we obtain a system of :math:`K-1` equations for :math:`K` variables, which is insufficient.
+
+The missing equation is used to ensure continuity between the finite elements shown in the figure above.
+We simply enforce equality between the final state of element :math:`i`, which we denote :math:`x_i^f`
+and the initial state of the successive interval :math:`x_{i+1,0}`:
 
 .. math::
 
-    x^K_i(t_{i}) = x^K_{i-1}(t_{i}),
+    x_{i+1,0} = x_{i}^f
 
-which explicitly considers the initial state to ensure continuiety between the finite elements.
+However, with our choice of collocation points :math:`\tau_0=0,\ \tau_j<\tau_{j+1}\leq 1,\ j=0,\dots,K-1`,
+we do not explicitly know :math:`x_i^f` in the general case (unless :math:`\tau_{K} = 1`).
 
-It is important to note that this is an **implict ODE integration scheme**, since we need
+We thus evaluate the interpolation polynomial again and obtain:
+
+.. math::
+
+    x_i^f = x^K_i(t_{i+1}) = \sum_{j=0}^K \underbrace{L_j(\tau=1)}_{d_j} x_{i,j},
+
+where similarly to the collocation coefficients :math:`a_{j,k}`, the continuity coefficient :math:`d_j` can be precomputed.
+
+Solving the ODE problem
+=======================
+
+It is important to note that orthogonal collocation on finite elements is an **implict ODE integration scheme**, since we need
 to evaluate the ODE equation for yet to be determined future states of the system.
-While this seems inconvenient for simulation it is straightforward to incorporate in a
+While this seems inconvenient for simulation, it is straightforward to incorporate in a
 model predictive control (MPC) or moving horizon estimation (MHE) formulation, which are
 essentially large constrained optimization problems of the form:
 
@@ -186,7 +213,7 @@ Clearly, the equality constraints :math:`h(z)` can be extended with the above me
 where the states :math:`x_{i,j}` are then optimization variables of the problem.
 
 Solving the MPC / MHE optimization problem then implictly calculates the solution of the governing ODE
-and it can be taken into consideration for cost, constraints etc.
+which can be taken into consideration for cost, constraints etc.
 
 
 .. _secOrthogonalPoly:
@@ -214,10 +241,10 @@ which is solved numerically with the quadrature formula:
     &x(t_i) = x(t_{i-1}) + \sum_{j=1}^K \omega_j  \Delta t f(x(t_{i,j})\\
     &t_{i,j} = t_{i-1} + \tau_j \Delta t
 
-The collocation points are now choosen such that the quadrature formula provides an
+The collocation points are now chosen such that the quadrature formula provides an
 exact solution for the original ODE if :math:`f(x(t)` is a polynomial in :math:`t` of order :math:`2K`.
 It shows that this is achieved by choosing :math:`\tau` as the roots of a :math:`k`-th degree polynomial :math:`P_K(\tau)`
-which fulfills the **orthogonal property**:
+which fulfils the **orthogonal property**:
 
 .. math::
 
@@ -225,7 +252,7 @@ which fulfills the **orthogonal property**:
 
 The resulting collocation points are called **Legendre roots**.
 
-Similiarly one can compute collocation points from the more general **Gauss-Jacoby** polynomial:
+Similarly one can compute collocation points from the more general **Gauss-Jacoby** polynomial:
 
 .. math::
 
