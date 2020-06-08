@@ -132,7 +132,9 @@ Run MPC main loop:
 
 for k in range(200):
     u0 = mpc.make_step(x0)
-    y_next = simulator.make_step(u0)
+    # Simulate with process and measurement noise
+
+    y_next = simulator.make_step(u0, v0=1e-2*np.random.randn(model.n_v,1))
     x0 = mhe.make_step(y_next)
 
     if show_animation:

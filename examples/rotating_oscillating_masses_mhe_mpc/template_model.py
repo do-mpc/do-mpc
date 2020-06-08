@@ -62,7 +62,7 @@ def template_model():
     P_p = model.set_variable(var_type='_p', var_name='P_p')
 
     # Time-varying parameter for the MHE: Weighting of the measurements (tvp):
-    P_y = model.set_variable(var_type='_tvp', var_name='P_y', shape=(5, 5))
+    P_v = model.set_variable(var_type='_tvp', var_name='P_v', shape=(5, 5))
 
     # State measurements
     phi_meas = model.set_meas('phi_1_meas', phi)
