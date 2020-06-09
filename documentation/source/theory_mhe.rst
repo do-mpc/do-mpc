@@ -16,7 +16,7 @@ These can be used to enforce physical bounds, e.g. fractions between 0 and 1.
 
 All of this comes at the cost of additional computational complexity.
 **do-mpc** mitigates this disadvantage through an efficient implementation which allows for very fast MHE estimation.
-Oftentimes, for moderately complex non-linear systems (~10 states) the **do-mpc** will run at 10-100Hz.
+Oftentimes, for moderately complex non-linear systems (~10 states) **do-mpc** will run at 10-100Hz.
 
 System model
 ============
@@ -37,7 +37,7 @@ and for the discrete-time case by
     x_{k+1} = f(x_k,u_k,z_k,p_k,p_{\text{tv},k})+w_k, \\
     y_k = h(x_k,u_k,z_k,p_k,p_{\text{tv},k})+v_k.
 
-The state of the systems are given by :math:`x(t),x_k`, the control inputs by :math:`u(t),u_k`,
+The states of the systems are given by :math:`x(t),x_k`, the control inputs by :math:`u(t),u_k`,
 algebraic states by :math:`z(t),z_k`, (possibly uncertain) parameters by :math:`p(t),p_k`,
 time-varying (but known) parameters by :math:`p_{\text{tv}}(t),p_{\text{tv},k}` and measurements by :math:`y(t),y_k`, respectively.
 The time is denoted as :math:`t` for the continuous system and the time steps for the discrete system are indicated by :math:`k`.
@@ -83,7 +83,7 @@ This can be seen in the figure below, which depicts the successive horizon.
 .. figure:: static/MHE_schematic_02.svg
     :align: center
 
-Mathmatical formulation
+Mathematical formulation
 ***********************
 
 Following this concept, we formulate the MHE optimization problem as:
@@ -92,8 +92,8 @@ Following this concept, we formulate the MHE optimization problem as:
 
     \underset{
     \begin{array}{c}
-    \mathbf{x}_{0:N}, \mathbf{u}_{0:N-1}, p,\\
-    \mathbf{w}_{0:N-1}, \mathbf{v}_{0:N-1}
+    \mathbf{x}_{0:N+1}, \mathbf{u}_{0:N}, p,\\
+    \mathbf{w}_{0:N}, \mathbf{v}_{0:N}
     \end{array}
     }{\mathrm{min}}
     &\frac{1}{2}\|x_0-\tilde{x}_0\|_{P_x}^2+\frac{1}{2}\|p-\tilde{p}\|_{P_p}^2
@@ -104,10 +104,10 @@ Following this concept, we formulate the MHE optimization problem as:
     x_{k+1} &= f(x_k,u_k,z_k,p,p_{\text{tv},k})+ w_k,\\
     y_k &= h(x_k,u_k,z_k,p,p_{\text{tv},k}) + v_k, \\
     &g(x_k,u_k,z_k,p_k,p_{\text{tv},k}) \leq 0
-    \end{aligned}\right\} k=0,\dots, N-1
+    \end{aligned}\right\} k=0,\dots, N
 
 where we introduce the bold letter notation,
-e.g. :math:`\mathbf{x}_{0:N}=[x_0, x_1, \dots, x_{N}]^T` to represent sequences and where
+e.g. :math:`\mathbf{x}_{0:N+1}=[x_0, x_1, \dots, x_{N+1}]^T` to represent sequences and where
 :math:`\|x\|_P^2=x^T P x` denotes the :math:`P` weighted squared norm.
 
 As mentioned above some states / measured variables do not experience additive noise,

@@ -2,10 +2,23 @@
 Basics of model predictive control
 **********************************
 
-**Model predictive control (MPC)** is a control scheme where a model is used for predicting the behavior of the system for a finite time window, the horizon.
-Based on these predictions and the current measured/estimated state of the system, the optimal control inputs with respect to a defined control objective and subject to system constraints is computed.
+**Model predictive control (MPC)** is a control scheme
+where a model is used for predicting the future behavior of the system over finite time window, the horizon.
+Based on these predictions and the current measured/estimated state of the system,
+the optimal control inputs with respect to a defined control objective and subject to system constraints is computed.
 After a certain time interval, the measurement, estimation and computation process is repeated with a shifted horizon.
 This is the reason why this method is also called **receding horizon control (RHC)**.
+
+Major advantages of MPC in comparison to traditional **reactive** control approaches, e.g. PID, LQR, etc. are
+
+* **Proactive control action**: The controller is anticipating future disturbances, set-points etc.
+
+* **Non-linear control**: MPC can explicitly consider non-linear systems without linearization
+
+* **Arbitrary control objective**: Traditional set-point tracking and regulation or economic MPC
+
+* **constrained formulation**: Explicitly consider physical, safety or operational system constraints
+
 
 .. image:: anim.gif
 
@@ -36,16 +49,19 @@ and for the discrete-time case by
     x_{k+1} = f(x_k,u_k,z_k,p_k,p_{\text{tv},k}), \\
     y_k = h(x_k,u_k,z_k,p_k,p_{\text{tv},k}).
 
-The state of the systems are given by :math:`x(t),x_k`, the control inputs by :math:`u(t),u_k`, algebraic states by :math:`z(t),z_k`, (uncertain) parameters by :math:`p(t),p_k`, time-varying (but known) parameters by :math:`p_{\text{tv}}(t),p_{\text{tv},k}` and measurements by :math:`y(t),y_k`, respectively.
+The states of the systems are given by :math:`x(t),x_k`, the control inputs by :math:`u(t),u_k`,
+algebraic states by :math:`z(t),z_k`, (uncertain) parameters by :math:`p(t),p_k`,
+time-varying (but known) parameters by :math:`p_{\text{tv}}(t),p_{\text{tv},k}` and measurements by :math:`y(t),y_k`, respectively.
 The time is denoted as :math:`t` for the continuous system and the time steps for the discrete system are indicated by :math:`k`.
 
 
 Model predictive control problem
 ================================
 
-For the case of continuous systems, trying to solve OCP directly is mostly computationally intractable because it is an infinite-dimensional problem.
-**do-mpc** uses a full discretization method, namely `orthogonal collocation`_, to discretize the OCP and to allow the find a solution with state-of-the-art numerical solvers.
-This means, that both the OPC for the continuous and the discrete system result in a similar discrete OPC.
+For the case of continuous systems, trying to solve OCP directly is in the general case computationally intractable because it is an infinite-dimensional problem.
+**do-mpc** uses a full discretization method, namely `orthogonal collocation`_,
+to discretize the OCP.
+This means, that both the OCP for the continuous and the discrete system result in a similar discrete OCP.
 
 .. _`orthogonal collocation`: theory_orthogonal_collocation.html
 
@@ -59,17 +75,18 @@ The OCP is then given by:
 
 .. math::
 
-    &\min_{\mathbf{x}_{0:N},\mathbf{u}_{0:N-1},\mathbf{z}_{0:N}} & & m(x_N,z_N,p_N,p_{\text{tv},N}) + \sum_{k=0}^{N-1} l(x_k,z_k,u_k,p_k,p_{\text{tv},k}) && \\
-    &\text{subject to} & & x_0 = \hat{x}_0, & \\
-    &&& x_{k+1} = f(x_k,u_k,p_k,p_{\text{tv},k}), &\, \forall k=0,\dots,N-1,\\
-    &&& g(x_k,u_k,p_k,p_{\text{tv},k}) \leq 0 &\, \forall k=0,\dots,N-1, \\
-    &&& x_{\text{lb}} \leq x_k \leq x_{\text{ub}}, &\, \forall k=0,\dots,N-1, \\
-    &&& u_{\text{lb}} \leq u_k \leq u_{\text{ub}}, &\, \forall k=0,\dots,N-1, \\
-    &&& z_{\text{lb}} \leq z_k \leq z_{\text{ub}}, &\, \forall k=0,\dots,N-1, \\
-    &&& g_{\text{terminal}}(x_N,z_N) \leq 0, &
+    &\min_{\mathbf{x}_{0:N+1},\mathbf{u}_{0:N},\mathbf{z}_{0:N}} & & m(x_N+1) + \sum_{k=0}^{N-1} l(x_k,z_k,u_k,p_k,p_{\text{tv},k}) && \\
+    &\text{subject to:} & & x_0 = \hat{x}_0, & \\
+    &&& x_{k+1} = f(x_k,u_k,p_k,p_{\text{tv},k}), &\, \forall k=0,\dots,N,\\
+    &&& g(x_k,u_k,p_k,p_{\text{tv},k}) \leq 0 &\, \forall k=0,\dots,N, \\
+    &&& x_{\text{lb}} \leq x_k \leq x_{\text{ub}}, &\, \forall k=0,\dots,N, \\
+    &&& u_{\text{lb}} \leq u_k \leq u_{\text{ub}}, &\, \forall k=0,\dots,N, \\
+    &&& z_{\text{lb}} \leq z_k \leq z_{\text{ub}}, &\, \forall k=0,\dots,N, \\
+    &&& g_{\text{terminal}}(x_N+1) \leq 0, &
 
-where :math:`N` is the prediction horizon and :math:`\hat{x}_0` is the current state estimate, which can be computed based on past measurements :math:`y_k`, inputs :math:`u_k` and state estimates :math:`\hat{x}_k`, :math:`k < 0`.
-One optimization based method to do this is `moving horizon estimation`_.
+where :math:`N` is the prediction horizon and :math:`\hat{x}_0` is the current state estimate,
+which is either measured (state-feedback) or estimated based on an incomplete measurement (:math:`y_k`).
+
 **do-mpc** allows to set upper and lower bounds for the states :math:`x_{\text{lb}}, x_{\text{ub}}`, inputs :math:`u_{\text{lb}}, u_{\text{ub}}` and algebraic states :math:`z_{\text{lb}}, z_{\text{ub}}`.
 Terminal constraints can be enforced via :math:`g_{\text{terminal}}(\cdot)` and general nonlinear constraints can be defined with :math:`g(\cdot)`, which can also be realized as soft constraints.
 The objective function consists of two parts, the mayer term :math:`m(\cdot)` which gives the cost of the terminal state and the lagrange term :math:`l(\cdot)` which is the cost of each stage :math:`k`.
@@ -80,17 +97,20 @@ This formulation is the basic formulation of the OCP, which is solved by **do-mp
 In the next section, we will explain how **do-mpc** considers uncertainty to enable robust control.
 
 .. note::
-    Please be aware, that due to the discretization in case of continuous systems, a feasible solution only means that the constraints are satisfied point-wise in time, which in general provides very good results.
+    Please be aware, that due to the discretization in case of continuous systems,
+    a feasible solution only means that the constraints are satisfied point-wise in time.
 
 
 Robust multi-stage NMPC
 =======================
-
+One of the main features of **do-mpc** is robust control, i.e. the control action satisfies the system constraints under the presence of uncertainty.
+In particular, we apply the multi-stage approach which is described in the following.
 
 General description
 -------------------
 
-The basic idea for the multi-stage approach is to consider various scenarios, where a scenario is defined by one possible realization of all uncertain parameters at every control instant within the horizon.
+The basic idea for the multi-stage approach is to consider various scenarios,
+where a scenario is defined by one possible realization of all uncertain parameters at every control instant within the horizon.
 The family of all considered discrete scenarios can be represented as a tree structure, called the scenario tree:
 
 .. image:: scenario_tree.png
@@ -129,7 +149,9 @@ This means the decisions are recomputed in every step after new information (mea
 
 .. note::
 
-    It the uncertainties :math:`p` are unknown but constant, :math:`N_{\text{robust}}=1` is a common choice, because no branching of the scenario tree occurs after the first time instant (since the uncertainties are constant) and the computational load is kept low.
+    It the uncertainties :math:`p` are unknown but constant, :math:`N_{\text{robust}}=1` is a common choice,
+    because no branching of the scenario tree occurs after the first time instant (since the uncertainties are constant)
+    and the computational load is kept minimal.
 
 Mathematical formulation
 ------------------------

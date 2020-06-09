@@ -815,13 +815,13 @@ class Model:
 
         .. math::
 
-            \\dot{x} = f(\\dots),
+            \\dot{x}(t) = f(x(t),u(t),z(t),p(t),p_{\\text{tv}}(t)),
 
         or the update equation in case of discrete dynamics:
 
         .. math::
 
-            x_{k+1} = f(\\dots).
+            x_{k+1} = f(x_k,u_k,z_k,p_k,p_{\\text{tv},k}),
 
         Each defined state variable must have a respective equation (of matching dimension)
         for the rhs. Match the rhs with the state by choosing the corresponding names.

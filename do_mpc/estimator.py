@@ -477,8 +477,8 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
             \\underset{
             \\begin{array}{c}
-            \\mathbf{x}_{0:N}, \\mathbf{u}_{0:N-1}, p,\\\\
-            \\mathbf{w}_{0:N-1}, \\mathbf{v}_{0:N-1}
+            \\mathbf{x}_{0:N+1}, \\mathbf{u}_{0:N}, p,\\\\
+            \\mathbf{w}_{0:N}, \\mathbf{v}_{0:N}
             \\end{array}
             }{\\mathrm{min}}
             &m(x_0,\\tilde{x}_0, p,\\tilde{p})
@@ -488,7 +488,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             x_{k+1} &= f(x_k,u_k,z_k,p,p_{\\text{tv},k})+ w_k,\\\\
             y_k &= h(x_k,u_k,z_k,p,p_{\\text{tv},k}) + v_k, \\\\
             &g(x_k,u_k,z_k,p_k,p_{\\text{tv},k}) \\leq 0
-            \\end{aligned}\\right\} k=0,\\dots, N-1
+            \\end{aligned}\\right\} k=0,\\dots, N
 
         Use the class attributes:
 
@@ -571,26 +571,26 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         """ Configure the suggested default MHE formulation.
 
         Use this method to pass tuning matrices for the MHE optimization problem:
+
         .. math::
 
             \\underset{
             \\begin{array}{c}
-            \\mathbf{x}_{0:N}, \\mathbf{u}_{0:N-1}, p,\\\\
-            \\mathbf{w}_{0:N-1}, \\mathbf{v}_{0:N-1}
+            \\mathbf{x}_{0:N+1}, \\mathbf{u}_{0:N}, p,\\\\
+            \\mathbf{w}_{0:N}, \\mathbf{v}_{0:N}
             \\end{array}
             }{\\mathrm{min}}
-            &\\frac{1}{2}\|x_0-\\tilde{x}_0\|_{P_x}^2+\\frac{1}{2}\|p-\\tilde{p}\|_{P_p}^2
-            +\\sum_{k=0}^{N-1} \\left(\\frac{1}{2}\|v_k\|_{P_{v,k}}^2
-            + \\frac{1}{2}\|w_k\|_{P_{w,k}}^2\\right),\\\\
+            &m(x_0,\\tilde{x}_0, p,\\tilde{p})
+            +\\sum_{k=0}^{N-1} l(v_k, w_k, p, p_{\\text{tv},k}),\\\\
             &\\left.\\begin{aligned}
             \\mathrm{s.t.}\\quad
             x_{k+1} &= f(x_k,u_k,z_k,p,p_{\\text{tv},k})+ w_k,\\\\
             y_k &= h(x_k,u_k,z_k,p,p_{\\text{tv},k}) + v_k, \\\\
             &g(x_k,u_k,z_k,p_k,p_{\\text{tv},k}) \\leq 0
-            \\end{aligned}\\right\} k=0,\\dots, N-1
+            \\end{aligned}\\right\} k=0,\\dots, N
 
         where we introduce the bold letter notation,
-        e.g. :math:`\mathbf{x}_{0:N}=[x_0, x_1, \dots, x_{N}]^T` to represent sequences and where
+        e.g. :math:`\mathbf{x}_{0:N+1}=[x_0, x_1, \dots, x_{N+1}]^T` to represent sequences and where
         :math:`\|x\|_P^2=x^T P x` denotes the :math:`P` weighted squared norm.
 
         Pass the weighting matrices :math:`P_x`, :math:`P_p` and :math:`P_v` and :math:`P_w`.

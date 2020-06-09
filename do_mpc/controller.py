@@ -310,7 +310,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         """Sets the objective of the optimal control problem (OCP). We introduce the following cost function:
 
         .. math::
-           J(x,u,z) =  \\sum_{k=0}^{N}\\left(\\underbrace{l(x_k,u_k,z_k,p)}_{\\text{lagrange term}}
+           J(x,u,z) =  \\sum_{k=0}^{N}\\left(\\underbrace{l(x_k,z_k,u_k,p_k,p_{\\text{tv},k})}_{\\text{lagrange term}}
            + \\underbrace{\\Delta u_k^T R \\Delta u_k}_{\\text{r-term}}\\right)
            + \\underbrace{m(x_{N+1})}_{\\text{meyer term}}
 
