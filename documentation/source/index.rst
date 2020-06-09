@@ -126,10 +126,10 @@ Table of contents
    :maxdepth: 5
    :caption: Example gallery
 
-   batch_reactor
-   CSTR
-   industrial_poly
-   oscillating_masses_discrete
+   /example_gallery/batch_reactor
+   /example_gallery/CSTR
+   /example_gallery/industrial_poly
+   /example_gallery/oscillating_masses_discrete
 
 
 
