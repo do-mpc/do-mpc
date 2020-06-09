@@ -472,7 +472,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         else:
             input_types = (np.ndarray, casadi.DM, structure3.DMStruct)
             assert isinstance(v0, input_types), 'v0 is wrong input type. You have: {}. Must be of type'.format(type(v0), input_types)
-            assert v0.shape == self.model._v.shape, 'v0 has incorrect shape. You have: {}, expected: {}'.format(v0.shape, self.model._w.shape)
+            assert v0.shape == self.model._v.shape, 'v0 has incorrect shape. You have: {}, expected: {}'.format(v0.shape, self.model._v.shape)
 
         tvp0 = self.tvp_fun(self._t0)
         p0 = self.p_fun(self._t0)

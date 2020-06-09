@@ -646,7 +646,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         n_v = self.model.n_v
         n_p = self.n_p_est
         assert P_x.shape == (n_x, n_x), 'P_x has wrong shape:{}, must be {}'.format(P_x.shape, (n_x,n_x))
-        assert P_v.shape == (n_y, n_y), 'P_v has wrong shape:{}, must be {}'.format(P_v.shape, (n_v,n_v))
+
 
 
         # Calculate stage cost:
