@@ -27,15 +27,15 @@ For the continuous case, the system model is defined by
 
 .. math::
 
-    \dot{x}(t) = f(x(t),u(t),z(t),p(t),p_{\text{tv}}(t))+w(t), \\
-    y(t) = h(x(t),u(t),z(t),p(t),p_{\text{tv}}(t))+v(t),
+    \dot{x}(t) &= f(x(t),u(t),z(t),p(t),p_{\text{tv}}(t))+w(t), \\
+    y(t) &= h(x(t),u(t),z(t),p(t),p_{\text{tv}}(t))+v(t),
 
 and for the discrete-time case by
 
 .. math::
 
-    x_{k+1} = f(x_k,u_k,z_k,p_k,p_{\text{tv},k})+w_k, \\
-    y_k = h(x_k,u_k,z_k,p_k,p_{\text{tv},k})+v_k.
+    x_{k+1} &= f(x_k,u_k,z_k,p_k,p_{\text{tv},k})+w_k, \\
+    y_k &= h(x_k,u_k,z_k,p_k,p_{\text{tv},k})+v_k.
 
 The states of the systems are given by :math:`x(t),x_k`, the control inputs by :math:`u(t),u_k`,
 algebraic states by :math:`z(t),z_k`, (possibly uncertain) parameters by :math:`p(t),p_k`,
@@ -84,7 +84,7 @@ This can be seen in the figure below, which depicts the successive horizon.
     :align: center
 
 Mathematical formulation
-***********************
+************************
 
 Following this concept, we formulate the MHE optimization problem as:
 
