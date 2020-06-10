@@ -223,24 +223,24 @@ class Model:
 
     .. math::
 
-       \dot{x} &= f(x,u,z,p_{tv},p)\\\\
-       0 &= g(x,u,z,p_{tv},p)\\\\
-       y &= h(x,u,z)
+       \\dot{x}(t) &= f(x(t),u(t),z(t),p(t),p_{\\text{tv}}(t)) + w(t),\\\\
+       0 &= g(x(t),u(t),z(t),p(t),p_{\\text{tv}}(t))\\\\
+       y &= h(x(t),u(t),z(t),p(t),p_{\\text{tv}}(t)) + v(t)
 
     whereas a ``discrete`` model consists of a difference equation:
 
     .. math::
 
-       x_{k+1} &= f(x_{k},u_{k},z_{k},p_{tv,k},p)\\\\
-       0 &= g(x_{k},u_{k}, z_{k},p_{tv,k},p)\\\\
-       y_k &= h(x_k,u_k,z_k)
+       x_{k+1} &= f(x_k,u_k,z_k,p_k,p_{\\text{tv},k}) + w_k,\\\\
+       0 &= g(x_k,u_k,z_k,p_k,p_{\\text{tv},k})\\\\
+       y_k &= h(x_k,u_k,z_k,p_k,p_{\\text{tv},k}) + v_k
 
 
     **Configuration and setup:**
 
-    Configuring and setting up the optimizer involves the following steps:
+    Configuring and setting up the :py:class:`Model` involves the following steps:
 
-    1. Use :py:func:`set_variable` to introduce new variables to the model. It is important to declare the variable type (states, inputs, etc.).
+    1. Use :py:func:`set_variable` to introduce new variables to the model.
 
     2. Optionally introduce "auxiliary" expressions as functions of the previously defined variables with :py:func:`set_expression`. The expressions can be used for monitoring or be reused as constraints, the cost function etc.
 
@@ -249,6 +249,11 @@ class Model:
     4. Define the right-hand-side of the `discrete` or `continuous` model as a function of the previously defined variables with :py:func:`set_rhs`. This method must be called once for each introduced state.
 
     5. Call :py:func:`setup` to finalize the :py:class:`Model`. No further changes are possible afterwards.
+
+    .. note::
+
+        All introduced model variables are accessible as **Attributes** of the :py:class:`Model`.
+        Use these attributes to query to variables, e.g. to form the cost function in a seperate file for the MPC configuration.
 
     :param model_type: Set if the model is ``discrete`` or ``continuous``.
     :type var_type: str
@@ -581,8 +586,8 @@ class Model:
                 dt = model.x['temperature',0]- model.x['temperature', 1]
                 model.set_expression('dtemp', dt)
                 # Query:
-                model.y['dtemp', 0] # 0th element of variable
-                model.y['dtemp']    # all elements of variable
+                model.aux['dtemp', 0] # 0th element of variable
+                model.aux['dtemp']    # all elements of variable
 
             Usefull CasADi symbolic structure methods:
 
@@ -608,11 +613,12 @@ class Model:
             CasADi symbolic structure, can be indexed with user-defined variable names.
 
             The process noise structure is created automatically, whenever the
-            :py:func:`Model.set_rhs` method is called with the argument ``process_noise``.
+            :py:func:`Model.set_rhs` method is called with the argument ``process_noise = True``.
 
             .. note::
 
-                The process noise is currently only used for the :py:class:`do_mpc.estimator.MHE`.
+                The process noise is used for the :py:class:`do_mpc.estimator.MHE` and
+                can be used to simulate a disturbed system in the :py:class:`do_mpc.simulator.Simulator`.
 
             Usefull CasADi symbolic structure methods:
 
@@ -632,6 +638,39 @@ class Model:
         @w.setter
         def w(self, val):
             raise Exception('Cannot set process noise directly.')
+
+
+    @property
+    def v(self):
+        """ Measurement noise.
+            CasADi symbolic structure, can be indexed with user-defined variable names.
+
+            The measurement noise structure is created automatically, whenever the
+            :py:func:`Model.set_meas` method is called with the argument ``meas_noise = True``.
+
+            .. note::
+
+                The measurement noise is used for the :py:class:`do_mpc.estimator.MHE` and
+                can be used to simulate a disturbed system in the :py:class:`do_mpc.simulator.Simulator`.
+
+            Usefull CasADi symbolic structure methods:
+
+            * ``.shape``
+
+            * ``.keys()``
+
+            * ``.labels()``
+
+            :raises assertion: Cannot set v direcly.
+        """
+        if self.flags['setup']:
+            return self._v
+        else:
+            return struct_SX(self._v)
+
+        @v.setter
+        def v(self, val):
+            raise Exception('Cannot set measurement noise directly.')
 
 
     def set_variable(self, var_type, var_name, shape=(1,1)):
@@ -659,7 +698,7 @@ class Model:
             Long name                    short name   Remark
             ===========================  ===========  ============================
             ``states``                   ``_x``       Required
-            ``inputs``                   ``_u``       Required
+            ``inputs``                   ``_u``       optional
             ``algebraic``                ``_z``       Optional
             ``parameter``                ``_p``       Optional
             ``timevarying_parameter``    ``_tvp``     Optional
@@ -673,12 +712,12 @@ class Model:
         :raises assertion: var_type must be string
         :raises assertion: var_name must be string
         :raises assertion: shape must be tuple or int
-        :raises assertion: Cannot call after :py:func:`Model.setup_model`.
+        :raises assertion: Cannot call after :py:func:`setup`.
 
         :return: Returns the newly created symbolic variable.
         :rtype: casadi.SX
         """
-        assert self.flags['setup'] == False, 'Cannot call .set_variable after .setup_model.'
+        assert self.flags['setup'] == False, 'Cannot call .set_variable after setup.'
         assert isinstance(var_type, str), 'var_type must be str, you have: {}'.format(type(var_type))
         assert isinstance(var_name, str), 'var_name must be str, you have: {}'.format(type(var_name))
         assert isinstance(shape, (tuple,int)), 'shape must be tuple or int, you have: {}'.format(type(shape))
@@ -704,10 +743,11 @@ class Model:
 
     def set_expression(self, expr_name, expr):
         """Introduce new expression to the model class. Expressions are not required but can be used
-        to extract further information from the model. They can also be used for the objective function or constraints.
+        to extract further information from the model.
         Expressions must be formulated with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
 
         **Example:**
+
         Maybe you are interested in monitoring the product of two states?
 
         ::
@@ -719,6 +759,10 @@ class Model:
             # Introduce expression:
             model.set_expression('x1x2', x_1*x_2)
 
+        This new expression ``x1x2`` is then available in all **do-mpc** modules utilizing
+        this model instance. It can be set, e.g. as the cost function in :py:class:`do-mpc.controller.MPC`
+        or simply used in a graphical representation of the simulated / controlled system.
+
         :param expr_name: Arbitrary name for the given expression. Names are used for key word indexing.
         :type expr_name: string
         :param expr: CasADi SX or MX function depending on ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
@@ -726,12 +770,12 @@ class Model:
 
         :raises assertion: expr_name must be str
         :raises assertion: expr must be a casadi SX or MX type
-        :raises assertion: Cannot call after :py:func:`Model.setup_model`.
+        :raises assertion: Cannot call after :py:func:`setup`.
 
         :return: Returns the newly created expression. Expression can be used e.g. for the RHS.
         :rtype: casadi.SX
         """
-        assert self.flags['setup'] == False, 'Cannot call .set_expression after :py:func:`Model.setup_model`'
+        assert self.flags['setup'] == False, 'Cannot call .set_expression after setup'
         assert isinstance(expr_name, str), 'expr_name must be str, you have: {}'.format(type(expr_name))
         assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
 
@@ -745,7 +789,13 @@ class Model:
 
         .. math::
 
-            y_k = h(x_k,u_k,z_k,p_k,p_{\\text{tv},k})+v_k
+            y = h(x(t),u(t),z(t),p(t),p_{\\text{tv}}(t)) + v(t)
+
+        or in case of discrete dynamics:
+
+        .. math::
+
+            y_k = h(x_k,u_k,z_k,p_k,p_{\\text{tv},k}) + v_k
 
         By default, the model assumes state-feedback (all states are measured outputs).
         Expressions must be formulated with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
@@ -789,12 +839,12 @@ class Model:
 
         :raises assertion: expr_name must be str
         :raises assertion: expr must be a casadi SX or MX type
-        :raises assertion: Cannot call after .setup_model.
+        :raises assertion: Cannot call after :py:func:`setup`.
 
         :return: Returns the newly created measurement expression.
         :rtype: casadi.SX
         """
-        assert self.flags['setup'] == False, 'Cannot call .set_meas after :py:func:`Model.setup_model`'
+        assert self.flags['setup'] == False, 'Cannot call .set_meas after setup'
         assert isinstance(meas_name, str), 'meas_name must be str, you have: {}'.format(type(meas_name))
         assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
         assert isinstance(meas_noise, bool), 'meas_noise must be of type boolean. You have: {}'.format(type(meas_noise))
@@ -815,13 +865,13 @@ class Model:
 
         .. math::
 
-            \\dot{x}(t) = f(x(t),u(t),z(t),p(t),p_{\\text{tv}}(t)),
+            \\dot{x}(t) = f(x(t),u(t),z(t),p(t),p_{\\text{tv}}(t)) + w(t),
 
         or the update equation in case of discrete dynamics:
 
         .. math::
 
-            x_{k+1} = f(x_k,u_k,z_k,p_k,p_{\\text{tv},k}),
+            x_{k+1} = f(x_k,u_k,z_k,p_k,p_{\\text{tv},k}) + w_k,
 
         Each defined state variable must have a respective equation (of matching dimension)
         for the rhs. Match the rhs with the state by choosing the corresponding names.
@@ -841,15 +891,8 @@ class Model:
             model.set_rhs('tank_temp', tank_temp_next)
 
         Optionally, set ``process_noise = True`` to introduce an additive process noise variable.
-        This is currently only meaningful for the :py:class:`do_mpc.estimator.MHE`.
-        See :py:func:`do_mpc.estimator.MHE.set_default_objective` for more details.
-        The equation can then be understood as:
-
-        .. math::
-
-            x_{k+1} = f(\\dots)+w_k
-
-        Furthermore, it can be set with each :py:class:`do_mpc.simulator.Simulator` call to obtain imperfect outputs.
+        This is  meaningful for the :py:class:`do_mpc.estimator.MHE` (See :py:func:`do_mpc.estimator.MHE.set_default_objective` for more details).
+        Furthermore, it can be set with each :py:class:`do_mpc.simulator.Simulator` call to obtain imperfect (realistic) simulation results.
 
 
         :param var_name: Reference to previously introduced state names (with :py:func:`Model.set_variable`)
@@ -862,12 +905,12 @@ class Model:
         :raises assertion: var_name must be str
         :raises assertion: expr must be a casadi SX or MX type
         :raises assertion: var_name must refer to the previously defined states
-        :raises assertion: Cannot call after .setup_model.
+        :raises assertion: Cannot call after :py:func`setup`.
 
         :return: None
         :rtype: None
         """
-        assert self.flags['setup'] == False, 'Cannot call .set_rhs after .setup_model.'
+        assert self.flags['setup'] == False, 'Cannot call .set_rhs after .setup.'
         assert isinstance(var_name, str), 'var_name must be str, you have: {}'.format(type(var_name))
         assert isinstance(expr, (casadi.SX, casadi.MX, casadi.DM)), 'expr must be a casadi SX, MX or DM type, you have:{}'.format(type(expr))
         _x_names = self.x.keys()
@@ -921,13 +964,13 @@ class Model:
 
             _x['var_name']
 
-        :raises assertion: Model was not setup. Finish model creation by calling model.setup_model().
+        :raises assertion: Model was not setup. Finish model creation by calling :py:func:`setup`.
 
         :return: List of model variables (``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``, ``_aux``, ``_y``, ``_y_expression``)
         :rtype: list
         """
         warnings.warn('This method is depreciated. Please use class getitem method instead. This will become an error in a future release', DeprecationWarning)
-        assert self.flags['setup'] == True, 'Model was not setup. Finish model creation by calling model.setup_model().'
+        assert self.flags['setup'] == True, 'Model was not setup. Finish model creation by calling setup.'
 
         return self._x, self._u, self._z, self._tvp, self._p, self._aux_expression, self._y, self._y_expression
 
@@ -946,14 +989,14 @@ class Model:
 
     def setup(self):
         """Setup method must be called to finalize the modelling process.
-        All required model variables ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p`` must be declared.
+        All required model variables must be declared.
         The right hand side expression for ``_x`` must have been set with :py:func:`set_rhs`.
 
         Sets default measurement function (state feedback) if :py:func:`set_meas` was not called.
 
         .. warning::
 
-            After calling :py:func:`setup_model`, the model is locked and no further variables,
+            After calling :py:func:`setup`, the model is locked and no further variables,
             expressions etc. can be set.
 
         :raises assertion: Definition of right hand side (rhs) is incomplete
