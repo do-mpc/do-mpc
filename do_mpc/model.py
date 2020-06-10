@@ -923,57 +923,6 @@ class Model:
             expr += var
         self.rhs_list.extend([{'var_name': var_name, 'expr': expr}])
 
-    def get_variables(self):
-        """Method to retrieve the variables of the model.
-
-        .. warning::
-
-            The method is depreciated and will be removed in a later version.
-            Please query class attributes (variables) directly.
-
-        This method is convenient when creating the model in a different file
-        than the, e.g. the :py:class:`do_mpc.optimizer`. Returns the variables as a list with the following order:
-
-        * ``_x`` (states)
-
-        * ``_u`` (inputs)
-
-        * ``_z`` (algebraic variables)
-
-        * ``_tvp`` (time varying parameters)
-
-        * ``_p`` (uncertain parameters)
-
-        * ``_aux`` (auxiliary expressions)
-
-        * ``_y`` (measurements, measured)
-
-        * ``_y_expression`` (measurements, calculated)
-
-        The method cannot be called prior to :py:func:`model.setup`.
-
-        Variables can also be retrieved independently of this method with, e.g.:
-
-        ::
-
-            x = model.x
-
-        Note that structures can be indexed with the previously defined variable names:
-
-        ::
-
-            _x['var_name']
-
-        :raises assertion: Model was not setup. Finish model creation by calling :py:func:`setup`.
-
-        :return: List of model variables (``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``, ``_aux``, ``_y``, ``_y_expression``)
-        :rtype: list
-        """
-        warnings.warn('This method is depreciated. Please use class getitem method instead. This will become an error in a future release', DeprecationWarning)
-        assert self.flags['setup'] == True, 'Model was not setup. Finish model creation by calling setup.'
-
-        return self._x, self._u, self._z, self._tvp, self._p, self._aux_expression, self._y, self._y_expression
-
 
     def setup_model(self):
         """Legacy method.
