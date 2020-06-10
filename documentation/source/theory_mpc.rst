@@ -75,14 +75,14 @@ The OCP is then given by:
 
 .. math::
 
-    &\min_{\mathbf{x}_{0:N+1},\mathbf{u}_{0:N},\mathbf{z}_{0:N}} & & m(x_N+1) + \sum_{k=0}^{N-1} l(x_k,z_k,u_k,p_k,p_{\text{tv},k}) && \\
+    &\min_{\mathbf{x}_{0:N+1},\mathbf{u}_{0:N},\mathbf{z}_{0:N}} & & m(x_{N+1}) + \sum_{k=0}^{N} l(x_k,z_k,u_k,p_k,p_{\text{tv},k}) && \\
     &\text{subject to:} & & x_0 = \hat{x}_0, & \\
     &&& x_{k+1} = f(x_k,u_k,p_k,p_{\text{tv},k}), &\, \forall k=0,\dots,N,\\
     &&& g(x_k,u_k,p_k,p_{\text{tv},k}) \leq 0 &\, \forall k=0,\dots,N, \\
     &&& x_{\text{lb}} \leq x_k \leq x_{\text{ub}}, &\, \forall k=0,\dots,N, \\
     &&& u_{\text{lb}} \leq u_k \leq u_{\text{ub}}, &\, \forall k=0,\dots,N, \\
     &&& z_{\text{lb}} \leq z_k \leq z_{\text{ub}}, &\, \forall k=0,\dots,N, \\
-    &&& g_{\text{terminal}}(x_N+1) \leq 0, &
+    &&& g_{\text{terminal}}(x_{N+1}) \leq 0, &
 
 where :math:`N` is the prediction horizon and :math:`\hat{x}_0` is the current state estimate,
 which is either measured (state-feedback) or estimated based on an incomplete measurement (:math:`y_k`).
@@ -176,7 +176,7 @@ The cost for each scenario :math:`S_i` is given by:
 
 .. math::
 
-    J_i = m(x_N^j,z_N^j)  + \sum_{k=0}^{N-1} l(x_k^{p(j)},u_k^j,z_k^{p(j)},p_k^{r(j)},p_{\text{tv},k}).
+    J_i = m(x_N^j,z_N^j)  + \sum_{k=0}^{N} l(x_k^{p(j)},u_k^j,z_k^{p(j)},p_k^{r(j)},p_{\text{tv},k}).
 
 For all scenarios, which are directly considered in the problem formulation, a feasible solution guarantees constraint satisfaction.
 This means if all uncertainties can only take discrete values and those are represented in the scenario tree, constraint satisfaction can be guaranteed.

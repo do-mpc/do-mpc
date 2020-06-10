@@ -114,8 +114,14 @@ class EKF(Estimator):
         None
 
 class MHE(do_mpc.optimizer.Optimizer, Estimator):
-    """Moving horizon estimator. THE MHE estimator extends the :py:class:`do_mpc.optimizer.Optimizer` base class
-    (which is also used for the MPC controller), as well as the :py:class:`Estimator` base class.
+    """Moving horizon estimator.
+
+    For general information on moving horizon estimation, please read our `background article`_.
+
+    .. _`background article`: ../theory_mhe.html
+
+    The MHE estimator extends the :py:class:`do_mpc.optimizer.Optimizer` base class
+    (which is also used for :py:class:`do_mpc.controller.MPC`), as well as the :py:class:`Estimator` base class.
     Use this class to configure and run the MHE based on a previously configured :py:class:`do_mpc.model.Model` instance.
 
     The class is initiated by passing a list of the **parameters that should be estimated**. This must be a subset (or all) of the parameters defined in
@@ -132,17 +138,17 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
     Configuring and setting up the MHE involves the following steps:
 
-    1. Use :py:func:`MHE.set_param` to configure the :py:class:`MHE`. See docstring for details.
+    1. Use :py:func:`set_param` to configure the :py:class:`MHE`. See docstring for details.
 
-    2. Set the objective of the control problem with :py:func:`MHE.set_default_objective` or use the low-level interface :py:func:`MHE.set_objective`.
+    2. Set the objective of the control problem with :py:func:`set_default_objective` or use the low-level interface :py:func:`set_objective`.
 
     5. Set upper and lower bounds.
 
-    6. Optionally, set further (non-linear) constraints with :py:func:`do_mpc.optimizer.Optimizer.set_nl_cons`.
+    6. Optionally, set further (non-linear) constraints with :py:func:`set_nl_cons`.
 
-    7. Use :py:func:`MHE.get_p_template` and :py:func:`MHE.set_p_fun` to set the function for the parameters.
+    7. Use :py:func:`get_p_template` and :py:func:`set_p_fun` to set the function for the parameters.
 
-    8. Finally, call :py:func:`MHE.setup`.
+    8. Finally, call :py:func:`setup`.
 
     .. warning::
 
@@ -151,7 +157,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         To take full control over the initial guess, modify the values of :py:attr:`opt_x_num`.
 
-    During runtime use :py:func:`MHE.make_step` with the most recent measurement to obtain the estimated states.
+    During runtime use :py:func:`make_step` with the most recent measurement to obtain the estimated states.
 
     :param model: A configured and setup :py:class:`do_mpc.model.Model`
     :type model: :py:class:`do_mpc.model.Model`
@@ -330,7 +336,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         .. note::
 
-            The attribute is populated when calling :py:func:`MHE.setup`
+            The attribute is populated when calling :py:func:`setup`
         """
         return self._opt_x_num
 
@@ -355,8 +361,8 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         * sequence of measurements parameters
 
-        **do-mpc** handles setting these parameters automatically in the :py:func:`MHE.make_step`
-        method. However, you can set these values manually and directly call :py:func:`MHE.solve`.
+        **do-mpc** handles setting these parameters automatically in the :py:func:`make_step`
+        method. However, you can set these values manually and directly call :py:func:`solve`.
 
         The attribute is a CasADi numeric structure with nested power indices.
         It can be indexed as follows:
@@ -383,7 +389,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         .. note::
 
-            The attribute is populated when calling :py:func:`MHE.setup`
+            The attribute is populated when calling :py:func:`setup`
 
         """
         return self._opt_p_num
@@ -411,7 +417,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             }
             mhe.set_param(**setup_mhe)
 
-        .. note:: :py:func:`mhe.set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
+        .. note:: :py:func:`set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
 
         The following parameters are available:
 
@@ -421,7 +427,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         :param t_step: Timestep of the mhe.
         :type t_step: float
 
-        :param meas_from_data: Default option to retrieve past measurements for the MHE optimization problem. The :py:func:`MHE.set_y_fun` is called during setup.
+        :param meas_from_data: Default option to retrieve past measurements for the MHE optimization problem. The :py:func:`set_y_fun` is called during setup.
         :type meas_from_data: bool
 
         :param state_discretization: Choose the state discretization for continuous models. Currently only ``'collocation'`` is available. Defaults to ``'collocation'``.
@@ -538,7 +544,8 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             mhe.set_objective(stage_cost, arrival_cost)
 
         .. note::
-            Use :py:func:`MHE.set_default_objective` as a high-level wrapper for this method,
+
+            Use :py:func:`set_default_objective` as a high-level wrapper for this method,
             if you want to use the default MHE objective function.
 
         :param stage_cost: Stage cost that is added to the MHE objective at each age.
@@ -609,15 +616,15 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         * In the case that no parameters are estimated, the weighting matrix :math:`P_p` is not required.
 
-        * In the case that the :py:class:`do_mpc.model.Model` is configured without process-noise (see :py:meth:`do_mpc.model.Model.set_rhs`) the parameter ``P_w`` is not required.
+        * In the case that the :py:class:`do_mpc.model.Model` is configured without process-noise (see :py:func:`do_mpc.model.Model.set_rhs`) the parameter ``P_w`` is not required.
 
-        * In the case that the :py:class:`do_mpc.model.Model` is configured without measurement-noise (see :py:meth:`do_mpc.model.Model.set_meas`) the parameter ``P_v`` is not required.
+        * In the case that the :py:class:`do_mpc.model.Model` is configured without measurement-noise (see :py:func:`do_mpc.model.Model.set_meas`) the parameter ``P_v`` is not required.
 
         The respective terms are not present in the MHE formulation in that case.
 
         .. note::
 
-            Use :py:meth:`set_objective` as a low-level alternative for this method,
+            Use :py:func:`set_objective` as a low-level alternative for this method,
             if you want to use a custom objective function.
 
         :param P_x: Tuning matrix :math:`P_x` of dimension :math:`n \\times n` :math:`(x \\in \\mathbb{R}^{n})`
@@ -693,12 +700,13 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
 
     def get_p_template(self):
-        """Obtain the a numerical copy of the structure of the (not estimated) parameters.
+        """Obtain output template for :py:func:`set_p_fun`.
+        This is used to set the (not estimated) parameters.
         Use this structure as the return of a user defined parameter function (``p_fun``)
-        that is called at each MHE step. Pass this function to the MHE by calling :py:func:`MHE.set_p_fun`.
+        that is called at each MHE step. Pass this function to the MHE by calling :py:func:`set_p_fun`.
 
         .. note::
-            The combination of :py:func:`MHE.get_p_template` and :py:func:`MHE.set_p_fun` is
+            The combination of :py:func:`get_p_template` and :py:func:`set_p_fun` is
             identical to the :py:class:`do_mpc.simulator.Simulator` methods, if the MHE
             is not estimating any parameters.
 
@@ -708,8 +716,9 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         return self._p_set(0)
 
     def set_p_fun(self, p_fun):
-        """Set the parameter function which is called at each MHE time step and returns the (not) estimated parameters.
-        The function must return a numerical CasADi structure, which can be retrieved with :py:func:`MHE.get_p_template`.
+        """Set function which returns parameters..
+        The ``p_fun`` is called at each MHE time step and returns the (fixed) parameters.
+        The function must return a numerical CasADi structure, which can be retrieved with :py:func:`get_p_template`.
 
         :param p_fun: Parameter function.
         :type p_fun: function
@@ -719,11 +728,12 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self.flags['set_p_fun'] = True
 
     def get_y_template(self):
-        """Obtain the a numerical copy of the structure of the measurements for the set horizon.
-        Use this structure as the return of a user defined parameter function (``y_fun``)
-        that is called at each MHE step. Pass this function to the MHE by calling :py:func:`MHE.set_y_fun`.
+        """Obtain output template for :py:func:`set_y_fun`.
 
-        The structure carries a set of measurements for each time step of the horizon and can be accessed as follows:
+        Use this structure as the return of a user defined parameter function (``y_fun``)
+        that is called at each MHE step. Pass this function to the MHE by calling :py:func:`set_y_fun`.
+
+        The structure carries a set of measurements **for each time step of the horizon** and can be accessed as follows:
 
         ::
 
@@ -731,10 +741,10 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             # Slicing is possible, e.g.:
             y_template['y_meas', :, 'meas_name']
 
-        where ``k`` runs from ``0`` to ``N_horizon-1`` and ``meas_name`` refers to the user-defined names in :py:class:`do_mpc.model.Model`.
+        where ``k`` runs from ``0`` to ``N_horizon`` and ``meas_name`` refers to the user-defined names in :py:class:`do_mpc.model.Model`.
 
         .. note::
-            The structure is ordered, sucht that ``k=0`` is the "oldest measurement" and ``k=N_horizon-1`` is the newest measurement.
+            The structure is ordered, sucht that ``k=0`` is the "oldest measurement" and ``k=N_horizon`` is the newest measurement.
 
         By default, the following measurement function is choosen:
 
@@ -765,7 +775,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
     def set_y_fun(self, y_fun):
         """Set the measurement function. The function must return a CasADi structure which can be obtained
-        from :py:func:`MHE.get_y_template`. See the respective doc string for details.
+        from :py:func:`get_y_template`. See the respective doc string for details.
 
         :param y_fun: measurement function.
         :type y_fun: function
@@ -776,7 +786,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
 
     def _check_validity(self):
-        """Private method to be called in :py:func:`MHE.setup`. Checks if the configuration is valid and
+        """Private method to be called in :py:func:`setup`. Checks if the configuration is valid and
         if the optimization problem can be constructed.
         Furthermore, default values are set if they were not configured by the user (if possible).
         Specifically, we set dummy values for the ``tvp_fun`` and ``p_fun`` if they are not present in the model
@@ -838,12 +848,16 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
 
     def set_initial_guess(self):
-        """Uses the current class attributes ``x0``, ``z0`` and ``u0``, ``p_est0`` to create an initial guess for the MHE.
-        The initial guess is simply the initial values for all instances of x, u and z, p_est. The method is automatically
-        evoked when calling the :py:func:`MHE.setup` method.
+        """Initial guess for optimization variables.
+        Uses the current class attributes :py:obj:`x0`, :py:obj:`z0` and :py:obj:`u0`, :py:obj:`p_est0` to create an initial guess for the MHE.
+        The initial guess is simply the initial values for all :math:`k=0,\dots,N` instances of :math:`x_k`, :math:`u_k` and :math:`z_k`, :math:`p_{\\text{est,k}}`.
 
         .. warning::
             If no initial values for :py:attr:`x0`, :py:attr:`z0` and :py:attr:`u0` were supplied during setup, these default to zero.
+
+        .. note::
+            The initial guess is fully customizable by directly setting values on the class attribute:
+            :py:attr:`opt_x_num`.
         """
         assert self.flags['setup'] == True, 'mhe was not setup yet. Please call mhe.setup().'
 
@@ -881,8 +895,13 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         """Main method of the class during runtime. This method is called at each timestep
         and returns the current state estimate for the current measurement ``y0``.
 
-        The method prepares the MHE by setting the current parameters, calls :py:func:`do_mpc.optimizer.Optimizer.solve`
+        The method prepares the MHE by setting the current parameters, calls :py:func:`solve`
         and updates the :py:class:`do_mpc.data.Data` object.
+
+        .. warning::
+
+            Moving horizon estimation will only work reliably once **a full sequence of measurements**
+            corresponding to the set horizon ist available.
 
         :param y0: Current measurement.
         :type y0: numpy.ndarray

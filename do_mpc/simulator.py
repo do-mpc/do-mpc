@@ -24,6 +24,7 @@ import numpy as np
 from casadi import *
 from casadi.tools import *
 import pdb
+import warnings
 from do_mpc.data import Data
 import do_mpc.model
 
@@ -49,6 +50,7 @@ class Simulator(do_mpc.model.IteratedVariables):
 
     During runtime, call the simulator :py:func:`make_step` method with current input (``u``).
     This computes the next state of the system and the respective measurement.
+    Optionally, pass (sampled) random variables for the process ``w`` and measurement noise ``v`` (if they were defined in :py:class`do_mpc.model.Model`)
 
     """
     def __init__(self, model):
@@ -95,6 +97,11 @@ class Simulator(do_mpc.model.IteratedVariables):
         """Set the intial state of the simulator.
         Optionally resets the history. The history is empty upon creation of the simulator.
 
+        .. warning::
+
+            This method is depreciated. Use the :py:attr:`x0` property of the class to set the intial values instead.
+
+
         :param x0: Initial state
         :type x0: numpy array
         :param reset_history: Resets the history of the simulator, defaults to False
@@ -103,6 +110,9 @@ class Simulator(do_mpc.model.IteratedVariables):
         :return: None
         :rtype: None
         """
+        warnings.warn('This method is depreciated. Please use x0 property to set the initial state. This will become an error in a future release', DeprecationWarning)
+
+
         assert x0.size == self.model._x.size, 'Intial state cannot be set because the supplied vector has the wrong size. You have {} and the model is setup for {}'.format(x0.size, self.model._x.size)
         assert isinstance(reset_history, bool), 'reset_history parameter must be of type bool. You have {}'.format(type(reset_history))
         if isinstance(x0, (np.ndarray, casadi.DM)):
@@ -212,11 +222,11 @@ class Simulator(do_mpc.model.IteratedVariables):
     def set_param(self, **kwargs):
         """Set the parameters for the simulator. Setting the simulation time step t_step is necessary for setting up the simulator via setup_simulator.
 
-        :param integration_tool: Sets which integration tool is used, defaults to cvodes (only continuous)
+        :param integration_tool: Sets which integration tool is used, defaults to ``cvodes`` (only continuous)
         :type integration_tool: string
-        :param abstol: gives the maximum allowed absolute tolerance for the integration, defaults to 1e-10 (only continuous)
+        :param abstol: gives the maximum allowed absolute tolerance for the integration, defaults to ``1e-10`` (only continuous)
         :type abstol: float
-        :param reltol: gives the maximum allowed relative tolerance for the integration, defaults to 1e-10 (only continuous)
+        :param reltol: gives the maximum allowed relative tolerance for the integration, defaults to ``1e-10`` (only continuous)
         :type abstol: float
         :param t_step: Sets the time step for the simulation
         :type t_step: float
@@ -244,26 +254,27 @@ class Simulator(do_mpc.model.IteratedVariables):
 
 
     def set_tvp_fun(self,tvp_fun):
-        """Function to set the function which gives the values of the time-varying parameters.
+        """Method to set the function which returns the values of the time-varying parameters.
         This function must return a CasADi structure which can be obtained with :py:func:`get_tvp_template`.
 
         In the :py:class:`do_mpc.model.Model` we have defined the following parameters:
 
         ::
 
-            a = model.set_variable('parameter', 'a')
+            a = model.set_variable('_tvp', 'a')
 
         The integrate the ODE or evaluate the discrete dynamics, the simulator needs
         to obtain the numerical values of these parameters at each timestep.
         In the most general case, these values can change,
-        which is why we need to supply a function that can be evaluted at each time to obtain the current values.
+        which is why a function must be supplied that can be evaluted at each timestep to obtain the current values.
+
         **do-mpc** requires this function to have a specific return structure which we obtain first by calling:
 
         ::
 
             tvp_template = simulator.get_tvp_template()
 
-        The parameter function can look something like this:
+        The time-varying parameter function can look something like this:
 
         ::
 
@@ -279,8 +290,8 @@ class Simulator(do_mpc.model.IteratedVariables):
 
             From the perspective of the simulator there is no difference between
             time-varying parameters and regular parameters. The difference is important only
-            for the MPC controller and MHE estimator. These methods incorporate a finite set
-            of future / past information, e.g. regarding the weather, which can change over time.
+            for the MPC controller and MHE estimator. These methods consider a finite sequence
+            of future / past information, e.g. the weather, which can change over time.
             Parameters, on the other hand, are constant over the entire horizon.
 
         :param tvp_fun: Function which gives the values of the time-varying parameters
@@ -313,7 +324,7 @@ class Simulator(do_mpc.model.IteratedVariables):
 
 
     def set_p_fun(self,p_fun):
-        """Function to set the function which gives the values of the parameters.
+        """Method to set the function which gives the values of the parameters.
         This function must return a CasADi structure which can be obtained with :py:func:`get_p_template`.
 
         **Example**:
@@ -326,10 +337,11 @@ class Simulator(do_mpc.model.IteratedVariables):
             Theta_2 = model.set_variable('parameter', 'Theta_2')
             Theta_3 = model.set_variable('parameter', 'Theta_3')
 
-        The integrate the ODE or evaluate the discrete dynamics, the simulator needs
+        To integrate the ODE or evaluate the discrete dynamics, the simulator needs
         to obtain the numerical values of these parameters at each timestep.
         In the most general case, these values can change,
-        which is why we need to supply a function that can be evaluted at each time to obtain the current values.
+        which is why a function must be supplied that can be evaluted at each timestep to obtain the current values.
+
         **do-mpc** requires this function to have a specific return structure which we obtain first by calling:
 
         ::
@@ -340,15 +352,31 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         ::
 
+            p_template['Theta_1'] = 2.25e-4
+            p_template['Theta_2'] = 2.25e-4
+            p_template['Theta_3'] = 2.25e-4
+
             def p_fun(t_now):
-                p_template['Theta_1'] = 2.25e-4
-                p_template['Theta_2'] = 2.25e-4
-                p_template['Theta_3'] = 2.25e-4
                 return p_template
 
             simulator.set_p_fun(p_fun)
 
         which results in constant parameters.
+
+        A more "interesting" variant could be this random-walk:
+
+        ::
+
+            p_template['Theta_1'] = 2.25e-4
+            p_template['Theta_2'] = 2.25e-4
+            p_template['Theta_3'] = 2.25e-4
+
+            def p_fun(t_now):
+                p_template['Theta_1'] += 1e-6*np.random.randn()
+                p_template['Theta_2'] += 1e-6*np.random.randn()
+                p_template['Theta_3'] += 1e-6*np.random.randn()
+                return p_template
+
 
 
         :param p_fun: A function which gives the values of the parameters
@@ -367,6 +395,13 @@ class Simulator(do_mpc.model.IteratedVariables):
 
     def simulate(self):
         """Call the CasADi simulator.
+
+        .. warning::
+
+            :py:func:`simulate` can be used as part of the public API but is typically
+            called from within :py:func:`make_step` which wraps this method and sets the
+            required values to the ``sim_x_num`` and ``sim_p_num`` structures automatically.
+
         Numerical values for ``sim_x_num`` and ``sim_p_num`` need to be provided beforehand
         in order to simulate the system for one time step:
 
@@ -381,12 +416,6 @@ class Simulator(do_mpc.model.IteratedVariables):
         * time-varying parameters ``sim_p_num['_tvp']``
 
         The function returns the new state of the system.
-
-        .. warning::
-
-            :py:func:`simulate` can be used as part of the public API but is typically
-            called from within :py:func:`make_step` which wraps this method and sets the
-            required values to the ``sim_x_num`` and ``sim_p_num`` structures automatically.
 
         :return: x_new
         :rtype: numpy array
@@ -413,9 +442,11 @@ class Simulator(do_mpc.model.IteratedVariables):
 
     def make_step(self, u0, x0=None, z0=None, v0=None, w0=None):
         """Main method of the simulator class during control runtime. This method is called at each timestep
-        and returns the next state for the current control input ``u0``.
-        The initial state ``x0`` is stored as a class attribute but can optionally be supplied.
-        The algebraic states ``z0`` can also be supplied, if they are defined in the model but are only used as an intial guess.
+        and computes the next state or the current control input :py:obj:`u0`. The method returns the resulting measurement,
+        as defined in :py:class:`do_mpc.model.Model.set_meas`.
+
+        The initial state :py:obj:`x0` is stored as a class attribute but can optionally be supplied.
+        The algebraic states :py:obj:`z0` can also be supplied, if they are defined in the model but are only used as an intial guess.
 
         Finally, the method can be called with values for the process noise ``w0`` and the measurement noise ``v0``
         that were (optionally) defined in the :py:class:`do_mpc.model.Model`.

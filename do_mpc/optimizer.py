@@ -26,6 +26,7 @@ from casadi.tools import *
 import pdb
 import itertools
 import time
+import warnings
 
 
 from do_mpc.tools.indexedproperty import IndexedProperty
@@ -74,8 +75,8 @@ class Optimizer:
 
     @IndexedProperty
     def bounds(self, ind):
-        """Queries and sets the bounds of the optimization variables for the optimizer.
-        The :py:func:`Optimizer.bounds` method is an indexed property, meaning
+        """Query and set bounds of the optimization variables.
+        The :py:func:`bounds` method is an indexed property, meaning
         getting and setting this property requires an index and calls this function.
         The power index (elements are seperated by comas) must contain atleast the following elements:
 
@@ -84,7 +85,7 @@ class Optimizer:
         ======      =================   ==========================================================
         1           bound type          ``lower`` and ``upper``
         2           variable type       ``_x``, ``_u`` and ``_z`` (and ``_p_est`` for MHE)
-        3           variable name       Names defined in :py:class:`do_mpc.model`.
+        3           variable name       Names defined in :py:class:`do_mpc.model.Model`.
         ======      =================   ==========================================================
 
         Further indices are possible (but not neccessary) when the referenced variable is a vector or matrix.
@@ -159,7 +160,7 @@ class Optimizer:
 
     @IndexedProperty
     def scaling(self, ind):
-        """Queries and sets the scaling of the optimization variables for the optimizer.
+        """Query and set  scaling of the optimization variables.
         The :py:func:`Optimizer.scaling` method is an indexed property, meaning
         getting and setting this property requires an index and calls this function.
         The power index (elements are seperated by comas) must contain atleast the following elements:
@@ -168,7 +169,7 @@ class Optimizer:
         order       index name          valid options
         ======      =================   ==========================================================
         1           variable type       ``_x``, ``_u`` and ``_z`` (and ``_p_est`` for MHE)
-        2           variable name       Names defined in :py:class:`do_mpc.model`.
+        2           variable name       Names defined in :py:class:`do_mpc.model.Model`.
         ======      =================   ==========================================================
 
         Further indices are possible (but not neccessary) when the referenced variable is a vector or matrix.
@@ -401,13 +402,15 @@ class Optimizer:
 
 
     def get_tvp_template(self):
-        """The method returns a structured object with n_horizon elements, and a set of time varying parameters (as defined in model)
+        """Obtain output template for :py:func:`set_tvp_fun`.
+
+        The method returns a structured object with ``n_horizon`. elements, and a set of time varying parameters (as defined in :py:class:`do_mpc.model.Model`)
         for each of these instances. The structure is initialized with all zeros. Use this object to define values of the time varying parameters.
 
-        This structure (with numerical values) should be used as the output of the ``tvp_fun`` function which is set to the class with :py:func:`Optimizer.set_tvp_fun`.
-        Use the combination of :py:func:`Optimizer.get_tvp_template` and :py:func:`Optimizer.set_tvp_fun`.
+        This structure (with numerical values) should be used as the output of the ``tvp_fun`` function which is set to the class with :py:func:`set_tvp_fun`.
+        Use the combination of :py:func:`get_tvp_template` and :py:func:`set_tvp_fun`.
 
-        Example:
+        **Example:**
 
         ::
 
@@ -441,10 +444,14 @@ class Optimizer:
         return tvp_template(0)
 
     def set_tvp_fun(self, tvp_fun):
-        """ Set the tvp_fun which is called at each optimization step to get the current prediction of the time-varying parameters.
+        """ Set function which returns time-varying parameters.
+
+        The ``tvp_fun`` is called at each optimization step to get the current prediction of the time-varying parameters.
         The supplied function must be callable with the current time as the only input. Furthermore, the function must return
         a CasADi structured object which is based on the horizon and on the model definition. The structure can be obtained with
-        :py:func:`Optimizer.get_tvp_template`.
+        :py:func:`get_tvp_template`.
+
+        **Example:**
 
         ::
 
@@ -468,9 +475,12 @@ class Optimizer:
 
             optimizer.set_tvp_fun(tvp_fun)
 
-        The method :py:func:`Optimizer.set_tvp_fun`. must be called prior to setup IF time-varying parameters are defined in the model.
+        .. note::
 
-        :param tvp_fun: Function that returns the predicted tvp values at each timestep. Must have single input (float) and return a structure3.DMStruct (obtained with .get_tvp_template())
+            The method :py:func:`set_tvp_fun`. must be called prior to setup IF time-varying parameters are defined in the model.
+            It is not required to call the method if no time-varying parameters are defined.
+
+        :param tvp_fun: Function that returns the predicted tvp values at each timestep. Must have single input (float) and return a ``structure3.DMStruct`` (obtained with :py:func:`get_tvp_template`).
         :type tvp_fun: function
 
         """
@@ -482,17 +492,25 @@ class Optimizer:
         self.tvp_fun = tvp_fun
 
     def solve(self):
-        """Solves the optmization problem. The current time-step is defined by the parameters in the
-        ``self.opt_p_num`` CasADi structured Data.
-        These include the initial condition, the parameters, the time-varying paramters and the previous input.
-        Typically, ``self.opt_p_num`` is prepared for the current iteration in the ``.make_step()`` (in MHE/MPC) method.
-        It is, however, valid and possible to directly set paramters in ``self.opt_p_num`` before calling ``.solve()``.
+        """Solves the optmization problem.
 
-        Solve updates the ``opt_x_num``, and ``lam_g_num`` attributes of the class.
-        In resetting, ``opt_x_num`` to the current solution, the method implicitly
-        enables warmstarting the optimizer for the next iteration, since this vector is always used as the initial guess.
+        The current problem is defined by the parameters in the
+        :py:attr:`opt_p_num` CasADi structured Data.
 
-        :raises asssertion: optimizer was not setup yet.
+        Typically, :py:attr:`opt_p_num` is prepared for the current iteration in the :py:func:`make_step` method.
+        It is, however, valid and possible to directly set paramters in :py:attr:`opt_p_num` before calling :py:func:`solve`.
+
+        The method updates the :py:attr:`opt_p_num` and :py:attr:`opt_x_num` attributes of the class.
+        By resetting :py:attr:`opt_x_num` to the current solution, the method implicitly
+        enables **warmstarting the optimizer** for the next iteration, since this vector is always used as the initial guess.
+
+        .. warning::
+
+            The method is part of the public API but it is generally not advised to use it.
+            Instead we recommend to call :py:func:`make_step` at each iterations, which acts as a wrapper
+            for :py:func:`solve`.
+
+        :raises asssertion: Optimizer was not setup yet.
 
         :return: None
         :rtype: None
