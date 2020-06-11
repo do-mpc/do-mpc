@@ -483,7 +483,7 @@ def animate(graphics, fig, n_steps=None, export_path='./', export_name='animatio
     :type format: str
     :param fps: (Optional) Frames per second for the resulting animation.
     :type fps: int
-    :param writer: (Optional) If supplied, the ``fps`` and ``format argument are discarded. Use this to configure your own writer.
+    :param writer: (Optional) If supplied, the ``fps`` and ``format`` argument are discarded. Use this to configure your own writer.
     :type writer: writer class
 
     :return: None

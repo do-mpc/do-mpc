@@ -612,7 +612,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             Use :py:func:`set_p_fun` and :py:func:`set_tvp_fun` to configure how these values
             are determined at each time step.
 
-        **General remarks: **
+        **General remarks:**
 
         * In the case that no parameters are estimated, the weighting matrix :math:`P_p` is not required.
 
@@ -798,7 +798,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         # tvp_fun must be set, if tvp are defined in model.
         if self.flags['set_tvp_fun'] == False and self.model._tvp.size > 0:
-            raise Exception('You have not supplied a function to obtain the time varying parameters defined in model. Use .set_tvp_fun() prior to setup.')
+            raise Exception('You have not supplied a function to obtain the time-varying parameters defined in model. Use .set_tvp_fun() prior to setup.')
         # p_fun must be set, if p are defined in model.
         if self.flags['set_p_fun'] == False and self._p_set.size > 0:
             raise Exception('You have not supplied a function to obtain the parameters defined in model. Use .set_p_fun() prior to setup.')

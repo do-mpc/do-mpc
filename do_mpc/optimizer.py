@@ -404,8 +404,10 @@ class Optimizer:
     def get_tvp_template(self):
         """Obtain output template for :py:func:`set_tvp_fun`.
 
-        The method returns a structured object with ``n_horizon`. elements, and a set of time varying parameters (as defined in :py:class:`do_mpc.model.Model`)
-        for each of these instances. The structure is initialized with all zeros. Use this object to define values of the time varying parameters.
+        The method returns a structured object with ``n_horizon`` elements,
+        and a set of time-varying parameters (as defined in :py:class:`do_mpc.model.Model`)
+        for each of these instances. The structure is initialized with all zeros.
+        Use this object to define values of the time-varying parameters.
 
         This structure (with numerical values) should be used as the output of the ``tvp_fun`` function which is set to the class with :py:func:`set_tvp_fun`.
         Use the combination of :py:func:`get_tvp_template` and :py:func:`set_tvp_fun`.
