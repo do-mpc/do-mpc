@@ -113,7 +113,10 @@ The basic idea for the multi-stage approach is to consider various scenarios,
 where a scenario is defined by one possible realization of all uncertain parameters at every control instant within the horizon.
 The family of all considered discrete scenarios can be represented as a tree structure, called the scenario tree:
 
-.. image:: scenario_tree.png
+.. figure:: static/robust_multi_stage_scheme.svg
+    :width: 80%
+    :align: center
+
 
 where one scenario is one path from the root node on the left side to one leaf node on the right, e.g. the state evolution for the first scenario :math:`S_4` would be :math:`x_0 \rightarrow x_1^2 \rightarrow x_2^4 \rightarrow \dots \rightarrow x_5^4`.
 At every instant, the MPC problem at the root node :math:`x_0` is solved while explicitly taking into account the uncertain future evolution and the existence of future decisions, which can exploit the information gained throughout the evolution progress along the branches.
