@@ -329,6 +329,17 @@ class Model:
 
         return val
 
+    def _getvar(self, var_name):
+        """ Function is called from within all property (x, u, z, p, tvp, y, aux, w) getters.
+        Not part of the public API.
+        """
+        if self.flags['setup']:
+            return getattr(self, var_name)
+        elif self.symvar_type == 'SX':
+            return struct_symSX(getattr(self, var_name))
+        else:
+            raise Exception('Cannot query variables in MX mode before calling Model.setup.')
+
 
     @property
     def x(self):
@@ -362,10 +373,8 @@ class Model:
 
             :raises assertion: Cannot set model variables direcly. Use set_variable instead.
         """
-        if self.flags['setup']:
-            return self._x
-        else:
-            return struct_symSX(self._x)
+        return self._getvar('_x')
+
     @x.setter
     def x(self, val):
         raise Exception('Cannot set model variables direcly. Use set_variable instead.')
@@ -401,10 +410,8 @@ class Model:
 
             :raises assertion: Cannot set model variables direcly. Use set_variable instead.
         """
-        if self.flags['setup']:
-            return self._u
-        else:
-            return struct_symSX(self._u)
+        return self._getvar('_u')
+
     @u.setter
     def u(self, val):
         raise Exception('Cannot set model variables direcly. Use set_variable instead.')
@@ -441,10 +448,8 @@ class Model:
 
         :raises assertion: Cannot set model variables direcly. Use set_variable instead.
         """
-        if self.flags['setup']:
-            return self._z
-        else:
-            return struct_symSX(self._z)
+        return self._getvar('_z')
+
     @z.setter
     def z(self, val):
         raise Exception('Cannot set model variables direcly. Use set_variable instead.')
@@ -481,10 +486,8 @@ class Model:
 
         :raises assertion: Cannot set model variables direcly. Use set_variable instead.
         """
-        if self.flags['setup']:
-            return self._p
-        else:
-            return struct_symSX(self._p)
+        return self._getvar('_p')
+
     @p.setter
     def p(self, val):
         raise Exception('Cannot set model variables direcly. Use set_variable instead.')
@@ -520,10 +523,8 @@ class Model:
 
             :raises assertion: Cannot set model variables direcly. Use set_variable instead.
         """
-        if self.flags['setup']:
-            return self._tvp
-        else:
-            return struct_symSX(self._tvp)
+        return self._getvar('_tvp')
+
     @tvp.setter
     def tvp(self, val):
         raise Exception('Cannot set model variables direcly. Use set_variable instead.')
@@ -559,10 +560,8 @@ class Model:
 
             :raises assertion: Cannot set model variables direcly. Use set_meas instead.
         """
-        if self.flags['setup']:
-            return self._y_expression
-        else:
-            return struct_SX(self._y_expression)
+        return self._getvar('_y')
+
     @y.setter
     def y(self, val):
         raise Exception('Cannot set model variables direcly. Use set_variable instead.')
@@ -599,10 +598,8 @@ class Model:
 
             :raises assertion: Cannot set aux direcly. Use set_expression instead.
         """
-        if self.flags['setup']:
-            return self._aux_expression
-        else:
-            return struct_SX(self._aux_expression)
+        return self._getvar('_aux')
+
     @aux.setter
     def aux(self, val):
         raise Exception('Cannot set model variables direcly. Use set_variable instead.')
@@ -630,10 +627,7 @@ class Model:
 
             :raises assertion: Cannot set w direcly.
         """
-        if self.flags['setup']:
-            return self._w
-        else:
-            return struct_SX(self._w)
+        return self._getvar('_w')
 
         @w.setter
         def w(self, val):
@@ -663,10 +657,7 @@ class Model:
 
             :raises assertion: Cannot set v direcly.
         """
-        if self.flags['setup']:
-            return self._v
-        else:
-            return struct_SX(self._v)
+        return self._getvar('_v')
 
         @v.setter
         def v(self, val):
