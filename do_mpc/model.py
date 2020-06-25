@@ -599,7 +599,7 @@ class Model:
 
             :raises assertion: Cannot set aux direcly. Use set_expression instead.
         """
-        return self._getvar('_aux')
+        return self._getvar('_aux_expression')
 
     @aux.setter
     def aux(self, val):
