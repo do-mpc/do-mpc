@@ -293,6 +293,7 @@ class Model:
 
 
         self.model_type = model_type
+        self.symvar_type = 'SX'
 
         self.rhs_list = []
 
