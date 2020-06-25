@@ -9,7 +9,7 @@ the optimal control inputs with respect to a defined control objective and subje
 After a certain time interval, the measurement, estimation and computation process is repeated with a shifted horizon.
 This is the reason why this method is also called **receding horizon control (RHC)**.
 
-Major advantages of MPC in comparison to traditional **reactive** control approaches, e.g. PID, LQR, etc. are
+Major advantages of MPC in comparison to traditional **reactive** control approaches, e.g. PID, etc. are
 
 * **Proactive control action**: The controller is anticipating future disturbances, set-points etc.
 
@@ -86,6 +86,8 @@ The OCP is then given by:
 
 where :math:`N` is the prediction horizon and :math:`\hat{x}_0` is the current state estimate,
 which is either measured (state-feedback) or estimated based on an incomplete measurement (:math:`y_k`).
+Note that we introduce the bold letter notation,
+e.g. :math:`\mathbf{x}_{0:N+1}=[x_0, x_1, \dots, x_{N+1}]^T` to represent sequences.
 
 **do-mpc** allows to set upper and lower bounds for the states :math:`x_{\text{lb}}, x_{\text{ub}}`, inputs :math:`u_{\text{lb}}, u_{\text{ub}}` and algebraic states :math:`z_{\text{lb}}, z_{\text{ub}}`.
 Terminal constraints can be enforced via :math:`g_{\text{terminal}}(\cdot)` and general nonlinear constraints can be defined with :math:`g(\cdot)`, which can also be realized as soft constraints.
@@ -123,19 +125,19 @@ At every instant, the MPC problem at the root node :math:`x_0` is solved while e
 Through this design, feedback information is considered in the open-loop optimization problem, which reduces the conservativeness of the multi-stage approach.
 Considering feedback information also means, that decisions :math:`u` branching from the same node need to be identical, because they are based on the same information, e.g. :math:`u_1^4 = u_1^5 = u_1^6`.
 
-The system equation for a discretized/discrete system in the mutli-stage setting is given by:
+The system equation for a discretized/discrete system in the multi-stage setting is given by:
 
 .. math::
 
     x_{k+1}^j = f(x_k^{p(j)},u_k^j,z_k^{p(j)},p_k^{r(j)},p_{\text{tv},k}),
 
 where the function :math:`p(j)`` refers to the parent state via :math:`x_k^{p(j)}` and the considered realization of the uncertainty is given by :math:`r(j)` via :math:`d_k^{r(j)}`.
-The set of all occurring exponent/index pairs :math:`(i,j)` are denoted as :math:`I`.
+The set of all occurring exponent/index pairs :math:`(j,k)` are denoted as :math:`I`.
 
 Robust horizon
-,,,,,,,,,,,,,,
+--------------
 
-Because the uncertainty is modeled as a collection of discrete scenarios in the multi-stage approach, every node branches into :math:`\prod_{1}^{n_p} v_{i}` new scenarios, where :math:`n_p` is the number of parameters and :math:`v_{i}` is the number of explicit values considered for the :math:`i`-th parameter.
+Because the uncertainty is modeled as a collection of discrete scenarios in the multi-stage approach, every node branches into :math:`\prod_{i=1}^{n_p} v_{i}` new scenarios, where :math:`n_p` is the number of parameters and :math:`v_{i}` is the number of explicit values considered for the :math:`i`-th parameter.
 This leads to an exponential growth of the scenarios with respect to the horizon.
 To maintain the computational tractability of the multi-stage approach, the robust horizon :math:`N_{\text{robust}}` is introduced, which can be viewed as a tuning parameter.
 Branching is then only applied for the first :math:`N_{\text{robust}}` steps while the values of the uncertain parameters are kept constant for the last :math:`N-N_{\text{robust}}` steps.
@@ -143,7 +145,7 @@ The number of considered scenarios is given by:
 
 .. math::
 
-    N_{\text{s}} = (\prod_{i=1}^{n_p} v_{i})^{N_{\text{robust}}}
+    N_{\text{s}} = \left(\prod_{i=1}^{n_p} v_{i}\right)^{N_{\text{robust}}}
 
 This results in :math:`N_{\text{s}} = 9` scenarios for the presented scenario tree above instead of 243 scenarios, if branching would be applied until the prediction horizon.
 
@@ -152,8 +154,8 @@ This means the decisions are recomputed in every step after new information (mea
 
 .. note::
 
-    It the uncertainties :math:`p` are unknown but constant, :math:`N_{\text{robust}}=1` is a common choice,
-    because no branching of the scenario tree occurs after the first time instant (since the uncertainties are constant)
+    It the uncertainties :math:`p` are unknown but constant over time, :math:`N_{\text{robust}}=1` is the suggested choice.
+    In that case, branching of the scenario tree is only required for first time instant (since the uncertainties are constant)
     and the computational load is kept minimal.
 
 Mathematical formulation
@@ -163,28 +165,34 @@ The formulation of the MPC problem for the multi-stage approach is given by:
 
 .. math::
 
-    & \min_{\mathbf{x}_{0:N}} &&\, \tilde{J} & \\
-    &\text{subjet to} & & \, x_0 = \hat{x}_0 & \\
+    & \min_{x_k^j, u_k^j, z_k^j\ \forall (j,k)\in I } &&\,
+    \sum_{j=1}^{N_{\text{s}}}\omega_i J_j(\mathbf{x}^j_{0:N+1},\mathbf{u}^j_{0:N},\mathbf{z}^j_{0:N})& \\
+    &\text{subject to:} & & \, x_0 = \hat{x}_0 & \\
     &&& \, x_{k+1}^j = f(x_k^{p(j)},u_k^j,z_k^{p(j)},p_k^{r(j)},p_{\text{tv},k}) & \, \forall (j,k) \in I \\
     &&& u_k^i = u_k^j \text{ if }  x_k^{p(i)} = x_k^{p(j)}, & \, \forall (i,k), (j,k) \in I \\
     &&& g(x_k^{p(j)},u_k^j,z_k^{p(j)},p_k^{r(j)},p_{\text{tv},k}) \leq 0 & \, \forall (j,k) \in I \\
     &&& x_{\text{lb}} \leq x_k^j \leq x_{\text{ub}} & \, \forall (j,k) \in I \\
     &&& u_{\text{lb}} \leq u_k^j \leq u_{\text{ub}} & \, \forall (j,k) \in I \\
     &&& z_{\text{lb}} \leq z_k^j \leq z_{\text{ub}} & \, \forall (j,k) \in I \\
-    &&& g_{\text{terminal}}(x_N^j,z_N^j) \leq 0     & \, \forall (j,N) \in I
+    &&& g_{\text{terminal}}(x_N^j,z_N^j) \leq 0     & \, \forall (j,N) \in I,
 
-where :math:`\tilde{J} = \left(\sum_{i=1}^{N}(\omega_i J_i)^{\alpha}\right)^{1/\alpha}` is the objective.
-The objective consists of one term for each scenario, which can be weighted according to the probability of the scenarios :math:`\omega_i`, :math:`i=1,\dots,N_{\text{s}}`.
-The cost for each scenario :math:`S_i` is given by:
+The objective consists of one term for each scenario,
+which can be weighted according to the probability of the scenarios :math:`\omega_j`, :math:`j=1,\dots,N_{\text{s}}`.
+The cost for each scenario :math:`J_i` is given by:
 
 .. math::
 
-    J_i = m(x_N^j,z_N^j)  + \sum_{k=0}^{N} l(x_k^{p(j)},u_k^j,z_k^{p(j)},p_k^{r(j)},p_{\text{tv},k}).
+    J_j = m(x_{N+1}^j)  + \sum_{k=0}^{N} l(x_k^{p(j)},u_k^j,z_k^{p(j)},p_k^{r(j)},p_{\text{tv},k}).
 
 For all scenarios, which are directly considered in the problem formulation, a feasible solution guarantees constraint satisfaction.
 This means if all uncertainties can only take discrete values and those are represented in the scenario tree, constraint satisfaction can be guaranteed.
 
 For linear systems if :math:`p_{\text{min}} \leq p \leq p_{\text{max}}`, considering the extreme values of the uncertainties in the scenario tree guarantees constraint satisfaction, even if the uncertainties are continuous and time-varying.
 This design of the scenario tree for nonlinear systems does not guarantee constraint satisfaction for all :math:`p \in [p_{\text{min}}, p_{\text{max}}]`.
-However, also for nonlinear systems the worst-case scenarios are often at the boundaries of the uncertainty intvervals :math:`[p_{\text{min}}, p_{\text{max}}]`.
+However, also for nonlinear systems the worst-case scenarios are often at the boundaries of the uncertainty intervals :math:`[p_{\text{min}}, p_{\text{max}}]`.
 In practice, considering only the extreme values for nonlinear systems provides good results.
+
+Other commonly used robust MPC schemes, such as tube-based MPC, are not currently implemented in **do-mpc** but planned for the near future.
+Please check our development roadmap on `Github`_ for details and updates.
+
+.. _`Github`: https://github.com/do-mpc/do-mpc
