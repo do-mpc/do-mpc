@@ -58,10 +58,15 @@ np.random.seed(99)
 # Use different initial state for the true system (simulator) and for MHE / MPC
 x0_true = np.random.rand(model.n_x)-0.5
 x0 = np.zeros(model.n_x)
-mpc.set_initial_state(x0, reset_history=True)
-simulator.set_initial_state(x0_true, reset_history=True)
-mhe.set_initial_state(x0, p_est0 = np.array([1e-4]), reset_history=True)
 
+mpc.x0 = x0
+simulator.x0 = x0_true
+mhe.x0 = x0
+mhe.p_est0 = 1e-4
+
+# Set initial guess for MHE/MPC based on initial state.
+mpc.set_initial_guess()
+mhe.set_initial_guess()
 
 """
 Setup graphic:
@@ -127,7 +132,9 @@ Run MPC main loop:
 
 for k in range(200):
     u0 = mpc.make_step(x0)
-    y_next = simulator.make_step(u0)
+    # Simulate with process and measurement noise
+
+    y_next = simulator.make_step(u0, v0=1e-2*np.random.randn(model.n_v,1))
     x0 = mhe.make_step(y_next)
 
     if show_animation:

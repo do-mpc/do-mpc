@@ -55,11 +55,11 @@ class TestIndustrialPoly(unittest.TestCase):
         Set initial state
         """
 
-        # Set the initial state of mpc and simulator:
-        x0 = model._x(0)
-
         delH_R_real = 950.0
         c_pR = 5.0
+
+        # x0 is a property of the simulator - we obtain it and set values.
+        x0 = simulator.x0
 
         x0['m_W'] = 10000.0
         x0['m_A'] = 853.0
@@ -73,8 +73,11 @@ class TestIndustrialPoly(unittest.TestCase):
         x0['accum_monom'] = 300.0
         x0['T_adiab'] = x0['m_A']*delH_R_real/((x0['m_W'] + x0['m_A'] + x0['m_P']) * c_pR) + x0['T_R']
 
-        mpc.set_initial_state(x0, reset_history=True)
-        simulator.set_initial_state(x0, reset_history=True)
+        # Finally, the controller gets the same initial state.
+        mpc.x0 = x0
+
+        # Which is used to set the initial guess:
+        mpc.set_initial_guess()
 
         """
         Run some steps:

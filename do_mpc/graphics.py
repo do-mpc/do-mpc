@@ -223,7 +223,7 @@ class Graphics:
         """
         for ax_i in self.ax_list:
             ax_i.set_prop_cycle(None)
-            
+
     def clear(self, lines=None):
         """Clears all data from lines.
 
@@ -483,7 +483,8 @@ def animate(graphics, fig, n_steps=None, export_path='./', export_name='animatio
     :type format: str
     :param fps: (Optional) Frames per second for the resulting animation.
     :type fps: int
-    :param writer: (Optional) If supplied, the ``fps`` and ``format argument are discarded. Use this to configure your own writer.
+    :param writer: (Optional) If supplied, the ``fps`` and ``format`` argument are discarded. Use this to configure your own writer.
+    :type writer: writer class
 
     :return: None
     """

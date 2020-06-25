@@ -13,4 +13,8 @@ documentation/source/_autosummary/
 
 documentation/source/api/
 
-documentation/source/.DS_Store
+*.DS_Store
+
+documentation/source/release_notes.md
+
+documentation/source/example_gallery/.ipynb_checkpoints/

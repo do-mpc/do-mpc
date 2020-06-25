@@ -47,14 +47,13 @@ def template_mhe(model):
     mhe.set_param(**setup_mhe)
 
 
-    # P_y = np.diag(np.array([1,1,1,20,20]))
-    P_y = model.tvp['P_y']
+    P_v = model.tvp['P_v']
     P_x = 1e-4*np.eye(8)
-    # P_p = np.eye(1)
     P_p = model.p['P_p']
 
+
     # Set the default MHE objective by passing the weighting matrices:
-    mhe.set_default_objective(P_x, P_y, P_p)
+    mhe.set_default_objective(P_x, P_v, P_p)
 
 
 
@@ -62,7 +61,7 @@ def template_mhe(model):
     # This is more of a proof of concept (P_y is not actually changing over time).
     # We therefore do the following:
     tvp_template = mhe.get_tvp_template()
-    tvp_template['_tvp', :, 'P_y'] = np.diag(np.array([1,1,1,20,20]))
+    tvp_template['_tvp', :, 'P_v'] = np.diag(np.array([1,1,1,20,20]))
     # Typically, the values would be reset at each call of tvp_fun.
     # Here we just return the fixed values:
     def tvp_fun(t_now):

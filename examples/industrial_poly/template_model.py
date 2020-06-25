@@ -119,7 +119,7 @@ def template_model():
     model.set_rhs('T_adiab', delH_R/(m_ges*c_pR)*dot_m_A-(dot_m_A+dot_m_W+dot_m_P)*(m_A*delH_R/(m_ges*m_ges*c_pR))+dot_T_R)
 
     # Build the model
-    model.setup_model()
+    model.setup()
 
 
     return model

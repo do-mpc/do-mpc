@@ -5,8 +5,8 @@
 
 .. meta::
    :description:
-      do-mpc is a comprehensive open-source Python toolbox for robust Model Predictive Control (MPC)
-      and Moving Horizon Estimation (MHE).
+      do-mpc is a comprehensive open-source Python toolbox for robust model predictive control (MPC)
+      and moving horizon estimation (MHE).
    :google-site-verification:
       vPyUwidEDFuOS3MRTnjaah0fEs91dYSHomsAj1mxssA
    :google-site-verification:
@@ -27,8 +27,8 @@ Model predictive control python toolbox
 .. image:: https://badge.fury.io/py/do-mpc.svg
     :target: https://badge.fury.io/py/do-mpc
 
-**do-mpc** is a comprehensive open-source toolbox for robust **Model Predictive Control (MPC)**
-and **Moving Horizon Estimation (MHE)**.
+**do-mpc** is a comprehensive open-source toolbox for robust **model predictive control (MPC)**
+and **moving horizon estimation (MHE)**.
 **do-mpc** enables the efficient formulation and solution of control and estimation problems for nonlinear systems,
 including tools to deal with uncertainty and time discretization.
 The modular structure of **do-mpc** contains simulation, estimation and control components
@@ -43,9 +43,9 @@ In summary, **do-mpc** offers the following features:
 * moving horizon state and parameter estimation
 
 * modular design that can be easily extended
-​
+
 The **do-mpc** software is Python based and works therefore on any OS with a Python 3.x distribution.
-**do-mpc** has been developed by Sergio Lucia and Alexandru Tatulea at the DYN chair of the TU Dormund lead by Sebastian Engell.
+**do-mpc** has been developed by Sergio Lucia and Alexandru Tatulea at the DYN chair of the TU Dortmund lead by Sebastian Engell.
 The development is continued at the IOT chair of the TU Berlin by Felix Fiedler and Sergio Lucia.
 
 
@@ -98,6 +98,15 @@ Table of contents
 
 .. toctree::
    :maxdepth: 5
+   :caption: Background
+
+   theory_orthogonal_collocation
+   theory_mpc
+   theory_mhe
+
+
+.. toctree::
+   :maxdepth: 5
    :caption: How to get it?
 
    license
@@ -111,6 +120,16 @@ Table of contents
    project_structure
    Debugging
    do_mpc
+   release_notes
+
+.. toctree::
+   :maxdepth: 5
+   :caption: Example gallery
+
+   /example_gallery/batch_reactor
+   /example_gallery/CSTR
+   /example_gallery/industrial_poly
+   /example_gallery/oscillating_masses_discrete
 
 
 

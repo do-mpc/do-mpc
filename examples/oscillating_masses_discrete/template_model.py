@@ -45,27 +45,27 @@ def template_model():
     _x = model.set_variable(var_type='_x', var_name='x', shape=(4,1))
 
     # Input struct (optimization variables):
-    _u = model.set_variable(var_type='_u', var_name='u', shape=(2,1))
+    _u = model.set_variable(var_type='_u', var_name='u', shape=(1,1))
 
     # Set expression. These can be used in the cost function, as non-linear constraints
     # or just to monitor another output.
     model.set_expression(expr_name='cost', expr=sum1(_x**2))
 
 
-    A = np.array([[0.96033209,  0.19734663,  0.01973449,  0.0013227],
-                  [-0.39337056,  0.96033209,  0.19470123,  0.01973449],
-                  [0.01973449,  0.0013227,  0.96033209,  0.19734663],
-                  [0.19470123,  0.01973449, -0.39337056,  0.96033209]])
+    A = np.array([[ 0.763,  0.460,  0.115,  0.020],
+                  [-0.899,  0.763,  0.420,  0.115],
+                  [ 0.115,  0.020,  0.763,  0.460],
+                  [ 0.420,  0.115, -0.899,  0.763]])
 
-    B = np.array([[1.98671102e-02, 6.63119354e-05],
-                  [1.97346631e-01, 1.32269963e-03],
-                  [6.63119354e-05, 1.98671102e-02],
-                  [1.32269963e-03, 1.97346631e-01]])
+    B = np.array([[0.014],
+                  [0.063],
+                  [0.221],
+                  [0.367]])
 
 
     x_next = A@_x+B@_u
     model.set_rhs('x', x_next)
 
-    model.setup_model()
+    model.setup()
 
     return model

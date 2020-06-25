@@ -90,7 +90,7 @@ def template_model():
     model.set_rhs('T_K', (Q_dot + K_w*A_R*(T_dif))/(m_k*Cp_k))
 
     # Build the model
-    model.setup_model()
+    model.setup()
 
 
     return model

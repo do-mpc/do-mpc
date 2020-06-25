@@ -58,10 +58,14 @@ X_s_0 = 1.0 # This is the initial concentration inside the tank [mol/l]
 S_s_0 = 0.5 # This is the controlled variable [mol/l]
 P_s_0 = 0.0 #[C]
 V_s_0 = 120.0 #[C]
-x0 = np.array([X_s_0, S_s_0, P_s_0, V_s_0]).reshape(-1,1)
-mpc.set_initial_state(x0, reset_history=True)
-simulator.set_initial_state(x0, reset_history=True)
-estimator.set_initial_state(x0, reset_history=True)
+x0 = np.array([X_s_0, S_s_0, P_s_0, V_s_0])
+
+
+mpc.x0 = x0
+simulator.x0 = x0
+estimator.x0 = x0
+
+mpc.set_initial_guess()
 
 """
 Setup graphic:
@@ -78,6 +82,7 @@ for k in range(150):
     u0 = mpc.make_step(x0)
     y_next = simulator.make_step(u0)
     x0 = estimator.make_step(y_next)
+
 
     if show_animation:
         graphics.plot_results(t_ind=k)

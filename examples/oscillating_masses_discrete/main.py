@@ -53,11 +53,14 @@ Set initial state
 """
 np.random.seed(99)
 
-x0 = np.random.rand(model.n_x)-0.5
-mpc.set_initial_state(x0, reset_history=True)
-simulator.set_initial_state(x0, reset_history=True)
-estimator.set_initial_state(x0, reset_history=True)
+e = np.ones([model.n_x,1])
+x0 = np.random.uniform(-3*e,3*e) # Values between +3 and +3 for all states
+mpc.x0 = x0
+simulator.x0 = x0
+estimator.x0 = x0
 
+# Use initial state to set the initial guess.
+mpc.set_initial_guess()
 
 """
 Setup graphic:

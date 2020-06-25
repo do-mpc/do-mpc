@@ -58,9 +58,13 @@ class TestOscillatingMassesDiscrete(unittest.TestCase):
         np.random.seed(99)
 
         x0 = np.random.rand(model.n_x)-0.5
-        mpc.set_initial_state(x0, reset_history=True)
-        simulator.set_initial_state(x0, reset_history=True)
-        estimator.set_initial_state(x0, reset_history=True)
+        mpc.x0 = x0
+        simulator.x0 = x0
+        estimator.x0 = x0
+
+        # Use initial state to set the initial guess.
+        mpc.set_initial_guess()
+
 
         """
         Run some steps:
@@ -74,7 +78,7 @@ class TestOscillatingMassesDiscrete(unittest.TestCase):
         """
         Store results (from reference run):
         """
-        #do_mpc.data.save_results([mpc, simulator, estimator], 'results_oscillatingMasses')
+        #do_mpc.data.save_results([mpc, simulator, estimator], 'results_oscillatingMasses', overwrite=True)
 
         """
         Compare results to reference run:
