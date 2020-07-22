@@ -470,7 +470,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         :param w0: Additive process noise
         :type w0: numpy.ndarray (optional)
 
-        :return: x_nsext
+        :return: y_next
         :rtype: numpy.ndarray
         """
         assert self.flags['setup'] == True, 'Simulator is not setup. Call simulator.setup() first.'
