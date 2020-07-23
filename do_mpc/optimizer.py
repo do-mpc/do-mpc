@@ -556,6 +556,11 @@ class Optimizer:
         rhs = substitute(rhs, _z, _z*self._z_scaling.cat)
         rhs = substitute(rhs, _p, _p*self._p_scaling.cat) # only meaningful for MHE.
 
+        alg = substitute(self.model._alg, _x, _x*self._x_scaling.cat)
+        alg = substitute(alg, _u, _u*self._u_scaling.cat)
+        alg = substitute(alg, _z, _z*self._z_scaling.cat)
+        alg = substitute(alg, _p, _p*self._p_scaling.cat) # only meaningful for MHE.
+
         if self.state_discretization == 'discrete':
             _i = SX.sym('i', 0)
             # discrete integrator ifcs mimics the API the collocation ifcn.
@@ -563,6 +568,7 @@ class Optimizer:
             n_total_coll_points = 0
         if self.state_discretization == 'collocation':
             ffcn = Function('ffcn', [_x, _u, _z, _tvp, _p, _w], [rhs/self._x_scaling.cat])
+            afcn = Function('afcn', [_x, _u, _z, _tvp, _p, _w], [alg])
             # Get collocation information
             coll = self.collocation_type
             deg = self.collocation_deg
@@ -622,7 +628,7 @@ class Optimizer:
 
             # Define symbolic variables for collocation
             xk0 = SX.sym("xk0", n_x)
-            zk = SX.sym("zk", n_z)
+            #zk = SX.sym("zk", n_z)
             pk = SX.sym("pk", n_p)
             tv_pk = SX.sym("tv_pk", n_tvp)
             uk = SX.sym("uk", n_u)
@@ -634,8 +640,16 @@ class Optimizer:
             ik_split = np.resize(np.array([], dtype=SX), (ni, deg + 1))
             offset = 0
 
+            # Algebraic trajectory
+            n_zk = ni * (deg +1) * n_z
+            zk = SX.sym("zk", n_zk)
+            offset_z = 0
+            zk_split = np.resize(np.array([], dtype=SX), (ni, deg + 1))
+
             # Store initial condition
             ik_split[0, 0] = xk0
+            zk_split[0, 0] = zk[offset_z:offset_z + n_z]
+            offset_z += n_z
             first_j = 1  # Skip allocating x for the first collocation point for the first finite element
             # For each finite element
             for i in range(ni):
@@ -643,6 +657,8 @@ class Optimizer:
                 for j in range(first_j, deg + 1):
                     # Get the expression for the state vector
                     ik_split[i, j] = ik[offset:offset + n_x]
+                    zk_split[i, j] = zk[offset_z:offset_z + n_z]
+                    offset_z += n_z
                     offset += n_x
 
                 # All collocation points in subsequent finite elements
@@ -653,7 +669,7 @@ class Optimizer:
             offset += n_x
             # Check offset for consistency
             assert(offset == n_ik)
-
+            assert(offset_z == n_zk)
             # Constraints in the control interval
             gk = []
             lbgk = []
@@ -661,6 +677,12 @@ class Optimizer:
 
             # For all finite elements
             for i in range(ni):
+                # for the first point:
+                a_i0 = afcn(ik_split[i, 0], uk, zk_split[i,0], tv_pk, pk, wk)
+                gk.append(a_i0)
+                lbgk.append(np.zeros(n_z))
+                ubgk.append(np.zeros(n_z))
+
                 # For all collocation points
                 for j in range(1, deg + 1):
                     # Get an expression for the state derivative at the coll point
@@ -669,10 +691,17 @@ class Optimizer:
                         xp_ij += C[r, j] * ik_split[i, r]
 
                     # Add collocation equations to the NLP
-                    f_ij = ffcn(ik_split[i, j], uk, zk, tv_pk, pk, wk)
+                    f_ij = ffcn(ik_split[i, j], uk, zk_split[i,j], tv_pk, pk, wk)
                     gk.append(h * f_ij - xp_ij)
                     lbgk.append(np.zeros(n_x))  # equality constraints
                     ubgk.append(np.zeros(n_x))  # equality constraints
+
+                    # algebraic constraints
+                    a_ij = afcn(ik_split[i, j], uk, zk_split[i,j], tv_pk, pk, wk)
+                    gk.append(a_ij)
+                    lbgk.append(np.zeros(n_z))
+                    ubgk.append(np.zeros(n_z))
+
 
                 # Get an expression for the state at the end of the finite element
                 xf_i = 0
@@ -690,7 +719,7 @@ class Optimizer:
             lbgk = np.concatenate(lbgk)
             ubgk = np.concatenate(ubgk)
 
-            assert(gk.shape[0] == ik.shape[0])
+            assert(gk.shape[0] == ik.shape[0] + zk.shape[0])
 
             # Create the integrator function
             ifcn = Function("ifcn", [xk0, ik, uk, zk, tv_pk, pk, wk], [gk, xkf])

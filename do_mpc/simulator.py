@@ -195,11 +195,14 @@ class Simulator(do_mpc.model.IteratedVariables):
 
             # Define the ODE
             xdot = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_x['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
+            alg = self.model._alg_fun(sim_x['_x'],sim_p['_u'],sim_x['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
+
             dae = {
                 'x': sim_x['_x'],
                 'z': sim_x['_z'],
                 'p': sim_p,
-                'ode': xdot
+                'ode': xdot,
+                'alg': alg,
             }
 
             # Set the integrator options
@@ -430,7 +433,7 @@ class Simulator(do_mpc.model.IteratedVariables):
             x_new = self.simulator(sim_x_num,sim_p_num)
             z_now = self.sim_x_num['_z']
         elif self.model.model_type == 'continuous':
-            r = self.simulator(x0 = sim_x_num, p = sim_p_num)
+            r = self.simulator(x0 = sim_x_num['_x'], p = sim_p_num)
             x_new = r['xf']
             z_now = r['zf']
         aux_now = self.sim_aux_expression_fun(sim_x_num, sim_p_num)

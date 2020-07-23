@@ -830,10 +830,11 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         n_max_scenarios = self.n_combinations ** self.n_robust
         # Create struct for optimization variables:
         self.opt_x = opt_x = struct_symSX([
+            # One additional point (in the collocation dimension) for the final point. 
             entry('_x', repeat=[self.n_horizon+1, n_max_scenarios,
                                 1+n_total_coll_points], struct=self.model._x),
             entry('_z', repeat=[self.n_horizon, n_max_scenarios,
-                                1+n_total_coll_points], struct=self.model._z),
+                                n_total_coll_points], struct=self.model._z),
             entry('_u', repeat=[self.n_horizon, n_max_scenarios], struct=self.model._u),
             entry('_eps', repeat=[self.n_horizon, n_max_scenarios], struct=self._eps),
         ])
@@ -901,8 +902,10 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                     current_scenario = b + branch_offset[k][s]
 
                     # Compute constraints and predicted next state of the discretization scheme
-                    [g_ksb, xf_ksb] = ifcn(opt_x['_x', k, s, -1], vertcat(*opt_x['_x', k+1, child_scenario[k][s][b], :-1]),
-                                           opt_x['_u', k, s], vertcat(*opt_x['_z', k, s, :]), opt_p['_tvp', k],
+                    col_xk = vertcat(*opt_x['_x', k+1, child_scenario[k][s][b], :-1])
+                    col_zk = vertcat(*opt_x['_z', k, child_scenario[k][s][b]])
+                    [g_ksb, xf_ksb] = ifcn(opt_x['_x', k, s, -1], col_xk,
+                                           opt_x['_u', k, s], col_zk, opt_p['_tvp', k],
                                            opt_p['_p', current_scenario], _w)
 
                     # Add the collocation equations
