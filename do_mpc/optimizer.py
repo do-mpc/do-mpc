@@ -643,7 +643,7 @@ class Optimizer:
             pk = SX.sym("pk", n_p)
             tv_pk = SX.sym("tv_pk", n_tvp)
             uk = SX.sym("uk", n_u)
-            wk = SX.sym("uk", n_w)
+            wk = SX.sym("wk", n_w)
 
             # State trajectory
             n_ik = ni * (deg + 1) * n_x

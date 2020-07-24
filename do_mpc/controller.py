@@ -346,11 +346,23 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         _x, _u, _z, _tvp, _p = self.model['x','u','z','tvp','p']
 
-        # If the mterm is a symbolic expression:
-        assert set(symvar(mterm)).issubset(set(symvar(vertcat(_x, _p)))), 'mterm must be solely a function of _x and _p.'
 
+        # Check if mterm is valid:
+        if isinstance(mterm, casadi.DM):
+            pass
+        elif isinstance(mterm, (casadi.SX, casadi.MX)):
+            assert set(symvar(mterm)).issubset(set(symvar(vertcat(_x, _p)))), 'mterm must be solely a function of _x and _p.'
+        else:
+            raise Exception('mterm must be of type casadi.DM, casadi.SX or casadi.MX. You have: {}.'.format(type(mterm)))
 
-        # TODO: Check if this is only a function of x
+        # Check if lterm is valid:
+        if isinstance(lterm, casadi.DM):
+            pass
+        elif isinstance(lterm, (casadi.SX, casadi.MX)):
+            assert set(symvar(lterm)).issubset(set(symvar(vertcat(_x, _u, _z, _tvp, _p)))), 'lterm must be solely a function of _x, _u, _z, _tvp, _p.'
+        else:
+            raise Exception('lterm must be of type casadi.DM, casadi.SX or casadi.MX. You have: {}.'.format(type(lterm)))
+
         self.mterm = mterm
         # TODO: This function should be evaluated with scaled variables.
         self.mterm_fun = Function('mterm', [_x, _p], [mterm])
@@ -780,7 +792,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         # Extract solution:
         u0 = self.opt_x_num['_u', 0, 0]*self._u_scaling
-        z0 = self.opt_x_num['_z', 0, 0, -1]*self._z_scaling
+        z0 = self.opt_x_num['_z', 0, 0, 0]*self._z_scaling
         aux0 = self.opt_aux_num['_aux', 0, 0]
 
         # Store solution:
@@ -832,7 +844,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             entry('_x', repeat=[self.n_horizon+1, n_max_scenarios,
                                 1+n_total_coll_points], struct=self.model._x),
             entry('_z', repeat=[self.n_horizon, n_max_scenarios,
-                                n_total_coll_points], struct=self.model._z),
+                                max(n_total_coll_points,1)], struct=self.model._z),
             entry('_u', repeat=[self.n_horizon, n_max_scenarios], struct=self.model._u),
             entry('_eps', repeat=[self.n_horizon, n_max_scenarios], struct=self._eps),
         ])
@@ -918,7 +930,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
                     # Add nonlinear constraints only on each control step
                     nl_cons_k = self._nl_cons_fun(
-                        opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s], opt_x_unscaled['_z', k, s, -1],
+                        opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s], opt_x_unscaled['_z', k, s, 0],
                         opt_p['_tvp', k], opt_p['_p', current_scenario], opt_x_unscaled['_eps', k, s])
                     cons.append(nl_cons_k)
                     cons_lb.append(self._nl_cons_lb)

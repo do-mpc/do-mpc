@@ -39,7 +39,7 @@ def template_mpc(model):
 
     setup_mpc = {
         'n_horizon': 100,
-        'n_robust': 1,
+        'n_robust': 0,
         'open_loop': 0,
         't_step': 0.04,
         'state_discretization': 'collocation',

@@ -955,6 +955,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         x_next = self.opt_x_num['_x', -1, -1]*self._x_scaling
         p_est_next = self.opt_x_num['_p_est']*self._p_est_scaling
         u0 = self.opt_x_num['_u', -1]*self._u_scaling
+        # Which z must be extracted here?
         z0  = self.opt_x_num['_z', -1, -1]*self._z_scaling
         aux0 = self.opt_aux_num['_aux', -1]
         p0 = self._p_cat_fun(p_est0, p_set0)
@@ -1005,7 +1006,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         # Create struct for optimization variables:
         self.opt_x = opt_x = struct_symSX([
             entry('_x', repeat=[self.n_horizon+1, 1+n_total_coll_points], struct=self.model._x),
-            entry('_z', repeat=[self.n_horizon,   1+n_total_coll_points], struct=self.model._z),
+            entry('_z', repeat=[self.n_horizon,   max(n_total_coll_points,1)], struct=self.model._z),
             entry('_u', repeat=[self.n_horizon], struct=self.model._u),
             entry('_w', repeat=[self.n_horizon], struct=self.model._w),
             entry('_v', repeat=[self.n_horizon], struct=self.model._v),
@@ -1073,8 +1074,10 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         # For all control intervals
         for k in range(self.n_horizon):
             # Compute constraints and predicted next state of the discretization scheme
-            [g_ksb, xf_ksb] = ifcn(opt_x['_x', k, -1], vertcat(*opt_x['_x', k+1, :-1]),
-                                   opt_x['_u', k], vertcat(*opt_x['_z', k, :]), opt_p['_tvp', k],
+            col_xk = vertcat(*opt_x['_x', k+1, :-1])
+            col_zk = vertcat(*opt_x['_z', k])
+            [g_ksb, xf_ksb] = ifcn(opt_x['_x', k, -1], col_xk,
+                                   opt_x['_u', k], col_zk, opt_p['_tvp', k],
                                    _p, opt_x['_w', k])
 
             # Compute current measurement
