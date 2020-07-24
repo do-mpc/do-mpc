@@ -39,7 +39,7 @@ def template_mpc(model):
 
     setup_mpc = {
         'n_horizon': 100,
-        'n_robust': 0,
+        'n_robust': 1,
         'open_loop': 0,
         't_step': 0.04,
         'state_discretization': 'collocation',
@@ -53,7 +53,7 @@ def template_mpc(model):
 
     mpc.set_param(**setup_mpc)
 
-    mterm = -model.aux['E_pot'] # stage cost
+    mterm = model.aux['E_kin'] - model.aux['E_pot'] # stage cost
     lterm = model.aux['E_kin'] - model.aux['E_pot'] # terminal cost
 
     mpc.set_objective(mterm=mterm, lterm=lterm)
@@ -63,8 +63,15 @@ def template_mpc(model):
     mpc.bounds['lower','_u','force'] = -4
     mpc.bounds['upper','_u','force'] = 4
 
-    # Scaling works but doesnt make sense here...
-    #mpc.scaling['_z', 'dx'] = np.array([0.1,0.1,0.2, 1, 1, 1])
+    mpc.scaling['_z', 'dx'] = np.array([0.5,0.5,0.5, 5, 20, 20])
+    mpc.scaling['_x', 'theta'] = 5
+    mpc.scaling['_x', 'dtheta'] = 10
+
+
+
+    m1_var = 0.2*np.array([1, 0.95, 1.05])
+    m2_var = 0.2*np.array([1, 0.95, 1.05])
+    mpc.set_uncertainty_values(m1=m1_var, m2=m2_var)
 
     mpc.setup()
 

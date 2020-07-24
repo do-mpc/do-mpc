@@ -174,6 +174,7 @@ class Optimizer:
 
         Further indices are possible (but not neccessary) when the referenced variable is a vector or matrix.
 
+
         **Example**:
 
         ::
@@ -184,6 +185,16 @@ class Optimizer:
 
             # Query with:
             optimizer.scaling['_x', 'phi_1']
+
+        Scaling factors :math:`a` affect the MHE / MPC optimization problem. The optimization variables are scaled variables:
+
+        .. math::
+
+            \\bar\\phi = \\frac{\\phi}{a_{\\phi}} \\quad \\forall \\phi \\in [x, u, z, p_{\\text{est}}]
+
+        Scaled variables are used to formulate the bounds :math:`\\bar\\phi_{lb} \\leq \\bar\\phi_{ub}`
+        and for the evaluation of the ODE. For the objective function and the nonlinear constraints
+        the unscaled variables are used. The algebraic equations are also not scaled.
 
         .. note::
 

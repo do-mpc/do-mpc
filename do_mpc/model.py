@@ -932,6 +932,12 @@ class Model:
 
            0 = g(x_k,u_k,z_k,p_k,p_{\\text{tv},k})
 
+        .. note::
+
+            For the introduced algebraic variables :math:`z \in \mathbb{R}^{n_z}`
+            it is required to introduce exactly :math:`n_z` algebraic equations.
+            Otherwise :py:meth:`setup` will throw an error message.
+
         :param expr_name: Name of the introduced expression
         :type expr_name: string
         :param expr: CasADi SX or MX function depending on ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.

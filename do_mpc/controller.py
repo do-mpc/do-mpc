@@ -331,7 +331,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         :param lterm: Stage cost - **scalar** symbolic expression with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``
         :type lterm:  CasADi SX or MX
-        :param mterm: Terminal cost - **scalar** symbolic expression with respect to ``_x``
+        :param mterm: Terminal cost - **scalar** symbolic expression with respect to ``_x`` and ``_p``
         :type mterm: CasADi SX or MX
 
         :raises assertion: mterm must have ``shape=(1,1)`` (scalar expression)
@@ -347,15 +347,13 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         _x, _u, _z, _tvp, _p = self.model['x','u','z','tvp','p']
 
         # If the mterm is a symbolic expression:
-        try:
-            assert set(symvar(mterm)).issubset(set(symvar(vertcat(_x)))), 'mterm must be solely a function of _x.'
-        except:
-            pass
+        assert set(symvar(mterm)).issubset(set(symvar(vertcat(_x, _p)))), 'mterm must be solely a function of _x and _p.'
+
 
         # TODO: Check if this is only a function of x
         self.mterm = mterm
         # TODO: This function should be evaluated with scaled variables.
-        self.mterm_fun = Function('mterm', [_x], [mterm])
+        self.mterm_fun = Function('mterm', [_x, _p], [mterm])
 
         self.lterm = lterm
         self.lterm_fun = Function('lterm', [_x, _u, _z, _tvp, _p], [lterm])
@@ -830,7 +828,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         n_max_scenarios = self.n_combinations ** self.n_robust
         # Create struct for optimization variables:
         self.opt_x = opt_x = struct_symSX([
-            # One additional point (in the collocation dimension) for the final point. 
+            # One additional point (in the collocation dimension) for the final point.
             entry('_x', repeat=[self.n_horizon+1, n_max_scenarios,
                                 1+n_total_coll_points], struct=self.model._x),
             entry('_z', repeat=[self.n_horizon, n_max_scenarios,
@@ -937,7 +935,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
                     # In the last step add the terminal cost too
                     if k == self.n_horizon - 1:
-                        obj += omega[k] * self.mterm_fun(opt_x_unscaled['_x', k + 1, s, -1])
+                        obj += omega[k] * self.mterm_fun(opt_x_unscaled['_x', k + 1, s, -1], opt_p['_p', current_scenario])
 
                     # U regularization:
                     if k == 0:

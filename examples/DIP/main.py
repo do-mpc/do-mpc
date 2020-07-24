@@ -39,6 +39,7 @@ from template_simulator import template_simulator
 """ User settings: """
 show_animation = True
 store_results = False
+# Compare between the ODE and DAE implementation of this problem.
 model_type = 'dae'
 
 """
@@ -50,7 +51,6 @@ elif model_type =='dae':
     from template_model_dae import template_model
 
 model = template_model()
-
 simulator = template_simulator(model)
 mpc = template_mpc(model)
 estimator = do_mpc.estimator.StateFeedback(model)
@@ -165,10 +165,10 @@ for k in range(100):
 time_arr = np.array(time_list)
 mean = np.round(np.mean(time_arr[1:])*1000)
 var = np.round(np.std(time_arr[1:])*1000)
-print('mean time:{}ms +- {}ms'.format(mean, var))
+print('mean runtime:{}ms +- {}ms for MPC step'.format(mean, var))
 
 input('Press any key to exit.')
 
 # Store results:
 if store_results:
-    do_mpc.data.save_results([mpc, simulator], 'batch_reactor_MPC')
+    do_mpc.data.save_results([mpc, simulator], 'dip_mpc')

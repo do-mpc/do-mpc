@@ -46,6 +46,9 @@ def template_model():
     L1 = 0.5  #m, length of the first rod
     L2 = 0.5  #m, length of the second rod
 
+    m1 = model.set_variable('_p', 'm1')
+    m2 = model.set_variable('_p', 'm2')
+
     d1 = m0 + m1 + m2
     d2 = (m1 / 2 + m2) * L1
     d3 = m2 * L2 / 2
