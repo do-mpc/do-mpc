@@ -530,13 +530,15 @@ class Optimizer:
         """
         assert self.flags['setup'] == True, 'optimizer was not setup yet. Please call optimizer.setup().'
 
-        r = self.S(x0=self.opt_x_num, lbx=self.lb_opt_x, ubx=self.ub_opt_x,  ubg=self.cons_ub, lbg=self.cons_lb, p=self.opt_p_num)
+        r = self.S(x0=self.opt_x_num, lbx=self.lb_opt_x, ubx=self.ub_opt_x,
+            ubg=self.cons_ub, lbg=self.cons_lb, p=self.opt_p_num)
         # Note: .master accesses the underlying vector of the structure.
         self.opt_x_num.master = r['x']
         self.opt_x_num_unscaled.master = r['x']*self.opt_x_scaling
         self.opt_g_num = r['g']
         # Values of lagrange multipliers:
         self.lam_g_num = r['lam_g']
+        self.lam_x_num = r['lam_x']
         self.solver_stats = self.S.stats()
 
         # Calculate values of auxiliary expressions (defined in model)
