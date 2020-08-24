@@ -63,7 +63,7 @@ def template_mpc(model):
     mpc.bounds['lower','_u','force'] = -4
     mpc.bounds['upper','_u','force'] = 4
 
-    mpc.scaling['_z', 'dx'] = np.array([0.5,0.5,0.5, 5, 20, 20])
+    #mpc.scaling['_z', 'dx'] = np.array([0.5,0.5,0.5, 5, 20, 20])
     mpc.scaling['_x', 'theta'] = 5
     mpc.scaling['_x', 'dtheta'] = 10
 
