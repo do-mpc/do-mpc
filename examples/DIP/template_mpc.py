@@ -44,34 +44,53 @@ def template_mpc(model):
         't_step': 0.04,
         'state_discretization': 'collocation',
         'collocation_type': 'radau',
-        'collocation_deg': 2,
+        'collocation_deg': 3,
         'collocation_ni': 1,
         'store_full_solution': True,
         # Use MA27 linear solver in ipopt for faster calculations:
-        'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
+        'nlpsol_opts': {'ipopt.linear_solver': 'ma27'}
     }
 
     mpc.set_param(**setup_mpc)
 
-    mterm = model.aux['E_kin'] - model.aux['E_pot'] # stage cost
-    lterm = model.aux['E_kin'] - model.aux['E_pot'] # terminal cost
+    # mterm = 100*(model.aux['E_kin'] - model.aux['E_pot'])
+    # lterm = (model.aux['E_kin'] - model.aux['E_pot'])+10*(model.x['pos']-model.tvp['pos_set'])**2 # stage cost
+
+    mterm = model.aux['E_kin'] - model.aux['E_pot']
+    lterm = -model.aux['E_pot']+10*(model.x['pos']-model.tvp['pos_set'])**2 # stage cost
+
 
     mpc.set_objective(mterm=mterm, lterm=lterm)
-    mpc.set_rterm(force=0.0)
+    mpc.set_rterm(force=0.1)
 
 
     mpc.bounds['lower','_u','force'] = -4
     mpc.bounds['upper','_u','force'] = 4
 
-    #mpc.scaling['_z', 'dx'] = np.array([0.5,0.5,0.5, 5, 20, 20])
-    mpc.scaling['_x', 'theta'] = 5
-    mpc.scaling['_x', 'dtheta'] = 10
+    # Avoid the obstacles:
+    mpc.set_nl_cons('obstacles', -model.aux['obstacle_distance'], 0)
 
-
-
+    # Values for the masses (for robust MPC)
     m1_var = 0.2*np.array([1, 0.95, 1.05])
     m2_var = 0.2*np.array([1, 0.95, 1.05])
     mpc.set_uncertainty_values(m1=m1_var, m2=m2_var)
+
+
+    tvp_template = mpc.get_tvp_template()
+
+    # When to switch setpoint:
+    t_switch = 4    # seconds
+    ind_switch = t_switch // setup_mpc['t_step']
+
+    def tvp_fun(t_ind):
+        ind = t_ind // setup_mpc['t_step']
+        if ind <= ind_switch:
+            tvp_template['_tvp',:, 'pos_set'] = -0.8
+        else:
+            tvp_template['_tvp',:, 'pos_set'] = 0.8
+        return tvp_template
+
+    mpc.set_tvp_fun(tvp_fun)
 
     mpc.setup()
 

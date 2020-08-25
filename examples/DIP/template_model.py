@@ -30,7 +30,7 @@ import do_mpc
 from scipy import constants
 
 
-def template_model():
+def template_model(obstacles):
     """
     --------------------------------------------------------------------------
     template_model: Variables / RHS / AUX
@@ -61,6 +61,9 @@ def template_model():
     h6 = m2*l2**2 + J2
     h7 = (m1*l1 + m2*L1) * constants.g
     h8 = m2*l2*constants.g
+
+    # Setpoint x:
+    pos_set = model.set_variable('_tvp', 'pos_set')
 
 
     # States struct (optimization variables):
@@ -114,6 +117,30 @@ def template_model():
 
     model.set_expression('E_kin', E_kin)
     model.set_expression('E_pot', E_pot)
+
+    # Calculations to avoid obstacles:
+
+    # Coordinates of the nodes:
+    node0_x = model.x['pos']
+    node0_y = np.array([0])
+
+    node1_x = node0_x+L1*sin(model.x['theta',0])
+    node1_y = node0_y+L1*cos(model.x['theta',0])
+
+    node2_x = node1_x+L2*sin(model.x['theta',1])
+    node2_y = node1_y+L2*cos(model.x['theta',1])
+
+    obstacle_distance = []
+
+    for obs in obstacles:
+        d0 = sqrt((node0_x-obs['x'])**2+(node0_y-obs['y'])**2)-obs['r']
+        d1 = sqrt((node1_x-obs['x'])**2+(node1_y-obs['y'])**2)-obs['r']
+        d2 = sqrt((node2_x-obs['x'])**2+(node2_y-obs['y'])**2)-obs['r']
+        obstacle_distance.extend([d0, d1, d2])
+
+
+    model.set_expression('obstacle_distance',vertcat(*obstacle_distance))
+    model.set_expression('tvp', pos_set)
 
 
     # Build the model
