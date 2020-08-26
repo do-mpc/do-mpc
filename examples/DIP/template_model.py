@@ -133,9 +133,9 @@ def template_model(obstacles):
     obstacle_distance = []
 
     for obs in obstacles:
-        d0 = sqrt((node0_x-obs['x'])**2+(node0_y-obs['y'])**2)-obs['r']
-        d1 = sqrt((node1_x-obs['x'])**2+(node1_y-obs['y'])**2)-obs['r']
-        d2 = sqrt((node2_x-obs['x'])**2+(node2_y-obs['y'])**2)-obs['r']
+        d0 = sqrt((node0_x-obs['x'])**2+(node0_y-obs['y'])**2)-obs['r']*1.05
+        d1 = sqrt((node1_x-obs['x'])**2+(node1_y-obs['y'])**2)-obs['r']*1.05
+        d2 = sqrt((node2_x-obs['x'])**2+(node2_y-obs['y'])**2)-obs['r']*1.05
         obstacle_distance.extend([d0, d1, d2])
 
 
