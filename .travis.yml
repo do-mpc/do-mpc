@@ -11,3 +11,6 @@ script:
   - python test_CSTR.py
   - python test_oscillating_masses_discrete.py
   - python test_rotating_oscillating_masses_mhe_mpc.py
+  - python test_oscillating_masses_discrete_dae.py
+  - python test_industrial_poly
+  - python test_DIP
