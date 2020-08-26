@@ -960,8 +960,10 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                         opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s], opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
 
                 # Bounds for the states on all discretize values along the horizon
-                self.lb_opt_x['_x', k, s, :] = self._x_lb.cat/self._x_scaling
-                self.ub_opt_x['_x', k, s, :] = self._x_ub.cat/self._x_scaling
+                if k > 0:
+                    # Dont bound the initial state (if it happens to be )
+                    self.lb_opt_x['_x', k, s, :] = self._x_lb.cat/self._x_scaling
+                    self.ub_opt_x['_x', k, s, :] = self._x_ub.cat/self._x_scaling
 
                 # Bounds for the inputs along the horizon
                 self.lb_opt_x['_u', k, s] = self._u_lb.cat/self._u_scaling
