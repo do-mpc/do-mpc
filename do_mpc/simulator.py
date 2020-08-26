@@ -404,6 +404,21 @@ class Simulator(do_mpc.model.IteratedVariables):
         self.flags['set_p_fun'] = True
 
 
+    def set_initial_guess(self):
+        """Initial guess for DAE variables.
+        Use the current class attribute :py:attr:`z0` to create the initial guess for the DAE algebraic equations.
+
+        The simulator uses "warmstarting" to solve the continous/discrete DAE system by using the previously computed
+        algebraic states as an initial guess. Thus, this method is typically only invoked once.
+
+        .. warning::
+            If no initial values for :py:attr:`z0` were supplied during setup, they default to zero.
+
+        """
+        assert self.flags['setup'] == True, 'MPC was not setup yet. Please call MPC.setup().'
+
+        self.sim_z_num['_z'] = self._z0.cat
+
     def simulate(self):
         """Call the CasADi simulator.
 
@@ -444,7 +459,7 @@ class Simulator(do_mpc.model.IteratedVariables):
                 sim_z_num.master = r['x']
             x_new = self.simulator(sim_x_num, sim_z_num, sim_p_num)
         elif self.model.model_type == 'continuous':
-            r = self.simulator(x0 = sim_x_num['_x'], p = sim_p_num)
+            r = self.simulator(x0 = sim_x_num, z0 = sim_z_num, p = sim_p_num)
             x_new = r['xf']
             z_now = r['zf']
             sim_z_num.master = z_now
@@ -455,13 +470,14 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         return x_new
 
-    def make_step(self, u0, x0=None, z0=None, v0=None, w0=None):
+    def make_step(self, u0, v0=None, w0=None):
         """Main method of the simulator class during control runtime. This method is called at each timestep
         and computes the next state or the current control input :py:obj:`u0`. The method returns the resulting measurement,
         as defined in :py:class:`do_mpc.model.Model.set_meas`.
 
-        The initial state :py:obj:`x0` is stored as a class attribute but can optionally be supplied.
-        The algebraic states :py:obj:`z0` can also be supplied, if they are defined in the model but are only used as an intial guess.
+        The initial state :py:attr:`x0` is stored as a class attribute. Use this attribute :py:attr:`x0` to change the initial state.
+        It is also possible to supply an initial guess for the algebraic states through the attribute :py:attr:`z0` and by calling
+        :py:func:`set_initial_guess`.
 
         Finally, the method can be called with values for the process noise ``w0`` and the measurement noise ``v0``
         that were (optionally) defined in the :py:class:`do_mpc.model.Model`.
@@ -472,12 +488,6 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         :param u0: Current input to the system.
         :type u0: numpy.ndarray
-
-        :param x0: Current state of the system.
-        :type x0: numpy.ndarray (optional)
-
-        :param z0: Initial guess for current algebraic states
-        :type z0: numpy.ndarray (optional)
 
         :param v0: Additive measurement noise
         :type v0: numpy.ndarray (optional)
@@ -493,18 +503,6 @@ class Simulator(do_mpc.model.IteratedVariables):
         assert u0.shape == self.model._u.shape, 'u0 has incorrect shape. You have: {}, expected: {}'.format(u0.shape, self.model._u.shape)
         assert isinstance(u0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'u0 is wrong input type. You have: {}'.format(type(u0))
         assert u0.shape == self.model._u.shape, 'u0 has incorrect shape. You have: {}, expected: {}'.format(u0.shape, self.model._u.shape)
-
-        if x0 is None:
-            x0 = self._x0
-        else:
-            assert isinstance(x0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'x0 is wrong input type. You have: {}'.format(type(x0))
-            assert x0.shape == self.model._x.shape, 'x0 has incorrect shape. You have: {}, expected: {}'.format(x0.shape, self.model._x.shape)
-
-        if z0 is not None:
-            assert isinstance(z0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'z0 is wrong input type. You have: {}'.format(type(z0))
-            assert z0.shape == self.model._z.shape, 'z0 has incorrect shape. You have: {}, expected: {}'.format(z0.shape, self.model._z.shape)
-            # Just an initial guess.
-            self.sim_z_num['_z'] = z0
 
         if w0 is None:
             w0 = self.model._w(0)
@@ -523,6 +521,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         tvp0 = self.tvp_fun(self._t0)
         p0 = self.p_fun(self._t0)
         t0 = self._t0
+        x0 = self._x0
         self.sim_x_num['_x'] = x0
         self.sim_p_num['_u'] = u0
         self.sim_p_num['_p'] = p0
