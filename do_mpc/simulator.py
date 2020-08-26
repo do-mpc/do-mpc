@@ -165,12 +165,12 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         self._check_validity()
 
-        self.sim_x = sim_x = struct_symSX([
-            entry('_x', struct=self.model._x),
-            entry('_z', struct=self.model._z),
-        ])
-
-        self.sim_x_num = self.sim_x(0)
+        self.sim_x = sim_x =  struct_symSX([
+            entry('_x', struct=self.model._x)
+            ])
+        self.sim_z = sim_z =  struct_symSX([
+            entry('_z', struct=self.model._z)
+            ])
 
         self.sim_p = sim_p = struct_symSX([
             entry('_u', struct=self.model._u),
@@ -179,27 +179,35 @@ class Simulator(do_mpc.model.IteratedVariables):
             entry('_w', struct=self.model._w)
         ])
 
-
+        # Initiate numerical structures to store the solutions (updated at each iteration)
+        self.sim_x_num = self.sim_x(0)
+        self.sim_z_num = self.sim_z(0)
         self.sim_p_num = self.sim_p(0)
+        self.sim_aux_num = self.model._aux_expression(0)
 
         if self.model.model_type == 'discrete':
 
             # Build the rhs expression with the newly created variables
-            x_next = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_x['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
+            alg = self.model._alg_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
+            x_next = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
 
-            # Build the simulator function
-            self.simulator = Function('simulator',[sim_x,sim_p],[x_next])
+            # Build the DAE function
+            nlp = {'x': sim_z['_z'], 'p': vertcat(sim_x['_x'], sim_p), 'f': DM(0), 'g': alg}
+            self.discrete_dae_solver = nlpsol('dae_roots', 'ipopt', nlp)
+
+            # Build the simulator function:
+            self.simulator = Function('simulator',[sim_x['_x'], sim_z['_z'], sim_p],[x_next])
 
 
         elif self.model.model_type == 'continuous':
 
             # Define the ODE
-            xdot = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_x['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
-            alg = self.model._alg_fun(sim_x['_x'],sim_p['_u'],sim_x['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
+            xdot = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
+            alg = self.model._alg_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
 
             dae = {
-                'x': sim_x['_x'],
-                'z': sim_x['_z'],
+                'x': sim_x,
+                'z': sim_z,
                 'p': sim_p,
                 'ode': xdot,
                 'alg': alg,
@@ -215,9 +223,9 @@ class Simulator(do_mpc.model.IteratedVariables):
             # Build the simulator
             self.simulator = integrator('simulator', self.integration_tool, dae,  opts)
 
-        sim_aux = self.model._aux_expression_fun(sim_x['_x'],sim_p['_u'],sim_x['_z'],sim_p['_tvp'],sim_p['_p'])
+        sim_aux = self.model._aux_expression_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'])
         # Create function to caculate all auxiliary expressions:
-        self.sim_aux_expression_fun = Function('sim_aux_expression_fun', [sim_x, sim_p], [sim_aux])
+        self.sim_aux_expression_fun = Function('sim_aux_expression_fun', [sim_x, sim_z, sim_p], [sim_aux])
 
         self.flags['setup'] = True
 
@@ -408,9 +416,9 @@ class Simulator(do_mpc.model.IteratedVariables):
         Numerical values for ``sim_x_num`` and ``sim_p_num`` need to be provided beforehand
         in order to simulate the system for one time step:
 
-        * states ``sim_x_num['_x']``
+        * states ``sim_c_num['_x']``
 
-        * algebraic states ``sim_x_num['_z']``
+        * algebraic states ``sim_z_num['_z']``
 
         * inputs ``sim_p_num['_u']``
 
@@ -427,19 +435,23 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         # extract numerical values
         sim_x_num = self.sim_x_num
+        sim_z_num = self.sim_z_num
         sim_p_num = self.sim_p_num
 
         if self.model.model_type == 'discrete':
-            x_new = self.simulator(sim_x_num,sim_p_num)
-            z_now = self.sim_x_num['_z']
+            if self.model.n_z > 0: # Solve DAE only when it exists ...
+                r = self.discrete_dae_solver(x0 = sim_z_num, ubg = 0, lbg = 0, p=vertcat(sim_x_num,sim_p_num))
+                sim_z_num.master = r['x']
+            x_new = self.simulator(sim_x_num, sim_z_num, sim_p_num)
         elif self.model.model_type == 'continuous':
             r = self.simulator(x0 = sim_x_num['_x'], p = sim_p_num)
             x_new = r['xf']
             z_now = r['zf']
-        aux_now = self.sim_aux_expression_fun(sim_x_num, sim_p_num)
+            sim_z_num.master = z_now
 
-        self.sim_x_num = self.sim_x(vertcat(x_new,z_now))
-        self.sim_aux_num = self.model._aux_expression(aux_now)
+        aux_now = self.sim_aux_expression_fun(sim_x_num, sim_z_num, sim_p_num)
+
+        self.sim_aux_num.master = aux_now
 
         return x_new
 
@@ -492,7 +504,7 @@ class Simulator(do_mpc.model.IteratedVariables):
             assert isinstance(z0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'z0 is wrong input type. You have: {}'.format(type(z0))
             assert z0.shape == self.model._z.shape, 'z0 has incorrect shape. You have: {}, expected: {}'.format(z0.shape, self.model._z.shape)
             # Just an initial guess.
-            self.sim_x_num['_z'] = z0
+            self.sim_z_num['_z'] = z0
 
         if w0 is None:
             w0 = self.model._w(0)
@@ -517,10 +529,9 @@ class Simulator(do_mpc.model.IteratedVariables):
         self.sim_p_num['_tvp'] = tvp0
         self.sim_p_num['_w'] = w0
 
-        self.simulate()
+        x_next = self.simulate()
 
-        x_next = self.sim_x_num['_x']
-        z0 = self.sim_x_num['_z']
+        z0 = self.sim_z_num['_z']
         aux0 = self.sim_aux_num
 
         # Call measurement function

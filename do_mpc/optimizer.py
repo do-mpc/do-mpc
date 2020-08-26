@@ -577,7 +577,7 @@ class Optimizer:
         if self.state_discretization == 'discrete':
             _i = SX.sym('i', 0)
             # discrete integrator ifcs mimics the API the collocation ifcn.
-            ifcn = Function('ifcn', [_x, _i, _u, _z, _tvp, _p, _w], [[], rhs/self._x_scaling.cat])
+            ifcn = Function('ifcn', [_x, _i, _u, _z, _tvp, _p, _w], [alg, rhs/self._x_scaling.cat])
             n_total_coll_points = 0
         if self.state_discretization == 'collocation':
             ffcn = Function('ffcn', [_x, _u, _z, _tvp, _p, _w], [rhs/self._x_scaling.cat])
