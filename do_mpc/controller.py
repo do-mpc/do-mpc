@@ -163,6 +163,23 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         The attribute can be used **to manually set a custom initial guess or for debugging purposes**.
 
+        ** How to query ``opt_x_num``?**
+        
+        Querying the structure is more complicated than it seems at first look because of the scenario-tree used
+        for robust MPC. To obtain all collocation points for the finite element at time-step :math:`k` and scenario :math:`b` use:
+
+        ::
+
+            horzcat(*[mpc.opt_x_num['_x',k,b,-1]]+mpc.opt_x_num['_x',k+1,b,:-1])
+
+        Due to the multi-stage formulation at any given time :math:`k` we can have multiple future scenarios.
+        However, there is only exactly one scenario that lead to the current node in the tree.
+        Thus the collocation points associated to the finite element :math:`k` lie in the past.
+
+        The concept is illustrated in the figure below:
+
+        .. figure:: ../static/collocation_points_scenarios.svg
+
         .. note::
 
             The attribute ``opt_x_num`` carries the scaled values of all variables. See ``opt_x_num_unscaled``
