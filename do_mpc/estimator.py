@@ -1081,7 +1081,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
                                    _p, opt_x['_w', k])
 
             # Compute current measurement
-            yk_calc = self.model._meas_fun(opt_x_unscaled['_x', k+1, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1],
+            yk_calc = self.model._meas_fun(opt_x_unscaled['_x', k+1, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, 0],
                 opt_p['_tvp', k], _p, opt_x_unscaled['_v', k])
 
             # Add the collocation equations
@@ -1101,7 +1101,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
             # Add nonlinear constraints only on each control step
             nl_cons_k = self._nl_cons_fun(
-                opt_x_unscaled['_x', k, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1],
+                opt_x_unscaled['_x', k, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, 0],
                 opt_p['_tvp', k], _p, opt_x_unscaled['_eps', k])
 
             cons.append(nl_cons_k)
