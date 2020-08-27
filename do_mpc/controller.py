@@ -1083,28 +1083,26 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                     opt_aux['_aux', k, s] = self.model._aux_expression_fun(
                         opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s], opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
 
-                # Bounds for the states on all discretize values along the horizon
-                if k > 0:
-                    # Dont bound the initial state (if it happens to be )
-                    self.lb_opt_x['_x', k, s, :] = self._x_lb.cat/self._x_scaling
-                    self.ub_opt_x['_x', k, s, :] = self._x_ub.cat/self._x_scaling
 
-                # Bounds for the inputs along the horizon
-                self.lb_opt_x['_u', k, s] = self._u_lb.cat/self._u_scaling
-                self.ub_opt_x['_u', k, s] = self._u_ub.cat/self._u_scaling
+        # Dont bound the initial state
+        self.lb_opt_x['_x', 1:self.n_horizon] = self._x_lb.cat/self._x_scaling
+        self.ub_opt_x['_x', 1:self.n_horizon] = self._x_ub.cat/self._x_scaling
 
-                # Bounds for the algebraic variables:
-                self.lb_opt_x['_z', k, s, :] = self._z_lb.cat/self._z_scaling
-                self.ub_opt_x['_z', k, s, :] = self._z_ub.cat/self._z_scaling
+        # Bounds for the inputs along the horizon
+        self.lb_opt_x['_u'] = self._u_lb.cat/self._u_scaling
+        self.ub_opt_x['_u'] = self._u_ub.cat/self._u_scaling
 
-                # Bounds for the slack variables:
-                self.lb_opt_x['_eps', k, s] = self._eps_lb.cat
-                self.ub_opt_x['_eps', k, s] = self._eps_ub.cat
+        # Bounds for the algebraic variables:
+        self.lb_opt_x['_z'] = self._z_lb.cat/self._z_scaling
+        self.ub_opt_x['_z'] = self._z_ub.cat/self._z_scaling
 
-                # Bounds on the terminal state
-                if k == self.n_horizon - 1:
-                    self.lb_opt_x['_x', self.n_horizon, child_scenario[k][s][b], -1] = self._x_terminal_lb.cat/self._x_scaling
-                    self.ub_opt_x['_x', self.n_horizon, child_scenario[k][s][b], -1] = self._x_terminal_ub.cat/self._x_scaling
+        # Bounds for the slack variables:
+        self.lb_opt_x['_eps'] = self._eps_lb.cat
+        self.ub_opt_x['_eps'] = self._eps_ub.cat
+
+        # Terminal bounds
+        self.lb_opt_x['_x', self.n_horizon, :, -1] = self._x_terminal_lb.cat/self._x_scaling
+        self.ub_opt_x['_x', self.n_horizon, :, -1] = self._x_terminal_ub.cat/self._x_scaling
 
         cons = vertcat(*cons)
         self.cons_lb = vertcat(*cons_lb)
