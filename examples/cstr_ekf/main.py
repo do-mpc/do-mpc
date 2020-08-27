@@ -39,7 +39,7 @@ from template_simulator import template_simulator
 from template_ekf import template_ekf
 
 """ User settings: """
-output_feedback = False     # Do not use the estimator in the MPC loop (only use EKF data for comparison)
+output_feedback = True     # Do not use the estimator in the MPC loop (only use EKF data for comparison)
 show_animation  = True      # Display live animation at runtime
 store_results   = False     # Do not store pickled results (if True, creates a new result folder and stores each run under different name)
 

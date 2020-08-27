@@ -39,7 +39,7 @@ def template_mpc(model):
 
     setup_mpc = {
         'n_horizon': 20,
-        'n_robust': 1,
+        'n_robust': 0,
         'open_loop': 0,
         't_step': 50.0/3600.0,
         'state_discretization': 'collocation',
@@ -71,7 +71,7 @@ def template_mpc(model):
     mpc.bounds['lower','_x','Tout_AWT'] = 288.0
     mpc.bounds['lower','_x','accum_monom'] = 0.0
 
-    mpc.bounds['upper','_x','T_R'] = 363.15 + temp_range + 10.0
+    mpc.bounds['upper','_x','T_R'] = 363.15 + temp_range
     mpc.bounds['upper','_x','T_S'] = 400.0
     mpc.bounds['upper','_x','Tout_M'] = 400.0
     mpc.bounds['upper','_x','T_EK'] = 400.0
@@ -99,6 +99,13 @@ def template_mpc(model):
     delH_R_var = np.array([950.0, 950.0 * 1.30, 950.0 * 0.70])
     k_0_var = np.array([7.0*1.00, 7.0*1.30, 7.0*0.70])
     mpc.set_uncertainty_values([delH_R_var, k_0_var])
+    
+    # Instead of having a regular bound on T_adiab:
+    #mpc.bounds['upper', '_x', 'T_adiab'] = 382.15
+    # We can also have soft consraints as part of the set_nl_cons method:
+    mpc.set_nl_cons('T_adiab', _x['T_adiab'], ub=381.0, soft_constraint=True, penalty_term_cons=1e4)
+
+
 
     mpc.setup()
 

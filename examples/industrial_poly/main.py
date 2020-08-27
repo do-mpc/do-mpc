@@ -83,17 +83,27 @@ fig, ax = plt.subplots(5, sharex=True)
 plt.ion()
 # Configure plot:
 graphics.add_line(var_type='_x', var_name='T_R', axis=ax[0])
-graphics.add_line(var_type='_x', var_name='accum_monom', axis=ax[1])
-graphics.add_line(var_type='_u', var_name='m_dot_f', axis=ax[2])
-graphics.add_line(var_type='_u', var_name='T_in_M', axis=ax[3])
+graphics.add_line(var_type='_x', var_name='T_adiab', axis=ax[1])
+graphics.add_line(var_type='_x', var_name='accum_monom', axis=ax[2])
+graphics.add_line(var_type='_u', var_name='m_dot_f', axis=ax[3])
+graphics.add_line(var_type='_u', var_name='T_in_M', axis=ax[4])
 graphics.add_line(var_type='_u', var_name='T_in_EK', axis=ax[4])
 
-ax[0].set_ylabel('T_R [K]')
-ax[1].set_ylabel('acc. monom')
-ax[2].set_ylabel('m_dot_f')
-ax[3].set_ylabel('T_in_M [K]')
-ax[4].set_ylabel('T_in_EK [K]')
-ax[4].set_xlabel('time')
+ax[0].set_ylabel('$T_R$ [K]')
+ax[1].set_ylabel('$T_{adiab}$ [K]')
+ax[2].set_ylabel('acc. monom')
+ax[3].set_ylabel('m_dot_f')
+ax[4].set_ylabel('$T^{in}_M, T^{in}_{EK} $ [K]')
+ax[4].set_xlabel('Time [h]')
+
+# Draw the constraints (disable if not implemented)
+ax[0].plot([0,1.80],[361.15, 361.15], color='red', linestyle='-.')  # lower constraint = 88 °C
+ax[0].plot([0,1.80],[365.15, 365.15], color='red', linestyle='-.')  # lower constraint = 92 °C
+# The nexst line represents the soft constraint
+ax[1].plot([0,1.80],[381.15,381.15], color='orange', linestyle='-.')  # sfctr = 108 °C
+# And finally also control value limitations
+ax[4].plot([0,1.80],[333.15, 333.15], color='red', linestyle='-.')     # lower = 60 °C
+ax[4].plot([0,1.80],[373.15, 373.15], color='red', linestyle='-.')   # upper = 100 °C
 
 fig.align_ylabels()
 plt.ion()

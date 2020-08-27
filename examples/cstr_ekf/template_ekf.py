@@ -72,7 +72,7 @@ def template_ekf(model):
         'type': "continuous_discrete",
         'estimate_params': True,
         'output_func':'linear', 
-        'noise_level':0.1
+        'noise_level':0.01
         #'output_func':'nonlinear',
         #'H_func': h
     }

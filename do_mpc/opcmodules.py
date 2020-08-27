@@ -45,7 +45,6 @@ class Server:
     def __init__(self, opts):
         self.dtype = 'default'
         model = opts['_model']
-        #TODO: signal to the user that the server structure is initialized without the observer
        
         # The basic OPCUA server definition contains a name, address and a port numer
         # The user can decide if they want to activate the SQL database option (_with_db=TRUE)
@@ -59,15 +58,24 @@ class Server:
         # _server_type = 'with_estimator'  --> if an MHE or EKF are implemented, the estimated states are stored
         # _server_Type = 'with_monitoring'  --> the server also stores additional KPIs for monitoring
         self.server_type = opts['_server_type']
+        if self.server_type == 'basic': print ("Server setup #1: You have opted for the basic data server!")
+        elif self.server_type == 'with_estimator': print ("Server setup #1: You have opted for the data server with state and parameter estimates!")
+        else: print("Server setup #1: You have opted for the full available data structure!")
         
         # If True, all parameters will be stored on the server
         self.store_params = opts['_store_params']
+        if self.store_params: print("Server setup #2: The model parameters will be stored on the server.")
+        else: print("Server setup #2: Parameters will not be stored on the server!") 
         
         # If True, the predictions of the optimizer are also stored 
         self.store_predictions = opts['_store_predictions']
-        
-        # TODO:fix number predictions
-        #self._aux = np.empty((0, model.n_aux))
+        if self.store_predictions : 
+            print("Server setup #3: The OPCUA server will have the predictions available at runtime.")
+            n_steps_pred = opts['_n_steps_pred']
+        else: 
+            print ("Server setup #3: The OPCUA server will not have the predictions available at runtime.")
+            n_steps_pred = 0
+
         # Dictionary with possible data_fields in the class and their respective dimension. All data is numpy ndarray.
         self.data_structure = {
             'nr_x_states': model.n_x,
@@ -78,18 +86,19 @@ class Server:
             'nr_tv_pars' : model.n_tvp,
             'nr_mod_pars': model.n_p,
             'nr_aux'     : model.n_aux,
-            'nr_pred'    : model.n_x * 20,
+            'nr_x_pred'  : model.n_x * n_steps_pred ,
+            'nr_u_pred'  : model.n_u * n_steps_pred ,
             'nr_flags'   : 5,
-            'nr_switches': 4
+            'nr_switches': 5
         }
         """ 
         The user defined server namespace to be implemented on the OPCUA server. Contains pairs of the form (elementary MPC variable - readable user name) 
         """
         self.namespace = {
-            'PlantData':{'x':"States.X",'z':"States.Z",'u':"Inputs",'y':"Measurements",'p':"Parameters"},
-            'ControllerData':{'x0':"InitialGuess",'u_opt':"OptimalOutputs"},
-            'EstimatorData':{'xhat':"Estimates.X",'phat':"Estimates.P"},
-            'UserData':{'flags':"Flags",'switches':"Switches"}
+            'PlantData'      :{'x':"States.X",'z':"States.Z",'u':"Inputs",'y':"Measurements",'p':"Parameters"},
+            'ControllerData' :{'x_init':"InitialState",'u_opt':"OptimalOutputs",'x_pred': "PredictedStates", 'u_pred': "PredictedOutputs"},
+            'EstimatorData'  :{'xhat':"Estimates.X",'zhat':"Estimates.Z",'phat':"Estimates.P"},
+            'SupervisionData':{'flags':"Flags",'switches':"Switches"}
             }
         try:
             self.opcua_server = opcua.Server()
@@ -131,7 +140,7 @@ class Server:
         localvar = objects.add_object(opcua.ua.NodeId("ControllerData", idx), "ControllerData")
         
         placeholder = [0 for x in range(self.data_structure['nr_x_states'])] if self.data_structure['nr_x_states']>0 else [0]
-        datavector = localvar.add_variable(opcua.ua.NodeId("InitialGuess", idx), "InitialGuess", placeholder)
+        datavector = localvar.add_variable(opcua.ua.NodeId("InitialState", idx), "InitialState", placeholder)
         datavector.set_writable()
         placeholder = [0 for x in range(self.data_structure['nr_inputs'])] if self.data_structure['nr_inputs']>0 else [0]
         datavector = localvar.add_variable(opcua.ua.NodeId("OptimalOutputs", idx), "OptimalOutputs", placeholder)

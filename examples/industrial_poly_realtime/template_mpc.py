@@ -37,14 +37,14 @@ def template_mpc(model, opc_opts):
     """
     # The controller is typically run less often than the simulator/estimator
     opc_opts['_opc_opts']['_client_type'] = "controller"
-    opc_opts['_opc_opts']['_output_feedback'] = True
+    opc_opts['_opc_opts']['_output_feedback'] = False
     opc_opts['_cycle_time'] = 10.0
 
     controller = RealtimeController(model,opc_opts)
 
     setup_mpc = {
         'n_horizon': 20,
-        'n_robust': 1,
+        'n_robust': 0,
         'open_loop': 0,
         't_step': 10.0/3600.0,
         'state_discretization': 'collocation',
@@ -69,7 +69,7 @@ def template_mpc(model, opc_opts):
     controller.bounds['lower','_x','m_A'] = 0.0
     controller.bounds['lower','_x','m_P'] = 26.0
 
-    controller.bounds['lower','_x','T_R'] = 363.15 - temp_range
+    controller.bounds['lower','_x','T_R'] = 363.15 - temp_range 
     controller.bounds['lower','_x','T_S'] = 298.0
     controller.bounds['lower','_x','Tout_M'] = 298.0
     controller.bounds['lower','_x','T_EK'] = 288.0
@@ -104,6 +104,14 @@ def template_mpc(model, opc_opts):
     delH_R_var = np.array([950.0, 950.0 * 1.30, 950.0 * 0.70])
     k_0_var = np.array([7.0*1.00, 7.0*1.30, 7.0*0.70])
     controller.set_uncertainty_values([delH_R_var, k_0_var])
+
+    # Instead of having a regular bound on T_adiab:
+    #controller.bounds['upper', '_x', 'T_adiab'] = 382.15
+    # We can also have soft consraints as part of the set_nl_cons method:
+    #controller.set_nl_cons('T_adiab', _x['T_adiab'], ub=381.0, soft_constraint=True, penalty_term_cons=1e4)
+
+
+
 
     controller.setup()
 

@@ -46,9 +46,9 @@ from opcmodules import RealtimeTrigger
 """
 User settings
 """
-store_data   = False
-plot_results = True
-
+store_data     = False
+plot_results   = True
+plot_animation = True
 
 model = template_model()
 
@@ -70,7 +70,7 @@ user = Client(opc_opts['_opc_opts'])
 user.connect()
 # Start all modules if the manual mode is enabled and avoid delays
 if opc_opts['_user_controlled']: 
-    user.updateSwitches(pos = -1, switchVal=[1,1,1])
+    user.updateSwitches(pos = -1, switchVal=[1,1,1,0,0])
 
 # Set the initial state of mpc and simulator:
 x0 = model._x(0)
@@ -93,9 +93,11 @@ x0['T_adiab'] = x0['m_A']*delH_R_real/((x0['m_W'] + x0['m_A'] + x0['m_P']) * c_p
 # Step 1: initilize the simulator part
 rt_simulator.set_initial_state(x0, reset_history=True)
 rt_simulator.init_server(x0.cat.toarray().tolist())
+
 # Step 2: initialize the estimator part (if present)
 rt_estimator.init_server(x0.cat.toarray().tolist())
 rt_estimator.set_initial_state(x0, reset_history=True)
+
 # Step 3: only now can the optimizer be initialized, and a first optimization can be executed
 time.sleep((rt_simulator.cycle_time+rt_estimator.cycle_time)/2)
 rt_controller.set_initial_state(x0, reset_history=True)
@@ -111,6 +113,40 @@ trigger_estimator  = RealtimeTrigger(rt_estimator.cycle_time , rt_estimator.asyn
 
 trigger_controller = RealtimeTrigger(rt_controller.cycle_time, rt_controller.asynchronous_step)
 
+"""
+Initialize graphics
+"""
+graphics = do_mpc.graphics.Graphics(rt_controller.data)
+
+
+fig, ax = plt.subplots(5, sharex=True)
+plt.ion()
+# Configure plot:
+graphics.add_line(var_type='_x', var_name='T_R', axis=ax[0])
+graphics.add_line(var_type='_x', var_name='T_adiab', axis=ax[1])
+graphics.add_line(var_type='_x', var_name='accum_monom', axis=ax[2])
+graphics.add_line(var_type='_u', var_name='m_dot_f', axis=ax[3])
+graphics.add_line(var_type='_u', var_name='T_in_M', axis=ax[4])
+graphics.add_line(var_type='_u', var_name='T_in_EK', axis=ax[4])
+
+ax[0].set_ylabel('$T_R$ [K]')
+ax[1].set_ylabel('$T_{adiab}$ [K]')
+ax[2].set_ylabel('acc. monom')
+ax[3].set_ylabel('m_dot_f')
+ax[4].set_ylabel('$T^{in}_M, T^{in}_{EK} $ [K]')
+ax[4].set_xlabel('Time [h]')
+
+# Draw the constraints (disable if not implemented)
+ax[0].plot([0,1.80],[361.15, 361.15], color='red', linestyle='-.')  # lower constraint = 88 °C
+ax[0].plot([0,1.80],[365.15, 365.15], color='red', linestyle='-.')  # lower constraint = 92 °C
+# The nexst line represents the soft constraint
+ax[1].plot([0,1.80],[381.15,381.15], color='orange', linestyle='-.')  # sfctr = 108 °C
+# And finally also control value limitations
+ax[4].plot([0,1.80],[333.15, 333.15], color='red', linestyle='-.')     # lower = 60 °C
+ax[4].plot([0,1.80],[373.15, 373.15], color='red', linestyle='-.')   # upper = 100 °C
+
+fig.align_ylabels()
+plt.ion()
 """
 The real-time do-mpc will keep running until you manually stop it via the flags (use an OPCUA Client to set the flags).
 Alternatively, use the routine below to check when the maximum nr of iterations is reached and stop the real-time modules.
@@ -138,6 +174,12 @@ while rt_controller.iter_count < max_iter and manual_stop == False:
         user.updateSwitches(pos = -1, switchVal=[0,0,0])
         manual_stop = True
     
+    if plot_animation:
+        graphics.plot_results()
+        graphics.plot_predictions()
+        graphics.reset_axes()
+        plt.show()
+        
     # The main thread sleeps for 10 seconds and repeats
     time.sleep(10)
 
