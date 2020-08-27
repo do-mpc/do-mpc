@@ -27,7 +27,6 @@ import pdb
 import sys
 sys.path.append('../../')
 import do_mpc
-from scipy import constants
 
 
 def template_model(obstacles):
@@ -53,14 +52,16 @@ def template_model(obstacles):
     m1 = model.set_variable('_p', 'm1')
     m2 = model.set_variable('_p', 'm2')
 
+    g = 9.80665 # m/s^2, gravity
+
     h1 = m0 + m1 + m2
     h2 = m1*l1 + m2*L1
     h3 = m2*l2
     h4 = m1*l1**2 + m2*L1**2 + J1
     h5 = m2*l2*L1
     h6 = m2*l2**2 + J2
-    h7 = (m1*l1 + m2*L1) * constants.g
-    h8 = m2*l2*constants.g
+    h7 = (m1*l1 + m2*L1) * g
+    h8 = m2*l2*g
 
     # Setpoint x:
     pos_set = model.set_variable('_tvp', 'pos_set')
@@ -111,8 +112,8 @@ def template_model(obstacles):
 
     E_kin = E_kin_cart + E_kin_p1 + E_kin_p2
 
-    E_pot = m1 * constants.g * l1 * cos(
-    theta[0]) + m2 * constants.g * (L1 * cos(theta[0]) +
+    E_pot = m1 * g * l1 * cos(
+    theta[0]) + m2 * g * (L1 * cos(theta[0]) +
                                 l2 * cos(theta[1]))
 
     model.set_expression('E_kin', E_kin)
