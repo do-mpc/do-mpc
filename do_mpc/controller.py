@@ -1093,6 +1093,10 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                 self.lb_opt_x['_u', k, s] = self._u_lb.cat/self._u_scaling
                 self.ub_opt_x['_u', k, s] = self._u_ub.cat/self._u_scaling
 
+                # Bounds for the algebraic variables:
+                self.lb_opt_x['_z', k, s, :] = self._z_lb.cat/self._z_scaling
+                self.ub_opt_x['_z', k, s, :] = self._z_ub.cat/self._z_scaling
+
                 # Bounds for the slack variables:
                 self.lb_opt_x['_eps', k, s] = self._eps_lb.cat
                 self.ub_opt_x['_eps', k, s] = self._eps_ub.cat

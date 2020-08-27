@@ -1139,17 +1139,22 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             opt_aux['_aux', k] = self.model._aux_expression_fun(
                 opt_x_unscaled['_x', k, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1], opt_p['_tvp', k], _p)
 
-            # Bounds for the states on all discretize values along the horizon
-            self.lb_opt_x['_x', k] = self._x_lb.cat/self._x_scaling
-            self.ub_opt_x['_x', k] = self._x_ub.cat/self._x_scaling
 
-            # Bounds for the inputs along the horizon
-            self.lb_opt_x['_u', k] = self._u_lb.cat/self._u_scaling
-            self.ub_opt_x['_u', k] = self._u_ub.cat/self._u_scaling
+        # Bounds for the states on all discretize values along the horizon
+        self.lb_opt_x['_x'] = self._x_lb.cat/self._x_scaling
+        self.ub_opt_x['_x'] = self._x_ub.cat/self._x_scaling
 
-            # Bounds for the slack variables along the horizon:
-            self.lb_opt_x['_eps', k] = self._eps_lb.cat
-            self.ub_opt_x['_eps', k] = self._eps_ub.cat
+        # Bounds for the inputs along the horizon
+        self.lb_opt_x['_u'] = self._u_lb.cat/self._u_scaling
+        self.ub_opt_x['_u'] = self._u_ub.cat/self._u_scaling
+
+        # Bounds for the algebraic states along the horizon
+        self.lb_opt_x['_z'] = self._z_lb.cat/self._z_scaling
+        self.ub_opt_x['_z'] = self._z_ub.cat/self._z_scaling
+
+        # Bounds for the slack variables along the horizon:
+        self.lb_opt_x['_eps'] = self._eps_lb.cat
+        self.ub_opt_x['_eps'] = self._eps_ub.cat
 
         # Bounds for the inputs along the horizon
         self.lb_opt_x['_p_est'] = self._p_est_lb.cat/self._p_est_scaling
