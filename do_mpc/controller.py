@@ -106,6 +106,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             'collocation_type',
             'collocation_deg',
             'collocation_ni',
+            'nl_cons_check_colloc_points',
             'store_full_solution',
             'store_lagr_multiplier',
             'store_solver_stats',
@@ -120,6 +121,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         self.collocation_type = 'radau'
         self.collocation_deg = 2
         self.collocation_ni = 1
+        self.nl_cons_check_colloc_points = False
         self.store_full_solution = False
         self.store_lagr_multiplier = True
         self.store_solver_stats = [
@@ -379,8 +381,11 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         :param collocation_deg: Choose the collocation degree for continuous models with collocation as state discretization. Defaults to ``2``.
         :type collocation_deg: int
 
-        :param collocation_ni: For orthogonal collocation, choose the number of finite elements for the states within a time-step (and during constant control input). Defaults to ``1``. Can be used to avoid high-order polynomials.
+        :param collocation_ni: For orthogonal collocation choose the number of finite elements for the states within a time-step (and during constant control input). Defaults to ``1``. Can be used to avoid high-order polynomials.
         :type collocation_ni: int
+
+        :param nl_cons_check_colloc_points: For orthogonal collocation choose wether the bounds set with :py:func:`set_nl_cons` are evaluated once per finite Element or for each collocation point. Defaults to once per collocation point (``False``).
+        :type nl_cons_check_colloc_points: bool
 
         :param store_full_solution: Choose whether to store the full solution of the optimization problem. This is required for animating the predictions in post processing. However, it drastically increases the required storage. Defaults to False.
         :type store_full_solution: bool
@@ -1037,13 +1042,23 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                     cons_lb.append(np.zeros((self.model.n_x, 1)))
                     cons_ub.append(np.zeros((self.model.n_x, 1)))
 
-                    # Add nonlinear constraints only on each control step
-                    nl_cons_k = self._nl_cons_fun(
-                        opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s], opt_x_unscaled['_z', k, s, 0],
-                        opt_p['_tvp', k], opt_p['_p', current_scenario], opt_x_unscaled['_eps', k, s])
-                    cons.append(nl_cons_k)
-                    cons_lb.append(self._nl_cons_lb)
-                    cons_ub.append(self._nl_cons_ub)
+                    if self.nl_cons_check_colloc_points:
+                        # Ensure nonlinear constraints on all collocation points
+                        for i in range(n_total_coll_points):
+                            nl_cons_k = self._nl_cons_fun(
+                                opt_x_unscaled['_x', k, s, i], opt_x_unscaled['_u', k, s], opt_x_unscaled['_z', k, s, i],
+                                opt_p['_tvp', k], opt_p['_p', current_scenario], opt_x_unscaled['_eps', k, s])
+                            cons.append(nl_cons_k)
+                            cons_lb.append(self._nl_cons_lb)
+                            cons_ub.append(self._nl_cons_ub)
+                    else:
+                        # Ensure nonlinear constraints only on the beginning of the FE
+                        nl_cons_k = self._nl_cons_fun(
+                            opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s], opt_x_unscaled['_z', k, s, 0],
+                            opt_p['_tvp', k], opt_p['_p', current_scenario], opt_x_unscaled['_eps', k, s])
+                        cons.append(nl_cons_k)
+                        cons_lb.append(self._nl_cons_lb)
+                        cons_ub.append(self._nl_cons_ub)
 
                     # Add terminal constraints
                     # TODO: Add terminal constraints with an additional nl_cons
