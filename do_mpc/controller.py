@@ -29,6 +29,7 @@ import time
 
 import do_mpc.data
 import do_mpc.optimizer
+from do_mpc.tools.indexedproperty import IndexedProperty
 
 class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     """Model predictive controller.
@@ -100,6 +101,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             'n_robust',
             'open_loop',
             't_step',
+            'use_terminal_bounds',
             'state_discretization',
             'collocation_type',
             'collocation_deg',
@@ -110,13 +112,14 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             'nlpsol_opts'
         ]
 
-        # Default Parameters:
+        # Default Parameters (param. details in set_param method):
         self.n_robust = 0
+        self.open_loop = False
+        self.use_terminal_bounds = True
         self.state_discretization = 'collocation'
         self.collocation_type = 'radau'
         self.collocation_deg = 2
         self.collocation_ni = 1
-        self.open_loop = False
         self.store_full_solution = False
         self.store_lagr_multiplier = True
         self.store_solver_stats = [
@@ -164,7 +167,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         The attribute can be used **to manually set a custom initial guess or for debugging purposes**.
 
         ** How to query ``opt_x_num``?**
-        
+
         Querying the structure is more complicated than it seems at first look because of the scenario-tree used
         for robust MPC. To obtain all collocation points for the finite element at time-step :math:`k` and scenario :math:`b` use:
 
@@ -249,6 +252,86 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     def opt_p_num(self, val):
         self._opt_p_num = val
 
+    @IndexedProperty
+    def terminal_bounds(self, ind):
+        """Query and set the terminal bounds for the states.
+        The :py:func:`terminal_bounds` method is an indexed property, meaning
+        getting and setting this property requires an index and calls this function.
+        The power index (elements are seperated by comas) must contain atleast the following elements:
+
+        ======      =================   ==========================================================
+        order       index name          valid options
+        ======      =================   ==========================================================
+        1           bound type          ``lower`` and ``upper``
+        2           variable name       Names defined in :py:class:`do_mpc.model.Model`.
+        ======      =================   ==========================================================
+
+        Further indices are possible (but not neccessary) when the referenced variable is a vector or matrix.
+
+        **Example**:
+
+        ::
+
+            # Set with:
+            optimizer.terminal_bounds['lower', 'phi_1'] = -2*np.pi
+            optimizer.terminal_bounds['upper', 'phi_1'] = 2*np.pi
+
+            # Query with:
+            optimizer.terminal_bounds['lower', 'phi_1']
+
+        """
+        assert isinstance(ind, tuple), 'Power index must include bound_type, var_name (as a tuple).'
+        assert len(ind)>=2, 'Power index must include bound_type, var_type, var_name (as a tuple).'
+        bound_type = ind[0]
+        var_name   = ind[1:]
+
+        err_msg = 'Invalid power index {} for bound_type. Must be from (lower, upper).'
+        assert bound_type in ('lower', 'upper'), err_msg.format(bound_type)
+
+        if bound_type == 'lower':
+            query = '{var_type}_{bound_type}'.format(var_type=var_type, bound_type='lb')
+        elif bound_type == 'upper':
+            query = '{var_type}_{bound_type}'.format(var_type=var_type, bound_type='ub')
+        # query results string e.g. _x_lb, _x_ub, _u_lb, u_ub ....
+
+        # Get the desired struct:
+        var_struct = getattr(self, query)
+
+        err_msg = 'Calling .bounds with {} is not valid. Possible keys are {}.'
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
+
+        return var_struct[var_name]
+
+    @terminal_bounds.setter
+    def terminal_bounds(self, ind, val):
+        """See Docstring for bounds getter method"""
+
+        assert isinstance(ind, tuple), 'Power index must include bound_type, var_type, var_name (as a tuple).'
+        assert len(ind)>=3, 'Power index must include bound_type, var_type, var_name (as a tuple).'
+        bound_type = ind[0]
+        var_type   = ind[1]
+        var_name   = ind[2:]
+
+        err_msg = 'Invalid power index {} for bound_type. Must be from (lower, upper).'
+        assert bound_type in ('lower', 'upper'), err_msg.format(bound_type)
+        err_msg = 'Invalid power index {} for var_type. Must be from (_x, _u, _z, _p_est).'
+        assert var_type in ('_x', '_u', '_z', '_p_est'), err_msg.format(var_type)
+
+        if bound_type == 'lower':
+            query = '_x_terminal_lb'
+        elif bound_type == 'upper':
+            query = '_x_terminal_ub'
+
+        # Get the desired struct:
+        var_struct = getattr(self, query)
+
+        err_msg = 'Calling .bounds with {} is not valid. Possible keys are {}.'
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
+
+        # Set value on struct:
+        var_struct[var_name] = val
+
+
 
     def set_param(self, **kwargs):
         """Set the parameters of the :py:class:`MPC` class. Parameters must be passed as pairs of valid keywords and respective argument.
@@ -283,6 +366,9 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         :param t_step: Timestep of the mpc.
         :type t_step: float
+
+        :param use_terminal_bounds: Choose if terminal bounds for the states are used. Defaults to ``True``. Set terminal bounds with :py:attr:`terminal_bounds`.
+        :type use_terminal_bounds: bool
 
         :param state_discretization: Choose the state discretization for continuous models. Currently only ``'collocation'`` is available. Defaults to ``'collocation'``.
         :type state_discretization: str
@@ -688,6 +774,12 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             if np.any(bound_check):
                 raise Exception('Your bounds are inconsistent. For {} you have lower bound > upper bound.'.format(bound_fail))
 
+        # Are terminal bounds for the states set? If not use default values (unless MPC is setup to not use terminal bounds)
+        if np.all(self._x_terminal_ub.cat == np.inf) and self.use_terminal_bounds:
+            self._x_terminal_ub = self._x_ub
+        if np.all(self._x_terminal_lb.cat == -np.inf) and self.use_terminal_bounds:
+            self._x_terminal_lb = self._x_lb
+
         # Set dummy functions for tvp and p in case these parameters are unused.
         if 'tvp_fun' not in self.__dict__:
             _tvp = self.get_tvp_template()
@@ -992,8 +1084,8 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
                 # Bounds on the terminal state
                 if k == self.n_horizon - 1:
-                    self.lb_opt_x['_x', self.n_horizon, child_scenario[k][s][b], -1] = self._x_lb.cat/self._x_scaling
-                    self.ub_opt_x['_x', self.n_horizon, child_scenario[k][s][b], -1] = self._x_ub.cat/self._x_scaling
+                    self.lb_opt_x['_x', self.n_horizon, child_scenario[k][s][b], -1] = self._x_terminal_lb.cat/self._x_scaling
+                    self.ub_opt_x['_x', self.n_horizon, child_scenario[k][s][b], -1] = self._x_terminal_ub.cat/self._x_scaling
 
         cons = vertcat(*cons)
         self.cons_lb = vertcat(*cons_lb)
