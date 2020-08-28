@@ -187,6 +187,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             'collocation_deg',
             'collocation_ni',
             'nl_cons_check_colloc_points',
+            'cons_check_colloc_points',
             'store_full_solution',
             'store_lagr_multiplier',
             'store_solver_stats',
@@ -200,6 +201,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self.collocation_deg = 2
         self.collocation_ni = 1
         self.nl_cons_check_colloc_points = False
+        self.cons_check_colloc_points = True
         self.store_full_solution = False
         self.store_lagr_multiplier = True
         self.store_solver_stats = [
@@ -420,6 +422,12 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             }
             mhe.set_param(**setup_mhe)
 
+        This makes use of thy python "unpack" operator. See `more details here`_.
+
+        .. _`more details here`: https://codeyarns.github.io/tech/2012-04-25-unpack-operator-in-python.html
+
+        .. note:: The only required parameters  are ``n_horizon`` and ``t_step``. All other parameters are optional.
+
         .. note:: :py:func:`set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
 
         The following parameters are available:
@@ -445,8 +453,11 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         :param collocation_ni: For orthogonal collocation, choose the number of finite elements for the states within a time-step (and during constant control input). Defaults to ``1``. Can be used to avoid high-order polynomials.
         :type collocation_ni: int
 
-        :param nl_cons_check_colloc_points: For orthogonal collocation choose wether the bounds set with :py:func:`set_nl_cons` are evaluated once per finite Element or for each collocation point. Defaults to once per collocation point (``False``).
+        :param nl_cons_check_colloc_points: For orthogonal collocation choose wether the bounds set with :py:func:`set_nl_cons` are evaluated once per finite Element or for each collocation point. Defaults to ``False`` (once per collocation point).
         :type nl_cons_check_colloc_points: bool
+
+        :param cons_check_colloc_points: For orthogonal collocation choose whether the linear bounds set with :py:attr:`bounds` are evaluated once per finite Element or for each collocation point. Defaults to ``True`` (for all collocation points).
+        :type cons_check_colloc_points: bool
 
         :param store_full_solution: Choose whether to store the full solution of the optimization problem. This is required for animating the predictions in post processing. However, it drastically increases the required storage. Defaults to False.
         :type store_full_solution: bool
@@ -1140,17 +1151,26 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
                 opt_x_unscaled['_x', k, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1], opt_p['_tvp', k], _p)
 
 
-        # Bounds for the states on all discretize values along the horizon
-        self.lb_opt_x['_x'] = self._x_lb.cat/self._x_scaling
-        self.ub_opt_x['_x'] = self._x_ub.cat/self._x_scaling
+        if self.cons_check_colloc_points:   # Constraints for all collocation points.
+            # Bounds for the states on all discretize values along the horizon
+            self.lb_opt_x['_x'] = self._x_lb.cat/self._x_scaling
+            self.ub_opt_x['_x'] = self._x_ub.cat/self._x_scaling
+
+            # Bounds for the algebraic states along the horizon
+            self.lb_opt_x['_z'] = self._z_lb.cat/self._z_scaling
+            self.ub_opt_x['_z'] = self._z_ub.cat/self._z_scaling
+        else:   # Constraints only at the beginning of the finite Element
+            # Bounds for the states on all discretize values along the horizon
+            self.lb_opt_x['_x', 1:self.n_horizon, -1] = self._x_lb.cat/self._x_scaling
+            self.ub_opt_x['_x', 1:self.n_horizon, -1] = self._x_ub.cat/self._x_scaling
+
+            # Bounds for the algebraic states along the horizon
+            self.lb_opt_x['_z', :, 0] = self._z_lb.cat/self._z_scaling
+            self.ub_opt_x['_z', :, 0] = self._z_ub.cat/self._z_scaling
 
         # Bounds for the inputs along the horizon
         self.lb_opt_x['_u'] = self._u_lb.cat/self._u_scaling
         self.ub_opt_x['_u'] = self._u_ub.cat/self._u_scaling
-
-        # Bounds for the algebraic states along the horizon
-        self.lb_opt_x['_z'] = self._z_lb.cat/self._z_scaling
-        self.ub_opt_x['_z'] = self._z_ub.cat/self._z_scaling
 
         # Bounds for the slack variables along the horizon:
         self.lb_opt_x['_eps'] = self._eps_lb.cat
@@ -1159,11 +1179,6 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         # Bounds for the inputs along the horizon
         self.lb_opt_x['_p_est'] = self._p_est_lb.cat/self._p_est_scaling
         self.ub_opt_x['_p_est'] = self._p_est_ub.cat/self._p_est_scaling
-
-        # Bounds for the states at final time:
-        self.lb_opt_x['_x', self.n_horizon] = self._x_lb.cat/self._x_scaling
-        self.ub_opt_x['_x', self.n_horizon] = self._x_ub.cat/self._x_scaling
-
 
         cons = vertcat(*cons)
         self.cons_lb = vertcat(*cons_lb)
