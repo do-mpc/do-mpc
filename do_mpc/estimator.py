@@ -51,28 +51,6 @@ class Estimator(do_mpc.model.IteratedVariables):
         self.data.dtype = 'Estimator'
 
 
-    def set_initial_state(self, x0, reset_history=False):
-        """Set the intial state of the estimator.
-        Optionally resets the history. The history is empty upon creation of the estimator.
-        This method is overwritten for the :py:class:`MHE` from :py:class:`do_mpc.optimizer.Optimizer`.
-
-        .. warning::
-            This method is depreciated. Use the `x0` property of the class to set the intial state instead.
-
-        :param x0: Initial state
-        :type x0: numpy array
-        :param reset_history: Resets the history of the estimator, defaults to False
-        :type reset_history: bool (,optional)
-
-        :return: None
-        :rtype: None
-        """
-        warnings.warn('This method is depreciated. Please use x0 property to set the initial state. This will become an error in a future release', DeprecationWarning)
-        self.x0 = x0
-
-        if reset_history:
-            self.reset_history()
-
     def reset_history(self):
         """Reset the history of the estimator
         """
@@ -186,6 +164,8 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             'collocation_type',
             'collocation_deg',
             'collocation_ni',
+            'nl_cons_check_colloc_points',
+            'cons_check_colloc_points',
             'store_full_solution',
             'store_lagr_multiplier',
             'store_solver_stats',
@@ -198,6 +178,8 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self.collocation_type = 'radau'
         self.collocation_deg = 2
         self.collocation_ni = 1
+        self.nl_cons_check_colloc_points = False
+        self.cons_check_colloc_points = True
         self.store_full_solution = False
         self.store_lagr_multiplier = True
         self.store_solver_stats = [
@@ -418,6 +400,12 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             }
             mhe.set_param(**setup_mhe)
 
+        This makes use of thy python "unpack" operator. See `more details here`_.
+
+        .. _`more details here`: https://codeyarns.github.io/tech/2012-04-25-unpack-operator-in-python.html
+
+        .. note:: The only required parameters  are ``n_horizon`` and ``t_step``. All other parameters are optional.
+
         .. note:: :py:func:`set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
 
         The following parameters are available:
@@ -442,6 +430,12 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         :param collocation_ni: For orthogonal collocation, choose the number of finite elements for the states within a time-step (and during constant control input). Defaults to ``1``. Can be used to avoid high-order polynomials.
         :type collocation_ni: int
+
+        :param nl_cons_check_colloc_points: For orthogonal collocation choose wether the bounds set with :py:func:`set_nl_cons` are evaluated once per finite Element or for each collocation point. Defaults to ``False`` (once per collocation point).
+        :type nl_cons_check_colloc_points: bool
+
+        :param cons_check_colloc_points: For orthogonal collocation choose whether the linear bounds set with :py:attr:`bounds` are evaluated once per finite Element or for each collocation point. Defaults to ``True`` (for all collocation points).
+        :type cons_check_colloc_points: bool
 
         :param store_full_solution: Choose whether to store the full solution of the optimization problem. This is required for animating the predictions in post processing. However, it drastically increases the required storage. Defaults to False.
         :type store_full_solution: bool
@@ -575,7 +569,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         self.flags['set_objective'] = True
 
-    def set_default_objective(self, P_x, P_v=None, P_p=None, P_w=None, P_y=None):
+    def set_default_objective(self, P_x, P_v=None, P_p=None, P_w=None):
         """ Configure the suggested default MHE formulation.
 
         Use this method to pass tuning matrices for the MHE optimization problem:
@@ -645,8 +639,6 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         assert isinstance(P_v, input_types), err_msg.format(name='P_v', type_set = input_types, type_is = type(P_v))
         assert isinstance(P_p, input_types), err_msg.format(name='P_p', type_set = input_types, type_is = type(P_p))
         assert isinstance(P_w, input_types), err_msg.format(name='P_w', type_set = input_types, type_is = type(P_w))
-        if P_y is not None:
-            warnings.warn('Using P_y is depreciated. Please use P_v instead.', DeprecationWarning)
 
         n_x = self.model.n_x
         n_y = self.model.n_y
@@ -955,6 +947,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         x_next = self.opt_x_num['_x', -1, -1]*self._x_scaling
         p_est_next = self.opt_x_num['_p_est']*self._p_est_scaling
         u0 = self.opt_x_num['_u', -1]*self._u_scaling
+        # Which z must be extracted here?
         z0  = self.opt_x_num['_z', -1, -1]*self._z_scaling
         aux0 = self.opt_aux_num['_aux', -1]
         p0 = self._p_cat_fun(p_est0, p_set0)
@@ -1005,7 +998,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         # Create struct for optimization variables:
         self.opt_x = opt_x = struct_symSX([
             entry('_x', repeat=[self.n_horizon+1, 1+n_total_coll_points], struct=self.model._x),
-            entry('_z', repeat=[self.n_horizon,   1+n_total_coll_points], struct=self.model._z),
+            entry('_z', repeat=[self.n_horizon,   max(n_total_coll_points,1)], struct=self.model._z),
             entry('_u', repeat=[self.n_horizon], struct=self.model._u),
             entry('_w', repeat=[self.n_horizon], struct=self.model._w),
             entry('_v', repeat=[self.n_horizon], struct=self.model._v),
@@ -1073,12 +1066,14 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         # For all control intervals
         for k in range(self.n_horizon):
             # Compute constraints and predicted next state of the discretization scheme
-            [g_ksb, xf_ksb] = ifcn(opt_x['_x', k, -1], vertcat(*opt_x['_x', k+1, :-1]),
-                                   opt_x['_u', k], vertcat(*opt_x['_z', k, :]), opt_p['_tvp', k],
+            col_xk = vertcat(*opt_x['_x', k+1, :-1])
+            col_zk = vertcat(*opt_x['_z', k])
+            [g_ksb, xf_ksb] = ifcn(opt_x['_x', k, -1], col_xk,
+                                   opt_x['_u', k], col_zk, opt_p['_tvp', k],
                                    _p, opt_x['_w', k])
 
             # Compute current measurement
-            yk_calc = self.model._meas_fun(opt_x_unscaled['_x', k+1, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1],
+            yk_calc = self.model._meas_fun(opt_x_unscaled['_x', k+1, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, 0],
                 opt_p['_tvp', k], _p, opt_x_unscaled['_v', k])
 
             # Add the collocation equations
@@ -1096,10 +1091,23 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             cons_lb.append(np.zeros((self.model.n_y, 1)))
             cons_ub.append(np.zeros((self.model.n_y, 1)))
 
-            # Add nonlinear constraints only on each control step
-            nl_cons_k = self._nl_cons_fun(
-                opt_x_unscaled['_x', k, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1],
-                opt_p['_tvp', k], _p, opt_x_unscaled['_eps', k])
+            if self.nl_cons_check_colloc_points:
+                # Ensure nonlinear constraints on all collocation points
+                for i in range(n_total_coll_points):
+                    nl_cons_k = self._nl_cons_fun(
+                        opt_x_unscaled['_x', k, i], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, i],
+                        opt_p['_tvp', k], _p, opt_x_unscaled['_eps', k])
+                    cons.append(nl_cons_k)
+                    cons_lb.append(self._nl_cons_lb)
+                    cons_ub.append(self._nl_cons_ub)
+            else:
+                # Ensure nonlinear constraints only on the beginning of the FE
+                nl_cons_k = self._nl_cons_fun(
+                    opt_x_unscaled['_x', k, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, 0],
+                    opt_p['_tvp', k], _p, opt_x_unscaled['_eps', k])
+                cons.append(nl_cons_k)
+                cons_lb.append(self._nl_cons_lb)
+                cons_ub.append(self._nl_cons_ub)
 
             cons.append(nl_cons_k)
             cons_lb.append(self._nl_cons_lb)
@@ -1118,26 +1126,35 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             opt_aux['_aux', k] = self.model._aux_expression_fun(
                 opt_x_unscaled['_x', k, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1], opt_p['_tvp', k], _p)
 
+
+        if self.cons_check_colloc_points:   # Constraints for all collocation points.
             # Bounds for the states on all discretize values along the horizon
-            self.lb_opt_x['_x', k] = self._x_lb.cat/self._x_scaling
-            self.ub_opt_x['_x', k] = self._x_ub.cat/self._x_scaling
+            self.lb_opt_x['_x'] = self._x_lb.cat/self._x_scaling
+            self.ub_opt_x['_x'] = self._x_ub.cat/self._x_scaling
 
-            # Bounds for the inputs along the horizon
-            self.lb_opt_x['_u', k] = self._u_lb.cat/self._u_scaling
-            self.ub_opt_x['_u', k] = self._u_ub.cat/self._u_scaling
+            # Bounds for the algebraic states along the horizon
+            self.lb_opt_x['_z'] = self._z_lb.cat/self._z_scaling
+            self.ub_opt_x['_z'] = self._z_ub.cat/self._z_scaling
+        else:   # Constraints only at the beginning of the finite Element
+            # Bounds for the states on all discretize values along the horizon
+            self.lb_opt_x['_x', 1:self.n_horizon, -1] = self._x_lb.cat/self._x_scaling
+            self.ub_opt_x['_x', 1:self.n_horizon, -1] = self._x_ub.cat/self._x_scaling
 
-            # Bounds for the slack variables along the horizon:
-            self.lb_opt_x['_eps', k] = self._eps_lb.cat
-            self.ub_opt_x['_eps', k] = self._eps_ub.cat
+            # Bounds for the algebraic states along the horizon
+            self.lb_opt_x['_z', :, 0] = self._z_lb.cat/self._z_scaling
+            self.ub_opt_x['_z', :, 0] = self._z_ub.cat/self._z_scaling
+
+        # Bounds for the inputs along the horizon
+        self.lb_opt_x['_u'] = self._u_lb.cat/self._u_scaling
+        self.ub_opt_x['_u'] = self._u_ub.cat/self._u_scaling
+
+        # Bounds for the slack variables along the horizon:
+        self.lb_opt_x['_eps'] = self._eps_lb.cat
+        self.ub_opt_x['_eps'] = self._eps_ub.cat
 
         # Bounds for the inputs along the horizon
         self.lb_opt_x['_p_est'] = self._p_est_lb.cat/self._p_est_scaling
         self.ub_opt_x['_p_est'] = self._p_est_ub.cat/self._p_est_scaling
-
-        # Bounds for the states at final time:
-        self.lb_opt_x['_x', self.n_horizon] = self._x_lb.cat/self._x_scaling
-        self.ub_opt_x['_x', self.n_horizon] = self._x_ub.cat/self._x_scaling
-
 
         cons = vertcat(*cons)
         self.cons_lb = vertcat(*cons_lb)

@@ -50,6 +50,7 @@ class Data:
         self.model.pop('_rhs')
         self.model.pop('_aux_expression')
         self.model.pop('_y_expression')
+        self.model.pop('_alg')
 
 
         # TODO: n_aux not existing

@@ -38,6 +38,10 @@ In summary, **do-mpc** offers the following features:
 
 * nonlinear and economic model predictive control
 
+* support for differential algebraic equations (DAE)
+
+* time discretization with orthogonal collocation on finite elements
+
 * robust multi-stage model predictive control
 
 * moving horizon state and parameter estimation
@@ -68,6 +72,36 @@ This family of trajectories will always obey to set constraints for states and i
 
 .. image:: anim.gif
 
+Example: Nonlinear MPC
+***********************
+
+In the next example we showcase the capabilities of **do-mpc** to handle complex nonlinear systems.
+The task is to erect the classical **double inverted pendulum (DIP)** and navigate it around an obstacle.
+
+The governing system equation is given as an implicit ODE:
+
+.. math::
+
+    0 = f(\dot{x}(t),x(t),u(t)),
+
+which can be rewritten as:
+
+.. math::
+    \dot{x} &= z\\
+    0 &= g(x(t),z(t),u(t))
+
+and thus constitutes a a **differential algebraic equation** (DAE) which is fully supported by **do-mpc**.
+
+The controller in this example is configured with an **economic objective**,
+where the task is to maximize the potential energy of the system while minimizing the kinetic energy.
+
+An animation of the obtained controller results is shown below:
+
+.. image:: ./example_gallery/anim_dip_obstacles.gif
+
+The code to recreate these results can be found in our `example gallery`_.
+
+.. _`example gallery`: ./example_gallery/DIP.ipynb
 
 Next steps
 **********
@@ -130,6 +164,7 @@ Table of contents
    /example_gallery/CSTR
    /example_gallery/industrial_poly
    /example_gallery/oscillating_masses_discrete
+   /example_gallery/DIP
 
 
 

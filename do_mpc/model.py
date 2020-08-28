@@ -296,6 +296,7 @@ class Model:
         self.symvar_type = 'SX'
 
         self.rhs_list = []
+        self.alg_list = [entry('default', expr=[])]
 
         self.flags = {
             'setup': False
@@ -915,18 +916,40 @@ class Model:
             expr += var
         self.rhs_list.extend([{'var_name': var_name, 'expr': expr}])
 
+    def set_alg(self, expr_name, expr):
+        """ Introduce new algebraic equation to model.
 
-    def setup_model(self):
-        """Legacy method.
+        For the continous time model, the expression must be formulated as
 
-        .. warning::
+        .. math::
 
-            The method is depreciated and will be removed in a later version.
-            Please call :py:func:`setup` instead.
+           0 = g(x(t),u(t),z(t),p(t),p_{\\text{tv}}(t))
+
+
+        or for a ``discrete`` model:
+
+        .. math::
+
+           0 = g(x_k,u_k,z_k,p_k,p_{\\text{tv},k})
+
+        .. note::
+
+            For the introduced algebraic variables :math:`z \in \mathbb{R}^{n_z}`
+            it is required to introduce exactly :math:`n_z` algebraic equations.
+            Otherwise :py:meth:`setup` will throw an error message.
+
+        :param expr_name: Name of the introduced expression
+        :type expr_name: string
+        :param expr: CasADi SX or MX function depending on ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
+        :type expr: CasADi SX or MX
+
         """
+        assert self.flags['setup'] == False, 'Cannot call .set_alg after .setup.'
+        assert isinstance(expr_name, str), 'expr_name must be str, you have: {}'.format(type(expr_name))
+        assert isinstance(expr, (casadi.SX, casadi.MX, casadi.DM)), 'expr must be a casadi SX, MX or DM type, you have:{}'.format(type(expr))
 
-        warnings.warn('This method is depreciated. Please use Model.setup instead. This will become an error in a future release', DeprecationWarning)
-        self.setup()
+        self.alg_list.append(entry(expr_name, expr = expr))
+
 
     def setup(self):
         """Setup method must be called to finalize the modelling process.
@@ -967,6 +990,10 @@ class Model:
             self._y_expression = struct_SX(self._y_expression)
         self._y = struct_symSX(self._y)
 
+        # Create alg equations:
+        self._alg = struct_SX(self.alg_list)
+
+
         # Create mutable struct_SX with identical structure as self._x to hold the right hand side.
         self._rhs = struct_SX(self._x)
 
@@ -980,6 +1007,7 @@ class Model:
 
         # Declare functions for the right hand side and the aux_expressions.
         self._rhs_fun = Function('rhs_fun', [_x, _u, _z, _tvp, _p, _w], [self._rhs])
+        self._alg_fun = Function('alg_fun', [_x, _u, _z, _tvp, _p, _w], [self._alg])
         self._aux_expression_fun = Function('aux_expression_fun', [_x, _u, _z, _tvp, _p], [self._aux_expression])
         self._meas_fun = Function('meas_fun', [_x, _u, _z, _tvp, _p, _v], [self._y_expression])
 
@@ -995,10 +1023,11 @@ class Model:
         self.n_w = self._w.shape[0]
         self.n_v = self._v.shape[0]
 
+        msg = 'Must have the same number of algebraic equations (you have {}) and variables (you have {}).'
+        assert self.n_z == self._alg.shape[0], msg.format(self._alg.shape[0], self.n_z)
+
         # Remove temporary storage for the symbolic variables. This allows to pickle the class.
-        #delattr(self, 'var_list')
-        #delattr(self, 'meas_list')
-        #delattr(self, 'expr_list')
         delattr(self, 'rhs_list')
+        delattr(self, 'alg_list')
 
         self.flags['setup'] = True

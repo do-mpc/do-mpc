@@ -93,37 +93,6 @@ class Simulator(do_mpc.model.IteratedVariables):
             'setup': False,
         }
 
-    def set_initial_state(self, x0, reset_history=False):
-        """Set the intial state of the simulator.
-        Optionally resets the history. The history is empty upon creation of the simulator.
-
-        .. warning::
-
-            This method is depreciated. Use the :py:attr:`x0` property of the class to set the intial values instead.
-
-
-        :param x0: Initial state
-        :type x0: numpy array
-        :param reset_history: Resets the history of the simulator, defaults to False
-        :type reset_history: bool (optional)
-
-        :return: None
-        :rtype: None
-        """
-        warnings.warn('This method is depreciated. Please use x0 property to set the initial state. This will become an error in a future release', DeprecationWarning)
-
-
-        assert x0.size == self.model._x.size, 'Intial state cannot be set because the supplied vector has the wrong size. You have {} and the model is setup for {}'.format(x0.size, self.model._x.size)
-        assert isinstance(reset_history, bool), 'reset_history parameter must be of type bool. You have {}'.format(type(reset_history))
-        if isinstance(x0, (np.ndarray, casadi.DM)):
-            self._x0 = self.model._x(x0)
-        elif isinstance(x0, structure3.DMStruct):
-            self._x0 = self.model._x(x0.cat)
-        else:
-            raise Exception('x0 must be of tpye (np.ndarray, casadi.DM, structure3.DMStruct). You have: {}'.format(type(x0)))
-
-        if reset_history:
-            self.reset_history()
 
     def reset_history(self):
         """Reset the history of the simulator.
@@ -165,12 +134,12 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         self._check_validity()
 
-        self.sim_x = sim_x = struct_symSX([
-            entry('_x', struct=self.model._x),
-            entry('_z', struct=self.model._z),
-        ])
-
-        self.sim_x_num = self.sim_x(0)
+        self.sim_x = sim_x =  struct_symSX([
+            entry('_x', struct=self.model._x)
+            ])
+        self.sim_z = sim_z =  struct_symSX([
+            entry('_z', struct=self.model._z)
+            ])
 
         self.sim_p = sim_p = struct_symSX([
             entry('_u', struct=self.model._u),
@@ -179,27 +148,38 @@ class Simulator(do_mpc.model.IteratedVariables):
             entry('_w', struct=self.model._w)
         ])
 
-
+        # Initiate numerical structures to store the solutions (updated at each iteration)
+        self.sim_x_num = self.sim_x(0)
+        self.sim_z_num = self.sim_z(0)
         self.sim_p_num = self.sim_p(0)
+        self.sim_aux_num = self.model._aux_expression(0)
 
         if self.model.model_type == 'discrete':
 
             # Build the rhs expression with the newly created variables
-            x_next = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_x['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
+            alg = self.model._alg_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
+            x_next = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
 
-            # Build the simulator function
-            self.simulator = Function('simulator',[sim_x,sim_p],[x_next])
+            # Build the DAE function
+            nlp = {'x': sim_z['_z'], 'p': vertcat(sim_x['_x'], sim_p), 'f': DM(0), 'g': alg}
+            self.discrete_dae_solver = nlpsol('dae_roots', 'ipopt', nlp)
+
+            # Build the simulator function:
+            self.simulator = Function('simulator',[sim_x['_x'], sim_z['_z'], sim_p],[x_next])
 
 
         elif self.model.model_type == 'continuous':
 
             # Define the ODE
-            xdot = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_x['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
+            xdot = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
+            alg = self.model._alg_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
+
             dae = {
-                'x': sim_x['_x'],
-                'z': sim_x['_z'],
+                'x': sim_x,
+                'z': sim_z,
                 'p': sim_p,
-                'ode': xdot
+                'ode': xdot,
+                'alg': alg,
             }
 
             # Set the integrator options
@@ -212,9 +192,9 @@ class Simulator(do_mpc.model.IteratedVariables):
             # Build the simulator
             self.simulator = integrator('simulator', self.integration_tool, dae,  opts)
 
-        sim_aux = self.model._aux_expression_fun(sim_x['_x'],sim_p['_u'],sim_x['_z'],sim_p['_tvp'],sim_p['_p'])
+        sim_aux = self.model._aux_expression_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'])
         # Create function to caculate all auxiliary expressions:
-        self.sim_aux_expression_fun = Function('sim_aux_expression_fun', [sim_x, sim_p], [sim_aux])
+        self.sim_aux_expression_fun = Function('sim_aux_expression_fun', [sim_x, sim_z, sim_p], [sim_aux])
 
         self.flags['setup'] = True
 
@@ -393,6 +373,21 @@ class Simulator(do_mpc.model.IteratedVariables):
         self.flags['set_p_fun'] = True
 
 
+    def set_initial_guess(self):
+        """Initial guess for DAE variables.
+        Use the current class attribute :py:attr:`z0` to create the initial guess for the DAE algebraic equations.
+
+        The simulator uses "warmstarting" to solve the continous/discrete DAE system by using the previously computed
+        algebraic states as an initial guess. Thus, this method is typically only invoked once.
+
+        .. warning::
+            If no initial values for :py:attr:`z0` were supplied during setup, they default to zero.
+
+        """
+        assert self.flags['setup'] == True, 'MPC was not setup yet. Please call MPC.setup().'
+
+        self.sim_z_num['_z'] = self._z0.cat
+
     def simulate(self):
         """Call the CasADi simulator.
 
@@ -405,9 +400,9 @@ class Simulator(do_mpc.model.IteratedVariables):
         Numerical values for ``sim_x_num`` and ``sim_p_num`` need to be provided beforehand
         in order to simulate the system for one time step:
 
-        * states ``sim_x_num['_x']``
+        * states ``sim_c_num['_x']``
 
-        * algebraic states ``sim_x_num['_z']``
+        * algebraic states ``sim_z_num['_z']``
 
         * inputs ``sim_p_num['_u']``
 
@@ -424,29 +419,34 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         # extract numerical values
         sim_x_num = self.sim_x_num
+        sim_z_num = self.sim_z_num
         sim_p_num = self.sim_p_num
 
         if self.model.model_type == 'discrete':
-            x_new = self.simulator(sim_x_num,sim_p_num)
-            z_now = self.sim_x_num['_z']
+            if self.model.n_z > 0: # Solve DAE only when it exists ...
+                r = self.discrete_dae_solver(x0 = sim_z_num, ubg = 0, lbg = 0, p=vertcat(sim_x_num,sim_p_num))
+                sim_z_num.master = r['x']
+            x_new = self.simulator(sim_x_num, sim_z_num, sim_p_num)
         elif self.model.model_type == 'continuous':
-            r = self.simulator(x0 = sim_x_num, p = sim_p_num)
+            r = self.simulator(x0 = sim_x_num, z0 = sim_z_num, p = sim_p_num)
             x_new = r['xf']
             z_now = r['zf']
-        aux_now = self.sim_aux_expression_fun(sim_x_num, sim_p_num)
+            sim_z_num.master = z_now
 
-        self.sim_x_num = self.sim_x(vertcat(x_new,z_now))
-        self.sim_aux_num = self.model._aux_expression(aux_now)
+        aux_now = self.sim_aux_expression_fun(sim_x_num, sim_z_num, sim_p_num)
+
+        self.sim_aux_num.master = aux_now
 
         return x_new
 
-    def make_step(self, u0, x0=None, z0=None, v0=None, w0=None):
+    def make_step(self, u0, v0=None, w0=None):
         """Main method of the simulator class during control runtime. This method is called at each timestep
         and computes the next state or the current control input :py:obj:`u0`. The method returns the resulting measurement,
         as defined in :py:class:`do_mpc.model.Model.set_meas`.
 
-        The initial state :py:obj:`x0` is stored as a class attribute but can optionally be supplied.
-        The algebraic states :py:obj:`z0` can also be supplied, if they are defined in the model but are only used as an intial guess.
+        The initial state :py:attr:`x0` is stored as a class attribute. Use this attribute :py:attr:`x0` to change the initial state.
+        It is also possible to supply an initial guess for the algebraic states through the attribute :py:attr:`z0` and by calling
+        :py:func:`set_initial_guess`.
 
         Finally, the method can be called with values for the process noise ``w0`` and the measurement noise ``v0``
         that were (optionally) defined in the :py:class:`do_mpc.model.Model`.
@@ -457,12 +457,6 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         :param u0: Current input to the system.
         :type u0: numpy.ndarray
-
-        :param x0: Current state of the system.
-        :type x0: numpy.ndarray (optional)
-
-        :param z0: Initial guess for current algebraic states
-        :type z0: numpy.ndarray (optional)
 
         :param v0: Additive measurement noise
         :type v0: numpy.ndarray (optional)
@@ -478,18 +472,6 @@ class Simulator(do_mpc.model.IteratedVariables):
         assert u0.shape == self.model._u.shape, 'u0 has incorrect shape. You have: {}, expected: {}'.format(u0.shape, self.model._u.shape)
         assert isinstance(u0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'u0 is wrong input type. You have: {}'.format(type(u0))
         assert u0.shape == self.model._u.shape, 'u0 has incorrect shape. You have: {}, expected: {}'.format(u0.shape, self.model._u.shape)
-
-        if x0 is None:
-            x0 = self._x0
-        else:
-            assert isinstance(x0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'x0 is wrong input type. You have: {}'.format(type(x0))
-            assert x0.shape == self.model._x.shape, 'x0 has incorrect shape. You have: {}, expected: {}'.format(x0.shape, self.model._x.shape)
-
-        if z0 is not None:
-            assert isinstance(z0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'z0 is wrong input type. You have: {}'.format(type(z0))
-            assert z0.shape == self.model._z.shape, 'z0 has incorrect shape. You have: {}, expected: {}'.format(z0.shape, self.model._z.shape)
-            # Just an initial guess.
-            self.sim_x_num['_z'] = z0
 
         if w0 is None:
             w0 = self.model._w(0)
@@ -508,16 +490,16 @@ class Simulator(do_mpc.model.IteratedVariables):
         tvp0 = self.tvp_fun(self._t0)
         p0 = self.p_fun(self._t0)
         t0 = self._t0
+        x0 = self._x0
         self.sim_x_num['_x'] = x0
         self.sim_p_num['_u'] = u0
         self.sim_p_num['_p'] = p0
         self.sim_p_num['_tvp'] = tvp0
         self.sim_p_num['_w'] = w0
 
-        self.simulate()
+        x_next = self.simulate()
 
-        x_next = self.sim_x_num['_x']
-        z0 = self.sim_x_num['_z']
+        z0 = self.sim_z_num['_z']
         aux0 = self.sim_aux_num
 
         # Call measurement function

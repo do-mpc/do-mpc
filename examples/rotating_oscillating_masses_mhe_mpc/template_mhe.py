@@ -41,6 +41,7 @@ def template_mhe(model):
         'n_horizon': 10,
         't_step': 0.1,
         'store_full_solution': True,
+        'nl_cons_check_colloc_points': True,
         #'nlpsol_opts': {'ipopt.linear_solver': 'MA27'},
     }
 
@@ -94,11 +95,16 @@ def template_mhe(model):
     mhe.bounds['lower','_u','phi_m_set'] = -5
     mhe.bounds['upper','_u','phi_m_set'] = 5
 
-    mhe.bounds['lower','_p_est', 'Theta_1'] = 1e-5
-    mhe.bounds['upper','_p_est', 'Theta_1'] = 1e-3
-
     mhe.bounds['lower','_x', 'dphi'] = -6
     mhe.bounds['upper','_x', 'dphi'] = 6
+
+    # Instead of setting bound like this:
+    # mhe.bounds['lower','_p_est', 'Theta_1'] = 1e-5
+    # mhe.bounds['upper','_p_est', 'Theta_1'] = 1e-3
+
+    # The MHE also supports nonlinear constraints (here they are still linear however) ...
+    mhe.set_nl_cons('p_est_lb', -mhe._p_est['Theta_1']+1e-5, 0)
+    mhe.set_nl_cons('p_est_ub', mhe._p_est['Theta_1']-1e-3, 0)
 
     mhe.setup()
 

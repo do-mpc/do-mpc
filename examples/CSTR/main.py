@@ -28,10 +28,12 @@ import pdb
 import sys
 sys.path.append('../../')
 import do_mpc
+from do_mpc.tools.timer import Timer
 
 import matplotlib.pyplot as plt
 import pickle
 import time
+
 
 from template_model import template_model
 from template_mpc import template_mpc
@@ -100,8 +102,12 @@ fig.align_ylabels()
 fig.tight_layout()
 plt.ion()
 
+timer = Timer()
+
 for k in range(50):
+    timer.tic()
     u0 = mpc.make_step(x0)
+    timer.toc()
     y_next = simulator.make_step(u0)
     x0 = estimator.make_step(y_next)
 
@@ -111,6 +117,9 @@ for k in range(50):
         graphics.reset_axes()
         plt.show()
         plt.pause(0.01)
+
+timer.info()
+timer.hist()
 
 input('Press any key to exit.')
 

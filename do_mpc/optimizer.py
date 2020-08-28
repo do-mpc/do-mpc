@@ -174,6 +174,7 @@ class Optimizer:
 
         Further indices are possible (but not neccessary) when the referenced variable is a vector or matrix.
 
+
         **Example**:
 
         ::
@@ -184,6 +185,16 @@ class Optimizer:
 
             # Query with:
             optimizer.scaling['_x', 'phi_1']
+
+        Scaling factors :math:`a` affect the MHE / MPC optimization problem. The optimization variables are scaled variables:
+
+        .. math::
+
+            \\bar\\phi = \\frac{\\phi}{a_{\\phi}} \\quad \\forall \\phi \\in [x, u, z, p_{\\text{est}}]
+
+        Scaled variables are used to formulate the bounds :math:`\\bar\\phi_{lb} \\leq \\bar\\phi_{ub}`
+        and for the evaluation of the ODE. For the objective function and the nonlinear constraints
+        the unscaled variables are used. The algebraic equations are also not scaled.
 
         .. note::
 
@@ -232,40 +243,6 @@ class Optimizer:
         assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
 
         var_struct[var_name] = val
-
-    def set_initial_state(self, x0, p_est0=None, reset_history=False, set_intial_guess=True):
-        """Set the intial state of the optimizer.
-        Optionally resets the history. The history is empty upon creation of the optimizer.
-
-        Optionally update the initial guess. The initial guess is first created with the ``.setup()`` method (MHE/MPC)
-        and uses the class attributes ``x0``, ``u0``, ``z0`` for all time instances, collocation points (if applicable)
-        and scenarios (if applicable). If these values were not explicitly set by the user, they default to all zeros.
-
-        .. warning::
-            This method is depreciated. Use the `x0` (and `p_est0` for MHE) property of the class to set the intial values instead.
-
-        :param x0: Initial state
-        :type x0: numpy array
-        :param reset_history: Resets the history of the optimizer, defaults to False
-        :type reset_history: bool (,optional)
-        :param set_intial_guess: Setting the initial state also updates the intial guess for the optimizer.
-        :type set_intial_guess: bool (,optional)
-
-        :return: None
-        :rtype: None
-        """
-        warnings.warn('This method is depreciated. Please use x0 property to set the initial state. This will become an error in a future release', DeprecationWarning)
-
-        self.x0 = x0
-
-        if p_est0 is not None:
-            self.p_est0 = p_est0
-
-        if reset_history:
-            self.reset_history()
-
-        if set_intial_guess:
-            self.set_initial_guess()
 
     def reset_history(self):
         """Reset the history of the optimizer.
@@ -519,13 +496,15 @@ class Optimizer:
         """
         assert self.flags['setup'] == True, 'optimizer was not setup yet. Please call optimizer.setup().'
 
-        r = self.S(x0=self.opt_x_num, lbx=self.lb_opt_x, ubx=self.ub_opt_x,  ubg=self.cons_ub, lbg=self.cons_lb, p=self.opt_p_num)
+        r = self.S(x0=self.opt_x_num, lbx=self.lb_opt_x, ubx=self.ub_opt_x,
+            ubg=self.cons_ub, lbg=self.cons_lb, p=self.opt_p_num)
         # Note: .master accesses the underlying vector of the structure.
         self.opt_x_num.master = r['x']
         self.opt_x_num_unscaled.master = r['x']*self.opt_x_scaling
         self.opt_g_num = r['g']
         # Values of lagrange multipliers:
         self.lam_g_num = r['lam_g']
+        self.lam_x_num = r['lam_x']
         self.solver_stats = self.S.stats()
 
         # Calculate values of auxiliary expressions (defined in model)
@@ -556,13 +535,19 @@ class Optimizer:
         rhs = substitute(rhs, _z, _z*self._z_scaling.cat)
         rhs = substitute(rhs, _p, _p*self._p_scaling.cat) # only meaningful for MHE.
 
+        alg = substitute(self.model._alg, _x, _x*self._x_scaling.cat)
+        alg = substitute(alg, _u, _u*self._u_scaling.cat)
+        alg = substitute(alg, _z, _z*self._z_scaling.cat)
+        alg = substitute(alg, _p, _p*self._p_scaling.cat) # only meaningful for MHE.
+
         if self.state_discretization == 'discrete':
             _i = SX.sym('i', 0)
             # discrete integrator ifcs mimics the API the collocation ifcn.
-            ifcn = Function('ifcn', [_x, _i, _u, _z, _tvp, _p, _w], [[], rhs/self._x_scaling.cat])
+            ifcn = Function('ifcn', [_x, _i, _u, _z, _tvp, _p, _w], [alg, rhs/self._x_scaling.cat])
             n_total_coll_points = 0
         if self.state_discretization == 'collocation':
             ffcn = Function('ffcn', [_x, _u, _z, _tvp, _p, _w], [rhs/self._x_scaling.cat])
+            afcn = Function('afcn', [_x, _u, _z, _tvp, _p, _w], [alg])
             # Get collocation information
             coll = self.collocation_type
             deg = self.collocation_deg
@@ -622,11 +607,11 @@ class Optimizer:
 
             # Define symbolic variables for collocation
             xk0 = SX.sym("xk0", n_x)
-            zk = SX.sym("zk", n_z)
+            #zk = SX.sym("zk", n_z)
             pk = SX.sym("pk", n_p)
             tv_pk = SX.sym("tv_pk", n_tvp)
             uk = SX.sym("uk", n_u)
-            wk = SX.sym("uk", n_w)
+            wk = SX.sym("wk", n_w)
 
             # State trajectory
             n_ik = ni * (deg + 1) * n_x
@@ -634,8 +619,16 @@ class Optimizer:
             ik_split = np.resize(np.array([], dtype=SX), (ni, deg + 1))
             offset = 0
 
+            # Algebraic trajectory
+            n_zk = ni * (deg +1) * n_z
+            zk = SX.sym("zk", n_zk)
+            offset_z = 0
+            zk_split = np.resize(np.array([], dtype=SX), (ni, deg + 1))
+
             # Store initial condition
             ik_split[0, 0] = xk0
+            zk_split[0, 0] = zk[offset_z:offset_z + n_z]
+            offset_z += n_z
             first_j = 1  # Skip allocating x for the first collocation point for the first finite element
             # For each finite element
             for i in range(ni):
@@ -643,6 +636,8 @@ class Optimizer:
                 for j in range(first_j, deg + 1):
                     # Get the expression for the state vector
                     ik_split[i, j] = ik[offset:offset + n_x]
+                    zk_split[i, j] = zk[offset_z:offset_z + n_z]
+                    offset_z += n_z
                     offset += n_x
 
                 # All collocation points in subsequent finite elements
@@ -653,7 +648,7 @@ class Optimizer:
             offset += n_x
             # Check offset for consistency
             assert(offset == n_ik)
-
+            assert(offset_z == n_zk)
             # Constraints in the control interval
             gk = []
             lbgk = []
@@ -661,6 +656,12 @@ class Optimizer:
 
             # For all finite elements
             for i in range(ni):
+                # for the first point:
+                a_i0 = afcn(ik_split[i, 0], uk, zk_split[i,0], tv_pk, pk, wk)
+                gk.append(a_i0)
+                lbgk.append(np.zeros(n_z))
+                ubgk.append(np.zeros(n_z))
+
                 # For all collocation points
                 for j in range(1, deg + 1):
                     # Get an expression for the state derivative at the coll point
@@ -669,10 +670,17 @@ class Optimizer:
                         xp_ij += C[r, j] * ik_split[i, r]
 
                     # Add collocation equations to the NLP
-                    f_ij = ffcn(ik_split[i, j], uk, zk, tv_pk, pk, wk)
+                    f_ij = ffcn(ik_split[i, j], uk, zk_split[i,j], tv_pk, pk, wk)
                     gk.append(h * f_ij - xp_ij)
                     lbgk.append(np.zeros(n_x))  # equality constraints
                     ubgk.append(np.zeros(n_x))  # equality constraints
+
+                    # algebraic constraints
+                    a_ij = afcn(ik_split[i, j], uk, zk_split[i,j], tv_pk, pk, wk)
+                    gk.append(a_ij)
+                    lbgk.append(np.zeros(n_z))
+                    ubgk.append(np.zeros(n_z))
+
 
                 # Get an expression for the state at the end of the finite element
                 xf_i = 0
@@ -690,7 +698,7 @@ class Optimizer:
             lbgk = np.concatenate(lbgk)
             ubgk = np.concatenate(ubgk)
 
-            assert(gk.shape[0] == ik.shape[0])
+            assert(gk.shape[0] == ik.shape[0] + zk.shape[0])
 
             # Create the integrator function
             ifcn = Function("ifcn", [xk0, ik, uk, zk, tv_pk, pk, wk], [gk, xkf])

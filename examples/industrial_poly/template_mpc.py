@@ -98,7 +98,7 @@ def template_mpc(model):
 
     delH_R_var = np.array([950.0, 950.0 * 1.30, 950.0 * 0.70])
     k_0_var = np.array([7.0*1.00, 7.0*1.30, 7.0*0.70])
-    mpc.set_uncertainty_values([delH_R_var, k_0_var])
+    mpc.set_uncertainty_values(delH_R = delH_R_var, k_0 =  k_0_var)
 
     mpc.setup()
 

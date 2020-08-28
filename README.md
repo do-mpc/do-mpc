@@ -16,6 +16,8 @@ that can be easily extended and combined to fit many different applications.
 In summary, **do-mpc** offers the following features:
 
 * nonlinear and economic model predictive control
+* support for differential algebraic equations (DAE)
+* time discretization with orthogonal collocation on finite elements
 * robust multi-stage model predictive control
 * moving horizon state and parameter estimation
 * modular design that can be easily extended

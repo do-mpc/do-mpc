@@ -29,6 +29,7 @@ import time
 
 import do_mpc.data
 import do_mpc.optimizer
+from do_mpc.tools.indexedproperty import IndexedProperty
 
 class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     """Model predictive controller.
@@ -100,23 +101,29 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             'n_robust',
             'open_loop',
             't_step',
+            'use_terminal_bounds',
             'state_discretization',
             'collocation_type',
             'collocation_deg',
             'collocation_ni',
+            'nl_cons_check_colloc_points',
+            'cons_check_colloc_points',
             'store_full_solution',
             'store_lagr_multiplier',
             'store_solver_stats',
             'nlpsol_opts'
         ]
 
-        # Default Parameters:
+        # Default Parameters (param. details in set_param method):
         self.n_robust = 0
+        self.open_loop = False
+        self.use_terminal_bounds = True
         self.state_discretization = 'collocation'
         self.collocation_type = 'radau'
         self.collocation_deg = 2
         self.collocation_ni = 1
-        self.open_loop = False
+        self.nl_cons_check_colloc_points = False
+        self.cons_check_colloc_points = True
         self.store_full_solution = False
         self.store_lagr_multiplier = True
         self.store_solver_stats = [
@@ -162,6 +169,23 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         Further indices are possible, if the variables are itself vectors or matrices.
 
         The attribute can be used **to manually set a custom initial guess or for debugging purposes**.
+
+        ** How to query ``opt_x_num``?**
+
+        Querying the structure is more complicated than it seems at first look because of the scenario-tree used
+        for robust MPC. To obtain all collocation points for the finite element at time-step :math:`k` and scenario :math:`b` use:
+
+        ::
+
+            horzcat(*[mpc.opt_x_num['_x',k,b,-1]]+mpc.opt_x_num['_x',k+1,b,:-1])
+
+        Due to the multi-stage formulation at any given time :math:`k` we can have multiple future scenarios.
+        However, there is only exactly one scenario that lead to the current node in the tree.
+        Thus the collocation points associated to the finite element :math:`k` lie in the past.
+
+        The concept is illustrated in the figure below:
+
+        .. figure:: ../static/collocation_points_scenarios.svg
 
         .. note::
 
@@ -232,6 +256,86 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     def opt_p_num(self, val):
         self._opt_p_num = val
 
+    @IndexedProperty
+    def terminal_bounds(self, ind):
+        """Query and set the terminal bounds for the states.
+        The :py:func:`terminal_bounds` method is an indexed property, meaning
+        getting and setting this property requires an index and calls this function.
+        The power index (elements are seperated by comas) must contain atleast the following elements:
+
+        ======      =================   ==========================================================
+        order       index name          valid options
+        ======      =================   ==========================================================
+        1           bound type          ``lower`` and ``upper``
+        2           variable name       Names defined in :py:class:`do_mpc.model.Model`.
+        ======      =================   ==========================================================
+
+        Further indices are possible (but not neccessary) when the referenced variable is a vector or matrix.
+
+        **Example**:
+
+        ::
+
+            # Set with:
+            optimizer.terminal_bounds['lower', 'phi_1'] = -2*np.pi
+            optimizer.terminal_bounds['upper', 'phi_1'] = 2*np.pi
+
+            # Query with:
+            optimizer.terminal_bounds['lower', 'phi_1']
+
+        """
+        assert isinstance(ind, tuple), 'Power index must include bound_type, var_name (as a tuple).'
+        assert len(ind)>=2, 'Power index must include bound_type, var_type, var_name (as a tuple).'
+        bound_type = ind[0]
+        var_name   = ind[1:]
+
+        err_msg = 'Invalid power index {} for bound_type. Must be from (lower, upper).'
+        assert bound_type in ('lower', 'upper'), err_msg.format(bound_type)
+
+        if bound_type == 'lower':
+            query = '{var_type}_{bound_type}'.format(var_type=var_type, bound_type='lb')
+        elif bound_type == 'upper':
+            query = '{var_type}_{bound_type}'.format(var_type=var_type, bound_type='ub')
+        # query results string e.g. _x_lb, _x_ub, _u_lb, u_ub ....
+
+        # Get the desired struct:
+        var_struct = getattr(self, query)
+
+        err_msg = 'Calling .bounds with {} is not valid. Possible keys are {}.'
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
+
+        return var_struct[var_name]
+
+    @terminal_bounds.setter
+    def terminal_bounds(self, ind, val):
+        """See Docstring for bounds getter method"""
+
+        assert isinstance(ind, tuple), 'Power index must include bound_type, var_type, var_name (as a tuple).'
+        assert len(ind)>=3, 'Power index must include bound_type, var_type, var_name (as a tuple).'
+        bound_type = ind[0]
+        var_type   = ind[1]
+        var_name   = ind[2:]
+
+        err_msg = 'Invalid power index {} for bound_type. Must be from (lower, upper).'
+        assert bound_type in ('lower', 'upper'), err_msg.format(bound_type)
+        err_msg = 'Invalid power index {} for var_type. Must be from (_x, _u, _z, _p_est).'
+        assert var_type in ('_x', '_u', '_z', '_p_est'), err_msg.format(var_type)
+
+        if bound_type == 'lower':
+            query = '_x_terminal_lb'
+        elif bound_type == 'upper':
+            query = '_x_terminal_ub'
+
+        # Get the desired struct:
+        var_struct = getattr(self, query)
+
+        err_msg = 'Calling .bounds with {} is not valid. Possible keys are {}.'
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
+
+        # Set value on struct:
+        var_struct[var_name] = val
+
+
 
     def set_param(self, **kwargs):
         """Set the parameters of the :py:class:`MPC` class. Parameters must be passed as pairs of valid keywords and respective argument.
@@ -251,6 +355,12 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             }
             mpc.set_param(**setup_mpc)
 
+        This makes use of thy python "unpack" operator. See `more details here`_.
+
+        .. _`more details here`: https://codeyarns.github.io/tech/2012-04-25-unpack-operator-in-python.html
+
+        .. note:: The only required parameters  are ``n_horizon`` and ``t_step``. All other parameters are optional.
+
         .. note:: :py:func:`set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
 
         The following parameters are available:
@@ -267,6 +377,9 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         :param t_step: Timestep of the mpc.
         :type t_step: float
 
+        :param use_terminal_bounds: Choose if terminal bounds for the states are used. Defaults to ``True``. Set terminal bounds with :py:attr:`terminal_bounds`.
+        :type use_terminal_bounds: bool
+
         :param state_discretization: Choose the state discretization for continuous models. Currently only ``'collocation'`` is available. Defaults to ``'collocation'``.
         :type state_discretization: str
 
@@ -276,8 +389,14 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         :param collocation_deg: Choose the collocation degree for continuous models with collocation as state discretization. Defaults to ``2``.
         :type collocation_deg: int
 
-        :param collocation_ni: For orthogonal collocation, choose the number of finite elements for the states within a time-step (and during constant control input). Defaults to ``1``. Can be used to avoid high-order polynomials.
+        :param collocation_ni: For orthogonal collocation choose the number of finite elements for the states within a time-step (and during constant control input). Defaults to ``1``. Can be used to avoid high-order polynomials.
         :type collocation_ni: int
+
+        :param nl_cons_check_colloc_points: For orthogonal collocation choose whether the nonlinear bounds set with :py:func:`set_nl_cons` are evaluated once per finite Element or for each collocation point. Defaults to ``False`` (once per collocation point).
+        :type nl_cons_check_colloc_points: bool
+
+        :param cons_check_colloc_points: For orthogonal collocation choose whether the linear bounds set with :py:attr:`bounds` are evaluated once per finite Element or for each collocation point. Defaults to ``True`` (for all collocation points).
+        :type cons_check_colloc_points: bool
 
         :param store_full_solution: Choose whether to store the full solution of the optimization problem. This is required for animating the predictions in post processing. However, it drastically increases the required storage. Defaults to False.
         :type store_full_solution: bool
@@ -331,7 +450,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         :param lterm: Stage cost - **scalar** symbolic expression with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``
         :type lterm:  CasADi SX or MX
-        :param mterm: Terminal cost - **scalar** symbolic expression with respect to ``_x``
+        :param mterm: Terminal cost - **scalar** symbolic expression with respect to ``_x`` and ``_p``
         :type mterm: CasADi SX or MX
 
         :raises assertion: mterm must have ``shape=(1,1)`` (scalar expression)
@@ -346,16 +465,26 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         _x, _u, _z, _tvp, _p = self.model['x','u','z','tvp','p']
 
-        # If the mterm is a symbolic expression:
-        try:
-            assert set(symvar(mterm)).issubset(set(symvar(vertcat(_x)))), 'mterm must be solely a function of _x.'
-        except:
-            pass
 
-        # TODO: Check if this is only a function of x
+        # Check if mterm is valid:
+        if isinstance(mterm, casadi.DM):
+            pass
+        elif isinstance(mterm, (casadi.SX, casadi.MX)):
+            assert set(symvar(mterm)).issubset(set(symvar(vertcat(_x, _p)))), 'mterm must be solely a function of _x and _p.'
+        else:
+            raise Exception('mterm must be of type casadi.DM, casadi.SX or casadi.MX. You have: {}.'.format(type(mterm)))
+
+        # Check if lterm is valid:
+        if isinstance(lterm, casadi.DM):
+            pass
+        elif isinstance(lterm, (casadi.SX, casadi.MX)):
+            assert set(symvar(lterm)).issubset(set(symvar(vertcat(_x, _u, _z, _tvp, _p)))), 'lterm must be solely a function of _x, _u, _z, _tvp, _p.'
+        else:
+            raise Exception('lterm must be of type casadi.DM, casadi.SX or casadi.MX. You have: {}.'.format(type(lterm)))
+
         self.mterm = mterm
         # TODO: This function should be evaluated with scaled variables.
-        self.mterm_fun = Function('mterm', [_x], [mterm])
+        self.mterm_fun = Function('mterm', [_x, _p], [mterm])
 
         self.lterm = lterm
         self.lterm_fun = Function('lterm', [_x, _u, _z, _tvp, _p], [lterm])
@@ -533,7 +662,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         self.flags['set_p_fun'] = True
         self.p_fun = p_fun
 
-    def set_uncertainty_values(self, uncertainty_values=None, **kwargs):
+    def set_uncertainty_values(self, **kwargs):
         """Define scenarios for the uncertain parameters.
         High-level API method to conveniently set all possible scenarios for multistage MPC.
         For more details on robust multi-stage MPC please read our `background article`_.
@@ -566,24 +695,6 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             Parameters that are not imporant for the MPC controller (e.g. MHE tuning matrices)
             can be ignored with the new interface (see ``gamma`` in the example above).
 
-        **Legacy interface:**
-        Pass a list of arrays for the uncertain parameters.
-        This list must have the same number of elements as uncertain parameters in the model definition. The first element is the nominal case.
-        Each list element can be an array or list of possible values for the respective parameter.
-        Note that the order of elements determine the assignment.
-
-        **Example:**
-
-        ::
-
-            # in model definition:
-            alpha = model.set_variable(var_type='_p', var_name='alpha')
-            beta = model.set_variable(var_type='_p', var_name='beta')
-            ...
-            # in MPC configuration:
-            alpha_var = np.array([1., 0.9, 1.1])
-            beta_var = np.array([1., 1.05])
-            MPC.set_uncertainty_values([alpha_var, beta_var])
 
         Note the nominal case is now:
         ``alpha = 1``,
@@ -591,9 +702,6 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         which is determined by the order in the arrays above (first element is nominal).
 
         :param kwargs: Arbitrary number of keyword arguments.
-        :param uncertainty_values: (Depreciated) List of lists / numpy arrays with the same number of elements as number of parameters in model.
-        :type uncertainty_values: list
-
 
         :return: None
         :rtype: None
@@ -660,6 +768,12 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             bound_fail = [label_i for i,label_i in enumerate(lb.labels()) if bound_check[i]]
             if np.any(bound_check):
                 raise Exception('Your bounds are inconsistent. For {} you have lower bound > upper bound.'.format(bound_fail))
+
+        # Are terminal bounds for the states set? If not use default values (unless MPC is setup to not use terminal bounds)
+        if np.all(self._x_terminal_ub.cat == np.inf) and self.use_terminal_bounds:
+            self._x_terminal_ub = self._x_ub
+        if np.all(self._x_terminal_lb.cat == -np.inf) and self.use_terminal_bounds:
+            self._x_terminal_lb = self._x_lb
 
         # Set dummy functions for tvp and p in case these parameters are unused.
         if 'tvp_fun' not in self.__dict__:
@@ -782,7 +896,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         # Extract solution:
         u0 = self.opt_x_num['_u', 0, 0]*self._u_scaling
-        z0 = self.opt_x_num['_z', 0, 0, -1]*self._z_scaling
+        z0 = self.opt_x_num['_z', 0, 0, 0]*self._z_scaling
         aux0 = self.opt_aux_num['_aux', 0, 0]
 
         # Store solution:
@@ -830,10 +944,11 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         n_max_scenarios = self.n_combinations ** self.n_robust
         # Create struct for optimization variables:
         self.opt_x = opt_x = struct_symSX([
+            # One additional point (in the collocation dimension) for the final point.
             entry('_x', repeat=[self.n_horizon+1, n_max_scenarios,
                                 1+n_total_coll_points], struct=self.model._x),
             entry('_z', repeat=[self.n_horizon, n_max_scenarios,
-                                1+n_total_coll_points], struct=self.model._z),
+                                max(n_total_coll_points,1)], struct=self.model._z),
             entry('_u', repeat=[self.n_horizon, n_max_scenarios], struct=self.model._u),
             entry('_eps', repeat=[self.n_horizon, n_max_scenarios], struct=self._eps),
         ])
@@ -901,8 +1016,10 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                     current_scenario = b + branch_offset[k][s]
 
                     # Compute constraints and predicted next state of the discretization scheme
-                    [g_ksb, xf_ksb] = ifcn(opt_x['_x', k, s, -1], vertcat(*opt_x['_x', k+1, child_scenario[k][s][b], :-1]),
-                                           opt_x['_u', k, s], vertcat(*opt_x['_z', k, s, :]), opt_p['_tvp', k],
+                    col_xk = vertcat(*opt_x['_x', k+1, child_scenario[k][s][b], :-1])
+                    col_zk = vertcat(*opt_x['_z', k, child_scenario[k][s][b]])
+                    [g_ksb, xf_ksb] = ifcn(opt_x['_x', k, s, -1], col_xk,
+                                           opt_x['_u', k, s], col_zk, opt_p['_tvp', k],
                                            opt_p['_p', current_scenario], _w)
 
                     # Add the collocation equations
@@ -915,13 +1032,23 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                     cons_lb.append(np.zeros((self.model.n_x, 1)))
                     cons_ub.append(np.zeros((self.model.n_x, 1)))
 
-                    # Add nonlinear constraints only on each control step
-                    nl_cons_k = self._nl_cons_fun(
-                        opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s], opt_x_unscaled['_z', k, s, -1],
-                        opt_p['_tvp', k], opt_p['_p', current_scenario], opt_x_unscaled['_eps', k, s])
-                    cons.append(nl_cons_k)
-                    cons_lb.append(self._nl_cons_lb)
-                    cons_ub.append(self._nl_cons_ub)
+                    if self.nl_cons_check_colloc_points:
+                        # Ensure nonlinear constraints on all collocation points
+                        for i in range(n_total_coll_points):
+                            nl_cons_k = self._nl_cons_fun(
+                                opt_x_unscaled['_x', k, s, i], opt_x_unscaled['_u', k, s], opt_x_unscaled['_z', k, s, i],
+                                opt_p['_tvp', k], opt_p['_p', current_scenario], opt_x_unscaled['_eps', k, s])
+                            cons.append(nl_cons_k)
+                            cons_lb.append(self._nl_cons_lb)
+                            cons_ub.append(self._nl_cons_ub)
+                    else:
+                        # Ensure nonlinear constraints only on the beginning of the FE
+                        nl_cons_k = self._nl_cons_fun(
+                            opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s], opt_x_unscaled['_z', k, s, 0],
+                            opt_p['_tvp', k], opt_p['_p', current_scenario], opt_x_unscaled['_eps', k, s])
+                        cons.append(nl_cons_k)
+                        cons_lb.append(self._nl_cons_lb)
+                        cons_ub.append(self._nl_cons_ub)
 
                     # Add terminal constraints
                     # TODO: Add terminal constraints with an additional nl_cons
@@ -934,7 +1061,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
                     # In the last step add the terminal cost too
                     if k == self.n_horizon - 1:
-                        obj += omega[k] * self.mterm_fun(opt_x_unscaled['_x', k + 1, s, -1])
+                        obj += omega[k] * self.mterm_fun(opt_x_unscaled['_x', k + 1, s, -1], opt_p['_p', current_scenario])
 
                     # U regularization:
                     if k == 0:
@@ -946,22 +1073,40 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                     opt_aux['_aux', k, s] = self.model._aux_expression_fun(
                         opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s], opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
 
-                # Bounds for the states on all discretize values along the horizon
-                self.lb_opt_x['_x', k, s, :] = self._x_lb.cat/self._x_scaling
-                self.ub_opt_x['_x', k, s, :] = self._x_ub.cat/self._x_scaling
 
-                # Bounds for the inputs along the horizon
-                self.lb_opt_x['_u', k, s] = self._u_lb.cat/self._u_scaling
-                self.ub_opt_x['_u', k, s] = self._u_ub.cat/self._u_scaling
+        if self.cons_check_colloc_points:   # Constraints for all collocation points.
+            # Dont bound the initial state
+            self.lb_opt_x['_x', 1:self.n_horizon] = self._x_lb.cat/self._x_scaling
+            self.ub_opt_x['_x', 1:self.n_horizon] = self._x_ub.cat/self._x_scaling
 
-                # Bounds for the slack variables:
-                self.lb_opt_x['_eps', k, s] = self._eps_lb.cat
-                self.ub_opt_x['_eps', k, s] = self._eps_ub.cat
+            # Bounds for the algebraic variables:
+            self.lb_opt_x['_z'] = self._z_lb.cat/self._z_scaling
+            self.ub_opt_x['_z'] = self._z_ub.cat/self._z_scaling
 
-                # Bounds on the terminal state
-                if k == self.n_horizon - 1:
-                    self.lb_opt_x['_x', self.n_horizon, child_scenario[k][s][b], -1] = self._x_lb.cat/self._x_scaling
-                    self.ub_opt_x['_x', self.n_horizon, child_scenario[k][s][b], -1] = self._x_ub.cat/self._x_scaling
+            # Terminal bounds
+            self.lb_opt_x['_x', self.n_horizon, :, -1] = self._x_terminal_lb.cat/self._x_scaling
+            self.ub_opt_x['_x', self.n_horizon, :, -1] = self._x_terminal_ub.cat/self._x_scaling
+        else:   # Constraints only at the beginning of the finite Element
+            # Dont bound the initial state
+            self.lb_opt_x['_x', 1:self.n_horizon, :, -1] = self._x_lb.cat/self._x_scaling
+            self.ub_opt_x['_x', 1:self.n_horizon, :, -1] = self._x_ub.cat/self._x_scaling
+
+            # Bounds for the algebraic variables:
+            self.lb_opt_x['_z', :, :, 0] = self._z_lb.cat/self._z_scaling
+            self.ub_opt_x['_z', :, : ,0] = self._z_ub.cat/self._z_scaling
+
+            # Terminal bounds
+            self.lb_opt_x['_x', self.n_horizon, :, -1] = self._x_terminal_lb.cat/self._x_scaling
+            self.ub_opt_x['_x', self.n_horizon, :, -1] = self._x_terminal_ub.cat/self._x_scaling
+
+        # Bounds for the inputs along the horizon
+        self.lb_opt_x['_u'] = self._u_lb.cat/self._u_scaling
+        self.ub_opt_x['_u'] = self._u_ub.cat/self._u_scaling
+
+        # Bounds for the slack variables:
+        self.lb_opt_x['_eps'] = self._eps_lb.cat
+        self.ub_opt_x['_eps'] = self._eps_ub.cat
+
 
         cons = vertcat(*cons)
         self.cons_lb = vertcat(*cons_lb)
