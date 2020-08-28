@@ -290,15 +290,9 @@ class Graphics:
         self.ax_list.append(axis)
 
 
-    def plot_results(self, t_ind=-1, **pltkwargs):
+    def plot_results(self, t_ind=-1):
         """Plots the results stored in the data object.
         Use the ``t_ind`` parameter to plot only until the given time index. This can be used in post-processing for animations.
-
-        .. warning:
-
-            Further ``**pltkwargs`` are depreciated and without effect.
-            Set linestyle options directly by with :py:func:`result_lines` and :py:func:`pred_lines`
-
 
         :param t_ind: Plot results up until this time index.
         :type t_ind: int
@@ -321,7 +315,7 @@ class Graphics:
                 line_i.set_data(self.data['_time'][:t_ind+1] , self.data[ind_i][:t_ind+1])
 
 
-    def plot_predictions(self, t_ind=-1, **pltkwargs):
+    def plot_predictions(self, t_ind=-1):
         """Plots the predicted trajectories for the plot configuration.
         The predicted trajectories are part of the optimal solution at each timestep
         and are **optionally** stored in the :py:class:`do_mpc.data.MPCData` object.
@@ -335,10 +329,6 @@ class Graphics:
         and raises an error if called with data from other objects.
         Use the ``t_ind`` parameter to plot the prediction for the given time instance.
         This can be used in post-processing for animations.
-
-        .. warning:
-
-            Further ``**pltkwargs`` are depreciated and without effect. Set linestyle options directly by querying ``graphics.pred_lines``
 
         :param t_ind: Plot predictions at this time index.
         :type t_ind: int

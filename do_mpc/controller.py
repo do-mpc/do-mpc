@@ -662,7 +662,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         self.flags['set_p_fun'] = True
         self.p_fun = p_fun
 
-    def set_uncertainty_values(self, uncertainty_values=None, **kwargs):
+    def set_uncertainty_values(self, **kwargs):
         """Define scenarios for the uncertain parameters.
         High-level API method to conveniently set all possible scenarios for multistage MPC.
         For more details on robust multi-stage MPC please read our `background article`_.
@@ -695,24 +695,6 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             Parameters that are not imporant for the MPC controller (e.g. MHE tuning matrices)
             can be ignored with the new interface (see ``gamma`` in the example above).
 
-        **Legacy interface:**
-        Pass a list of arrays for the uncertain parameters.
-        This list must have the same number of elements as uncertain parameters in the model definition. The first element is the nominal case.
-        Each list element can be an array or list of possible values for the respective parameter.
-        Note that the order of elements determine the assignment.
-
-        **Example:**
-
-        ::
-
-            # in model definition:
-            alpha = model.set_variable(var_type='_p', var_name='alpha')
-            beta = model.set_variable(var_type='_p', var_name='beta')
-            ...
-            # in MPC configuration:
-            alpha_var = np.array([1., 0.9, 1.1])
-            beta_var = np.array([1., 1.05])
-            MPC.set_uncertainty_values([alpha_var, beta_var])
 
         Note the nominal case is now:
         ``alpha = 1``,
@@ -720,9 +702,6 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         which is determined by the order in the arrays above (first element is nominal).
 
         :param kwargs: Arbitrary number of keyword arguments.
-        :param uncertainty_values: (Depreciated) List of lists / numpy arrays with the same number of elements as number of parameters in model.
-        :type uncertainty_values: list
-
 
         :return: None
         :rtype: None

@@ -951,18 +951,6 @@ class Model:
         self.alg_list.append(entry(expr_name, expr = expr))
 
 
-    def setup_model(self):
-        """Legacy method.
-
-        .. warning::
-
-            The method is depreciated and will be removed in a later version.
-            Please call :py:func:`setup` instead.
-        """
-
-        warnings.warn('This method is depreciated. Please use Model.setup instead. This will become an error in a future release', DeprecationWarning)
-        self.setup()
-
     def setup(self):
         """Setup method must be called to finalize the modelling process.
         All required model variables must be declared.

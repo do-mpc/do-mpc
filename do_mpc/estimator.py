@@ -51,28 +51,6 @@ class Estimator(do_mpc.model.IteratedVariables):
         self.data.dtype = 'Estimator'
 
 
-    def set_initial_state(self, x0, reset_history=False):
-        """Set the intial state of the estimator.
-        Optionally resets the history. The history is empty upon creation of the estimator.
-        This method is overwritten for the :py:class:`MHE` from :py:class:`do_mpc.optimizer.Optimizer`.
-
-        .. warning::
-            This method is depreciated. Use the `x0` property of the class to set the intial state instead.
-
-        :param x0: Initial state
-        :type x0: numpy array
-        :param reset_history: Resets the history of the estimator, defaults to False
-        :type reset_history: bool (,optional)
-
-        :return: None
-        :rtype: None
-        """
-        warnings.warn('This method is depreciated. Please use x0 property to set the initial state. This will become an error in a future release', DeprecationWarning)
-        self.x0 = x0
-
-        if reset_history:
-            self.reset_history()
-
     def reset_history(self):
         """Reset the history of the estimator
         """
@@ -591,7 +569,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         self.flags['set_objective'] = True
 
-    def set_default_objective(self, P_x, P_v=None, P_p=None, P_w=None, P_y=None):
+    def set_default_objective(self, P_x, P_v=None, P_p=None, P_w=None):
         """ Configure the suggested default MHE formulation.
 
         Use this method to pass tuning matrices for the MHE optimization problem:
@@ -661,8 +639,6 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         assert isinstance(P_v, input_types), err_msg.format(name='P_v', type_set = input_types, type_is = type(P_v))
         assert isinstance(P_p, input_types), err_msg.format(name='P_p', type_set = input_types, type_is = type(P_p))
         assert isinstance(P_w, input_types), err_msg.format(name='P_w', type_set = input_types, type_is = type(P_w))
-        if P_y is not None:
-            warnings.warn('Using P_y is depreciated. Please use P_v instead.', DeprecationWarning)
 
         n_x = self.model.n_x
         n_y = self.model.n_y

@@ -97,7 +97,7 @@ def template_mpc(model):
     alpha_var = np.array([1., 1.05, 0.95])
     beta_var = np.array([1., 1.1, 0.9])
 
-    mpc.set_uncertainty_values([alpha_var, beta_var])
+    mpc.set_uncertainty_values(alpha = alpha_var, beta = beta_var)
 
     mpc.setup()
 

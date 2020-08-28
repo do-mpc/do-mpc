@@ -244,40 +244,6 @@ class Optimizer:
 
         var_struct[var_name] = val
 
-    def set_initial_state(self, x0, p_est0=None, reset_history=False, set_intial_guess=True):
-        """Set the intial state of the optimizer.
-        Optionally resets the history. The history is empty upon creation of the optimizer.
-
-        Optionally update the initial guess. The initial guess is first created with the ``.setup()`` method (MHE/MPC)
-        and uses the class attributes ``x0``, ``u0``, ``z0`` for all time instances, collocation points (if applicable)
-        and scenarios (if applicable). If these values were not explicitly set by the user, they default to all zeros.
-
-        .. warning::
-            This method is depreciated. Use the `x0` (and `p_est0` for MHE) property of the class to set the intial values instead.
-
-        :param x0: Initial state
-        :type x0: numpy array
-        :param reset_history: Resets the history of the optimizer, defaults to False
-        :type reset_history: bool (,optional)
-        :param set_intial_guess: Setting the initial state also updates the intial guess for the optimizer.
-        :type set_intial_guess: bool (,optional)
-
-        :return: None
-        :rtype: None
-        """
-        warnings.warn('This method is depreciated. Please use x0 property to set the initial state. This will become an error in a future release', DeprecationWarning)
-
-        self.x0 = x0
-
-        if p_est0 is not None:
-            self.p_est0 = p_est0
-
-        if reset_history:
-            self.reset_history()
-
-        if set_intial_guess:
-            self.set_initial_guess()
-
     def reset_history(self):
         """Reset the history of the optimizer.
         All data from the :py:class:`do_mpc.data.Data` instance is removed.
