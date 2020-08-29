@@ -969,7 +969,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         # Create struct for optimization parameters:
         self.opt_p = opt_p = struct_symSX([
             entry('_x0', struct=self.model._x),
-            entry('_tvp', repeat=self.n_horizon, struct=self.model._tvp),
+            entry('_tvp', repeat=self.n_horizon+1, struct=self.model._tvp),
             entry('_p', repeat=self.n_combinations, struct=self.model._p),
             entry('_u_prev', struct=self.model._u),
         ])
