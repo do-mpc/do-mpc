@@ -541,6 +541,49 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             assert isinstance(val, (int, float, np.ndarray)), 'Value for {} must be int, float or numpy.ndarray. You have: {}'.format(key, type(val))
             self.rterm_factor[key] = val
 
+    def get_tvp_template(self):
+        """Obtain output template for :py:func:`set_tvp_fun`.
+
+        The method returns a structured object with ``n_horizon``+1 elements,
+        and a set of time-varying parameters (as defined in :py:class:`do_mpc.model.Model`)
+        for each of these instances. The structure is initialized with all zeros.
+        Use this object to define values of the time-varying parameters.
+
+        This structure (with numerical values) should be used as the output of the ``tvp_fun`` function which is set to the class with :py:func:`set_tvp_fun`.
+        Use the combination of :py:func:`get_tvp_template` and :py:func:`set_tvp_fun`.
+
+        **Example:**
+
+        ::
+
+            # in model definition:
+            alpha = model.set_variable(var_type='_tvp', var_name='alpha')
+            beta = model.set_variable(var_type='_tvp', var_name='beta')
+
+            ...
+            # in optimizer configuration:
+            tvp_temp_1 = optimizer.get_tvp_template()
+            tvp_temp_1['_tvp', :] = np.array([1,1])
+
+            tvp_temp_2 = optimizer.get_tvp_template()
+            tvp_temp_2['_tvp', :] = np.array([0,0])
+
+            def tvp_fun(t_now):
+                if t_now<10:
+                    return tvp_temp_1
+                else:
+                    tvp_temp_2
+
+            optimizer.set_tvp_fun(tvp_fun)
+
+        :return: None
+        :rtype: None
+        """
+
+        tvp_template = struct_symSX([
+            entry('_tvp', repeat=self.n_horizon+1, struct=self.model._tvp)
+        ])
+        return tvp_template(0)
 
     def get_p_template(self, n_combinations):
         """Obtain output template for :py:func:`set_p_fun`.
