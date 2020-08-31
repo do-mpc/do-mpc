@@ -77,7 +77,7 @@ def template_mpc(model):
     tvp_template = mpc.get_tvp_template()
     def tvp_fun(t_now):
         ind = int(t_now/setup_mpc['t_step'])
-        tvp_template['_tvp', :] = vertsplit(tvp_traj[ind:ind+setup_mpc['n_horizon']])
+        tvp_template['_tvp', :-1] = vertsplit(tvp_traj[ind:ind+setup_mpc['n_horizon']])
         return tvp_template
 
     mpc.set_tvp_fun(tvp_fun)
