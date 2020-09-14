@@ -152,7 +152,7 @@ Table of contents
    :caption: How to use it?
 
    project_structure
-   Debugging
+   FAQ
    do_mpc
    release_notes
 
