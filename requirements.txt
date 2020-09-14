@@ -1,6 +1,7 @@
 sphinx>=1.4
 ipykernel
 nbsphinx
+pygments==2.4.1
 sphinx-copybutton
 graphviz
 casadi
