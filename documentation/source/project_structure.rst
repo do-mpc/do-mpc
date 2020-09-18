@@ -252,22 +252,22 @@ class above are often directly implemented in the ``main.py`` file.
 Initial state & guess
 #####################
 
-Afterwards we set the initial state (and guess for MPC/MHE) for all objects.
+Afterwards we set the initial state (true state) for the simulator.
 Note that in proper investigations we usually have a different initial state
 for the ``simulator`` (true state) and e.g. the estimator.
 
 ::
 
-    # Set the initial state of mpc and simulator:
+    # Set the initial state of simulator:
     C_a_0 = 0.8
     ...
     x0 = np.array([C_a_0, ...]).reshape(-1,1)
 
-    mpc.set_initial_state(x0, reset_history=True)
-    simulator.set_initial_state(x0, reset_history=True)
+    simulator.x0 = x0
 
-The initial guess is automatically set with :py:func:`do_mpc.controller.MPC.set_initial_state`
-as can be seen in the documentation.
+We can set the initial guessed state for the MHE by modifying its attribute
+similarly as for the simulator shown above. The MPC initial guess is given when
+calling the function :py:func:`do_mpc.controller.MPC.make_step` for the first time.
 
 Graphics configuration
 ######################

@@ -470,7 +470,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         if isinstance(mterm, casadi.DM):
             pass
         elif isinstance(mterm, (casadi.SX, casadi.MX)):
-            assert set(symvar(mterm)).issubset(set(symvar(vertcat(_x, _p)))), 'mterm must be solely a function of _x and _p.'
+            assert set(symvar(mterm)).issubset(set(symvar(vertcat(_x, _tvp, _p)))), 'mterm must be solely a function of _x, _tvp and _p.'
         else:
             raise Exception('mterm must be of type casadi.DM, casadi.SX or casadi.MX. You have: {}.'.format(type(mterm)))
 
@@ -484,7 +484,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         self.mterm = mterm
         # TODO: This function should be evaluated with scaled variables.
-        self.mterm_fun = Function('mterm', [_x, _p], [mterm])
+        self.mterm_fun = Function('mterm', [_x, _tvp, _p], [mterm])
 
         self.lterm = lterm
         self.lterm_fun = Function('lterm', [_x, _u, _z, _tvp, _p], [lterm])
@@ -540,7 +540,6 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             assert key in self.model._u.keys(), 'Must pass keywords that refer to input names defined in model. Valid is: {}. You have: {}'.format(self.model._u.keys(), key)
             assert isinstance(val, (int, float, np.ndarray)), 'Value for {} must be int, float or numpy.ndarray. You have: {}'.format(key, type(val))
             self.rterm_factor[key] = val
-
 
     def get_p_template(self, n_combinations):
         """Obtain output template for :py:func:`set_p_fun`.
@@ -969,7 +968,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         # Create struct for optimization parameters:
         self.opt_p = opt_p = struct_symSX([
             entry('_x0', struct=self.model._x),
-            entry('_tvp', repeat=self.n_horizon, struct=self.model._tvp),
+            entry('_tvp', repeat=self.n_horizon+1, struct=self.model._tvp),
             entry('_p', repeat=self.n_combinations, struct=self.model._p),
             entry('_u_prev', struct=self.model._u),
         ])
@@ -1061,7 +1060,8 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
                     # In the last step add the terminal cost too
                     if k == self.n_horizon - 1:
-                        obj += omega[k] * self.mterm_fun(opt_x_unscaled['_x', k + 1, s, -1], opt_p['_p', current_scenario])
+                        obj += omega[k] * self.mterm_fun(opt_x_unscaled['_x', k + 1, s, -1], opt_p['_tvp', k+1],
+                                                         opt_p['_p', current_scenario])
 
                     # U regularization:
                     if k == 0:

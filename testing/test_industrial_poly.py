@@ -91,7 +91,7 @@ class TestIndustrialPoly(unittest.TestCase):
         """
         Store results (from reference run):
         """
-        #do_mpc.data.save_results([mpc, simulator, estimator], 'results_industrial_poly')
+        #do_mpc.data.save_results([mpc, simulator, estimator], 'results_industrial_poly', overwrite=True)
 
         """
         Compare results to reference run:

@@ -71,13 +71,13 @@ def template_mpc(model):
     mpc.bounds['lower','_x','Tout_AWT'] = 288.0
     mpc.bounds['lower','_x','accum_monom'] = 0.0
 
-    mpc.bounds['upper','_x','T_R'] = 363.15 + temp_range + 10.0
+    mpc.bounds['upper','_x','T_R'] = 363.15 + temp_range
     mpc.bounds['upper','_x','T_S'] = 400.0
     mpc.bounds['upper','_x','Tout_M'] = 400.0
     mpc.bounds['upper','_x','T_EK'] = 400.0
     mpc.bounds['upper','_x','Tout_AWT'] = 400.0
     mpc.bounds['upper','_x','accum_monom'] = 30000.0
-    mpc.bounds['upper','_x','T_adiab'] = 382.15 + 10.0
+    mpc.bounds['upper','_x','T_adiab'] = 382.15
 
     mpc.bounds['lower','_u','m_dot_f'] = 0.0
     mpc.bounds['lower','_u','T_in_M'] = 333.15

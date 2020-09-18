@@ -381,7 +381,7 @@ class Optimizer:
     def get_tvp_template(self):
         """Obtain output template for :py:func:`set_tvp_fun`.
 
-        The method returns a structured object with ``n_horizon`` elements,
+        The method returns a structured object with ``n_horizon+1`` elements,
         and a set of time-varying parameters (as defined in :py:class:`do_mpc.model.Model`)
         for each of these instances. The structure is initialized with all zeros.
         Use this object to define values of the time-varying parameters.
@@ -418,7 +418,7 @@ class Optimizer:
         """
 
         tvp_template = struct_symSX([
-            entry('_tvp', repeat=self.n_horizon, struct=self.model._tvp)
+            entry('_tvp', repeat=self.n_horizon+1, struct=self.model._tvp)
         ])
         return tvp_template(0)
 
