@@ -940,7 +940,17 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         # Obtain an integrator (collocation, discrete-time) and the amount of intermediate (collocation) points
         ifcn, n_total_coll_points = self._setup_discretization()
         n_branches, n_scenarios, child_scenario, parent_scenario, branch_offset = self._setup_scenario_tree()
+
+        # How many scenarios arise from the scenario tree (robust multi-stage MPC)
         n_max_scenarios = self.n_combinations ** self.n_robust
+
+        # If open_loop option is active, all scenarios (at a given stage) have the same input.
+        if self.open_loop:
+            n_u_scenarios = 1
+        else:
+            # Else: Each scenario has its own input.
+            n_u_scenarios = n_max_scenarios
+
         # Create struct for optimization variables:
         self.opt_x = opt_x = struct_symSX([
             # One additional point (in the collocation dimension) for the final point.
@@ -948,7 +958,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                                 1+n_total_coll_points], struct=self.model._x),
             entry('_z', repeat=[self.n_horizon, n_max_scenarios,
                                 max(n_total_coll_points,1)], struct=self.model._z),
-            entry('_u', repeat=[self.n_horizon, n_max_scenarios], struct=self.model._u),
+            entry('_u', repeat=[self.n_horizon, n_u_scenarios], struct=self.model._u),
             entry('_eps', repeat=[self.n_horizon, n_max_scenarios], struct=self._eps),
         ])
         self.n_opt_x = self.opt_x.shape[0]
@@ -1010,6 +1020,9 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             # For all scenarios (grows exponentially with n_robust)
             for s in range(n_scenarios[k]):
                 # For all childen nodes of each node at stage k, discretize the model equations
+
+                # Scenario index for u is always 0 if self.open_loop = True
+                s_u = 0 if self.open_loop else s
                 for b in range(n_branches[k]):
                     # Obtain the index of the parameter values that should be used for this scenario
                     current_scenario = b + branch_offset[k][s]
@@ -1018,7 +1031,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                     col_xk = vertcat(*opt_x['_x', k+1, child_scenario[k][s][b], :-1])
                     col_zk = vertcat(*opt_x['_z', k, child_scenario[k][s][b]])
                     [g_ksb, xf_ksb] = ifcn(opt_x['_x', k, s, -1], col_xk,
-                                           opt_x['_u', k, s], col_zk, opt_p['_tvp', k],
+                                           opt_x['_u', k, s_u], col_zk, opt_p['_tvp', k],
                                            opt_p['_p', current_scenario], _w)
 
                     # Add the collocation equations
@@ -1035,7 +1048,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                         # Ensure nonlinear constraints on all collocation points
                         for i in range(n_total_coll_points):
                             nl_cons_k = self._nl_cons_fun(
-                                opt_x_unscaled['_x', k, s, i], opt_x_unscaled['_u', k, s], opt_x_unscaled['_z', k, s, i],
+                                opt_x_unscaled['_x', k, s, i], opt_x_unscaled['_u', k, s_u], opt_x_unscaled['_z', k, s, i],
                                 opt_p['_tvp', k], opt_p['_p', current_scenario], opt_x_unscaled['_eps', k, s])
                             cons.append(nl_cons_k)
                             cons_lb.append(self._nl_cons_lb)
@@ -1043,7 +1056,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                     else:
                         # Ensure nonlinear constraints only on the beginning of the FE
                         nl_cons_k = self._nl_cons_fun(
-                            opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s], opt_x_unscaled['_z', k, s, 0],
+                            opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s_u], opt_x_unscaled['_z', k, s, 0],
                             opt_p['_tvp', k], opt_p['_p', current_scenario], opt_x_unscaled['_eps', k, s])
                         cons.append(nl_cons_k)
                         cons_lb.append(self._nl_cons_lb)
@@ -1053,7 +1066,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                     # TODO: Add terminal constraints with an additional nl_cons
 
                     # Add contribution to the cost
-                    obj += omega[k] * self.lterm_fun(opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s],
+                    obj += omega[k] * self.lterm_fun(opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s_u],
                                                      opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
                     # Add slack variables to the cost
                     obj += self.epsterm_fun(opt_x_unscaled['_eps', k, s])
@@ -1065,13 +1078,13 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
                     # U regularization:
                     if k == 0:
-                        obj += self.rterm_factor.cat.T@((opt_x['_u', 0, s]-opt_p['_u_prev']/self._u_scaling)**2)
+                        obj += self.rterm_factor.cat.T@((opt_x['_u', 0, s_u]-opt_p['_u_prev']/self._u_scaling)**2)
                     else:
-                        obj += self.rterm_factor.cat.T@((opt_x['_u', k, s]-opt_x['_u', k-1, parent_scenario[k][s]])**2)
+                        obj += self.rterm_factor.cat.T@((opt_x['_u', k, s_u]-opt_x['_u', k-1, parent_scenario[k][s_u]])**2)
 
                     # Calculate the auxiliary expressions for the current scenario:
                     opt_aux['_aux', k, s] = self.model._aux_expression_fun(
-                        opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s], opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
+                        opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s_u], opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
 
 
         if self.cons_check_colloc_points:   # Constraints for all collocation points.
