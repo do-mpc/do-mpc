@@ -467,19 +467,11 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
 
         # Check if mterm is valid:
-        if isinstance(mterm, casadi.DM):
-            pass
-        elif isinstance(mterm, (casadi.SX, casadi.MX)):
-            assert set(symvar(mterm)).issubset(set(symvar(vertcat(_x, _tvp, _p)))), 'mterm must be solely a function of _x, _tvp and _p.'
-        else:
+        if not isinstance(mterm, (casadi.DM, casadi.SX, casadi.MX)):
             raise Exception('mterm must be of type casadi.DM, casadi.SX or casadi.MX. You have: {}.'.format(type(mterm)))
 
         # Check if lterm is valid:
-        if isinstance(lterm, casadi.DM):
-            pass
-        elif isinstance(lterm, (casadi.SX, casadi.MX)):
-            assert set(symvar(lterm)).issubset(set(symvar(vertcat(_x, _u, _z, _tvp, _p)))), 'lterm must be solely a function of _x, _u, _z, _tvp, _p.'
-        else:
+        if not isinstance(lterm, (casadi.DM, casadi.SX, casadi.MX)):
             raise Exception('lterm must be of type casadi.DM, casadi.SX or casadi.MX. You have: {}.'.format(type(lterm)))
 
         self.mterm = mterm
@@ -488,6 +480,18 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         self.lterm = lterm
         self.lterm_fun = Function('lterm', [_x, _u, _z, _tvp, _p], [lterm])
+
+        # Check if lterm and mterm use invalid variables as inputs.
+        # For the check we evaluate the function with dummy inputs and expect a DM output.
+        err_msg = '{} contains invalid symbolic variables as inputs. Must contain only: {}'
+        try:
+            self.mterm_fun(_x(0),_tvp(0),_p(0))
+        except:
+            raise Exception(err_msg.format('mterm','_x, _tvp, _p'))
+        try:
+            self.lterm(_x(0),_u(0), _z(0), _tvp(0), _p(0))
+        except:
+            err_msg.format('lterm', '_x, _u, _z, _tvp, _p')
 
         self.flags['set_objective'] = True
 
@@ -597,7 +601,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         :rtype: None
         """
         self.n_combinations = n_combinations
-        p_template = struct_symSX([
+        p_template = self.model.sym_struct([
             entry('_p', repeat=n_combinations, struct=self.model._p)
         ])
         return p_template(0)
@@ -952,7 +956,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             n_u_scenarios = n_max_scenarios
 
         # Create struct for optimization variables:
-        self.opt_x = opt_x = struct_symSX([
+        self.opt_x = opt_x = self.model.sym_struct([
             # One additional point (in the collocation dimension) for the final point.
             entry('_x', repeat=[self.n_horizon+1, n_max_scenarios,
                                 1+n_total_coll_points], struct=self.model._x),
@@ -976,7 +980,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
 
         # Create struct for optimization parameters:
-        self.opt_p = opt_p = struct_symSX([
+        self.opt_p = opt_p = self.model.sym_struct([
             entry('_x0', struct=self.model._x),
             entry('_tvp', repeat=self.n_horizon+1, struct=self.model._tvp),
             entry('_p', repeat=self.n_combinations, struct=self.model._p),
@@ -987,11 +991,11 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         self.n_opt_p = opt_p.shape[0]
 
         # Dummy struct with symbolic variables
-        self.aux_struct = struct_symSX([
+        self.aux_struct = self.model.sym_struct([
             entry('_aux', repeat=[self.n_horizon, n_max_scenarios], struct=self.model._aux_expression)
         ])
         # Create mutable symbolic expression from the struct defined above.
-        self.opt_aux = opt_aux = struct_SX(self.aux_struct)
+        self.opt_aux = opt_aux = self.model.struct(self.aux_struct)
 
         self.n_opt_aux = self.opt_aux.shape[0]
 
@@ -1085,6 +1089,12 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                     # Calculate the auxiliary expressions for the current scenario:
                     opt_aux['_aux', k, s] = self.model._aux_expression_fun(
                         opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s_u], opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
+
+                    # For some reason when working with MX, the "unused" aux values in the scenario tree must be set explicitly (they are not ever used...)
+                for s_ in range(n_scenarios[k],n_max_scenarios):
+                    opt_aux['_aux', k, s_] = self.model._aux_expression_fun(
+                        opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s_u], opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
+
 
 
         if self.cons_check_colloc_points:   # Constraints for all collocation points.

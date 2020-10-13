@@ -216,7 +216,8 @@ class IteratedVariables:
 
 
 class Model:
-    """The **do-mpc** model class. This class holds the full model description and is at the core of
+    """Default dynamic system model.
+    This class holds the full model description and is at the core of
     :py:class:`do_mpc.simulator.Simulator`, :py:class:`do_mpc.controller.MPC` and :py:class:`do_mpc.estimator.Estimator`.
     The :py:class:`Model` class is created with setting the ``model_type`` (continuous or discrete).
     A ``continous`` model consists of an underlying ordinary differential equation (ODE) or differential algebraic equation (DAE):
@@ -234,6 +235,13 @@ class Model:
        x_{k+1} &= f(x_k,u_k,z_k,p_k,p_{\\text{tv},k}) + w_k,\\\\
        0 &= g(x_k,u_k,z_k,p_k,p_{\\text{tv},k})\\\\
        y_k &= h(x_k,u_k,z_k,p_k,p_{\\text{tv},k}) + v_k
+
+    .. note::
+
+        This is the "scalar" model class meaning that internally it will use ``Casadi.SX`` symbolic variables which are
+        more efficient for scalar operations. If you use matrix operations in your model (especially matrix multiplication),
+        consider using the :py:class:`MXModel` class.
+        Note that the regular :py:class`Model` also supports matrix operations but will be less efficient.
 
 
     **Configuration and setup:**
@@ -284,7 +292,7 @@ class Model:
         self._aux_expression = [entry('default', expr=DM(0))]
 
         self._y =   [entry('default', shape=(0,0))]
-        self._y_expression = []
+        self._y_expression = [entry('default', expr=[])]
 
         # Process noise
         self._w = [entry('default', shape=(0,0))]
@@ -294,6 +302,10 @@ class Model:
 
         self.model_type = model_type
         self.symvar_type = 'SX'
+        # Depending on the symvar type:
+        self.struct = struct_SX
+        self.sym_struct = struct_symSX
+        self.sym = SX.sym
 
         self.rhs_list = []
         self.alg_list = [entry('default', expr=[])]
@@ -335,12 +347,10 @@ class Model:
         """ Function is called from within all property (x, u, z, p, tvp, y, aux, w) getters.
         Not part of the public API.
         """
-        if self.flags['setup']:
+        if self.flags['setup'] or self.symvar_type == 'MX':
             return getattr(self, var_name)
         elif self.symvar_type == 'SX':
-            return struct_symSX(getattr(self, var_name))
-        else:
-            raise Exception('Cannot query variables in MX mode before calling Model.setup.')
+            return self.sym_struct(getattr(self, var_name))
 
 
     @property
@@ -844,9 +854,7 @@ class Model:
 
         # Create a new process noise variable and add it to the rhs equation.
         if meas_noise:
-            var = SX.sym(meas_name+'_noise', expr.shape[0])
-            self._v.append(entry(meas_name, sym=var))
-            expr += var
+            self._v.append(entry(meas_name, shape=expr.shape[0]))
 
         self._y_expression.append(entry(meas_name, expr = expr))
         self._y.append(entry(meas_name, shape=expr.shape))
@@ -909,11 +917,9 @@ class Model:
         _x_names = self.x.keys()
         assert var_name in _x_names, 'var_name must refer to the previously defined states ({}). You have: {}'.format(_x_names, var_name)
 
-        # Create a new process noise variable and add it to the rhs equation.
+        # Create a new process noise variable it is added to the RHS in .setup
         if process_noise:
-            var = SX.sym(var_name+'_noise', expr.shape[0])
-            self._w.append(entry(var_name, sym=var))
-            expr += var
+            self._w.append(entry(var_name, shape=expr.shape))
         self.rhs_list.extend([{'var_name': var_name, 'expr': expr}])
 
     def set_alg(self, expr_name, expr):
@@ -969,47 +975,56 @@ class Model:
         :rtype: None
         """
 
-        # Write self._x, self._u, self._z, self._y, self._tvp, self.p with the respective struct_symSX structures.
-        self._x = _x = struct_symSX(self._x)
-        self._w = _w = struct_symSX(self._w)
-        self._v = _v = struct_symSX(self._v)
-        self._u = _u =  struct_symSX(self._u)
-        self._z = _z = struct_symSX(self._z)
-        self._p = _p = struct_symSX(self._p)
-        self._tvp = _tvp =  struct_symSX(self._tvp)
+        # Set default measurements (all states) if no measurements were defined.
+        if len(self._y) == 1:
+            # a little hack: this attribute will return the struct for the SX case ...
+            _x = self.x
+            for x_i in _x.keys():
+                self.set_meas(x_i, _x[x_i])
+
+        # Write self._x, self._u, etc. with the respective sym_struct structures.
+        for var_type in ['_x', '_u', '_z', '_v','_w','_p','_tvp', '_y']:
+            # For the MX case, some var types might be converted to structs already (all of those defined with set_variable)
+            if isinstance(getattr(self,var_type),list):
+                setattr(self,var_type, self.sym_struct(getattr(self,var_type)))
+
 
         # Write self._aux_expression.
-        self._aux_expression = struct_SX(self._aux_expression)
-        self._aux = struct_symSX(self._aux)
+        self._aux_expression = self.struct(self._aux_expression)
+        self._aux = self.sym_struct(self._aux)
 
-        # Write self._y_expression (measurement equations) as struct_SX symbolic expression structures.
-        # Check if it is an empty list (no user input)
-        if not self._y_expression:
-            self._y_expression = self._x
-        else:
-            self._y_expression = struct_SX(self._y_expression)
-        self._y = struct_symSX(self._y)
+        # Create measurement expression struct:
+        self._y_expression = self.struct(self._y_expression)
+
+        # (optional) set measurement noise
+        for noise_i in self._v.keys():
+            self._y_expression[noise_i] += self._v[noise_i]
 
         # Create alg equations:
-        self._alg = struct_SX(self.alg_list)
+        self._alg = self.struct(self.alg_list)
 
-
-        # Create mutable struct_SX with identical structure as self._x to hold the right hand side.
-        self._rhs = struct_SX(self._x)
+        # Create mutable struct with identical structure as self._x to hold the right hand side.
+        self._rhs = self.struct(self._x)
 
         # Set the expressions in self._rhs with the previously defined SX.sym variables.
         # Check if an expression is set for every state of the system.
         _x_names = set(self._x.keys())
         for rhs_i in self.rhs_list:
+            # Add process noise:
+            if rhs_i['var_name'] in self._w.keys():
+                rhs_i['expr'] += self._w[rhs_i['var_name']]
+            # set rhs expression:
             self._rhs[rhs_i['var_name']] = rhs_i['expr']
+            # Clear from list of available states.
             _x_names -= set([rhs_i['var_name']])
+        # Check if all states had their RHS set.
         assert len(_x_names) == 0, 'Definition of right hand side (rhs) is incomplete. Missing: {}. Use: set_rhs to define expressions.'.format(_x_names)
 
         # Declare functions for the right hand side and the aux_expressions.
-        self._rhs_fun = Function('rhs_fun', [_x, _u, _z, _tvp, _p, _w], [self._rhs])
-        self._alg_fun = Function('alg_fun', [_x, _u, _z, _tvp, _p, _w], [self._alg])
-        self._aux_expression_fun = Function('aux_expression_fun', [_x, _u, _z, _tvp, _p], [self._aux_expression])
-        self._meas_fun = Function('meas_fun', [_x, _u, _z, _tvp, _p, _v], [self._y_expression])
+        self._rhs_fun = Function('rhs_fun', [self._x, self._u, self._z, self._tvp, self._p, self._w], [self._rhs])
+        self._alg_fun = Function('alg_fun', [self._x, self._u, self._z, self._tvp, self._p, self._w], [self._alg])
+        self._aux_expression_fun = Function('aux_expression_fun', [self._x, self._u, self._z, self._tvp, self._p], [self._aux_expression])
+        self._meas_fun = Function('meas_fun', [self._x, self._u, self._z, self._tvp, self._p, self._v], [self._y_expression])
 
         # Create and store some information about the model regarding number of variables for
         # _x, _y, _u, _z, _tvp, _p, _aux
@@ -1023,11 +1038,119 @@ class Model:
         self.n_w = self._w.shape[0]
         self.n_v = self._v.shape[0]
 
-        msg = 'Must have the same number of algebraic equations (you have {}) and variables (you have {}).'
-        assert self.n_z == self._alg.shape[0], msg.format(self._alg.shape[0], self.n_z)
+        err_msg = 'Must have the same number of algebraic equations (you have {}) and variables (you have {}).'
+        assert self.n_z == self._alg.shape[0], err_msg.format(self._alg.shape[0], self.n_z)
 
         # Remove temporary storage for the symbolic variables. This allows to pickle the class.
         delattr(self, 'rhs_list')
         delattr(self, 'alg_list')
 
         self.flags['setup'] = True
+
+class MXModel(Model):
+    """ Dynamic system model (potentially faster for matrix oeprations).
+    This is an alternative to the default :py:class:`Model` which is recommended to be used for large-scale matrix operations.
+    Internally, this model will use the ``Casadi.MX`` variables.
+
+    In most cases it is recommended to use the default :py:class:`Model` from which this class inherits almost the entire structure.
+    The main difference from a users' perspective is the interface of :py:func:`set_variable`.
+
+    """
+
+    def __init__(self, model_type=None):
+        super().__init__(model_type=model_type)
+        self.symvar_type = 'MX'
+        # Depending on the symvar type:
+        self.struct = struct_MX
+        self.sym_struct = struct_symMX
+        self.sym = MX.sym
+
+        self.flags['set_x'] = False
+        self.flags['set_u'] = False
+        self.flags['set_z'] = False
+        self.flags['set_p'] = False
+        self.flags['set_tvp'] = False
+
+    def set_variable(self, var_type, entries):
+        """Introduce new variables to the model class. Define variable type, name and shape (optional).
+
+        .. warning::
+
+            When working with :py:class:`MXModel` all variables of a specific type (states, inputs, etc.)
+            must be declared at the same time. The method takes as input a list of ``casadi.tools.entries``
+            elements.
+
+        **Example:**
+
+        ::
+
+            # States struct (optimization variables):
+            C_a = model.set_variable(var_type='_x', var_name='C_a', shape=(1,1))
+            T_K = model.set_variable(var_type='_x', var_name='T_K', shape=(1,1))
+
+            # Input struct (optimization variables):
+            Q_dot = model.set_variable(var_type='_u', var_name='Q_dot')
+
+            # Fixed parameters:
+            alpha = model.set_variable(var_type='_p', var_name='alpha')
+
+        .. note:: ``var_type`` allows a shorthand notation e.g. ``_x`` which is equivalent to ``states``.
+
+        :param var_type: Declare the type of the variable. The following types are valid (long or short name is possible):
+
+            ===========================  ===========  ============================
+            Long name                    short name   Remark
+            ===========================  ===========  ============================
+            ``states``                   ``_x``       Required
+            ``inputs``                   ``_u``       optional
+            ``algebraic``                ``_z``       Optional
+            ``parameter``                ``_p``       Optional
+            ``timevarying_parameter``    ``_tvp``     Optional
+            ===========================  ===========  ============================
+        :type var_type: string
+        :param var_name: Set a user-defined name for the parameter. The names are reused throughout do_mpc.
+        :type var_type: string
+        :param shape: Shape of the current variable (optional), defaults to ``1``.
+        :type shape: int or tuple of length 2.
+
+        :raises assertion: var_type must be string
+        :raises assertion: var_name must be string
+        :raises assertion: shape must be tuple or int
+        :raises assertion: Cannot call after :py:func:`setup`.
+
+        :return: Returns the newly created symbolic variable.
+        :rtype: casadi.SX
+        """
+        assert self.flags['setup'] == False, 'Cannot call .set_variable after setup.'
+        assert isinstance(var_type, str), 'var_type must be str, you have: {}'.format(type(var_type))
+
+        # Get short names:
+        var_type =var_type.replace('states', '_x'
+            ).replace('inputs', '_u'
+            ).replace('algebraic', '_z'
+            ).replace('parameter', '_p'
+            ).replace('timevarying_parameter', '_tvp')
+
+        err_msg = 'Must set all variables of the same kind (e.g. states) simultaneously. You are trying to set again {}'
+        if var_type == '_x':
+            assert not self.flags['set_x'],  err_msg.format(var_type)
+            self._x = var = struct_symMX(self._x+entries)
+            self.flags['set_x'] = True
+        elif var_type == '_u':
+            assert not self.flags['set_u'],  err_msg.format(var_type)
+            self._u = var = struct_symMX(self._u+entries)
+            self.flags['set_u'] = True
+        elif var_type == '_z':
+            assert not self.flags['set_z'],  err_msg.format(var_type)
+            self._z = var = struct_symMX(self._z+entries)
+            self.flags['set_z'] = True
+        elif var_type == '_p':
+            assert not self.flags['set_p'],  err_msg.format(var_type)
+            self._p = var = struct_symMX(self._p+entries)
+            self.flags['set_p'] = True
+        elif var_type == '_tvp':
+            assert not self.flags['set_tvp'],  err_msg.format(var_type)
+            self._tvp = var = struct_symMX(self._tvp+entries)
+            self.flags['set_tvp'] = True
+
+        return var

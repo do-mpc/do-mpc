@@ -65,10 +65,10 @@ class Optimizer:
 
         # Lists for further non-linear constraints (optional). Constraints are formulated as cons < ub
         self.nl_cons_list = [
-            {'expr_name': 'default', 'expr': DM(), 'ub': DM()}
+            {'expr_name': 'default', 'expr': DM([]), 'ub': DM([])}
         ]
         self.slack_vars_list = [
-            {'slack_name': 'default', 'var':SX.sym('default',(0,0)), 'ub': DM()}
+            {'slack_name': 'default', 'shape':0, 'ub': DM([]), 'penalty': 0}
         ]
         self.slack_cost = 0
 
@@ -324,17 +324,12 @@ class Optimizer:
         assert isinstance(soft_constraint, bool), 'soft_constraint must be boolean, you have: {}'.format(type(soft_constraint))
 
         if soft_constraint==True:
-            # Introduce new slack variable:
-            epsilon = SX.sym('eps_'+expr_name,*expr.shape)
-            # Change expression
-            expr = expr-epsilon
             # Add slack variable to list of slack variables:
             self.slack_vars_list.extend([
-                {'slack_name': expr_name, 'var': epsilon, 'ub': maximum_violation}
+                {'slack_name': expr_name, 'shape': expr.shape, 'ub': maximum_violation, 'penalty': penalty_term_cons}
             ])
-            # Add cost contribution:
-            self.slack_cost += sum1(penalty_term_cons*epsilon)
 
+        # All operations to make the soft constraints work are in _setup_nl_cons.
 
         self.nl_cons_list.extend([
             {'expr_name': expr_name, 'expr': expr, 'ub' : ub}])
@@ -348,28 +343,33 @@ class Optimizer:
         This is not part of the public API. Do not call this method.
         """
         # Create struct for soft constraints:
-        self._eps = _eps = struct_symSX([
-            entry(slack_i['slack_name'], sym=slack_i['var']) for slack_i in self.slack_vars_list
+        self._eps = _eps = self.model.sym_struct([
+            entry(slack_i['slack_name'], shape=slack_i['shape']) for slack_i in self.slack_vars_list
         ])
-        self.n_eps = _eps.shape[0]
+        # Create struct for _nl_cons:
+        # Use the previously defined sym variables to declare shape and symbolic variable.
+        self._nl_cons = self.model.struct([
+            entry(expr_i['expr_name'], expr=expr_i['expr']) for expr_i in self.nl_cons_list
+        ])
 
+        self.n_eps = _eps.shape[0]
         # Create bounds:
         self._eps_lb = _eps(0.0)
         self._eps_ub = _eps(np.inf)
-        # Set bounds:
+
+        # Set bounds, add slack variable to constraint and add cost.
         for slack_i in self.slack_vars_list:
             self._eps_ub[slack_i['slack_name']] = slack_i['ub']
+            self._nl_cons[slack_i['slack_name']] += self._eps[slack_i['slack_name']]
+            self.slack_cost += sum1(slack_i['penalty']*self._eps[slack_i['slack_name']])
+
         # Objective function epsilon contribution:
         self.epsterm_fun = Function('epsterm', [_eps], [self.slack_cost])
 
-        # Create struct for _nl_cons:
-        # Use the previously defined SX.sym variables to declare shape and symbolic variable.
-        self._nl_cons = struct_SX([
-            entry(expr_i['expr_name'], expr=expr_i['expr']) for expr_i in self.nl_cons_list
-        ])
         # Make function from these expressions:
         _x, _u, _z, _tvp, _p = self.model['x', 'u', 'z', 'tvp', 'p']
         self._nl_cons_fun = Function('nl_cons_fun', [_x, _u, _z, _tvp, _p, _eps], [self._nl_cons])
+
         # Create bounds:
         self._nl_cons_ub = self._nl_cons(np.inf)
         self._nl_cons_lb = self._nl_cons(-np.inf)
@@ -417,7 +417,7 @@ class Optimizer:
         :rtype: None
         """
 
-        tvp_template = struct_symSX([
+        tvp_template = self.model.sym_struct([
             entry('_tvp', repeat=self.n_horizon+1, struct=self.model._tvp)
         ])
         return tvp_template(0)
@@ -541,7 +541,7 @@ class Optimizer:
         alg = substitute(alg, _p, _p*self._p_scaling.cat) # only meaningful for MHE.
 
         if self.state_discretization == 'discrete':
-            _i = SX.sym('i', 0)
+            _i = self.model.sym('i', 0)
             # discrete integrator ifcs mimics the API the collocation ifcn.
             ifcn = Function('ifcn', [_x, _i, _u, _z, _tvp, _p, _w], [alg, rhs/self._x_scaling.cat])
             n_total_coll_points = 0
@@ -580,7 +580,7 @@ class Optimizer:
             D = np.zeros(deg + 1)
 
             # Dimensionless time inside one control interval
-            tau = SX.sym("tau")
+            tau = self.model.sym("tau")
 
             # All collocation time points
             T = np.zeros((nk, ni, deg + 1))
@@ -606,24 +606,30 @@ class Optimizer:
                     C[j, r] = tfcn(tau_root[r])
 
             # Define symbolic variables for collocation
-            xk0 = SX.sym("xk0", n_x)
-            #zk = SX.sym("zk", n_z)
-            pk = SX.sym("pk", n_p)
-            tv_pk = SX.sym("tv_pk", n_tvp)
-            uk = SX.sym("uk", n_u)
-            wk = SX.sym("wk", n_w)
+            xk0 = self.model.sym("xk0", n_x)
+            #zk = self.model.sym("zk", n_z)
+            pk = self.model.sym("pk", n_p)
+            tv_pk = self.model.sym("tv_pk", n_tvp)
+            uk = self.model.sym("uk", n_u)
+            wk = self.model.sym("wk", n_w)
 
             # State trajectory
             n_ik = ni * (deg + 1) * n_x
-            ik = SX.sym("ik", n_ik)
-            ik_split = np.resize(np.array([], dtype=SX), (ni, deg + 1))
+            ik = self.model.sym("ik", n_ik)
+
+            if self.model.symvar_type == 'MX':
+                dtype = MX
+            else:
+                dtype = SX
+
+            ik_split = np.resize(np.array([], dtype=dtype), (ni, deg + 1))
             offset = 0
 
             # Algebraic trajectory
             n_zk = ni * (deg +1) * n_z
-            zk = SX.sym("zk", n_zk)
+            zk = self.model.sym("zk", n_zk)
             offset_z = 0
-            zk_split = np.resize(np.array([], dtype=SX), (ni, deg + 1))
+            zk_split = np.resize(np.array([], dtype=dtype), (ni, deg + 1))
 
             # Store initial condition
             ik_split[0, 0] = xk0
