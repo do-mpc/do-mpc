@@ -123,7 +123,7 @@ class Optimizer:
         var_struct = getattr(self, query)
 
         err_msg = 'Calling .bounds with {} is not valid. Possible keys are {}.'
-        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), err_msg.format(ind, var_struct.keys())
 
         return var_struct[var_name]
 
