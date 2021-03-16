@@ -113,12 +113,12 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             'store_solver_stats',
             'nlpsol_opts'
         ]
-
+        
         # Default Parameters (param. details in set_param method):
         self.n_robust = 0
         self.open_loop = False
         self.use_terminal_bounds = True
-        self.state_discretization = 'collocation'
+        #self.state_discretization = 'collocation'  #Set in optimizer
         self.collocation_type = 'radau'
         self.collocation_deg = 2
         self.collocation_ni = 1
@@ -867,7 +867,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         elif isinstance(x0, structure3.DMStruct):
             x0 = x0.cat
         else:
-            raise Exception('Invalid type {} for x0. Must be {}'.format(type(x0), (np.ndarray, casadi.DM, structre3.DMStruct)))
+            raise Exception('Invalid type {} for x0. Must be {}'.format(type(x0), (np.ndarray, casadi.DM, structure3.DMStruct)))
 
         # Check input shape.
         n_val = np.prod(x0.shape)

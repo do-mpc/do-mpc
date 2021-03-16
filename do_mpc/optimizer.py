@@ -71,6 +71,11 @@ class Optimizer:
             {'slack_name': 'default', 'var':SX.sym('default',(0,0)), 'ub': DM()}
         ]
         self.slack_cost = 0
+        
+        if self.model.model_type == 'continuous':
+            self.state_discretization = 'collocation'
+        else:
+            self.state_discretization = 'discrete'
 
 
     @IndexedProperty
