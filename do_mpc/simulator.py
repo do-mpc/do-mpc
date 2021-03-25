@@ -439,9 +439,10 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         return x_new
 
-    def make_step(self, u0, v0=None, w0=None):
+    def make_step(self, u0=None, v0=None, w0=None):
         """Main method of the simulator class during control runtime. This method is called at each timestep
-        and computes the next state or the current control input :py:obj:`u0`. The method returns the resulting measurement,
+        and computes the next state for the current control input :py:obj:`u0`. If a control input is not 
+        specified, the past input is held constant. The method returns the current measurement,
         as defined in :py:class:`do_mpc.model.Model.set_meas`.
 
         The initial state :py:attr:`x0` is stored as a class attribute. Use this attribute :py:attr:`x0` to change the initial state.
@@ -464,14 +465,16 @@ class Simulator(do_mpc.model.IteratedVariables):
         :param w0: Additive process noise
         :type w0: numpy.ndarray (optional)
 
-        :return: y_next
+        :return: y0
         :rtype: numpy.ndarray
         """
-        assert self.flags['setup'] == True, 'Simulator is not setup. Call simulator.setup() first.'
-        assert isinstance(u0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'u0 is wrong input type. You have: {}'.format(type(u0))
-        assert u0.shape == self.model._u.shape, 'u0 has incorrect shape. You have: {}, expected: {}'.format(u0.shape, self.model._u.shape)
-        assert isinstance(u0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'u0 is wrong input type. You have: {}'.format(type(u0))
-        assert u0.shape == self.model._u.shape, 'u0 has incorrect shape. You have: {}, expected: {}'.format(u0.shape, self.model._u.shape)
+        
+        if u0 is None:
+            u0 = self._u0
+        else:                
+            assert self.flags['setup'] == True, 'Simulator is not setup. Call simulator.setup() first.'
+            assert isinstance(u0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'u0 is wrong input type. You have: {}'.format(type(u0))
+            assert u0.shape == self.model._u.shape, 'u0 has incorrect shape. You have: {}, expected: {}'.format(u0.shape, self.model._u.shape)
 
         if w0 is None:
             w0 = self.model._w(0)
@@ -486,7 +489,7 @@ class Simulator(do_mpc.model.IteratedVariables):
             input_types = (np.ndarray, casadi.DM, structure3.DMStruct)
             assert isinstance(v0, input_types), 'v0 is wrong input type. You have: {}. Must be of type'.format(type(v0), input_types)
             assert v0.shape == self.model._v.shape, 'v0 has incorrect shape. You have: {}, expected: {}'.format(v0.shape, self.model._v.shape)
-
+        
         tvp0 = self.tvp_fun(self._t0)
         p0 = self.p_fun(self._t0)
         t0 = self._t0
@@ -496,15 +499,15 @@ class Simulator(do_mpc.model.IteratedVariables):
         self.sim_p_num['_p'] = p0
         self.sim_p_num['_tvp'] = tvp0
         self.sim_p_num['_w'] = w0
-
+        
         x_next = self.simulate()
-
+        
         z0 = self.sim_z_num['_z']
         aux0 = self.sim_aux_num
-
+        
         # Call measurement function
-        y_next = self.model._meas_fun(x_next, u0, z0, tvp0, p0, v0)
-
+        y0 = self.model._meas_fun(x0, u0, z0, tvp0, p0, v0)
+        
         self.data.update(_x = x0)
         self.data.update(_u = u0)
         self.data.update(_z = z0)
@@ -512,10 +515,12 @@ class Simulator(do_mpc.model.IteratedVariables):
         self.data.update(_p = p0)
         self.data.update(_aux = aux0)
         self.data.update(_time = t0)
+        
+        # This stores the current measurement
+        self.data.update(_y = y0)              
 
         self._x0.master = x_next
         self._z0.master = z0
-        self._u0.master = u0
-        self._t0 = self._t0 + self.t_step
-
-        return y_next.full()
+        self._u0 = u0
+        self._t0 = self._t0 + self.t_step       
+        return y0.full()    
