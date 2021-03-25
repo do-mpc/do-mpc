@@ -118,7 +118,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         self.n_robust = 0
         self.open_loop = False
         self.use_terminal_bounds = True
-        #self.state_discretization = 'collocation'  #Set in optimizer
+        self.state_discretization = 'collocation'
         self.collocation_type = 'radau'
         self.collocation_deg = 2
         self.collocation_ni = 1

@@ -71,11 +71,6 @@ class Optimizer:
             {'slack_name': 'default', 'var':SX.sym('default',(0,0)), 'ub': DM()}
         ]
         self.slack_cost = 0
-        
-        if self.model.model_type == 'continuous':
-            self.state_discretization = 'collocation'
-        else:
-            self.state_discretization = 'discrete'
 
 
     @IndexedProperty
@@ -545,168 +540,169 @@ class Optimizer:
         alg = substitute(alg, _z, _z*self._z_scaling.cat)
         alg = substitute(alg, _p, _p*self._p_scaling.cat) # only meaningful for MHE.
 
-        if self.state_discretization == 'discrete':
+        if self.model.model_type == 'discrete':
             _i = SX.sym('i', 0)
             # discrete integrator ifcs mimics the API the collocation ifcn.
             ifcn = Function('ifcn', [_x, _i, _u, _z, _tvp, _p, _w], [alg, rhs/self._x_scaling.cat])
             n_total_coll_points = 0
-        if self.state_discretization == 'collocation':
-            ffcn = Function('ffcn', [_x, _u, _z, _tvp, _p, _w], [rhs/self._x_scaling.cat])
-            afcn = Function('afcn', [_x, _u, _z, _tvp, _p, _w], [alg])
-            # Get collocation information
-            coll = self.collocation_type
-            deg = self.collocation_deg
-            ni = self.collocation_ni
-            nk = self.n_horizon
-            t_step = self.t_step
-            n_x = self.model.n_x
-            n_u = self.model.n_u
-            n_p = self.model.n_p
-            n_z = self.model.n_z
-            n_w = self.model.n_w
-            n_tvp = self.model.n_tvp
-            n_total_coll_points = (deg + 1) * ni
-
-            # Choose collocation points
-            if coll == 'legendre':    # Legendre collocation points
-                tau_root = [0] + collocation_points(deg, 'legendre')
-            elif coll == 'radau':     # Radau collocation points
-                tau_root = [0] + collocation_points(deg, 'radau')
-            else:
-                raise Exception('Unknown collocation scheme')
-
-            # Size of the finite elements
-            h = t_step / ni
-
-            # Coefficients of the collocation equation
-            C = np.zeros((deg + 1, deg + 1))
-
-            # Coefficients of the continuity equation
-            D = np.zeros(deg + 1)
-
-            # Dimensionless time inside one control interval
-            tau = SX.sym("tau")
-
-            # All collocation time points
-            T = np.zeros((nk, ni, deg + 1))
-            for k in range(nk):
-                for i in range(ni):
-                    for j in range(deg + 1):
-                        T[k, i, j] = h * (k * ni + i + tau_root[j])
-
-            # For all collocation points
-            for j in range(deg + 1):
-                # Construct Lagrange polynomials to get the polynomial basis at the
-                # collocation point
-                L = 1
-                for r in range(deg + 1):
-                    if r != j:
-                        L *= (tau - tau_root[r]) / (tau_root[j] - tau_root[r])
-                lfcn = Function('lfcn', [tau], [L])
-                D[j] = lfcn(1.0)
-                # Evaluate the time derivative of the polynomial at all collocation
-                # points to get the coefficients of the continuity equation
-                tfcn = Function('tfcn', [tau], [tangent(L, tau)])
-                for r in range(deg + 1):
-                    C[j, r] = tfcn(tau_root[r])
-
-            # Define symbolic variables for collocation
-            xk0 = SX.sym("xk0", n_x)
-            #zk = SX.sym("zk", n_z)
-            pk = SX.sym("pk", n_p)
-            tv_pk = SX.sym("tv_pk", n_tvp)
-            uk = SX.sym("uk", n_u)
-            wk = SX.sym("wk", n_w)
-
-            # State trajectory
-            n_ik = ni * (deg + 1) * n_x
-            ik = SX.sym("ik", n_ik)
-            ik_split = np.resize(np.array([], dtype=SX), (ni, deg + 1))
-            offset = 0
-
-            # Algebraic trajectory
-            n_zk = ni * (deg +1) * n_z
-            zk = SX.sym("zk", n_zk)
-            offset_z = 0
-            zk_split = np.resize(np.array([], dtype=SX), (ni, deg + 1))
-
-            # Store initial condition
-            ik_split[0, 0] = xk0
-            zk_split[0, 0] = zk[offset_z:offset_z + n_z]
-            offset_z += n_z
-            first_j = 1  # Skip allocating x for the first collocation point for the first finite element
-            # For each finite element
-            for i in range(ni):
-                # For each collocation point
-                for j in range(first_j, deg + 1):
-                    # Get the expression for the state vector
-                    ik_split[i, j] = ik[offset:offset + n_x]
-                    zk_split[i, j] = zk[offset_z:offset_z + n_z]
-                    offset_z += n_z
-                    offset += n_x
-
-                # All collocation points in subsequent finite elements
-                first_j = 0
-
-            # Get the state at the end of the control interval
-            xkf = ik[offset:offset + n_x]
-            offset += n_x
-            # Check offset for consistency
-            assert(offset == n_ik)
-            assert(offset_z == n_zk)
-            # Constraints in the control interval
-            gk = []
-            lbgk = []
-            ubgk = []
-
-            # For all finite elements
-            for i in range(ni):
-                # for the first point:
-                a_i0 = afcn(ik_split[i, 0], uk, zk_split[i,0], tv_pk, pk, wk)
-                gk.append(a_i0)
-                lbgk.append(np.zeros(n_z))
-                ubgk.append(np.zeros(n_z))
-
+        if self.model.model_type == 'continuous':
+            if self.state_discretization == 'collocation':
+                ffcn = Function('ffcn', [_x, _u, _z, _tvp, _p, _w], [rhs/self._x_scaling.cat])
+                afcn = Function('afcn', [_x, _u, _z, _tvp, _p, _w], [alg])
+                # Get collocation information
+                coll = self.collocation_type
+                deg = self.collocation_deg
+                ni = self.collocation_ni
+                nk = self.n_horizon
+                t_step = self.t_step
+                n_x = self.model.n_x
+                n_u = self.model.n_u
+                n_p = self.model.n_p
+                n_z = self.model.n_z
+                n_w = self.model.n_w
+                n_tvp = self.model.n_tvp
+                n_total_coll_points = (deg + 1) * ni
+    
+                # Choose collocation points
+                if coll == 'legendre':    # Legendre collocation points
+                    tau_root = [0] + collocation_points(deg, 'legendre')
+                elif coll == 'radau':     # Radau collocation points
+                    tau_root = [0] + collocation_points(deg, 'radau')
+                else:
+                    raise Exception('Unknown collocation scheme')
+    
+                # Size of the finite elements
+                h = t_step / ni
+    
+                # Coefficients of the collocation equation
+                C = np.zeros((deg + 1, deg + 1))
+    
+                # Coefficients of the continuity equation
+                D = np.zeros(deg + 1)
+    
+                # Dimensionless time inside one control interval
+                tau = SX.sym("tau")
+    
+                # All collocation time points
+                T = np.zeros((nk, ni, deg + 1))
+                for k in range(nk):
+                    for i in range(ni):
+                        for j in range(deg + 1):
+                            T[k, i, j] = h * (k * ni + i + tau_root[j])
+    
                 # For all collocation points
-                for j in range(1, deg + 1):
-                    # Get an expression for the state derivative at the coll point
-                    xp_ij = 0
+                for j in range(deg + 1):
+                    # Construct Lagrange polynomials to get the polynomial basis at the
+                    # collocation point
+                    L = 1
                     for r in range(deg + 1):
-                        xp_ij += C[r, j] * ik_split[i, r]
-
-                    # Add collocation equations to the NLP
-                    f_ij = ffcn(ik_split[i, j], uk, zk_split[i,j], tv_pk, pk, wk)
-                    gk.append(h * f_ij - xp_ij)
-                    lbgk.append(np.zeros(n_x))  # equality constraints
-                    ubgk.append(np.zeros(n_x))  # equality constraints
-
-                    # algebraic constraints
-                    a_ij = afcn(ik_split[i, j], uk, zk_split[i,j], tv_pk, pk, wk)
-                    gk.append(a_ij)
+                        if r != j:
+                            L *= (tau - tau_root[r]) / (tau_root[j] - tau_root[r])
+                    lfcn = Function('lfcn', [tau], [L])
+                    D[j] = lfcn(1.0)
+                    # Evaluate the time derivative of the polynomial at all collocation
+                    # points to get the coefficients of the continuity equation
+                    tfcn = Function('tfcn', [tau], [tangent(L, tau)])
+                    for r in range(deg + 1):
+                        C[j, r] = tfcn(tau_root[r])
+    
+                # Define symbolic variables for collocation
+                xk0 = SX.sym("xk0", n_x)
+                #zk = SX.sym("zk", n_z)
+                pk = SX.sym("pk", n_p)
+                tv_pk = SX.sym("tv_pk", n_tvp)
+                uk = SX.sym("uk", n_u)
+                wk = SX.sym("wk", n_w)
+    
+                # State trajectory
+                n_ik = ni * (deg + 1) * n_x
+                ik = SX.sym("ik", n_ik)
+                ik_split = np.resize(np.array([], dtype=SX), (ni, deg + 1))
+                offset = 0
+    
+                # Algebraic trajectory
+                n_zk = ni * (deg +1) * n_z
+                zk = SX.sym("zk", n_zk)
+                offset_z = 0
+                zk_split = np.resize(np.array([], dtype=SX), (ni, deg + 1))
+    
+                # Store initial condition
+                ik_split[0, 0] = xk0
+                zk_split[0, 0] = zk[offset_z:offset_z + n_z]
+                offset_z += n_z
+                first_j = 1  # Skip allocating x for the first collocation point for the first finite element
+                # For each finite element
+                for i in range(ni):
+                    # For each collocation point
+                    for j in range(first_j, deg + 1):
+                        # Get the expression for the state vector
+                        ik_split[i, j] = ik[offset:offset + n_x]
+                        zk_split[i, j] = zk[offset_z:offset_z + n_z]
+                        offset_z += n_z
+                        offset += n_x
+    
+                    # All collocation points in subsequent finite elements
+                    first_j = 0
+    
+                # Get the state at the end of the control interval
+                xkf = ik[offset:offset + n_x]
+                offset += n_x
+                # Check offset for consistency
+                assert(offset == n_ik)
+                assert(offset_z == n_zk)
+                # Constraints in the control interval
+                gk = []
+                lbgk = []
+                ubgk = []
+    
+                # For all finite elements
+                for i in range(ni):
+                    # for the first point:
+                    a_i0 = afcn(ik_split[i, 0], uk, zk_split[i,0], tv_pk, pk, wk)
+                    gk.append(a_i0)
                     lbgk.append(np.zeros(n_z))
                     ubgk.append(np.zeros(n_z))
-
-
-                # Get an expression for the state at the end of the finite element
-                xf_i = 0
-                for r in range(deg + 1):
-                    xf_i += D[r] * ik_split[i, r]
-
-                # Add continuity equation to NLP
-                x_next = ik_split[i + 1, 0] if i + 1 < ni else xkf
-                gk.append(x_next - xf_i)
-                lbgk.append(np.zeros(n_x))
-                ubgk.append(np.zeros(n_x))
-
-            # Concatenate constraints
-            gk = vertcat(*gk)
-            lbgk = np.concatenate(lbgk)
-            ubgk = np.concatenate(ubgk)
-
-            assert(gk.shape[0] == ik.shape[0] + zk.shape[0])
-
-            # Create the integrator function
-            ifcn = Function("ifcn", [xk0, ik, uk, zk, tv_pk, pk, wk], [gk, xkf])
+    
+                    # For all collocation points
+                    for j in range(1, deg + 1):
+                        # Get an expression for the state derivative at the coll point
+                        xp_ij = 0
+                        for r in range(deg + 1):
+                            xp_ij += C[r, j] * ik_split[i, r]
+    
+                        # Add collocation equations to the NLP
+                        f_ij = ffcn(ik_split[i, j], uk, zk_split[i,j], tv_pk, pk, wk)
+                        gk.append(h * f_ij - xp_ij)
+                        lbgk.append(np.zeros(n_x))  # equality constraints
+                        ubgk.append(np.zeros(n_x))  # equality constraints
+    
+                        # algebraic constraints
+                        a_ij = afcn(ik_split[i, j], uk, zk_split[i,j], tv_pk, pk, wk)
+                        gk.append(a_ij)
+                        lbgk.append(np.zeros(n_z))
+                        ubgk.append(np.zeros(n_z))
+    
+    
+                    # Get an expression for the state at the end of the finite element
+                    xf_i = 0
+                    for r in range(deg + 1):
+                        xf_i += D[r] * ik_split[i, r]
+    
+                    # Add continuity equation to NLP
+                    x_next = ik_split[i + 1, 0] if i + 1 < ni else xkf
+                    gk.append(x_next - xf_i)
+                    lbgk.append(np.zeros(n_x))
+                    ubgk.append(np.zeros(n_x))
+    
+                # Concatenate constraints
+                gk = vertcat(*gk)
+                lbgk = np.concatenate(lbgk)
+                ubgk = np.concatenate(ubgk)
+    
+                assert(gk.shape[0] == ik.shape[0] + zk.shape[0])
+    
+                # Create the integrator function
+                ifcn = Function("ifcn", [xk0, ik, uk, zk, tv_pk, pk, wk], [gk, xkf])
 
             # Return the integration function and the number of collocation points
         return ifcn, n_total_coll_points

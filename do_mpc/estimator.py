@@ -174,7 +174,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         # Default Parameters:
         self.meas_from_data = False
-        #self.state_discretization = 'collocation'   #Set in optimizer
+        self.state_discretization = 'collocation'
         self.collocation_type = 'radau'
         self.collocation_deg = 2
         self.collocation_ni = 1
