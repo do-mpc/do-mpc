@@ -66,7 +66,6 @@ class Data:
             '_p':    model.n_p,
             '_aux':  model.n_aux,
         }
-
         self.init_storage()
         self.meta_data = {}
 

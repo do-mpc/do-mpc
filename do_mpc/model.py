@@ -1014,7 +1014,7 @@ class Model:
         # Create and store some information about the model regarding number of variables for
         # _x, _y, _u, _z, _tvp, _p, _aux
         self.n_x = self._x.shape[0]
-        self.n_y = self._y.shape[0]
+        self.n_y = self._y_expression.shape[0]
         self.n_u = self._u.shape[0]
         self.n_z = self._z.shape[0]
         self.n_tvp = self._tvp.shape[0]
