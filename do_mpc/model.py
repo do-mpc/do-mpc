@@ -631,9 +631,9 @@ class Model:
         """
         return self._getvar('_w')
 
-        @w.setter
-        def w(self, val):
-            raise Exception('Cannot set process noise directly.')
+    @w.setter
+    def w(self, val):
+        raise Exception('Cannot set process noise directly.')
 
 
     @property
@@ -661,9 +661,9 @@ class Model:
         """
         return self._getvar('_v')
 
-        @v.setter
-        def v(self, val):
-            raise Exception('Cannot set measurement noise directly.')
+    @v.setter
+    def v(self, val):
+        raise Exception('Cannot set measurement noise directly.')
 
 
     def set_variable(self, var_type, var_name, shape=(1,1)):
