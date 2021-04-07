@@ -271,15 +271,11 @@ class Model:
         # Define private class attributes
 
         self._x = []
-
         self._u =   [entry('default', shape=(0,0))]
-
         self._z =   [entry('default', shape=(0,0))]
-
         self._p =   [entry('default', shape=(0,0))]
-
         self._tvp = [entry('default', shape=(0,0))]
-
+        
         self._aux = [entry('default', shape=(1,1))]
         self._aux_expression = [entry('default', expr=DM(0))]
 
@@ -291,9 +287,8 @@ class Model:
         # Measurement noise
         self._v = [entry('default', shape=(0,0))]
 
-
         self.model_type = model_type
-        self.symvar_type = 'SX'
+        self.symvar_type = 'SX' 
 
         self.rhs_list = []
         self.alg_list = [entry('default', expr=[])]
@@ -973,7 +968,7 @@ class Model:
         self._x = _x = struct_symSX(self._x)
         self._w = _w = struct_symSX(self._w)
         self._v = _v = struct_symSX(self._v)
-        self._u = _u =  struct_symSX(self._u)
+        self._u = _u = struct_symSX(self._u)
         self._z = _z = struct_symSX(self._z)
         self._p = _p = struct_symSX(self._p)
         self._tvp = _tvp =  struct_symSX(self._tvp)
