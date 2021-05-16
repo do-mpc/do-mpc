@@ -315,7 +315,7 @@ class Optimizer:
         :raises assertion: expr must be a casadi SX or MX type
 
         :return: Returns the newly created expression. Expression can be used e.g. for the RHS.
-        :rtype: casadi.SX
+        :rtype: casadi.SX or casadi.MX
         """
         assert self.flags['setup'] == False, 'Cannot call .set_expression after .setup_model.'
         assert isinstance(expr_name, str), 'expr_name must be str, you have: {}'.format(type(expr_name))
@@ -343,12 +343,12 @@ class Optimizer:
         This is not part of the public API. Do not call this method.
         """
         # Create struct for soft constraints:
-        self._eps = _eps = self.model.sym_struct([
+        self._eps = _eps = self.model.sv.sym_struct([
             entry(slack_i['slack_name'], shape=slack_i['shape']) for slack_i in self.slack_vars_list
         ])
         # Create struct for _nl_cons:
         # Use the previously defined sym variables to declare shape and symbolic variable.
-        self._nl_cons = self.model.struct([
+        self._nl_cons = self.model.sv.struct([
             entry(expr_i['expr_name'], expr=expr_i['expr']) for expr_i in self.nl_cons_list
         ])
 
@@ -417,7 +417,7 @@ class Optimizer:
         :rtype: None
         """
 
-        tvp_template = self.model.sym_struct([
+        tvp_template = self.model.sv.sym_struct([
             entry('_tvp', repeat=self.n_horizon+1, struct=self.model._tvp)
         ])
         return tvp_template(0)
@@ -541,7 +541,7 @@ class Optimizer:
         alg = substitute(alg, _p, _p*self._p_scaling.cat) # only meaningful for MHE.
 
         if self.state_discretization == 'discrete':
-            _i = self.model.sym('i', 0)
+            _i = self.model.sv.sym('i', 0)
             # discrete integrator ifcs mimics the API the collocation ifcn.
             ifcn = Function('ifcn', [_x, _i, _u, _z, _tvp, _p, _w], [alg, rhs/self._x_scaling.cat])
             n_total_coll_points = 0
@@ -580,7 +580,7 @@ class Optimizer:
             D = np.zeros(deg + 1)
 
             # Dimensionless time inside one control interval
-            tau = self.model.sym("tau")
+            tau = self.model.sv.sym("tau")
 
             # All collocation time points
             T = np.zeros((nk, ni, deg + 1))
@@ -606,30 +606,25 @@ class Optimizer:
                     C[j, r] = tfcn(tau_root[r])
 
             # Define symbolic variables for collocation
-            xk0 = self.model.sym("xk0", n_x)
-            #zk = self.model.sym("zk", n_z)
-            pk = self.model.sym("pk", n_p)
-            tv_pk = self.model.sym("tv_pk", n_tvp)
-            uk = self.model.sym("uk", n_u)
-            wk = self.model.sym("wk", n_w)
+            xk0 = self.model.sv.sym("xk0", n_x)
+            #zk = self.model.sv.sym("zk", n_z)
+            pk = self.model.sv.sym("pk", n_p)
+            tv_pk = self.model.sv.sym("tv_pk", n_tvp)
+            uk = self.model.sv.sym("uk", n_u)
+            wk = self.model.sv.sym("wk", n_w)
 
             # State trajectory
             n_ik = ni * (deg + 1) * n_x
-            ik = self.model.sym("ik", n_ik)
+            ik = self.model.sv.sym("ik", n_ik)
 
-            if self.model.symvar_type == 'MX':
-                dtype = MX
-            else:
-                dtype = SX
-
-            ik_split = np.resize(np.array([], dtype=dtype), (ni, deg + 1))
+            ik_split = np.resize(np.array([], dtype=self.model.sv.dtype), (ni, deg + 1))
             offset = 0
 
             # Algebraic trajectory
             n_zk = ni * (deg +1) * n_z
-            zk = self.model.sym("zk", n_zk)
+            zk = self.model.sv.sym("zk", n_zk)
             offset_z = 0
-            zk_split = np.resize(np.array([], dtype=dtype), (ni, deg + 1))
+            zk_split = np.resize(np.array([], dtype=self.model.sv.dtype), (ni, deg + 1))
 
             # Store initial condition
             ik_split[0, 0] = xk0

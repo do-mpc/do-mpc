@@ -223,10 +223,12 @@ class _SymVar:
             self.sym = MX.sym
             self.struct = struct_MX
             self.sym_struct = struct_symMX
+            self.dtype = MX
         if symvar_type == 'SX':
             self.sym = SX.sym
             self.struct = struct_SX
             self.sym_struct = struct_symSX
+            self.dtype = SX
 
 
 class Model:
@@ -348,7 +350,17 @@ class Model:
         if self.flags['setup']:
             return getattr(self, var_name)
         else:
-            raise Exception('Cannot query variables before calling Model.setup.')
+            # Before calling setup the attributes _x,_u,_z etc. are dicts with the keys: name and var.
+            sym_dict = getattr(self, var_name)
+            # We use the same method as in setup to create symbolic structures from these dicts
+            sym_struct = self._convert2struct(sym_dict)
+            # We then create a mutable structure of the same structure
+            struct = self.sv.struct(sym_struct)
+            # And set the values of this structure to the original symbolic variables
+            for key, var in zip(sym_dict['name'], sym_dict['var']):
+                struct[key] = var
+            # Indexing this structure returns the original symbolic variables
+            return struct
 
 
     @property
@@ -736,10 +748,8 @@ class Model:
         assert var_name not in getattr(self,var_type)['name'], 'The variable name {} for type {} already exists.'.format(var_name, var_type)
 
         # Create variable:
-        if self.symvar_type == 'MX':
-            var = MX.sym(var_name, shape)
-        else:
-            var = SX.sym(var_name, shape)
+        var = self.sv.sym(var_name, shape)
+
 
         # Extend var list with new entry:
         getattr(self, var_type)['var'].append(var)
@@ -786,7 +796,11 @@ class Model:
         assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
 
         self._aux_expression.append(entry(expr_name, expr = expr))
-        self._aux.append(entry(expr_name, shape=expr.shape))
+
+        # Create variable:
+        var = self.sv.sym(expr_name, expr.shape)
+        self._aux['var'].append(var)
+        self._aux['name'].append(expr_name)
 
         return expr
 
@@ -857,17 +871,19 @@ class Model:
 
         # Create a new process noise variable and add it to the rhs equation.
         if meas_noise:
-            if self.symvar_type == 'MX':
-                var = MX.sym(meas_name+'_noise', expr.shape[0])
-            else:
-                var = SX.sym(meas_name+'_noise', expr.shape[0])
+            var = self.sv.sym(meas_name+'_noise', expr.shape[0])
 
-            self._v.append(var)
+            self._v['name'].append(meas_name)
+            self._v['var'].append(var)
             expr += var
 
         self._y_expression.append(entry(meas_name, expr = expr))
-        self._y.append(entry(meas_name, shape=expr.shape))
 
+        # Create variable:
+        var = self.sv.sym(meas_name, expr.shape)
+        self._y['var'].append(var)
+        self._y['name'].append(meas_name)
+    
         return expr
 
     def set_rhs(self, var_name, expr, process_noise=False):

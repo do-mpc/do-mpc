@@ -601,7 +601,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         :rtype: None
         """
         self.n_combinations = n_combinations
-        p_template = self.model.sym_struct([
+        p_template = self.model.sv.sym_struct([
             entry('_p', repeat=n_combinations, struct=self.model._p)
         ])
         return p_template(0)
@@ -956,7 +956,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             n_u_scenarios = n_max_scenarios
 
         # Create struct for optimization variables:
-        self.opt_x = opt_x = self.model.sym_struct([
+        self.opt_x = opt_x = self.model.sv.sym_struct([
             # One additional point (in the collocation dimension) for the final point.
             entry('_x', repeat=[self.n_horizon+1, n_max_scenarios,
                                 1+n_total_coll_points], struct=self.model._x),
@@ -980,7 +980,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
 
         # Create struct for optimization parameters:
-        self.opt_p = opt_p = self.model.sym_struct([
+        self.opt_p = opt_p = self.model.sv.sym_struct([
             entry('_x0', struct=self.model._x),
             entry('_tvp', repeat=self.n_horizon+1, struct=self.model._tvp),
             entry('_p', repeat=self.n_combinations, struct=self.model._p),
@@ -991,11 +991,11 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         self.n_opt_p = opt_p.shape[0]
 
         # Dummy struct with symbolic variables
-        self.aux_struct = self.model.sym_struct([
+        self.aux_struct = self.model.sv.sym_struct([
             entry('_aux', repeat=[self.n_horizon, n_max_scenarios], struct=self.model._aux_expression)
         ])
         # Create mutable symbolic expression from the struct defined above.
-        self.opt_aux = opt_aux = self.model.struct(self.aux_struct)
+        self.opt_aux = opt_aux = self.model.sv.struct(self.aux_struct)
 
         self.n_opt_aux = self.opt_aux.shape[0]
 

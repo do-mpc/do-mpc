@@ -134,14 +134,14 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         self._check_validity()
 
-        self.sim_x = sim_x =  struct_symSX([
+        self.sim_x = sim_x =  self.model.sv.sym_struct([
             entry('_x', struct=self.model._x)
             ])
-        self.sim_z = sim_z =  struct_symSX([
+        self.sim_z = sim_z =  self.model.sv.sym_struct([
             entry('_z', struct=self.model._z)
             ])
 
-        self.sim_p = sim_p = struct_symSX([
+        self.sim_p = sim_p = self.model.sv.sym_struct([
             entry('_u', struct=self.model._u),
             entry('_p', struct=self.model._p),
             entry('_tvp', struct=self.model._tvp),
