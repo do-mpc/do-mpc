@@ -542,7 +542,7 @@ class Optimizer:
         alg = substitute(alg, _z, _z*self._z_scaling.cat)
         alg = substitute(alg, _p, _p*self._p_scaling.cat) # only meaningful for MHE.
 
-        if self.state_discretization == 'discrete':
+        if self.model.model_type == 'discrete':
             _i = self.model.sv.sym('i', 0)
             # discrete integrator ifcs mimics the API the collocation ifcn.
             ifcn = Function('ifcn', [_x, _i, _u, _z, _tvp, _p, _w], [alg, rhs/self._x_scaling.cat])
@@ -664,47 +664,47 @@ class Optimizer:
                 gk.append(a_i0)
                 lbgk.append(np.zeros(n_z))
                 ubgk.append(np.zeros(n_z))
-
-                # For all collocation points
-                for j in range(1, deg + 1):
-                    # Get an expression for the state derivative at the coll point
-                    xp_ij = 0
+    
+                    # For all collocation points
+                    for j in range(1, deg + 1):
+                        # Get an expression for the state derivative at the coll point
+                        xp_ij = 0
+                        for r in range(deg + 1):
+                            xp_ij += C[r, j] * ik_split[i, r]
+    
+                        # Add collocation equations to the NLP
+                        f_ij = ffcn(ik_split[i, j], uk, zk_split[i,j], tv_pk, pk, wk)
+                        gk.append(h * f_ij - xp_ij)
+                        lbgk.append(np.zeros(n_x))  # equality constraints
+                        ubgk.append(np.zeros(n_x))  # equality constraints
+    
+                        # algebraic constraints
+                        a_ij = afcn(ik_split[i, j], uk, zk_split[i,j], tv_pk, pk, wk)
+                        gk.append(a_ij)
+                        lbgk.append(np.zeros(n_z))
+                        ubgk.append(np.zeros(n_z))
+    
+    
+                    # Get an expression for the state at the end of the finite element
+                    xf_i = 0
                     for r in range(deg + 1):
-                        xp_ij += C[r, j] * ik_split[i, r]
-
-                    # Add collocation equations to the NLP
-                    f_ij = ffcn(ik_split[i, j], uk, zk_split[i,j], tv_pk, pk, wk)
-                    gk.append(h * f_ij - xp_ij)
-                    lbgk.append(np.zeros(n_x))  # equality constraints
-                    ubgk.append(np.zeros(n_x))  # equality constraints
-
-                    # algebraic constraints
-                    a_ij = afcn(ik_split[i, j], uk, zk_split[i,j], tv_pk, pk, wk)
-                    gk.append(a_ij)
-                    lbgk.append(np.zeros(n_z))
-                    ubgk.append(np.zeros(n_z))
-
-
-                # Get an expression for the state at the end of the finite element
-                xf_i = 0
-                for r in range(deg + 1):
-                    xf_i += D[r] * ik_split[i, r]
-
-                # Add continuity equation to NLP
-                x_next = ik_split[i + 1, 0] if i + 1 < ni else xkf
-                gk.append(x_next - xf_i)
-                lbgk.append(np.zeros(n_x))
-                ubgk.append(np.zeros(n_x))
-
-            # Concatenate constraints
-            gk = vertcat(*gk)
-            lbgk = np.concatenate(lbgk)
-            ubgk = np.concatenate(ubgk)
-
-            assert(gk.shape[0] == ik.shape[0] + zk.shape[0])
-
-            # Create the integrator function
-            ifcn = Function("ifcn", [xk0, ik, uk, zk, tv_pk, pk, wk], [gk, xkf])
+                        xf_i += D[r] * ik_split[i, r]
+    
+                    # Add continuity equation to NLP
+                    x_next = ik_split[i + 1, 0] if i + 1 < ni else xkf
+                    gk.append(x_next - xf_i)
+                    lbgk.append(np.zeros(n_x))
+                    ubgk.append(np.zeros(n_x))
+    
+                # Concatenate constraints
+                gk = vertcat(*gk)
+                lbgk = np.concatenate(lbgk)
+                ubgk = np.concatenate(ubgk)
+    
+                assert(gk.shape[0] == ik.shape[0] + zk.shape[0])
+    
+                # Create the integrator function
+                ifcn = Function("ifcn", [xk0, ik, uk, zk, tv_pk, pk, wk], [gk, xkf])
 
             # Return the integration function and the number of collocation points
         return ifcn, n_total_coll_points

@@ -287,6 +287,7 @@ class Model:
         assert model_type in ['discrete', 'continuous'], 'model_type must be either discrete or continuous, you have: {}'.format(model_type)
         assert symvar_type in ['SX', 'MX'], 'symvar_type must be either SX or MX, you have: {}'.format(symvar_type)
 
+
         self.symvar_type = symvar_type
         self.model_type = model_type
         self.sv = _SymVar(symvar_type)
@@ -654,9 +655,9 @@ class Model:
         """
         return self._getvar('_w')
 
-        @w.setter
-        def w(self, val):
-            raise Exception('Cannot set process noise directly.')
+    @w.setter
+    def w(self, val):
+        raise Exception('Cannot set process noise directly.')
 
 
     @property
@@ -684,9 +685,9 @@ class Model:
         """
         return self._getvar('_v')
 
-        @v.setter
-        def v(self, val):
-            raise Exception('Cannot set measurement noise directly.')
+    @v.setter
+    def v(self, val):
+        raise Exception('Cannot set measurement noise directly.')
 
 
     def set_variable(self, var_type, var_name, shape=(1,1)):
@@ -1064,13 +1065,6 @@ class Model:
         :rtype: None
         """
 
-        if self.symvar_type == 'MX':
-            sym_struct = struct_symMX
-            struct = struct_MX
-        else:
-            sym_struct = struct_symSX
-            struct = struct_SX
-
         # Create structure from listed symbolic variables:
         _x =  self._convert2struct(self._x)
         _w =  self._convert2struct(self._w)
@@ -1081,7 +1075,6 @@ class Model:
         _tvp =  self._convert2struct(self._tvp)
         _aux =  self._convert2struct(self._aux)
         _y =  self._convert2struct(self._y)
-
 
         # Write self._aux_expression.
         self._aux_expression = self.sv.struct(self._aux_expression)

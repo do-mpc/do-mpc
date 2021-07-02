@@ -950,7 +950,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         elif isinstance(y0, structure3.DMStruct):
             y0 = y0.cat
         else:
-            raise Exception('Invalid type {} for y0. Must be {}'.format(type(y0), (np.ndarray, casadi.DM, structre3.DMStruct)))
+            raise Exception('Invalid type {} for y0. Must be {}'.format(type(y0), (np.ndarray, casadi.DM, structure3.DMStruct)))
 
         # Check input shape.
         n_val = np.prod(y0.shape)
