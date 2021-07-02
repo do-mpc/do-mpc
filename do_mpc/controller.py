@@ -107,6 +107,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             'collocation_deg',
             'collocation_ni',
             'nl_cons_check_colloc_points',
+            'nl_cons_single_slack',
             'cons_check_colloc_points',
             'store_full_solution',
             'store_lagr_multiplier',
@@ -123,6 +124,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         self.collocation_deg = 2
         self.collocation_ni = 1
         self.nl_cons_check_colloc_points = False
+        self.nl_cons_single_slack = False
         self.cons_check_colloc_points = True
         self.store_full_solution = False
         self.store_lagr_multiplier = True
@@ -394,6 +396,9 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         :param nl_cons_check_colloc_points: For orthogonal collocation choose whether the nonlinear bounds set with :py:func:`set_nl_cons` are evaluated once per finite Element or for each collocation point. Defaults to ``False`` (once per collocation point).
         :type nl_cons_check_colloc_points: bool
+
+        :param nl_cons_single_slack: If ``True``, soft-constraints set with :py:func:`set_nl_cons` introduce only a single slack variable for the entire horizon. Defaults to ``False``.
+        :type nl_cons_single_slack: bool
 
         :param cons_check_colloc_points: For orthogonal collocation choose whether the linear bounds set with :py:attr:`bounds` are evaluated once per finite Element or for each collocation point. Defaults to ``True`` (for all collocation points).
         :type cons_check_colloc_points: bool
@@ -955,6 +960,12 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             # Else: Each scenario has its own input.
             n_u_scenarios = n_max_scenarios
 
+        # How many slack variables (for soft constraints) are introduced over the horizon.
+        if self.nl_cons_single_slack:
+            n_eps = 1
+        else:
+            n_eps = self.n_horizon
+
         # Create struct for optimization variables:
         self.opt_x = opt_x = self.model.sv.sym_struct([
             # One additional point (in the collocation dimension) for the final point.
@@ -963,7 +974,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             entry('_z', repeat=[self.n_horizon, n_max_scenarios,
                                 max(n_total_coll_points,1)], struct=self.model._z),
             entry('_u', repeat=[self.n_horizon, n_u_scenarios], struct=self.model._u),
-            entry('_eps', repeat=[self.n_horizon, n_max_scenarios], struct=self._eps),
+            entry('_eps', repeat=[n_eps, n_max_scenarios], struct=self._eps),
         ])
         self.n_opt_x = self.opt_x.shape[0]
         # NOTE: The entry _x[k,child_scenario[k,s,b],:] starts with the collocation points from s to b at time k
@@ -1048,12 +1059,13 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                     cons_lb.append(np.zeros((self.model.n_x, 1)))
                     cons_ub.append(np.zeros((self.model.n_x, 1)))
 
+                    k_eps = min(k, n_eps-1)
                     if self.nl_cons_check_colloc_points:
                         # Ensure nonlinear constraints on all collocation points
                         for i in range(n_total_coll_points):
                             nl_cons_k = self._nl_cons_fun(
                                 opt_x_unscaled['_x', k, s, i], opt_x_unscaled['_u', k, s_u], opt_x_unscaled['_z', k, s, i],
-                                opt_p['_tvp', k], opt_p['_p', current_scenario], opt_x_unscaled['_eps', k, s])
+                                opt_p['_tvp', k], opt_p['_p', current_scenario], opt_x_unscaled['_eps', k_eps, s])
                             cons.append(nl_cons_k)
                             cons_lb.append(self._nl_cons_lb)
                             cons_ub.append(self._nl_cons_ub)
@@ -1061,7 +1073,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                         # Ensure nonlinear constraints only on the beginning of the FE
                         nl_cons_k = self._nl_cons_fun(
                             opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s_u], opt_x_unscaled['_z', k, s, 0],
-                            opt_p['_tvp', k], opt_p['_p', current_scenario], opt_x_unscaled['_eps', k, s])
+                            opt_p['_tvp', k], opt_p['_p', current_scenario], opt_x_unscaled['_eps', k_eps, s])
                         cons.append(nl_cons_k)
                         cons_lb.append(self._nl_cons_lb)
                         cons_ub.append(self._nl_cons_ub)
@@ -1073,7 +1085,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                     obj += omega[k] * self.lterm_fun(opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s_u],
                                                      opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
                     # Add slack variables to the cost
-                    obj += self.epsterm_fun(opt_x_unscaled['_eps', k, s])
+                    obj += self.epsterm_fun(opt_x_unscaled['_eps', k_eps, s])
 
                     # In the last step add the terminal cost too
                     if k == self.n_horizon - 1:

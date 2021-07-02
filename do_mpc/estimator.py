@@ -165,6 +165,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             'collocation_deg',
             'collocation_ni',
             'nl_cons_check_colloc_points',
+            'nl_cons_single_slack',
             'cons_check_colloc_points',
             'store_full_solution',
             'store_lagr_multiplier',
@@ -179,6 +180,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self.collocation_deg = 2
         self.collocation_ni = 1
         self.nl_cons_check_colloc_points = False
+        self.nl_cons_single_slack = False
         self.cons_check_colloc_points = True
         self.store_full_solution = False
         self.store_lagr_multiplier = True
@@ -450,6 +452,9 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         :param cons_check_colloc_points: For orthogonal collocation choose whether the linear bounds set with :py:attr:`bounds` are evaluated once per finite Element or for each collocation point. Defaults to ``True`` (for all collocation points).
         :type cons_check_colloc_points: bool
+
+        :param nl_cons_single_slack: If ``True``, soft-constraints set with :py:func:`set_nl_cons` introduce only a single slack variable for the entire horizon. Defaults to ``False``.
+        :type nl_cons_single_slack: bool
 
         :param store_full_solution: Choose whether to store the full solution of the optimization problem. This is required for animating the predictions in post processing. However, it drastically increases the required storage. Defaults to False.
         :type store_full_solution: bool
@@ -1034,6 +1039,14 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         """
         # Obtain an integrator (collocation, discrete-time) and the amount of intermediate (collocation) points
         ifcn, n_total_coll_points = self._setup_discretization()
+
+        # How many slack variables (for soft constraints) are introduced over the horizon.
+        if self.nl_cons_single_slack:
+            n_eps = 1
+        else:
+            n_eps = self.n_horizon
+
+
         # Create struct for optimization variables:
         self.opt_x = opt_x = self.model.sv.sym_struct([
             entry('_x', repeat=[self.n_horizon+1, 1+n_total_coll_points], struct=self.model._x),
@@ -1041,9 +1054,10 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             entry('_u', repeat=[self.n_horizon], struct=self.model._u),
             entry('_w', repeat=[self.n_horizon], struct=self.model._w),
             entry('_v', repeat=[self.n_horizon], struct=self.model._v),
-            entry('_eps', repeat=[self.n_horizon], struct=self._eps),
+            entry('_eps', repeat=[n_eps], struct=self._eps),
             entry('_p_est', struct=self._p_est),
         ])
+
         self.n_opt_x = self.opt_x.shape[0]
         # NOTE: The entry _x[k,:] starts with the collocation points from s to b at time k
         #       and the last point contains the child node
@@ -1130,12 +1144,13 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             cons_lb.append(np.zeros((self.model.n_y, 1)))
             cons_ub.append(np.zeros((self.model.n_y, 1)))
 
+            k_eps = min(k, n_eps-1)
             if self.nl_cons_check_colloc_points:
                 # Ensure nonlinear constraints on all collocation points
                 for i in range(n_total_coll_points):
                     nl_cons_k = self._nl_cons_fun(
                         opt_x_unscaled['_x', k, i], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, i],
-                        opt_p['_tvp', k], opt_x['_p_est'], opt_p['_p_set'], opt_x_unscaled['_eps', k])
+                        opt_p['_tvp', k], opt_x['_p_est'], opt_p['_p_set'], opt_x_unscaled['_eps', k_eps])
                     cons.append(nl_cons_k)
                     cons_lb.append(self._nl_cons_lb)
                     cons_ub.append(self._nl_cons_ub)
@@ -1143,7 +1158,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
                 # Ensure nonlinear constraints only on the beginning of the FE
                 nl_cons_k = self._nl_cons_fun(
                     opt_x_unscaled['_x', k, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, 0],
-                    opt_p['_tvp', k], opt_x['_p_est'], opt_x['_p_set'], opt_x_unscaled['_eps', k])
+                    opt_p['_tvp', k], opt_x['_p_est'], opt_x['_p_set'], opt_x_unscaled['_eps', k_eps])
                 cons.append(nl_cons_k)
                 cons_lb.append(self._nl_cons_lb)
                 cons_ub.append(self._nl_cons_ub)
@@ -1158,7 +1173,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             )
 
             # Add slack variables to the cost
-            obj += self.epsterm_fun(opt_x_unscaled['_eps', k])
+            obj += self.epsterm_fun(opt_x_unscaled['_eps', k_eps])
 
 
             # Calculate the auxiliary expressions for the current scenario:
