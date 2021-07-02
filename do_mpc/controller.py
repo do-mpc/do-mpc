@@ -113,7 +113,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             'store_solver_stats',
             'nlpsol_opts'
         ]
-        
+
         # Default Parameters (param. details in set_param method):
         self.n_robust = 0
         self.open_loop = False
@@ -380,7 +380,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         :param use_terminal_bounds: Choose if terminal bounds for the states are used. Defaults to ``True``. Set terminal bounds with :py:attr:`terminal_bounds`.
         :type use_terminal_bounds: bool
 
-        :param state_discretization: Choose the state discretization for continuous models. Currently only ``'collocation'`` is available. Defaults to ``'collocation'``.
+        :param state_discretization: Choose the state discretization for continuous models. Currently only ``'collocation'`` is available. Defaults to ``'collocation'``. Has no effect if model is created in ``discrete`` type.
         :type state_discretization: str
 
         :param collocation_type: Choose the collocation type for continuous models with collocation as state discretization. Currently only ``'radau'`` is available. Defaults to ``'radau'``.

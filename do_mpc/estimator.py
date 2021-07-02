@@ -433,7 +433,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         :param meas_from_data: Default option to retrieve past measurements for the MHE optimization problem. The :py:func:`set_y_fun` is called during setup.
         :type meas_from_data: bool
 
-        :param state_discretization: Choose the state discretization for continuous models. Currently only ``'collocation'`` is available. Defaults to ``'collocation'``.
+        :param state_discretization: Choose the state discretization for continuous models. Currently only ``'collocation'`` is available. Defaults to ``'collocation'``. Has no effect if model is created in ``discrete`` type.
         :type state_discretization: str
 
         :param collocation_type: Choose the collocation type for continuous models with collocation as state discretization. Currently only ``'radau'`` is available. Defaults to ``'radau'``.
