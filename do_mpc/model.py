@@ -272,7 +272,9 @@ class Model:
         Use these attributes to query to variables, e.g. to form the cost function in a seperate file for the MPC configuration.
 
     :param model_type: Set if the model is ``discrete`` or ``continuous``.
-    :type var_type: str
+    :type model_type: str
+    :param symvar_type: Set if the model is configured with CasADi ``SX`` or ``MX`` variables.
+    :type symvar_type: str
 
     :raises assertion: model_type must be string
     :raises assertion: model_type must be either discrete or continuous
@@ -283,6 +285,7 @@ class Model:
     def __init__(self, model_type=None, symvar_type='SX'):
         assert isinstance(model_type, str), 'model_type must be string, you have: {}'.format(type(model_type))
         assert model_type in ['discrete', 'continuous'], 'model_type must be either discrete or continuous, you have: {}'.format(model_type)
+        assert symvar_type in ['SX', 'MX'], 'symvar_type must be either SX or MX, you have: {}'.format(symvar_type)
 
         self.symvar_type = symvar_type
         self.model_type = model_type
@@ -883,7 +886,7 @@ class Model:
         var = self.sv.sym(meas_name, expr.shape)
         self._y['var'].append(var)
         self._y['name'].append(meas_name)
-    
+
         return expr
 
     def set_rhs(self, var_name, expr, process_noise=False):
