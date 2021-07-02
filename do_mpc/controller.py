@@ -814,8 +814,8 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         .. _`background article`: ../theory_mpc.html#robust-multi-stage-nmpc
 
         """
-
-        self._setup_nl_cons()
+        nl_cons_input = self.model['x', 'u', 'z', 'tvp', 'p']
+        self._setup_nl_cons(nl_cons_input)
         self._check_validity()
         self._setup_mpc_optim_problem()
 

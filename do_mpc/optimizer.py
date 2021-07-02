@@ -336,11 +336,13 @@ class Optimizer:
 
         return expr
 
-    def _setup_nl_cons(self):
+    def _setup_nl_cons(self, nl_cons_input):
         """Private method that is called from :py:func:`do_mpc.controller.MPC.setup` or :py:func:`do_mpc.estimator.MHE.setup`.
         Afterwards no further non-linear constraints can be added with the :py:func:`Optimizer.set_nl_cons` method.
 
         This is not part of the public API. Do not call this method.
+
+        ``nl_cons_input`` list of symbolic variables used as input to the nl_cons function.
         """
         # Create struct for soft constraints:
         self._eps = _eps = self.model.sv.sym_struct([
@@ -367,8 +369,8 @@ class Optimizer:
         self.epsterm_fun = Function('epsterm', [_eps], [self.slack_cost])
 
         # Make function from these expressions:
-        _x, _u, _z, _tvp, _p = self.model['x', 'u', 'z', 'tvp', 'p']
-        self._nl_cons_fun = Function('nl_cons_fun', [_x, _u, _z, _tvp, _p, _eps], [self._nl_cons])
+        nl_cons_input += [_eps]
+        self._nl_cons_fun = Function('nl_cons_fun', nl_cons_input, [self._nl_cons])
 
         # Create bounds:
         self._nl_cons_ub = self._nl_cons(np.inf)

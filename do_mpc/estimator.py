@@ -869,7 +869,10 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
             After this call, the :py:func:`solve` and :py:func:`make_step` method is applicable.
         """
-        self._setup_nl_cons()
+
+        nl_cons_input = self.model['x', 'u', 'z', 'tvp']
+        nl_cons_input += [self._p_est, self._p_set]
+        self._setup_nl_cons(nl_cons_input)
 
         # Concatenate _p_est_scaling und _p_set_scaling to p_scaling (and make it a struct again)
         self._p_scaling = self.model._p(self._p_cat_fun(self._p_est_scaling, self._p_set_scaling))
@@ -1096,7 +1099,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
                 for i in range(n_total_coll_points):
                     nl_cons_k = self._nl_cons_fun(
                         opt_x_unscaled['_x', k, i], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, i],
-                        opt_p['_tvp', k], _p, opt_x_unscaled['_eps', k])
+                        opt_p['_tvp', k], opt_x['_p_est'], opt_p['_p_set'], opt_x_unscaled['_eps', k])
                     cons.append(nl_cons_k)
                     cons_lb.append(self._nl_cons_lb)
                     cons_ub.append(self._nl_cons_ub)
@@ -1104,7 +1107,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
                 # Ensure nonlinear constraints only on the beginning of the FE
                 nl_cons_k = self._nl_cons_fun(
                     opt_x_unscaled['_x', k, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, 0],
-                    opt_p['_tvp', k], _p, opt_x_unscaled['_eps', k])
+                    opt_p['_tvp', k], opt_x['_p_est'], opt_x['_p_set'], opt_x_unscaled['_eps', k])
                 cons.append(nl_cons_k)
                 cons_lb.append(self._nl_cons_lb)
                 cons_ub.append(self._nl_cons_ub)
