@@ -29,14 +29,14 @@ sys.path.append('../../')
 import do_mpc
 
 
-def template_model():
+def template_model(symvar_type='SX'):
     """
     --------------------------------------------------------------------------
     template_model: Variables / RHS / AUX
     --------------------------------------------------------------------------
     """
     model_type = 'continuous' # either 'discrete' or 'continuous'
-    model = do_mpc.model.Model(model_type)
+    model = do_mpc.model.Model(model_type, symvar_type)
 
     # Certain parameters
     K0_ab = 1.287e12 # K0 [h^-1]

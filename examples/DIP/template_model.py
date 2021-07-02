@@ -29,14 +29,14 @@ sys.path.append('../../')
 import do_mpc
 
 
-def template_model(obstacles):
+def template_model(obstacles, symvar_type='SX'):
     """
     --------------------------------------------------------------------------
     template_model: Variables / RHS / AUX
     --------------------------------------------------------------------------
     """
     model_type = 'continuous' # either 'discrete' or 'continuous'
-    model = do_mpc.model.Model(model_type)
+    model = do_mpc.model.Model(model_type, symvar_type)
 
     # Certain parameters
     m0 = 0.6  # kg, mass of the cart
