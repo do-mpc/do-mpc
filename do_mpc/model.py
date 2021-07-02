@@ -1065,6 +1065,15 @@ class Model:
         :rtype: None
         """
 
+
+        # Set all states as measurements if set_meas was not called by user.
+        if not self._y_expression:
+            for name, var in zip(self._x['name'], self._x['var']):
+                self.set_meas(name, var, meas_noise=False)
+
+        # Write self._y_expression (measurement equations) as struct symbolic expression structures.
+        self._y_expression = self.sv.struct(self._y_expression)
+
         # Create structure from listed symbolic variables:
         _x =  self._convert2struct(self._x)
         _w =  self._convert2struct(self._w)
@@ -1079,14 +1088,6 @@ class Model:
         # Write self._aux_expression.
         self._aux_expression = self.sv.struct(self._aux_expression)
 
-        # Write self._y_expression (measurement equations) as struct symbolic expression structures.
-        # Check if it is an empty list (no user input)
-        if not self._y_expression:
-            self._y_expression = self._x
-            self._y = self._x
-        else:
-            self._y_expression = self.sv.struct(self._y_expression)
-            self._y = self.sv.sym_struct(self._y)
 
         # Create alg equations:
         self._alg = self.sv.struct(self.alg_list)
