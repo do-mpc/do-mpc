@@ -41,12 +41,20 @@ sys.path.pop(-1)
 
 class TestOscillatingMassesDiscrete(unittest.TestCase):
 
-    def test_oscillating_masses_discrete(self):
+    def test_SX(self):
+        print('Testing SX implementation')
+        self.oscillating_masses_discrete('SX')
+
+    def test_MX(self):
+        print('Testing MX implementation')
+        self.oscillating_masses_discrete('MX')
+
+    def oscillating_masses_discrete(self, symvar_type):
         """
         Get configured do-mpc modules:
         """
 
-        model = template_model()
+        model = template_model(symvar_type)
         mpc = template_mpc(model)
         simulator = template_simulator(model)
         estimator = do_mpc.estimator.StateFeedback(model)
@@ -97,6 +105,12 @@ class TestOscillatingMassesDiscrete(unittest.TestCase):
             # Estimator
             check = np.allclose(estimator.data.__dict__[test_i], ref['estimator'].__dict__[test_i])
             self.assertTrue(check)
+
+        # Store for test reasons
+        try:
+            do_mpc.data.save_results([mpc, simulator], 'test_save', overwrite=True)
+        except:
+            raise Exception()
 
 
 

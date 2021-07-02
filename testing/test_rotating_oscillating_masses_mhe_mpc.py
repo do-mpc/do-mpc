@@ -42,12 +42,18 @@ sys.path.pop(-1)
 
 class TestRotatingMasses(unittest.TestCase):
 
-    def test_RotatingMasses(self):
+    def test_SX(self):
+        self.RotatingMasses('SX')
+
+    def test_MX(self):
+        self.RotatingMasses('MX')
+
+    def RotatingMasses(self, symvar_type):
         """
         Get configured do-mpc modules:
         """
 
-        model = template_model()
+        model = template_model(symvar_type)
         mpc = template_mpc(model)
         simulator = template_simulator(model)
         mhe = template_mhe(model)
@@ -102,6 +108,10 @@ class TestRotatingMasses(unittest.TestCase):
             self.assertTrue(check)
 
 
+        try:
+            do_mpc.data.save_results([mpc, simulator, mhe], 'test_save', overwrite=True)
+        except:
+            raise Exception()
 
 
 if __name__ == '__main__':
