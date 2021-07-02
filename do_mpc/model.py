@@ -986,9 +986,10 @@ class Model:
         # Check if it is an empty list (no user input)
         if not self._y_expression:
             self._y_expression = self._x
+            self._y = self._x
         else:
             self._y_expression = struct_SX(self._y_expression)
-        self._y = struct_symSX(self._y)
+            self._y = struct_symSX(self._y)
 
         # Create alg equations:
         self._alg = struct_SX(self.alg_list)
