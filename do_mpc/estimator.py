@@ -192,15 +192,29 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         # Create seperate structs for the estimated and the set parameters (the union of both are all parameters of the model.)
         _p = model._p
-        self._p_est  = struct_symSX(
+        self._p_est  = self.model.sv.sym_struct(
             [entry('default', shape=(0,0))]+
-            [entry(p_i, sym=_p[p_i]) for p_i in _p.keys() if p_i in p_est_list]
+            [entry(p_i, shape=_p[p_i].shape) for p_i in _p.keys() if p_i in p_est_list]
         )
-        self._p_set  = struct_symSX(
-            [entry(p_i, sym=_p[p_i]) for p_i in _p.keys() if p_i not in p_est_list]
+        self._p_set  = self.model.sv.sym_struct(
+            [entry(p_i, shape=_p[p_i].shape) for p_i in _p.keys() if p_i not in p_est_list]
         )
+
+        # Enable to "unite" _p_est and _p_set to _p
+        p_cat = vertcat(_p)
+        _p_subs = []
+        for name in _p.keys():
+            if name in self._p_est.keys():
+                _p_subs.append(self._p_est[name])
+            elif name in self._p_set.keys():
+                _p_subs.append(self._p_set[name])
+
+        # In the expression p_cat substitute all variables from _p with the elements from _p_est and _p_set:
+        p_cat = substitute(p_cat, _p, vertcat(*_p_subs))
+
         # Function to obtain full set of parameters from the seperate structs (while obeying the order):
-        self._p_cat_fun = Function('p_cat_fun', [self._p_est, self._p_set], [_p])
+        self._p_cat_fun = Function('p_cat_fun', [self._p_est, self._p_set], [p_cat])
+
 
         self.n_p_est = self._p_est.shape[0]
         self.n_p_set = self._p_set.shape[0]
@@ -226,7 +240,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self._x = self.model._x
 
         self._p_est_prev = copy.copy(self._p_est)
-        self._p_est = self._p_est
+        self._p = self.model._p
 
         self._w = self.model._w
         self._v = self.model._v
@@ -556,16 +570,37 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         assert arrival_cost.shape == (1,1), 'arrival_cost must have shape=(1,1). You have {}'.format(arrival_cost.shape)
         assert self.flags['setup'] == False, 'Cannot call .set_objective after .setup.'
 
+        # Replace model symbolic variables self.model._p with the new variables self._p_est and self._p_set:
+        _p = self._p_cat_fun(self._p_est, self._p_set)
+
+        arrival_cost = substitute(arrival_cost, self.model._p, _p)
+        #stage_cost = substitute(stage_cost, self.model._p, _p)
+
+        #arrival_cost = substitute(arrival_cost, self._p_est, vertcat(*[self.model._p[name] for name in self._p_est.keys()]))
+        #arrival_cost = substitute(arrival_cost, self._p_set, vertcat(*[self.model._p[name] for name in self._p_set.keys()]))
+
+        stage_cost = substitute(stage_cost, self._p_est, vertcat(*[self.model._p[name] for name in self._p_est.keys()]))
+        stage_cost = substitute(stage_cost, self._p_set, vertcat(*[self.model._p[name] for name in self._p_set.keys()]))
+
 
         stage_cost_input = self._w, self._v, self.model._tvp, self.model._p
-        err_msg = 'objective cost equation must be solely depending on w, v, p and tvp.'
-        assert set(symvar(stage_cost)).issubset(set(symvar(vertcat(*stage_cost_input)))), err_msg
         self.stage_cost_fun = Function('stage_cost_fun', [*stage_cost_input], [stage_cost])
 
         arrival_cost_input = self._x, self._x_prev, self._p_est, self._p_est_prev, self._p_set
-        err_msg = 'Arrival cost equation must be solely depending on x_0, x_prev, p_0, p_prev, p_set'
-        assert set(symvar(arrival_cost)).issubset(set(symvar(vertcat(*arrival_cost_input)))), err_msg
-        self.arrival_cost_fun = Function('arrival_cost_fun', arrival_cost_input, [arrival_cost])
+        self.arrival_cost_fun = Function('arrival_cost_fun', [*arrival_cost_input], [arrival_cost])
+
+        # Check if stage_cost_fun and arrival_cost_fun use invalid variables as inputs.
+        # For the check we evaluate the function with dummy inputs and expect a DM output.
+        try:
+            self.stage_cost_fun(*[input_i(0) for input_i in stage_cost_input])
+        except:
+            err_msg = 'objective cost equation must be solely depending on w, v, p and tvp.'
+            raise Exception(err_msg)
+        try:
+            self.arrival_cost_fun(*[input_i(0) for input_i in arrival_cost_input])
+        except:
+            err_msg = 'Arrival cost equation must be solely depending on x_0, x_prev, p_0, p_prev, p_set'
+            raise Exception(err_msg)
 
         self.flags['set_objective'] = True
 
@@ -632,10 +667,10 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         :type P_w: numpy.ndarray, casadi.SX, casadi.DM
         """
 
-        input_types = (np.ndarray, casadi.SX, casadi.DM)
+        input_types = (np.ndarray, casadi.SX, casadi.MX, casadi.DM)
         err_msg = '{name} must be of type {type_set}, you have {type_is}'
         assert isinstance(P_x, input_types), err_msg.format(name='P_x', type_set = input_types, type_is = type(P_x))
-        input_types = (np.ndarray, casadi.SX, casadi.DM, type(None))
+        input_types = (np.ndarray, casadi.SX, casadi.MX, casadi.DM, type(None))
         assert isinstance(P_v, input_types), err_msg.format(name='P_v', type_set = input_types, type_is = type(P_v))
         assert isinstance(P_p, input_types), err_msg.format(name='P_p', type_set = input_types, type_is = type(P_p))
         assert isinstance(P_w, input_types), err_msg.format(name='P_w', type_set = input_types, type_is = type(P_w))
@@ -684,6 +719,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             p_prev = self._p_est_prev
             dp = p_0.cat - p_prev.cat
             arrival_cost += dp.T@P_p@dp
+
 
 
         # Set MHE objective:
@@ -761,7 +797,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         :return: y_template
         :rtype: struct_symSX
         """
-        y_template = struct_symSX([
+        y_template = self.model.sv.sym_struct([
             entry('y_meas', repeat=self.n_horizon, struct=self._y_meas)
         ])
         return y_template(0)
@@ -869,7 +905,10 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
             After this call, the :py:func:`solve` and :py:func:`make_step` method is applicable.
         """
-        self._setup_nl_cons()
+
+        nl_cons_input = self.model['x', 'u', 'z', 'tvp']
+        nl_cons_input += [self._p_est, self._p_set]
+        self._setup_nl_cons(nl_cons_input)
 
         # Concatenate _p_est_scaling und _p_set_scaling to p_scaling (and make it a struct again)
         self._p_scaling = self.model._p(self._p_cat_fun(self._p_est_scaling, self._p_set_scaling))
@@ -996,7 +1035,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         # Obtain an integrator (collocation, discrete-time) and the amount of intermediate (collocation) points
         ifcn, n_total_coll_points = self._setup_discretization()
         # Create struct for optimization variables:
-        self.opt_x = opt_x = struct_symSX([
+        self.opt_x = opt_x = self.model.sv.sym_struct([
             entry('_x', repeat=[self.n_horizon+1, 1+n_total_coll_points], struct=self.model._x),
             entry('_z', repeat=[self.n_horizon,   max(n_total_coll_points,1)], struct=self.model._z),
             entry('_u', repeat=[self.n_horizon], struct=self.model._u),
@@ -1022,7 +1061,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
 
         # Create struct for optimization parameters:
-        self.opt_p = opt_p = struct_symSX([
+        self.opt_p = opt_p = self.model.sv.sym_struct([
             entry('_x_prev', struct=self.model._x),
             entry('_p_est_prev', struct=self._p_est_prev),
             entry('_p_set', struct=self._p_set),
@@ -1032,11 +1071,11 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self.n_opt_p = opt_p.shape[0]
 
         # Dummy struct with symbolic variables
-        self.aux_struct = struct_symSX([
+        self.aux_struct = self.model.sv.sym_struct([
             entry('_aux', repeat=[self.n_horizon], struct=self.model._aux_expression)
         ])
         # Create mutable symbolic expression from the struct defined above.
-        self.opt_aux = opt_aux = struct_SX(self.aux_struct)
+        self.opt_aux = opt_aux = self.model.sv.struct(self.aux_struct)
 
         self.n_opt_aux = self.opt_aux.shape[0]
 
@@ -1096,7 +1135,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
                 for i in range(n_total_coll_points):
                     nl_cons_k = self._nl_cons_fun(
                         opt_x_unscaled['_x', k, i], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, i],
-                        opt_p['_tvp', k], _p, opt_x_unscaled['_eps', k])
+                        opt_p['_tvp', k], opt_x['_p_est'], opt_p['_p_set'], opt_x_unscaled['_eps', k])
                     cons.append(nl_cons_k)
                     cons_lb.append(self._nl_cons_lb)
                     cons_ub.append(self._nl_cons_ub)
@@ -1104,7 +1143,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
                 # Ensure nonlinear constraints only on the beginning of the FE
                 nl_cons_k = self._nl_cons_fun(
                     opt_x_unscaled['_x', k, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, 0],
-                    opt_p['_tvp', k], _p, opt_x_unscaled['_eps', k])
+                    opt_p['_tvp', k], opt_x['_p_est'], opt_x['_p_set'], opt_x_unscaled['_eps', k])
                 cons.append(nl_cons_k)
                 cons_lb.append(self._nl_cons_lb)
                 cons_ub.append(self._nl_cons_ub)
@@ -1159,6 +1198,21 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         cons = vertcat(*cons)
         self.cons_lb = vertcat(*cons_lb)
         self.cons_ub = vertcat(*cons_ub)
+
+        # Validity check:
+        _test_obj_fun = Function('f', [opt_x, opt_p], [obj])
+        _test_cons_fun = Function('f', [opt_x, opt_p], [cons])
+        try:
+            _test_obj_fun(opt_x(0),opt_p(0))
+        except:
+            err_msg = 'The MHE optimization problem objective function contains unknown symbolic variables.'
+            raise Exception(err_msg)
+        try:
+            _test_cons_fun(opt_x(0),opt_p(0))
+        except:
+            err_msg = 'The MHE optimization problem constraint function contains unknown symbolic variables.'
+            raise Exception(err_msg)
+
 
         self.n_opt_lagr = cons.shape[0]
         # Create casadi optimization object:

@@ -350,6 +350,7 @@ class Graphics:
         t_step = self.data.meta_data['t_step']
 
         for line_i, ind_i in zip(self.pred_lines.master, self.pred_lines.powerindex):
+
             y_data = self.data.prediction(ind_i[:-1], t_ind=t_ind)[0, :,ind_i[-1]]
             x_data = t_now + np.arange(y_data.shape[0])*t_step
             line_i.set_data(x_data , y_data)

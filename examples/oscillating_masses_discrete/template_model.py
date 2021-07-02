@@ -29,14 +29,14 @@ sys.path.append('../../')
 import do_mpc
 
 
-def template_model():
+def template_model(symvar_type='SX'):
     """
     --------------------------------------------------------------------------
     template_model: Variables / RHS / AUX
     --------------------------------------------------------------------------
     """
     model_type = 'discrete' # either 'discrete' or 'continuous'
-    model = do_mpc.model.Model(model_type)
+    model = do_mpc.model.Model(model_type, symvar_type)
 
     # Simple oscillating masses example with two masses and two inputs.
     # States are the position and velocitiy of the two masses.

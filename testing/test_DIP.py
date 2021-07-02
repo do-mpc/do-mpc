@@ -41,7 +41,15 @@ sys.path.pop(-1)
 
 class TestDIP(unittest.TestCase):
 
-    def test_dip(self):
+    def test_SX(self):
+        print('Testing SX implementation')
+        self.dip('SX')
+
+    def test_MX(self):
+        print('Testing MX implementation')
+        self.dip('MX')
+
+    def dip(self, symvar_type):
         """
         Get configured do-mpc modules:
         """
@@ -50,7 +58,7 @@ class TestDIP(unittest.TestCase):
             {'x': 0., 'y': 0.6, 'r': 0.3},
         ]
 
-        model = template_model(obstacles)
+        model = template_model(obstacles, symvar_type)
         mpc = template_mpc(model)
         simulator = template_simulator(model)
         estimator = do_mpc.estimator.StateFeedback(model)
@@ -101,7 +109,11 @@ class TestDIP(unittest.TestCase):
             check = np.allclose(estimator.data.__dict__[test_i], ref['estimator'].__dict__[test_i])
             self.assertTrue(check)
 
-
+        # Store for test reasons
+        try:
+            do_mpc.data.save_results([mpc, simulator], 'test_save', overwrite=True)
+        except:
+            raise Exception()
 
 
 if __name__ == '__main__':

@@ -50,7 +50,7 @@ In summary, **do-mpc** offers the following features:
 
 The **do-mpc** software is Python based and works therefore on any OS with a Python 3.x distribution.
 **do-mpc** has been developed by Sergio Lucia and Alexandru Tatulea at the DYN chair of the TU Dortmund lead by Sebastian Engell.
-The development is continued at the IOT chair of the TU Berlin by Felix Fiedler and Sergio Lucia.
+The development is continued at the Laboratory of Process Automation Systems (PAS) of the TU Dortmund by Felix Fiedler and Sergio Lucia.
 
 
 Example: Robust Multi-stage MPC

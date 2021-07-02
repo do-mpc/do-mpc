@@ -18,4 +18,8 @@ documentation/source/api/
 documentation/source/release_notes.md
 
 documentation/source/example_gallery/.ipynb_checkpoints/
+
 examples/conti_discrete/main.py
+
+testing/results/test_save.pkl
+
