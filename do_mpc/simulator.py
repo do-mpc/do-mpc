@@ -510,6 +510,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         self.data.update(_z = z0)
         self.data.update(_tvp = tvp0)
         self.data.update(_p = p0)
+        self.data.update(_y = y_next)
         self.data.update(_aux = aux0)
         self.data.update(_time = t0)
 

@@ -7,6 +7,9 @@ assignees: ''
 
 ---
 
+Do you just want to pose a question or start a discussion? Please use the Discussions tab above.
+
+
 **Describe the bug**
 A clear and concise description of what the bug is.
 

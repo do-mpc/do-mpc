@@ -1,0 +1,16 @@
+---
+name: Support
+about: Do you have troubles using do-mpc? 
+title: ''
+labels: Support
+assignees: ''
+
+---
+**Describe your problem**
+Try to isolate your error as much as possible and ideally give us short code snippets to illustrate the problem. Please avoid screenshots of code.
+
+**Additional information**
+- Python version?
+- do-mpc version?
+- OS?
+- Can you run any of the example files on your machine without experiencing an error?
