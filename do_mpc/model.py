@@ -1046,6 +1046,39 @@ class Model:
 
         return expr(subs)
 
+    def _substitute_exported_vars(self, var_dict_list, sym_struct_list):
+        """Helper function for :py:func:`setup`. Not part of the public API.
+        This method is used to substitute the newly introduced structured variables with :py:func:`_convert2struct`
+        in all previously EXPORTED variables, e.g. with :py:func:`set_variable`.
+
+        This is necessary because otherwise variables obtained from the model PRIOR to calling :py:func:`setup`
+        are not the same as those returned after calling :py:func:`setup`:
+
+        ::
+
+            x = model.set_variable('_x', 'x')
+
+            ...
+
+            model.setup()
+
+            # We don't want this:
+            model.x['x'] == x
+            >> MX(x==x)
+
+            # We want this:
+            model.x['x'] == x
+            >> MX(1)
+
+        This is a bit of a HACKY solution and might require fixing if CasADi is changing its API.
+        """
+
+        for var_dict, sym_struct in zip(var_dict_list, sym_struct_list):
+            assert var_dict['name'] == sym_struct.keys()
+
+            for var, name in zip(var_dict['var'], var_dict['name']):
+                var.__dict__['this'] = sym_struct[name].__dict__['this']
+
 
     def setup(self):
         """Setup method must be called to finalize the modelling process.
@@ -1110,6 +1143,8 @@ class Model:
         self._alg = self._substitute_struct_vars(var_dict_list, sym_struct_list, self._alg)
         self._aux_expression = self._substitute_struct_vars(var_dict_list, sym_struct_list, self._aux_expression)
         self._y_expression = self._substitute_struct_vars(var_dict_list, sym_struct_list, self._y_expression)
+
+        self._substitute_exported_vars(var_dict_list, sym_struct_list)
 
         self._x = _x
         self._w = _w
