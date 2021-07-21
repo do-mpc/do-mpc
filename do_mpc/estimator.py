@@ -1158,7 +1158,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
                 # Ensure nonlinear constraints only on the beginning of the FE
                 nl_cons_k = self._nl_cons_fun(
                     opt_x_unscaled['_x', k, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, 0],
-                    opt_p['_tvp', k], opt_x['_p_est'], opt_x['_p_set'], opt_x_unscaled['_eps', k_eps])
+                    opt_p['_tvp', k], opt_x['_p_est'], opt_p['_p_set'], opt_x_unscaled['_eps', k_eps])
                 cons.append(nl_cons_k)
                 cons_lb.append(self._nl_cons_lb)
                 cons_ub.append(self._nl_cons_ub)
