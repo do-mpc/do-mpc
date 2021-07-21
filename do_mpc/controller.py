@@ -466,7 +466,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         """
         assert mterm.shape == (1,1), 'mterm must have shape=(1,1). You have {}'.format(mterm.shape)
         assert lterm.shape == (1,1), 'lterm must have shape=(1,1). You have {}'.format(lterm.shape)
-        assert self.flags['setup'] == False, 'Cannot call .set_objective after .setup_model.'
+        assert self.flags['setup'] == False, 'Cannot call .set_objective after .setup().'
 
         _x, _u, _z, _tvp, _p = self.model['x','u','z','tvp','p']
 
@@ -542,7 +542,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             For :math:`k=0` we obtain :math:`u_{-1}` from the previous solution.
 
         """
-        assert self.flags['setup'] == False, 'Cannot call .set_rterm after .setup_model.'
+        assert self.flags['setup'] == False, 'Cannot call .set_rterm after .setup().'
 
         self.flags['set_rterm'] = True
         for key, val in kwargs.items():

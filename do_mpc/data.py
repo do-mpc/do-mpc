@@ -42,7 +42,7 @@ class Data:
     """
     def __init__(self, model):
         self.dtype = 'default'
-        assert model.flags['setup'] == True, 'Model was not setup. After the complete model creation call model.setup_model().'
+        assert model.flags['setup'] == True, 'Model was not setup. After the complete model creation call model.setup().'
         # As discussed here: https://groups.google.com/forum/#!topic/casadi-users/dqAb4tnA2ik
         # struct_SX cannot be unpickled (seems like a bug)
         # TODO: Find better workaround.

@@ -65,7 +65,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         self.model = model
         do_mpc.model.IteratedVariables.__init__(self)
 
-        assert model.flags['setup'] == True, 'Model for simulator was not setup. After the complete model creation call model.setup_model().'
+        assert model.flags['setup'] == True, 'Model for simulator was not setup. After the complete model creation call model.setup().'
 
         self.data = Data(model)
 

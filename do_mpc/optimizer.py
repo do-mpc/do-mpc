@@ -317,7 +317,7 @@ class Optimizer:
         :return: Returns the newly created expression. Expression can be used e.g. for the RHS.
         :rtype: casadi.SX or casadi.MX
         """
-        assert self.flags['setup'] == False, 'Cannot call .set_expression after .setup_model.'
+        assert self.flags['setup'] == False, 'Cannot call .set_expression after .setup().'
         assert isinstance(expr_name, str), 'expr_name must be str, you have: {}'.format(type(expr_name))
         assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have: {}'.format(type(expr))
         assert isinstance(ub, (int, float, np.ndarray)), 'ub must be float, int or numpy.ndarray, you have: {}'.format(type(ub))

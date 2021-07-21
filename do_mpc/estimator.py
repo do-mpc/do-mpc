@@ -45,7 +45,7 @@ class Estimator(do_mpc.model.IteratedVariables):
         self.model = model
         do_mpc.model.IteratedVariables.__init__(self)
 
-        assert model.flags['setup'] == True, 'Model for estimator was not setup. After the complete model creation call model.setup_model().'
+        assert model.flags['setup'] == True, 'Model for estimator was not setup. After the complete model creation call model.setup().'
 
         self.data = do_mpc.data.Data(model)
         self.data.dtype = 'Estimator'
