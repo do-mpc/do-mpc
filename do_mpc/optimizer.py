@@ -65,10 +65,10 @@ class Optimizer:
 
         # Lists for further non-linear constraints (optional). Constraints are formulated as cons < ub
         self.nl_cons_list = [
-            {'expr_name': 'default', 'expr': DM(), 'ub': DM()}
+            {'expr_name': 'default', 'expr': DM([]), 'ub': DM([])}
         ]
         self.slack_vars_list = [
-            {'slack_name': 'default', 'var':SX.sym('default',(0,0)), 'ub': DM()}
+            {'slack_name': 'default', 'shape':0, 'ub': DM([]), 'penalty': 0}
         ]
         self.slack_cost = 0
 
@@ -123,7 +123,7 @@ class Optimizer:
         var_struct = getattr(self, query)
 
         err_msg = 'Calling .bounds with {} is not valid. Possible keys are {}.'
-        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), err_msg.format(ind, var_struct.keys())
 
         return var_struct[var_name]
 
@@ -315,61 +315,63 @@ class Optimizer:
         :raises assertion: expr must be a casadi SX or MX type
 
         :return: Returns the newly created expression. Expression can be used e.g. for the RHS.
-        :rtype: casadi.SX
+        :rtype: casadi.SX or casadi.MX
         """
-        assert self.flags['setup'] == False, 'Cannot call .set_expression after .setup_model.'
+        assert self.flags['setup'] == False, 'Cannot call .set_expression after .setup().'
         assert isinstance(expr_name, str), 'expr_name must be str, you have: {}'.format(type(expr_name))
         assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have: {}'.format(type(expr))
         assert isinstance(ub, (int, float, np.ndarray)), 'ub must be float, int or numpy.ndarray, you have: {}'.format(type(ub))
         assert isinstance(soft_constraint, bool), 'soft_constraint must be boolean, you have: {}'.format(type(soft_constraint))
 
         if soft_constraint==True:
-            # Introduce new slack variable:
-            epsilon = SX.sym('eps_'+expr_name,*expr.shape)
-            # Change expression
-            expr = expr-epsilon
             # Add slack variable to list of slack variables:
             self.slack_vars_list.extend([
-                {'slack_name': expr_name, 'var': epsilon, 'ub': maximum_violation}
+                {'slack_name': expr_name, 'shape': expr.shape, 'ub': maximum_violation, 'penalty': penalty_term_cons}
             ])
-            # Add cost contribution:
-            self.slack_cost += sum1(penalty_term_cons*epsilon)
 
+        # All operations to make the soft constraints work are in _setup_nl_cons.
 
         self.nl_cons_list.extend([
             {'expr_name': expr_name, 'expr': expr, 'ub' : ub}])
 
         return expr
 
-    def _setup_nl_cons(self):
+    def _setup_nl_cons(self, nl_cons_input):
         """Private method that is called from :py:func:`do_mpc.controller.MPC.setup` or :py:func:`do_mpc.estimator.MHE.setup`.
         Afterwards no further non-linear constraints can be added with the :py:func:`Optimizer.set_nl_cons` method.
 
         This is not part of the public API. Do not call this method.
+
+        ``nl_cons_input`` list of symbolic variables used as input to the nl_cons function.
         """
         # Create struct for soft constraints:
-        self._eps = _eps = struct_symSX([
-            entry(slack_i['slack_name'], sym=slack_i['var']) for slack_i in self.slack_vars_list
+        self._eps = _eps = self.model.sv.sym_struct([
+            entry(slack_i['slack_name'], shape=slack_i['shape']) for slack_i in self.slack_vars_list
         ])
-        self.n_eps = _eps.shape[0]
+        # Create struct for _nl_cons:
+        # Use the previously defined sym variables to declare shape and symbolic variable.
+        self._nl_cons = self.model.sv.struct([
+            entry(expr_i['expr_name'], expr=expr_i['expr']) for expr_i in self.nl_cons_list
+        ])
 
+        self.n_eps = _eps.shape[0]
         # Create bounds:
         self._eps_lb = _eps(0.0)
         self._eps_ub = _eps(np.inf)
-        # Set bounds:
+
+        # Set bounds, add slack variable to constraint and add cost.
         for slack_i in self.slack_vars_list:
             self._eps_ub[slack_i['slack_name']] = slack_i['ub']
+            self._nl_cons[slack_i['slack_name']] += self._eps[slack_i['slack_name']]
+            self.slack_cost += sum1(slack_i['penalty']*self._eps[slack_i['slack_name']])
+
         # Objective function epsilon contribution:
         self.epsterm_fun = Function('epsterm', [_eps], [self.slack_cost])
 
-        # Create struct for _nl_cons:
-        # Use the previously defined SX.sym variables to declare shape and symbolic variable.
-        self._nl_cons = struct_SX([
-            entry(expr_i['expr_name'], expr=expr_i['expr']) for expr_i in self.nl_cons_list
-        ])
         # Make function from these expressions:
-        _x, _u, _z, _tvp, _p = self.model['x', 'u', 'z', 'tvp', 'p']
-        self._nl_cons_fun = Function('nl_cons_fun', [_x, _u, _z, _tvp, _p, _eps], [self._nl_cons])
+        nl_cons_input += [_eps]
+        self._nl_cons_fun = Function('nl_cons_fun', nl_cons_input, [self._nl_cons])
+
         # Create bounds:
         self._nl_cons_ub = self._nl_cons(np.inf)
         self._nl_cons_lb = self._nl_cons(-np.inf)
@@ -417,7 +419,7 @@ class Optimizer:
         :rtype: None
         """
 
-        tvp_template = struct_symSX([
+        tvp_template = self.model.sv.sym_struct([
             entry('_tvp', repeat=self.n_horizon+1, struct=self.model._tvp)
         ])
         return tvp_template(0)
@@ -540,12 +542,12 @@ class Optimizer:
         alg = substitute(alg, _z, _z*self._z_scaling.cat)
         alg = substitute(alg, _p, _p*self._p_scaling.cat) # only meaningful for MHE.
 
-        if self.state_discretization == 'discrete':
-            _i = SX.sym('i', 0)
+        if self.model.model_type == 'discrete':
+            _i = self.model.sv.sym('i', 0)
             # discrete integrator ifcs mimics the API the collocation ifcn.
             ifcn = Function('ifcn', [_x, _i, _u, _z, _tvp, _p, _w], [alg, rhs/self._x_scaling.cat])
             n_total_coll_points = 0
-        if self.state_discretization == 'collocation':
+        elif self.state_discretization == 'collocation':
             ffcn = Function('ffcn', [_x, _u, _z, _tvp, _p, _w], [rhs/self._x_scaling.cat])
             afcn = Function('afcn', [_x, _u, _z, _tvp, _p, _w], [alg])
             # Get collocation information
@@ -580,7 +582,7 @@ class Optimizer:
             D = np.zeros(deg + 1)
 
             # Dimensionless time inside one control interval
-            tau = SX.sym("tau")
+            tau = self.model.sv.sym("tau")
 
             # All collocation time points
             T = np.zeros((nk, ni, deg + 1))
@@ -606,24 +608,25 @@ class Optimizer:
                     C[j, r] = tfcn(tau_root[r])
 
             # Define symbolic variables for collocation
-            xk0 = SX.sym("xk0", n_x)
-            #zk = SX.sym("zk", n_z)
-            pk = SX.sym("pk", n_p)
-            tv_pk = SX.sym("tv_pk", n_tvp)
-            uk = SX.sym("uk", n_u)
-            wk = SX.sym("wk", n_w)
+            xk0 = self.model.sv.sym("xk0", n_x)
+            #zk = self.model.sv.sym("zk", n_z)
+            pk = self.model.sv.sym("pk", n_p)
+            tv_pk = self.model.sv.sym("tv_pk", n_tvp)
+            uk = self.model.sv.sym("uk", n_u)
+            wk = self.model.sv.sym("wk", n_w)
 
             # State trajectory
             n_ik = ni * (deg + 1) * n_x
-            ik = SX.sym("ik", n_ik)
-            ik_split = np.resize(np.array([], dtype=SX), (ni, deg + 1))
+            ik = self.model.sv.sym("ik", n_ik)
+
+            ik_split = np.resize(np.array([], dtype=self.model.sv.dtype), (ni, deg + 1))
             offset = 0
 
             # Algebraic trajectory
             n_zk = ni * (deg +1) * n_z
-            zk = SX.sym("zk", n_zk)
+            zk = self.model.sv.sym("zk", n_zk)
             offset_z = 0
-            zk_split = np.resize(np.array([], dtype=SX), (ni, deg + 1))
+            zk_split = np.resize(np.array([], dtype=self.model.sv.dtype), (ni, deg + 1))
 
             # Store initial condition
             ik_split[0, 0] = xk0

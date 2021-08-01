@@ -215,6 +215,22 @@ class IteratedVariables:
             raise Exception('Passing object of type {} to set the current time. Must be of type {}'.format(type(val), types))
 
 
+class _SymVar:
+    def __init__(self, symvar_type):
+        assert symvar_type in ['SX', 'MX'], 'symvar_type must be either SX or MX, you have: {}'.format(symvar_type)
+
+        if symvar_type == 'MX':
+            self.sym = MX.sym
+            self.struct = struct_MX
+            self.sym_struct = struct_symMX
+            self.dtype = MX
+        if symvar_type == 'SX':
+            self.sym = SX.sym
+            self.struct = struct_SX
+            self.sym_struct = struct_symSX
+            self.dtype = SX
+
+
 class Model:
     """The **do-mpc** model class. This class holds the full model description and is at the core of
     :py:class:`do_mpc.simulator.Simulator`, :py:class:`do_mpc.controller.MPC` and :py:class:`do_mpc.estimator.Estimator`.
@@ -256,7 +272,9 @@ class Model:
         Use these attributes to query to variables, e.g. to form the cost function in a seperate file for the MPC configuration.
 
     :param model_type: Set if the model is ``discrete`` or ``continuous``.
-    :type var_type: str
+    :type model_type: str
+    :param symvar_type: Set if the model is configured with CasADi ``SX`` or ``MX`` variables.
+    :type symvar_type: str
 
     :raises assertion: model_type must be string
     :raises assertion: model_type must be either discrete or continuous
@@ -264,36 +282,34 @@ class Model:
     .. automethod:: __getitem__
     """
 
-    def __init__(self, model_type=None):
+    def __init__(self, model_type=None, symvar_type='SX'):
         assert isinstance(model_type, str), 'model_type must be string, you have: {}'.format(type(model_type))
         assert model_type in ['discrete', 'continuous'], 'model_type must be either discrete or continuous, you have: {}'.format(model_type)
+        assert symvar_type in ['SX', 'MX'], 'symvar_type must be either SX or MX, you have: {}'.format(symvar_type)
+
+
+        self.symvar_type = symvar_type
+        self.model_type = model_type
+        self.sv = _SymVar(symvar_type)
 
         # Define private class attributes
+        self._x =   {'name': [],'var':[]}
+        self._u =   {'name': ['default'], 'var': [self.sv.sym('default', (0,0))]}
+        self._z =   {'name': ['default'], 'var': [self.sv.sym('default', (0,0))]}
+        self._p =   {'name': ['default'], 'var': [self.sv.sym('default', (0,0))]}
+        self._tvp = {'name': ['default'], 'var': [self.sv.sym('default', (0,0))]}
+        self._aux = {'name': ['default'], 'var': [self.sv.sym('default', (1,1))]}
+        # Process noise
+        self._w =   {'name': ['default'], 'var': [self.sv.sym('default', (0,0))]}
+        # Measurement noise
+        self._v =   {'name': ['default'], 'var': [self.sv.sym('default', (0,0))]}
+        # Measurements
+        self._y =   {'name': ['default'], 'var': [self.sv.sym('default', (0,0))]}
 
-        self._x = []
-
-        self._u =   [entry('default', shape=(0,0))]
-
-        self._z =   [entry('default', shape=(0,0))]
-
-        self._p =   [entry('default', shape=(0,0))]
-
-        self._tvp = [entry('default', shape=(0,0))]
-
-        self._aux = [entry('default', shape=(1,1))]
+        # Expressions:
         self._aux_expression = [entry('default', expr=DM(0))]
-
-        self._y =   [entry('default', shape=(0,0))]
         self._y_expression = []
 
-        # Process noise
-        self._w = [entry('default', shape=(0,0))]
-        # Measurement noise
-        self._v = [entry('default', shape=(0,0))]
-
-
-        self.model_type = model_type
-        self.symvar_type = 'SX'
 
         self.rhs_list = []
         self.alg_list = [entry('default', expr=[])]
@@ -337,10 +353,18 @@ class Model:
         """
         if self.flags['setup']:
             return getattr(self, var_name)
-        elif self.symvar_type == 'SX':
-            return struct_symSX(getattr(self, var_name))
         else:
-            raise Exception('Cannot query variables in MX mode before calling Model.setup.')
+            # Before calling setup the attributes _x,_u,_z etc. are dicts with the keys: name and var.
+            sym_dict = getattr(self, var_name)
+            # We use the same method as in setup to create symbolic structures from these dicts
+            sym_struct = self._convert2struct(sym_dict)
+            # We then create a mutable structure of the same structure
+            struct = self.sv.struct(sym_struct)
+            # And set the values of this structure to the original symbolic variables
+            for key, var in zip(sym_dict['name'], sym_dict['var']):
+                struct[key] = var
+            # Indexing this structure returns the original symbolic variables
+            return struct
 
 
     @property
@@ -631,9 +655,9 @@ class Model:
         """
         return self._getvar('_w')
 
-        @w.setter
-        def w(self, val):
-            raise Exception('Cannot set process noise directly.')
+    @w.setter
+    def w(self, val):
+        raise Exception('Cannot set process noise directly.')
 
 
     @property
@@ -661,9 +685,9 @@ class Model:
         """
         return self._getvar('_v')
 
-        @v.setter
-        def v(self, val):
-            raise Exception('Cannot set measurement noise directly.')
+    @v.setter
+    def v(self, val):
+        raise Exception('Cannot set measurement noise directly.')
 
 
     def set_variable(self, var_type, var_name, shape=(1,1)):
@@ -725,12 +749,15 @@ class Model:
         # Check validity of var_type:
         assert var_type in ['_x','_u','_z','_p','_tvp'], 'Trying to set non-existing variable var_type: {} with var_name {}'.format(var_type, var_name)
         # Check validity of var_name:
-        assert var_name not in [entry_i.name for entry_i in getattr(self,var_type)], 'The variable name {} for type {} already exists.'.format(var_name, var_type)
+        assert var_name not in getattr(self,var_type)['name'], 'The variable name {} for type {} already exists.'.format(var_name, var_type)
+
         # Create variable:
-        var = SX.sym(var_name, shape)
+        var = self.sv.sym(var_name, shape)
+
 
         # Extend var list with new entry:
-        getattr(self, var_type).append(entry(var_name, sym=var))
+        getattr(self, var_type)['var'].append(var)
+        getattr(self, var_type)['name'].append(var_name)
 
         return var
 
@@ -773,7 +800,11 @@ class Model:
         assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
 
         self._aux_expression.append(entry(expr_name, expr = expr))
-        self._aux.append(entry(expr_name, shape=expr.shape))
+
+        # Create variable:
+        var = self.sv.sym(expr_name, expr.shape)
+        self._aux['var'].append(var)
+        self._aux['name'].append(expr_name)
 
         return expr
 
@@ -844,12 +875,18 @@ class Model:
 
         # Create a new process noise variable and add it to the rhs equation.
         if meas_noise:
-            var = SX.sym(meas_name+'_noise', expr.shape[0])
-            self._v.append(entry(meas_name, sym=var))
+            var = self.sv.sym(meas_name+'_noise', expr.shape[0])
+
+            self._v['name'].append(meas_name)
+            self._v['var'].append(var)
             expr += var
 
         self._y_expression.append(entry(meas_name, expr = expr))
-        self._y.append(entry(meas_name, shape=expr.shape))
+
+        # Create variable:
+        var = self.sv.sym(meas_name, expr.shape)
+        self._y['var'].append(var)
+        self._y['name'].append(meas_name)
 
         return expr
 
@@ -906,13 +943,16 @@ class Model:
         assert self.flags['setup'] == False, 'Cannot call .set_rhs after .setup.'
         assert isinstance(var_name, str), 'var_name must be str, you have: {}'.format(type(var_name))
         assert isinstance(expr, (casadi.SX, casadi.MX, casadi.DM)), 'expr must be a casadi SX, MX or DM type, you have:{}'.format(type(expr))
-        _x_names = self.x.keys()
-        assert var_name in _x_names, 'var_name must refer to the previously defined states ({}). You have: {}'.format(_x_names, var_name)
+        assert var_name in self._x['name'], 'var_name must refer to the previously defined states ({}). You have: {}'.format(self._x['name'], var_name)
 
         # Create a new process noise variable and add it to the rhs equation.
         if process_noise:
-            var = SX.sym(var_name+'_noise', expr.shape[0])
-            self._w.append(entry(var_name, sym=var))
+            if self.symvar_type == 'MX':
+                var = MX.sym(var_name+'_noise', expr.shape[0])
+            else:
+                var = SX.sym(var_name+'_noise', expr.shape[0])
+
+            self._w.append(var)
             expr += var
         self.rhs_list.extend([{'var_name': var_name, 'expr': expr}])
 
@@ -951,6 +991,95 @@ class Model:
         self.alg_list.append(entry(expr_name, expr = expr))
 
 
+    def _convert2struct(self, var_dict):
+        """Helper function for :py:func:`setup`. Not part of the public API.
+        This method is used to convert the attributes:
+
+        ::
+            self._x
+            self._u
+            ...
+
+        into structures of type ``struct_symSX`` or ``struct_symMX`` (depending on the attribute ``symvar_type``).
+
+        These structures are created with **newly introduced** symbolic variables which are of the same shapes and names
+        as those introduced with :py:func:`set_variable`.
+
+        **Why is this necessary?**
+
+        For the symbolic variable type ``MX`` it is impossible to first create symbolic variables and then combine them into a structure (``struct_symMX``).
+        We thus create symbolic variables, then create a structure holding similar variables and the substitute these newly introduced variables in all expressions.
+
+        :param var_dict: Attributes that are configured with :py:func:`set_variable` (e.g. ``self._x``). These attributes are of type ``dict`` with the keys ``name`` and ``var``
+        :type var_dict: dict
+        """
+        result_struct =  self.sv.sym_struct([
+            entry(name, shape = var.shape) for var, name in zip(var_dict['var'], var_dict['name'])
+        ])
+        return result_struct
+
+    def _substitute_struct_vars(self, var_dict_list, sym_struct_list, expr):
+        """Helper function for :py:func:`setup`. Not part of the public API.
+        This method is used to substitute the newly introduced structured variables with :py:func:`_convert2struct`
+        into the expressions that define the model (e.g. ``_rhs``).
+
+        **Why is this necessary?**
+
+        For the symbolic variable type ``MX`` it is impossible to first create symbolic variables and then combine them into a structure (``struct_symMX``).
+        We thus create symbolic variables, then create a structure holding similar variables and the substitute these newly introduced variables in all expressions.
+
+        :param var_dict_list: List of attributes that are configured with :py:func:`set_variable` (e.g. ``self._x``). These attributes are of type ``dict`` with the keys ``name`` and ``var``
+        :type var_dict_list: list
+        :param sym_struct_list: List of the same attributes converted into structures with :py:func:`_convert2struct`.
+        :type sym_struct_list: list
+        :param expr: Casadi structured expr in which the variables from ``var_dict_list`` are substituted with those from ``sym_struct_list``.
+        :type expr: struct_SX or struct_MX
+        """
+        assert len(var_dict_list)==len(sym_struct_list)
+
+        subs = expr
+        for var_dict, sym_struct in zip(var_dict_list, sym_struct_list):
+            assert var_dict['name'] == sym_struct.keys()
+
+            for var, name in zip(var_dict['var'], var_dict['name']):
+                subs = substitute(subs, var, sym_struct[name])
+
+        return expr(subs)
+
+    def _substitute_exported_vars(self, var_dict_list, sym_struct_list):
+        """Helper function for :py:func:`setup`. Not part of the public API.
+        This method is used to substitute the newly introduced structured variables with :py:func:`_convert2struct`
+        in all previously EXPORTED variables, e.g. with :py:func:`set_variable`.
+
+        This is necessary because otherwise variables obtained from the model PRIOR to calling :py:func:`setup`
+        are not the same as those returned after calling :py:func:`setup`:
+
+        ::
+
+            x = model.set_variable('_x', 'x')
+
+            ...
+
+            model.setup()
+
+            # We don't want this:
+            model.x['x'] == x
+            >> MX(x==x)
+
+            # We want this:
+            model.x['x'] == x
+            >> MX(1)
+
+        This is a bit of a HACKY solution and might require fixing if CasADi is changing its API.
+        """
+
+        for var_dict, sym_struct in zip(var_dict_list, sym_struct_list):
+            assert var_dict['name'] == sym_struct.keys()
+
+            for var, name in zip(var_dict['var'], var_dict['name']):
+                var.__dict__['this'] = sym_struct[name].__dict__['this']
+
+
     def setup(self):
         """Setup method must be called to finalize the modelling process.
         All required model variables must be declared.
@@ -969,42 +1098,63 @@ class Model:
         :rtype: None
         """
 
-        # Write self._x, self._u, self._z, self._y, self._tvp, self.p with the respective struct_symSX structures.
-        self._x = _x = struct_symSX(self._x)
-        self._w = _w = struct_symSX(self._w)
-        self._v = _v = struct_symSX(self._v)
-        self._u = _u =  struct_symSX(self._u)
-        self._z = _z = struct_symSX(self._z)
-        self._p = _p = struct_symSX(self._p)
-        self._tvp = _tvp =  struct_symSX(self._tvp)
+
+        # Set all states as measurements if set_meas was not called by user.
+        if not self._y_expression:
+            for name, var in zip(self._x['name'], self._x['var']):
+                self.set_meas(name, var, meas_noise=False)
+
+        # Write self._y_expression (measurement equations) as struct symbolic expression structures.
+        self._y_expression = self.sv.struct(self._y_expression)
+
+        # Create structure from listed symbolic variables:
+        _x =  self._convert2struct(self._x)
+        _w =  self._convert2struct(self._w)
+        _v =  self._convert2struct(self._v)
+        _u =  self._convert2struct(self._u)
+        _z =  self._convert2struct(self._z)
+        _p =  self._convert2struct(self._p)
+        _tvp =  self._convert2struct(self._tvp)
+        _aux =  self._convert2struct(self._aux)
+        _y =  self._convert2struct(self._y)
 
         # Write self._aux_expression.
-        self._aux_expression = struct_SX(self._aux_expression)
-        self._aux = struct_symSX(self._aux)
+        self._aux_expression = self.sv.struct(self._aux_expression)
 
-        # Write self._y_expression (measurement equations) as struct_SX symbolic expression structures.
-        # Check if it is an empty list (no user input)
-        if not self._y_expression:
-            self._y_expression = self._x
-            self._y = self._x
-        else:
-            self._y_expression = struct_SX(self._y_expression)
-            self._y = struct_symSX(self._y)
 
         # Create alg equations:
-        self._alg = struct_SX(self.alg_list)
+        self._alg = self.sv.struct(self.alg_list)
 
-
-        # Create mutable struct_SX with identical structure as self._x to hold the right hand side.
-        self._rhs = struct_SX(self._x)
+        # Create mutable struct with identical structure as _x to hold the right hand side.
+        self._rhs = self.sv.struct(_x)
 
         # Set the expressions in self._rhs with the previously defined SX.sym variables.
         # Check if an expression is set for every state of the system.
-        _x_names = set(self._x.keys())
+        _x_names = set(self._x['name'])
         for rhs_i in self.rhs_list:
             self._rhs[rhs_i['var_name']] = rhs_i['expr']
             _x_names -= set([rhs_i['var_name']])
         assert len(_x_names) == 0, 'Definition of right hand side (rhs) is incomplete. Missing: {}. Use: set_rhs to define expressions.'.format(_x_names)
+
+        var_dict_list = [self._x, self._w, self._v, self._u, self._z, self._p, self._tvp]
+        sym_struct_list = [_x, _w, _v, _u, _z, _p, _tvp]
+
+        self._rhs = self._substitute_struct_vars(var_dict_list, sym_struct_list, self._rhs)
+        self._alg = self._substitute_struct_vars(var_dict_list, sym_struct_list, self._alg)
+        self._aux_expression = self._substitute_struct_vars(var_dict_list, sym_struct_list, self._aux_expression)
+        self._y_expression = self._substitute_struct_vars(var_dict_list, sym_struct_list, self._y_expression)
+
+        self._substitute_exported_vars(var_dict_list, sym_struct_list)
+
+        self._x = _x
+        self._w = _w
+        self._v = _v
+        self._u = _u
+        self._z = _z
+        self._p = _p
+        self._tvp = _tvp
+        self._y = _y
+        self._aux = _aux
 
         # Declare functions for the right hand side and the aux_expressions.
         self._rhs_fun = Function('rhs_fun', [_x, _u, _z, _tvp, _p, _w], [self._rhs])

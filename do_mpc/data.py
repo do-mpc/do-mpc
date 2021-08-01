@@ -42,7 +42,7 @@ class Data:
     """
     def __init__(self, model):
         self.dtype = 'default'
-        assert model.flags['setup'] == True, 'Model was not setup. After the complete model creation call model.setup_model().'
+        assert model.flags['setup'] == True, 'Model was not setup. After the complete model creation call model.setup().'
         # As discussed here: https://groups.google.com/forum/#!topic/casadi-users/dqAb4tnA2ik
         # struct_SX cannot be unpickled (seems like a bug)
         # TODO: Find better workaround.
@@ -51,6 +51,7 @@ class Data:
         self.model.pop('_aux_expression')
         self.model.pop('_y_expression')
         self.model.pop('_alg')
+        self.model.pop('sv')
 
 
         # TODO: n_aux not existing
@@ -320,7 +321,11 @@ class MPCData(Data):
                 f_ind = self.opt_x.f[(ind[0], slice(None), lambda v: horzcat(*v),slice(None))+ind[1:]]
                 f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind], dtype='int32')
                 # sort pred such that each column belongs to one scenario
-                f_ind = f_ind[range(f_ind.shape[0]),:,structure_scenario[:-1,:].T].T
+                if self.meta_data['open_loop']:
+                    f_ind = f_ind[range(f_ind.shape[0]),:,structure_scenario[:-1,[0]].T].T
+                else:
+                    f_ind = f_ind[range(f_ind.shape[0]),:,structure_scenario[:-1,:].T].T
+
                 # Store f_ind:
                 self.prediction_queries['ind'].append(ind)
                 self.prediction_queries['f_ind'].append(f_ind)

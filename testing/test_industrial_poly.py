@@ -41,12 +41,20 @@ sys.path.pop(-1)
 
 class TestIndustrialPoly(unittest.TestCase):
 
-    def test_industrialpoly(self):
+    def test_SX(self):
+        print('Testing SX implementation')
+        self.industrialpoly('SX')
+
+    def test_MX(self):
+        print('Testing MX implementation')
+        self.industrialpoly('MX')
+
+    def industrialpoly(self, symvar_type):
         """
         Get configured do-mpc modules:
         """
 
-        model = template_model()
+        model = template_model(symvar_type)
         mpc = template_mpc(model)
         simulator = template_simulator(model)
         estimator = do_mpc.estimator.StateFeedback(model)
@@ -112,7 +120,11 @@ class TestIndustrialPoly(unittest.TestCase):
             self.assertTrue(check)
 
 
-
+        # Store for test reasons
+        try:
+            do_mpc.data.save_results([mpc, simulator], 'test_save', overwrite=True)
+        except:
+            raise Exception()
 
 if __name__ == '__main__':
     unittest.main()

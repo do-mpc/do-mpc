@@ -43,12 +43,18 @@ sys.path.pop(-1)
 
 class TestBatchReactor(unittest.TestCase):
 
-    def test_batch_reactor(self):
+    def test_SX(self):
+        self.batch_reactor('SX')
+
+    def test_MX(self):
+        self.batch_reactor('MX')
+
+    def batch_reactor(self, symvar_type):
         """
         Get configured do-mpc modules:
         """
 
-        model = template_model()
+        model = template_model(symvar_type)
         mpc = template_mpc(model)
         simulator = template_simulator(model)
         estimator = do_mpc.estimator.StateFeedback(model)
@@ -101,6 +107,12 @@ class TestBatchReactor(unittest.TestCase):
         Store results (from reference run):
         """
         #do_mpc.data.save_results([mpc, simulator, estimator], 'results_batch_rector')
+
+        # Store for test reasons
+        try:
+            do_mpc.data.save_results([mpc, simulator], 'test_save', overwrite=True)
+        except:
+            raise Exception()
 
 
 if __name__ == '__main__':

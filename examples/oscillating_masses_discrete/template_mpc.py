@@ -41,7 +41,6 @@ def template_mpc(model):
         'n_robust': 0,
         'n_horizon': 7,
         't_step': 0.5,
-        'state_discretization': 'discrete',
         'store_full_solution':True,
     }
 
