@@ -251,6 +251,21 @@ class Model:
        0 &= g(x_k,u_k,z_k,p_k,p_{\\text{tv},k})\\\\
        y_k &= h(x_k,u_k,z_k,p_k,p_{\\text{tv},k}) + v_k
 
+    The **do-mpc** model can be initiated with either ``SX`` or ``MX`` variable type.
+    We refer to the CasADi documentation on the difference of these two types.
+
+    .. note::
+
+        ``SX`` vs. ``MX`` in a nutshell: In general use ``SX`` variables (default).
+        If your model consists of scalar operations ``SX`` variables will be beneficial.
+        Your implementation will most likely only benefit from ``MX`` variables if you use large(r)-scale matrix-vector multiplications.
+
+    .. note::
+
+        The option ``symvar_type`` will be inherited to all derived classes (e.g. :py:class:`do_mpc.simulator.Simulator`,
+        :py:class:`do_mpc.controller.MPC` and :py:class:`do_mpc.estimator.Estimator`).
+        All symbolic variables in these classes will be chosen respectively.
+
 
     **Configuration and setup:**
 
