@@ -52,6 +52,23 @@ The **do-mpc** software is Python based and works therefore on any OS with a Pyt
 **do-mpc** has been developed by Sergio Lucia and Alexandru Tatulea at the DYN chair of the TU Dortmund lead by Sebastian Engell.
 The development is continued at the `Laboratory of Process Automation Systems <https://pas.bci.tu-dortmund.de>`_ (PAS) of the TU Dortmund by Felix Fiedler and Sergio Lucia.
 
+News
+****
+
+The first do-mpc developer con­fe­rence is hosted from 13.09.-15.09.2021 at TU Dort­mund.
+More information can be found by clicking on the flyer below.
+
+.. image:: ./static/temp/do-mpc_developer_conference_2021_flyer.png
+    :target: https://pas.bci.tu-dortmund.de/professorship/news/details/2021-do-mpc-developer-conference-12208/
+    :alt: Flyer for the 2021 do-mpc developer conference at TU Dortmund
+
+.. admonition:: Open position
+
+    The Laboratory of Process Automation Systems at TU Dortmund (Germany) has an open position for a doctoral researcher
+    with full employment (tarif group E13 TV-L).
+
+    Please click `here <https://karriere.tu-dortmund.de/job/view/880/doctorate-positions-m-f-d-ref-nr-w56-21?page_lang=en>`_ for more information
+
 Example: Robust Multi-stage MPC
 *******************************
 We showcase an example, where the control task is to regulate the rotating triple-mass-spring system as shown below:
