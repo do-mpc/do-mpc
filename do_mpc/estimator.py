@@ -473,12 +473,12 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             ::
 
                 optimizer.set_param(nlpsol_opts = {'ipopt.linear_solver': 'MA27'})
-        .. note:: To surpress the output of IPOPT, please use:
+        .. note:: To suppress the output of IPOPT, please use:
 
             ::
 
-                surpress_ipopt = {'ipopt.print_level':0, 'ipopt.sb': 'yes', 'print_time':0}
-                optimizer.set_param(nlpsol_opts = surpress_ipopt)
+                suppress_ipopt = {'ipopt.print_level':0, 'ipopt.sb': 'yes', 'print_time':0}
+                optimizer.set_param(nlpsol_opts = suppress_ipopt)
 
         """
         assert self.flags['setup'] == False, 'Setting parameters after setup is prohibited.'
