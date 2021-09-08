@@ -89,11 +89,6 @@ def template_mpc(model):
     mpc.set_nl_cons('T_R', _x['T_R'], ub=140, soft_constraint=True, penalty_term_cons=1e2)
 
 
-    mpc._x0['C_a'] = 0.8
-    mpc._x0['C_b'] = 0.5
-    mpc._x0['T_R'] = 134.14
-    mpc._x0['T_K'] = 130.0
-
     alpha_var = np.array([1., 1.05, 0.95])
     beta_var = np.array([1., 1.1, 0.9])
 
