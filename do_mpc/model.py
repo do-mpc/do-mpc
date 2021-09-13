@@ -1172,18 +1172,29 @@ class Model:
         self._aux = _aux
 
         # Declare functions for the right hand side and the aux_expressions.
+        v_in_rhs = {"_x":_x, "_u":_u, "_z":_z, "_tvp":_tvp, "_p": _p, "_w":_w}
         self._rhs_fun = Function('rhs_fun',
-                                 [_x, _u, _z, _tvp, _p, _w], [self._rhs],
-                                 ["_x", "_u", "_z", "_tvp", "_p", "_w"], ["_rhs"])
+                                 [v for v in v_in_rhs.values()], [self._rhs],
+                                 [k for k in v_in_rhs.keys()], ["_rhs"])
+        self._rhs_jac_fun = Function('rhs_jac_fun',
+                                 [v for v in v_in_rhs.values()], [jacobian(self._rhs, v) for v in v_in_rhs.values()],
+                                 [k for k in v_in_rhs.keys()], [k for k in v_in_rhs.keys()])
+        
         self._alg_fun = Function('alg_fun',
                                  [_x, _u, _z, _tvp, _p, _w], [self._alg],
                                  ["_x", "_u", "_z", "_tvp", "_p", "_w"], ["_alg"])
         self._aux_expression_fun = Function('aux_expression_fun',
                                             [_x, _u, _z, _tvp, _p], [self._aux_expression],
                                             ["_x", "_u", "_z", "_tvp", "_p"], ["_aux_expression"])
+        
+        v_in_meas = {"_x":_x, "_u":_u, "_z":_z, "_tvp":_tvp, "_p": _p, "_w":_w}
         self._meas_fun = Function('meas_fun',
-                                  [_x, _u, _z, _tvp, _p, _v], [self._y_expression],
-                                  ["_x", "_u", "_z", "_tvp", "_p", "_v"], ["_y_expression"])
+                                  [v for v in v_in_meas.values()], [self._y_expression],
+                                  [k for k in v_in_meas.keys()], ["_y_expression"])
+        self._rhs_jac_fun = Function('rhs_jac_fun',
+                                 [v for v in v_in_meas.values()], [jacobian(self._y_expression, v) for v in v_in_meas.values()],
+                                 [k for k in v_in_rhs.keys()], [k for k in v_in_meas.keys()])    
+        
 
         # Create and store some information about the model regarding number of variables for
         # _x, _y, _u, _z, _tvp, _p, _aux
