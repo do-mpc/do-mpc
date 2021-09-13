@@ -81,29 +81,29 @@ class SamplingPlanner:
 
         """
         assert isinstance(name, str), 'name must be str, you have {}'.format(type(name))
-        assert isinstance(fun_var_pdf, [types.Function,types.BuiltinFunction]), 'fun_var_pdf must be either Function or BuiltinFunction_or_Method, you have {}'.format(type(fun_var_pdf))
+        assert isinstance(fun_var_pdf, (types.FunctionType, types.BuiltinFunctionType)), 'fun_var_pdf must be either Function or BuiltinFunction_or_Method, you have {}'.format(type(fun_var_pdf))
         self.sampling_vars.append({'name':name, 'fun_var_pdf':fun_var_pdf})
 
     def gen_sampling_plan(self, sampling_plan_name, n_samples):
         """
 
         """
-        assert isinstance(sampling_plane_name, str), 'sampling_plan_name must be str, you have {}'.format(type(var_type))
+        assert isinstance(sampling_plan_name, str), 'sampling_plan_name must be str, you have {}'.format(type(var_type))
         assert isinstance(n_samples, int), 'n_samples must be int, you have {}'.format(type(n_samples))
 
         sampling_plan = []
 
-    for i in range(n_samples):
+        for i in range(n_samples):
 
-        temp_dic = {var['name']: var['fun_var_pdf']() for var in self.sampling_vars}
+            temp_dic = {var['name']: var['fun_var_pdf']() for var in self.sampling_vars}
 
-        sampling_plan.append(temp_dic)
+            sampling_plan.append(temp_dic)
 
-    # safe sampling plan
-    exp_dic = {'name':sampling_plan_name,'n_samples':n_samples,'date':,'sampling_plan':sampling_plan}
+        # safe sampling plan
+        self.sampling_plan = {'name':sampling_plan_name,'n_samples':n_samples,'sampling_plan':sampling_plan}
 
-    # cnt = 0
-    # if os.path.isfile(sampling_plan_name + '.pkl'):
-    #     sampling_plan_name =
-    with open(sampling_plan_name + '.pkl', 'wb') as f:
-        pickle.dump(exp_dic, f)
+        # cnt = 0
+        # if os.path.isfile(sampling_plan_name + '.pkl'):
+        #     sampling_plan_name =
+        with open(sampling_plan_name + '.pkl', 'wb') as f:
+            pickle.dump(self.sampling_plan, f)
