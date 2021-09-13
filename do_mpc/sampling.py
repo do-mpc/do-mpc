@@ -29,8 +29,9 @@ class Sampler:
 
     """
     def __init__(self, sampling_plan):
-        assert istype(sampling_plan, dict), 'sampling_plan must be a dict'
-        assert np.all([isinstance(plan_i, dict) for plan_i in sampling_plan]), 'All elements of sampling plan must be a dictionary.'
+        assert isinstance(sampling_plan, dict), 'sampling_plan must be a dict'
+        assert isinstance(sampling_plan['plan'], list), 'sampling_plan must contain key list with list'
+        assert np.all([isinstance(plan_i, dict) for plan_i in sampling_plan['plan']]), 'All elements of sampling plan must be a dictionary.'
 
         self.flags = {
         }
@@ -54,7 +55,9 @@ class Sampler:
     def sample_data(self):
         for sample in self.sampling_plan:
             result = self.sample_function(**sample)
-            self.sample_result.append(result)
+
+            if os.path.isfile(sampling_plan_name + '.pkl'):
+                None
 
 
 
