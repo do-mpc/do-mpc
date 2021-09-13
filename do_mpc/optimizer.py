@@ -78,7 +78,7 @@ class Optimizer:
         """Query and set bounds of the optimization variables.
         The :py:func:`bounds` method is an indexed property, meaning
         getting and setting this property requires an index and calls this function.
-        The power index (elements are seperated by comas) must contain atleast the following elements:
+        The power index (elements are separated by commas) must contain atleast the following elements:
 
         ======      =================   ==========================================================
         order       index name          valid options
