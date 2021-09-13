@@ -25,7 +25,36 @@ import pickle
 import os
 
 class Sampler:
-    ...
+    """The **do-mpc** Sampler class.
+
+    """
+    def __init__(self, sampling_plan):
+        assert istype(sampling_plan, dict), 'sampling_plan must be a dict'
+        assert np.all([isinstance(plan_i, dict) for plan_i in sampling_plan]), 'All elements of sampling plan must be a dictionary.'
+
+        self.flags = {
+        }
+
+        # Parameters that can be set for the MHE:
+        self.data_fields = [
+            'save_dir',
+            'save_name_prefix',
+            'overwrite_results',
+        ]
+
+        self.save_dir = './results/'
+        self.overwrite_results = False
+
+    def set_sample_function(self,sample_function):
+        """
+        Set sample generating function.
+        """
+        self.sample_function = sample_function
+
+    def sample_data(self):
+        for sample in self.sampling_plan:
+            result = self.sample_function(**sample)
+            self.sample_result.append(result)
 
 
 
