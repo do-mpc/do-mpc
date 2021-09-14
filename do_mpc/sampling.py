@@ -154,16 +154,20 @@ class SamplingPlanner:
             sampling_plan.append(temp_dic)
 
         # save sampling plan
-        self.sampling_plan = {'name':sampling_plan_name,'n_samples':n_samples,'sampling_plan':sampling_plan}
+        self.sampling_plan = {'n_samples':n_samples,'sampling_plan':sampling_plan}
 
         if not os.path.isfile(sampling_plan_name + '.pkl'):
             with open(sampling_plan_name + '.pkl', 'wb') as f:
                 pickle.dump(self.sampling_plan, f)
+            self.sampling_plan.update({'name': sampling_plan_name + '.pkl'})
         else:
             for cnt in range(1,10000):
+                pdb.set_trace()
                 if not os.path.isfile(str(cnt).zfill(5) + '_' + sampling_plan_name + '.pkl'):
                     with open(str(cnt).zfill(5) + '_' + sampling_plan_name + '.pkl', 'wb') as f:
                         pickle.dump(self.sampling_plan, f)
+                    self.sampling_plan.update({'name': str(cnt).zfill(5) + '_' + sampling_plan_name + '.pkl'})
                     break
+
 
         return self.sampling_plan
