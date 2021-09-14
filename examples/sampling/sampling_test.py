@@ -16,6 +16,7 @@ plan = sp.gen_sampling_plan('test', n_samples=10)
 
 
 sampler = do_mpc.sampling.Sampler(plan)
+sampler.set_param(save_format='mat')
 
 def sample_function(alpha, beta):
     return alpha*beta

@@ -26,6 +26,7 @@ import os
 import numpy as np
 import pathlib
 import pdb
+import scipy.io as sio
 
 
 class Sampler:
@@ -82,8 +83,23 @@ class Sampler:
         """
         self.sample_function = sample_function
 
-    def _save(self, save_name, result):
-        None
+    def _save(self, sample_id, result):
+        name = '{plan_name}_{id}'.format(plan_name=self.sampling_plan['name'], id=sample_id)
+
+        if self.save_format == 'pickle':
+            save_name = self.save_dir + name + '.pkl'
+        elif self.save_format == 'mat':
+            save_name = self.save_dir + name+'.mat'
+
+        if os.path.isfile(save_name):
+            None
+        else:
+            if self.save_format == 'pickle':
+                with open(save_name, 'wb') as f:
+                    pickle.dump(result, f)
+            elif self.save_format == 'mat':
+                sio.savemat(save_name, {name: result})
+
 
 
     def sample_data(self):
@@ -91,19 +107,11 @@ class Sampler:
 
             # Pop sample id from dictionary (not an argument to the sample function)
             sample_id = sample.pop('id')
-            # Create the save name of the sample
-            save_name = '{save_dir}{plan_name}_{id}.pkl'.format(save_dir=self._save_dir, plan_name=self.sampling_plan['name'], id=sample_id)
 
             # Call sample function to create sample (pass sample information)
             result = self.sample_function(**sample)
 
-            # Check if save name already exists, overwrite? Otherwise: Save
-            if os.path.isfile(save_name):
-                None
-            else:
-                with open(save_name, 'wb') as f:
-                    pickle.dump(result, f)
-
+            self._save(sample_id, result)
 
 
 
