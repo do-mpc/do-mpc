@@ -98,7 +98,10 @@ class SamplingPlanner:
 
         for i in range(n_samples):
 
+            n_digits = len(str(n_samples))
+
             temp_dic = {var['name']: var['fun_var_pdf']() for var in self.sampling_vars}
+            temp_dic.update{'id': str(i).zfill(n_digits)}
 
             sampling_plan.append(temp_dic)
 
