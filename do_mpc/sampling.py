@@ -45,25 +45,23 @@ class Sampler:
 
         # Parameters that can be set for the Sampler:
         self.data_fields = [
-            'save_dir',
+            'data_dir',
             'overwrite_results',
-            'save_format'
         ]
 
-        self.save_dir = './{}/'.format(sampling_plan['name'])
+        self.data_dir = './{}/'.format(sampling_plan['name'])
         self.overwrite_results = False
-        self.save_format = 'pickle'
 
     @property
-    def save_dir(self):
+    def data_dir(self):
         """Set the save directory for the results.
         If the directory does not exist yet, it is created. This is also possible for nested structures.
         """
-        return self._save_dir
+        return self._data_dir
 
-    @save_dir.setter
-    def save_dir(self, val):
-        self._save_dir = val
+    @data_dir.setter
+    def data_dir(self, val):
+        self._data_dir = val
         pathlib.Path(val).mkdir(parents=True, exist_ok=True)
 
     def set_param(self, **kwargs):
@@ -86,18 +84,18 @@ class Sampler:
     def _save(self, sample_id, result):
         name = '{plan_name}_{id}'.format(plan_name=self.sampling_plan['name'], id=sample_id)
 
-        if self.save_format == 'pickle':
-            save_name = self.save_dir + name + '.pkl'
-        elif self.save_format == 'mat':
-            save_name = self.save_dir + name+'.mat'
+        if self.sampling_plan['save_format'] == 'pickle':
+            save_name = self.data_dir + name + '.pkl'
+        elif self.sampling_plan['save_format'] == 'mat':
+            save_name = self.data_dir + name+'.mat'
 
         if os.path.isfile(save_name):
             None
         else:
-            if self.save_format == 'pickle':
+            if self.sampling_plan['save_format'] == 'pickle':
                 with open(save_name, 'wb') as f:
                     pickle.dump(result, f)
-            elif self.save_format == 'mat':
+            elif self.sampling_plan['save_format'] == 'mat':
                 sio.savemat(save_name, {name: result})
 
 
@@ -135,10 +133,12 @@ class SamplingPlanner:
 
         # Parameters that can be set for the SamplingPlanner:
         self.data_fields = [
-            'overwrite'
+            'overwrite',
+            'save_format'
         ]
 
         self.overwrite = False
+        self.save_format = 'pickle'
 
     def set_param(self, **kwargs):
         """
@@ -193,8 +193,8 @@ class SamplingPlanner:
 
             sampling_plan.append(temp_dic)
 
-        # save sampling plan (if necessary with unique numbering)
-        self.sampling_plan = {'n_samples':n_samples,'sampling_plan':sampling_plan}
+        # save sampling plan
+        self.sampling_plan = {'n_samples':n_samples, 'save_format': self.save_format, 'sampling_plan':sampling_plan}
 
         if not os.path.isfile(sampling_plan_name + '.pkl') or self.overwrite:
             with open(sampling_plan_name + '.pkl', 'wb') as f:
