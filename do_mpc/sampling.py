@@ -72,7 +72,7 @@ class Sampler:
         """
         for key, value in kwargs.items():
             if not (key in self.data_fields):
-                print('Warning: Key {} does not exist for MPC.'.format(key))
+                print('Warning: Key {} does not exist for Sampler.'.format(key))
             else:
                 setattr(self, key, value)
 
@@ -135,6 +135,23 @@ class SamplingPlanner:
     def __init__(self):
         self.sampling_vars = []
 
+        # Parameters that can be set for the MHE:
+        self.data_fields = [
+            'overwrite'
+        ]
+
+        self.overwrite = False
+
+    def set_param(self, **kwargs):
+        """
+
+        """
+        for key, value in kwargs.items():
+            if not (key in self.data_fields):
+                print('Warning: Key {} does not exist for SamplingPlanner.'.format(key))
+            else:
+                setattr(self, key, value)
+
     def set_sampling_var(self, name, fun_var_pdf):
         """
 
@@ -164,7 +181,7 @@ class SamplingPlanner:
         # save sampling plan
         self.sampling_plan = {'n_samples':n_samples,'sampling_plan':sampling_plan}
 
-        if not os.path.isfile(sampling_plan_name + '.pkl'):
+        if not os.path.isfile(sampling_plan_name + '.pkl') or self.overwrite:
             with open(sampling_plan_name + '.pkl', 'wb') as f:
                 pickle.dump(self.sampling_plan, f)
             self.sampling_plan.update({'name': sampling_plan_name})
