@@ -20,5 +20,18 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+import pickle
+
 from .structure import *
 from .indexedproperty import *
+
+
+def save_pickle(filename, data):
+    filename = filename.replace('.pkl','')
+    with open(filename + '.pkl', 'wb') as f:
+        pickle.dump(data, f)
+
+def load_pickle(path_to_file):
+    with open(path_to_file, 'rb') as f:
+        data = pickle.load(f)
+    return data
