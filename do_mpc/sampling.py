@@ -30,6 +30,7 @@ import scipy.io as sio
 import copy
 
 def save_pickle(filename, data):
+    filename = filename.replace('.pkl','')
     with open(filename + '.pkl', 'wb') as f:
         pickle.dump(data, f)
 
