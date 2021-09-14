@@ -159,14 +159,13 @@ class SamplingPlanner:
         if not os.path.isfile(sampling_plan_name + '.pkl'):
             with open(sampling_plan_name + '.pkl', 'wb') as f:
                 pickle.dump(self.sampling_plan, f)
-            self.sampling_plan.update({'name': sampling_plan_name + '.pkl'})
+            self.sampling_plan.update({'name': sampling_plan_name})
         else:
-            for cnt in range(1,10000):
-                pdb.set_trace()
-                if not os.path.isfile(str(cnt).zfill(5) + '_' + sampling_plan_name + '.pkl'):
-                    with open(str(cnt).zfill(5) + '_' + sampling_plan_name + '.pkl', 'wb') as f:
+            for i in range(1,10000):
+                if not os.path.isfile(sampling_plan_name + '_' + str(i) + '.pkl'):
+                    with open(sampling_plan_name + '_' + str(i) + '.pkl', 'wb') as f:
                         pickle.dump(self.sampling_plan, f)
-                    self.sampling_plan.update({'name': str(cnt).zfill(5) + '_' + sampling_plan_name + '.pkl'})
+                    self.sampling_plan.update({'name': sampling_plan_name + '_' + str(i)})
                     break
 
 
