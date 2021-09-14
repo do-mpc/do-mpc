@@ -23,6 +23,7 @@
 import types
 import pickle
 import os
+import numpy as np
 
 class Sampler:
     """The **do-mpc** Sampler class.
@@ -30,8 +31,8 @@ class Sampler:
     """
     def __init__(self, sampling_plan):
         assert isinstance(sampling_plan, dict), 'sampling_plan must be a dict'
-        assert isinstance(sampling_plan['plan'], list), 'sampling_plan must contain key list with list'
-        assert np.all([isinstance(plan_i, dict) for plan_i in sampling_plan['plan']]), 'All elements of sampling plan must be a dictionary.'
+        assert isinstance(sampling_plan['sampling_plan'], list), 'sampling_plan must contain key list with list'
+        assert np.all([isinstance(plan_i, dict) for plan_i in sampling_plan['sampling_plan']]), 'All elements of sampling plan must be a dictionary.'
 
         self.flags = {
         }
@@ -39,12 +40,12 @@ class Sampler:
         # Parameters that can be set for the MHE:
         self.data_fields = [
             'save_dir',
-            'save_name_prefix',
             'overwrite_results',
         ]
 
         self.save_dir = './results/'
         self.overwrite_results = False
+
 
     def set_sample_function(self,sample_function):
         """
@@ -52,12 +53,15 @@ class Sampler:
         """
         self.sample_function = sample_function
 
-    def sample_data(self):
-        for sample in self.sampling_plan:
-            result = self.sample_function(**sample)
 
-            if os.path.isfile(sampling_plan_name + '.pkl'):
-                None
+    def sample_data(self):
+        for i, sample in enumerate(self.sampling_plan):
+            result = self.sample_function(**sample)
+            #pdb.set_trace()
+
+            # if os.path.isfile(sampling_plan_name + '.pkl'):
+            #     None
+
 
 
 
@@ -113,3 +117,5 @@ class SamplingPlanner:
         #     sampling_plan_name =
         with open(sampling_plan_name + '.pkl', 'wb') as f:
             pickle.dump(self.sampling_plan, f)
+
+        return self.sampling_plan
