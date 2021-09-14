@@ -43,7 +43,7 @@ class Sampler:
         self.flags = {
         }
 
-        # Parameters that can be set for the MHE:
+        # Parameters that can be set for the Sampler:
         self.data_fields = [
             'save_dir',
             'overwrite_results',
@@ -118,7 +118,7 @@ class Sampler:
 
 
 class SamplingPlanner:
-    """A class for generating sampling plans. These sampling plans will be used by , that can be used in return for the evaluation of the considered configuration or for machine learning.
+    """A class for generating sampling plans. These sampling plans will be executed by :py:class:`Sampler` to generate data which can be used for evaluating the performance the performance of the considered configuration, machine learning, etc.
 
 
     **Configuration and sampling plan generation:**
@@ -129,13 +129,11 @@ class SamplingPlanner:
 
     2. Generate the sampling plan with :py:func:`gen_sampling_plan`.
 
-    The generated sampling plan
-
     """
     def __init__(self):
         self.sampling_vars = []
 
-        # Parameters that can be set for the MHE:
+        # Parameters that can be set for the SamplingPlanner:
         self.data_fields = [
             'overwrite'
         ]
@@ -153,16 +151,33 @@ class SamplingPlanner:
                 setattr(self, key, value)
 
     def set_sampling_var(self, name, fun_var_pdf):
-        """
+        """Introduce new sampling variables to the :py:class:`SamplingPlanner`. Define variable name and the function that generates a value for the corresponding variable.
 
+        :param name: Declare the name of the variable
+        :type name: string
+        :param fun_var_pdf: Declare the function of the
+        :type fun_var_pdf: Function of BuiltinFunction_or_method
+
+        :raises assertion: name must be string
+        :raises assertion: must be Function or BuiltinFunction_or_Method
         """
         assert isinstance(name, str), 'name must be str, you have {}'.format(type(name))
         assert isinstance(fun_var_pdf, (types.FunctionType, types.BuiltinFunctionType)), 'fun_var_pdf must be either Function or BuiltinFunction_or_Method, you have {}'.format(type(fun_var_pdf))
         self.sampling_vars.append({'name':name, 'fun_var_pdf':fun_var_pdf})
 
     def gen_sampling_plan(self, sampling_plan_name, n_samples):
-        """
+        """Generate the sampling plan. The generated sampling contains ``n_samples`` samples based on the defined variables and the corresponding evaluation functions.
 
+        :param sampling_plan_name: The name of the sampling plan.
+        :type sampling_plan_name: string
+        :param n_samples: The number generated samples
+        :type n_samples: int
+
+        :raises assertion: sampling_plan_name must be string
+        :raises assertion: n_samples must be int
+
+        :return: Returns the newly created sampling plan.
+        :rtype: list
         """
         assert isinstance(sampling_plan_name, str), 'sampling_plan_name must be str, you have {}'.format(type(var_type))
         assert isinstance(n_samples, int), 'n_samples must be int, you have {}'.format(type(n_samples))
@@ -178,7 +193,7 @@ class SamplingPlanner:
 
             sampling_plan.append(temp_dic)
 
-        # save sampling plan
+        # save sampling plan (if necessary with unique numbering)
         self.sampling_plan = {'n_samples':n_samples,'sampling_plan':sampling_plan}
 
         if not os.path.isfile(sampling_plan_name + '.pkl') or self.overwrite:
