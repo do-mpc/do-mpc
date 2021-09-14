@@ -24,6 +24,9 @@ import types
 import pickle
 import os
 import numpy as np
+import pathlib
+import pdb
+
 
 class Sampler:
     """The **do-mpc** Sampler class.
@@ -34,6 +37,8 @@ class Sampler:
         assert isinstance(sampling_plan['sampling_plan'], list), 'sampling_plan must contain key list with list'
         assert np.all([isinstance(plan_i, dict) for plan_i in sampling_plan['sampling_plan']]), 'All elements of sampling plan must be a dictionary.'
 
+        self.sampling_plan = sampling_plan
+
         self.flags = {
         }
 
@@ -41,10 +46,34 @@ class Sampler:
         self.data_fields = [
             'save_dir',
             'overwrite_results',
+            'save_format'
         ]
 
-        self.save_dir = './results/'
+        self.save_dir = './{}/'.format(sampling_plan['name'])
         self.overwrite_results = False
+        self.save_format = 'pickle'
+
+    @property
+    def save_dir(self):
+        """Set the save directory for the results.
+        If the directory does not exist yet, it is created. This is also possible for nested structures.
+        """
+        return self._save_dir
+
+    @save_dir.setter
+    def save_dir(self, val):
+        self._save_dir = val
+        pathlib.Path(val).mkdir(parents=True, exist_ok=True)
+
+    def set_param(self, **kwargs):
+        """
+
+        """
+        for key, value in kwargs.items():
+            if not (key in self.data_fields):
+                print('Warning: Key {} does not exist for MPC.'.format(key))
+            else:
+                setattr(self, key, value)
 
 
     def set_sample_function(self,sample_function):
@@ -53,14 +82,29 @@ class Sampler:
         """
         self.sample_function = sample_function
 
+    def _save(self, save_name, result):
+        None
+
 
     def sample_data(self):
-        for i, sample in enumerate(self.sampling_plan):
-            result = self.sample_function(**sample)
-            #pdb.set_trace()
+        for i, sample in enumerate(self.sampling_plan['sampling_plan']):
 
-            # if os.path.isfile(sampling_plan_name + '.pkl'):
-            #     None
+            # Pop sample id from dictionary (not an argument to the sample function)
+            sample_id = sample.pop('id')
+            # Create the save name of the sample
+            save_name = '{save_dir}{plan_name}_{id}.pkl'.format(save_dir=self._save_dir, plan_name=self.sampling_plan['name'], id=sample_id)
+
+            # Call sample function to create sample (pass sample information)
+            result = self.sample_function(**sample)
+
+            # Check if save name already exists, overwrite? Otherwise: Save
+            if os.path.isfile(save_name):
+                None
+            else:
+                with open(save_name, 'wb') as f:
+                    pickle.dump(result, f)
+
+
 
 
 
@@ -105,7 +149,7 @@ class SamplingPlanner:
             n_digits = len(str(n_samples))
 
             temp_dic = {var['name']: var['fun_var_pdf']() for var in self.sampling_vars}
-            temp_dic.update{'id': str(i).zfill(n_digits)}
+            temp_dic.update({'id': str(i).zfill(n_digits)})
 
             sampling_plan.append(temp_dic)
 
