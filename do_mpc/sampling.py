@@ -153,13 +153,17 @@ class SamplingPlanner:
 
             sampling_plan.append(temp_dic)
 
-        # safe sampling plan
+        # save sampling plan
         self.sampling_plan = {'name':sampling_plan_name,'n_samples':n_samples,'sampling_plan':sampling_plan}
 
-        # cnt = 0
-        # if os.path.isfile(sampling_plan_name + '.pkl'):
-        #     sampling_plan_name =
-        with open(sampling_plan_name + '.pkl', 'wb') as f:
-            pickle.dump(self.sampling_plan, f)
+        if not os.path.isfile(sampling_plan_name + '.pkl'):
+            with open(sampling_plan_name + '.pkl', 'wb') as f:
+                pickle.dump(self.sampling_plan, f)
+        else:
+            for cnt in range(1,10000):
+                if not os.path.isfile(str(cnt).zfill(5) + '_' + sampling_plan_name + '.pkl'):
+                    with open(str(cnt).zfill(5) + '_' + sampling_plan_name + '.pkl', 'wb') as f:
+                        pickle.dump(self.sampling_plan, f)
+                    break
 
         return self.sampling_plan
