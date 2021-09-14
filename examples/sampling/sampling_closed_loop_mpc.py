@@ -1,6 +1,6 @@
 import sys
 sys.path.append('../../')
-sys.path.append('../batch_reactor/')
+sys.path.append('../oscillating_masses_discrete/')
 import do_mpc
 
 from template_model import template_model
@@ -19,25 +19,17 @@ sp = do_mpc.sampling.SamplingPlanner()
 # Generate sampling function for initial states
 def gen_initial_states():
 
-    X_s_0 = np.random.uniform(0.9,1.1)
-    S_s_0 = np.random.uniform(0.4,0.6)
-    P_s_0 = 0.0
-    V_s_0 = np.random.uniform(115.0,125.0)
+    x0 = np.random.uniform(-3*np.ones((4,1)),3*np.ones((4,1)))
 
-    return np.reshape([X_s_0, S_s_0, P_s_0, V_s_0], (-1, 1))
+    return x0
 
-def gen_uncertainty_values():
-
-    Y_x = np.random.uniform(0.3,0.5)
-    S_in = np.random.uniform(180.0,220.0)
-
-    return np.reshape([Y_x,S_in],(-1,1))
 
 # Add variables
-sp.set_sampling_var('x0', gen_initial_states)
-sp.set_sampling_var('p', gen_uncertainty_values)
+sp.set_sampling_var('X0', gen_initial_states)
 
-plan = sp.gen_sampling_plan('batch_reactor', n_samples = 10)
+sp.set_param(overwrite=True)
+
+plan = sp.gen_sampling_plan('oscillating_masses', n_samples = 10)
 
 
 """ Execute sampling plan """
@@ -46,13 +38,15 @@ plan = sp.gen_sampling_plan('batch_reactor', n_samples = 10)
 model = template_model()
 mpc = template_mpc(model)
 estimator = do_mpc.estimator.StateFeedback(model)
+simulator = template_simulator(model)
 
-def run_closed_loop(x0,p):
-
-    # initialize simulator with uncertainties from sampling plan
-    simulator = template_simulator(model, p)
+def run_closed_loop(X0):
+    mpc.reset_history()
+    simulator.reset_history()
+    estimator.reset_history()
 
     # set initial values and guess
+    x0 = X0
     mpc.x0 = x0
     simulator.x0 = x0
     estimator.x0 = x0
@@ -75,3 +69,11 @@ sampler.set_sample_function(run_closed_loop)
 
 # Generate the samples
 sampler.sample_data()
+
+
+dh = do_mpc.sampling.DataHandler(plan)
+
+
+dh.set_compilation_function(lambda data: (data['_u', 'u'], data['_x', 'x']))
+
+res = dh[lambda: True]
