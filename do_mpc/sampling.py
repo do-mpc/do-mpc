@@ -29,6 +29,14 @@ import pdb
 import scipy.io as sio
 import copy
 
+def save_pickle(filename, data):
+    with open(filename + '.pkl', 'wb') as f:
+        pickle.dump(data, f)
+
+def load_pickle(path_to_file):
+    with open(path_to_file, 'rb') as f:
+        data = pickle.load(f)
+    return data
 
 class Sampler:
     """The **do-mpc** Sampler class.
@@ -94,8 +102,7 @@ class Sampler:
             None
         else:
             if self.sampling_plan['save_format'] == 'pickle':
-                with open(save_name, 'wb') as f:
-                    pickle.dump(result, f)
+                save_pickle(save_name, result)
             elif self.sampling_plan['save_format'] == 'mat':
                 sio.savemat(save_name, {name: result})
 
@@ -199,15 +206,13 @@ class SamplingPlanner:
         self.sampling_plan = {'n_samples':n_samples, 'save_format': self.save_format, 'sampling_plan':sampling_plan}
 
         if not os.path.isfile(sampling_plan_name + '.pkl') or self.overwrite:
-            with open(sampling_plan_name + '.pkl', 'wb') as f:
-                pickle.dump(self.sampling_plan, f)
             self.sampling_plan.update({'name': sampling_plan_name})
+            save_pickle(sampling_plan_name, self.sampling_plan)
         else:
             for i in range(1,10000):
                 if not os.path.isfile(sampling_plan_name + '_' + str(i) + '.pkl'):
-                    with open(sampling_plan_name + '_' + str(i) + '.pkl', 'wb') as f:
-                        pickle.dump(self.sampling_plan, f)
                     self.sampling_plan.update({'name': sampling_plan_name + '_' + str(i)})
+                    save_pickle(sampling_plan_name + '_' + str(i), self.sampling_plan)
                     break
 
 
