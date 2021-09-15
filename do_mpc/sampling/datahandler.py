@@ -46,6 +46,7 @@ class DataHandler:
         for i, sample in enumerate(self.sampling_plan['sampling_plan'][ind]):
 
             # Check if this result was previously loaded. If not, add it to the dict of pre_loaded_data.
+            # pdb.set_trace()
             result = self._lazy_loading(sample)
 
             val = self._post_process_single(val,sample,result)
@@ -63,7 +64,7 @@ class DataHandler:
     def _lazy_loading(self,sample):
 
         if sample['id'] in self.pre_loaded_data.keys():
-            result = self.pre_loaded_data['id']
+            result = self.pre_loaded_data[sample['id']]
         else:
             result = self._load(sample['id'])
             self.pre_loaded_data.update({sample['id']: result})
