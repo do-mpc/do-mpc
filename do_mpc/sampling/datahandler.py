@@ -16,7 +16,7 @@ class DataHandler:
     def __init__(self, sampling_plan):
 
         self.flags = {
-            'set_compilation_function' : False,
+            'set_post_processing' : False,
         }
 
         # Parameters that can be set for the DataHandler:
@@ -34,7 +34,7 @@ class DataHandler:
         """
 
         """
-        assert self.flags['set_compilation_function'], 'No compilation function is set. Cannot query data.'
+        assert self.flags['set_post_processing'], 'No compilation function is set. Cannot query data.'
 
         val = {key:[] for key in self.sampling_vars}
         val.update({'result':[]})
@@ -97,9 +97,9 @@ class DataHandler:
             else:
                 setattr(self, key, value)
 
-    def set_compilation_function(self, compilation_function):
+    def set_post_processing(self, compilation_function):
         """
 
         """
         self.compilation_function = compilation_function
-        self.flags['set_compilation_function'] = True
+        self.flags['set_post_processing'] = True
