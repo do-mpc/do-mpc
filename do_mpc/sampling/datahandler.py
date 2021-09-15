@@ -61,6 +61,7 @@ class DataHandler:
 
         return val
 
+
     def _lazy_loading(self,sample):
 
         if sample['id'] in self.pre_loaded_data.keys():
@@ -107,6 +108,7 @@ class DataHandler:
 
         return val
 
+
     def _load(self, sample_id):
         name = '{plan_name}_{id}'.format(plan_name=self.sampling_plan['name'], id=sample_id)
 
@@ -122,6 +124,7 @@ class DataHandler:
 
         return result
 
+
     def set_param(self, **kwargs):
         """
 
@@ -131,6 +134,7 @@ class DataHandler:
                 print('Warning: Key {} does not exist for DataHandler.'.format(key))
             else:
                 setattr(self, key, value)
+
 
     def set_post_processing(self, name, post_processing_function):
         """
