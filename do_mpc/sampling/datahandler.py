@@ -35,9 +35,52 @@ class DataHandler:
 
 
     def __getitem__(self, ind):
+        """ Filter data from the DataHandler. Pass
+
+        """
+        assert self.flags['set_post_processing'], 'No post processing function is set. Cannot query data.'
+
+        val = self._init_results()
+
+        # For each sample:
+        for i, sample in enumerate(self.sampling_plan['sampling_plan'][ind]):
+
+            # Check if this result was previously loaded. If not, add it to the dict of pre_loaded_data.
+            result = self._lazy_loading(sample)
+
+            val = self._post_process_single(val,sample,result)
+
+        return val
 
 
+    def _init_results(self):
 
+        val = {key: [] for key in self.sampling_vars}
+        val.update({key: [] for key in self.post_processing.keys()})
+
+        return val
+
+    def _lazy_loading(self,sample):
+
+        if sample['id'] in self.pre_loaded_data.keys():
+            result = self.pre_loaded_data['id']
+        else:
+            result = self._load(sample['id'])
+            self.pre_loaded_data.update({sample['id']: result})
+
+        return result
+
+
+    def _post_process_single(self,val,sample,result):
+
+        # Post process result
+        for key in self.post_processing:
+            val[key].append(self.post_processing[key](result))
+
+        for var_i in self.sampling_vars:
+            val[var_i].append(sample[var_i])
+
+        return val
 
 
     def filter(self, filter_fun):
@@ -46,8 +89,7 @@ class DataHandler:
         """
         assert self.flags['set_post_processing'], 'No post processing function is set. Cannot query data.'
 
-        val = {key: [] for key in self.sampling_vars}
-        val.update({key: [] for key in self.post_processing.keys()})
+        val = self._init_results()
 
         # Wrapper to ensure arbitrary arguments are accepted
         def wrap_fun(**kwargs):
@@ -58,18 +100,9 @@ class DataHandler:
 
             if wrap_fun(**sample)==True:
                 # Check if this result was previously loaded. If not, add it to the dict of pre_loaded_data.
-                if sample['id'] in self.pre_loaded_data.keys():
-                    result = self.pre_loaded_data['id']
-                else:
-                    result = self._load(sample['id'])
-                    self.pre_loaded_data.update({sample['id']: result})
+                result = self._lazy_loading(sample)
 
-                # Post process result
-                for key in self.post_processing:
-                    val[key].append(self.post_processing[key](result))
-
-                for var_i in self.sampling_vars:
-                    val[var_i].append(sample[var_i])
+                val = self._post_process_single(val,sample,result)
 
         return val
 
