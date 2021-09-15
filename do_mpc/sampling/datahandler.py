@@ -31,9 +31,11 @@ class DataHandler:
         self.sampling_vars = sampling_plan['sampling_plan'][0].keys()
         self.post_processing = {}
 
+        self.pre_loaded_data = {}
 
-    def __getitem__(self, ind_fun):
-        """
+
+    def filter(self, filter_fun):
+        """ Filter data from the DataHandler. Pass
 
         """
         assert self.flags['set_post_processing'], 'No compilation function is set. Cannot query data.'
@@ -41,30 +43,28 @@ class DataHandler:
         val = {key:[] for key in self.sampling_vars}
         val.update({'result':[]})
 
-        # Ensure tuple
-        if not isinstance(ind_fun, tuple):
-            ind_fun = (ind_fun,)
+        # Wrapper to ensure arbitrary arguments are accepted
+        def wrap_fun(**kwargs):
+            return filter_fun(**{arg_i: kwargs[arg_i] for arg_i in filter_fun.__code__.co_varnames})
 
         # For each sample:
         for i, sample in enumerate(self.sampling_plan['sampling_plan']):
             load_sample = True
 
-            # Check all conditions
-            for ind_fun_i in ind_fun:
-                # Wrapper to ensure arbitrary arguments are accepted
-                def wrap_fun(**kwargs):
-                    return ind_fun_i(**{arg_i: kwargs[arg_i] for arg_i in ind_fun_i.__code__.co_varnames})
-
-                if wrap_fun(**sample) == False:
-                    load_sample = False
-                    break
+            if wrap_fun(**sample) == False:
+                load_sample = False
+                break
 
             if load_sample:
-                if 'result' in sample.keys():
-                    compiled_result = self.compilation_function(sample['result'])
+                # Check if this result was previously loaded. If not, add it to the dict of pre_loaded_data.
+                if sample['id'] in self.pre_loaded_data.keys():
+                    result = self.pre_loaded_data['id']
                 else:
                     result = self._load(sample['id'])
-                    compiled_result = self.compilation_function(result)
+                    self.pre_loaded_data.update({sample['id']: result})
+
+                # Compile result
+                compiled_result = self.compilation_function(result)
 
                 val['result'].append(compiled_result)
                 for var_i in self.sampling_vars:
@@ -80,10 +80,8 @@ class DataHandler:
         elif self.sampling_plan['save_format'] == 'mat':
             load_name = self.data_dir + name+'.mat'
 
-
         if self.sampling_plan['save_format'] == 'pickle':
-            with open(load_name, 'rb') as f:
-                result = pickle.load(f)
+            result = load_pickle(load_name)
         elif self.sampling_plan['save_format'] == 'mat':
             result = sio.loadmat(load_name)
 
