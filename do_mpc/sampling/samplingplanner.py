@@ -67,7 +67,7 @@ class SamplingPlanner:
 
         :param sampling_plan_name: The name of the sampling plan.
         :type sampling_plan_name: string
-        :param n_samples: The number generated samples
+        :param n_samples: The number of generated samples
         :type n_samples: int
 
         :raises assertion: sampling_plan_name must be string
