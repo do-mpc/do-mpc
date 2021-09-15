@@ -8,6 +8,7 @@ import pdb
 import scipy.io as sio
 import copy
 from do_mpc.tools import load_pickle, save_pickle
+import types
 
 
 
@@ -28,6 +29,7 @@ class DataHandler:
 
         self.sampling_plan = sampling_plan
         self.sampling_vars = sampling_plan['sampling_plan'][0].keys()
+        self.post_processing = {}
 
 
     def __getitem__(self, ind_fun):
@@ -97,9 +99,12 @@ class DataHandler:
             else:
                 setattr(self, key, value)
 
-    def set_post_processing(self, compilation_function):
+    def set_post_processing(self, name, post_processing_function):
         """
 
         """
-        self.compilation_function = compilation_function
+        assert isinstance(name, str), 'name must be str, you have {}'.format(type(name))
+        assert isinstance(post_processing_function, (types.FunctionType, types.BuiltinFunctionType)), 'post_processing_function must be either Function or BuiltinFunction_or_Method, you have {}'.format(type(post_processing_function))
+
+        self.post_processing.update({name: post_processing_function})
         self.flags['set_post_processing'] = True
