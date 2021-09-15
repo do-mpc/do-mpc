@@ -74,6 +74,7 @@ sampler.sample_data()
 dh = do_mpc.sampling.DataHandler(plan)
 
 
-dh.set_compilation_function(lambda data: (data['_u', 'u'], data['_x', 'x']))
+dh.set_post_processing('input', lambda data: data['_u', 'u'])
+dh.set_post_processing('state', lambda data: data['_x', 'x'])
 
-res = dh[lambda: True]
+res = dh.filter(lambda: True)

@@ -44,10 +44,10 @@ class DataHandler:
         """ Filter data from the DataHandler. Pass
 
         """
-        assert self.flags['set_post_processing'], 'No compilation function is set. Cannot query data.'
+        assert self.flags['set_post_processing'], 'No post processing function is set. Cannot query data.'
 
-        val = {key:[] for key in self.sampling_vars}
-        val.update({'result':[]})
+        val = {key: [] for key in self.sampling_vars}
+        val.update({key: [] for key in self.post_processing.keys()})
 
         # Wrapper to ensure arbitrary arguments are accepted
         def wrap_fun(**kwargs):
@@ -64,10 +64,10 @@ class DataHandler:
                     result = self._load(sample['id'])
                     self.pre_loaded_data.update({sample['id']: result})
 
-                # Compile result
-                compiled_result = self.compilation_function(result)
+                # Post process result
+                for key in self.post_processing:
+                    val[key].append(self.post_processing[key](result))
 
-                val['result'].append(compiled_result)
                 for var_i in self.sampling_vars:
                     val[var_i].append(sample[var_i])
 
