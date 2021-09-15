@@ -35,8 +35,7 @@ class DataHandler:
 
 
     def __getitem__(self, ind):
-        """ Filter data from the DataHandler. Pass
-
+        """ Filter data from the DataHandler. Pass the desired indices via slicing and returns the post processed data.
         """
         assert self.flags['set_post_processing'], 'No post processing function is set. Cannot query data.'
 
@@ -55,7 +54,8 @@ class DataHandler:
 
 
     def _init_results(self):
-
+        """Private method: initializes the resulting dictionary such that all sampling_vars and post processed data is included
+        """
         val = {key: [] for key in self.sampling_vars}
         val.update({key: [] for key in self.post_processing.keys()})
 
@@ -63,7 +63,8 @@ class DataHandler:
 
 
     def _lazy_loading(self,sample):
-
+        """ Private method: Chekcs if data is already loaded to reduce the computational load.
+        """
         if sample['id'] in self.pre_loaded_data.keys():
             result = self.pre_loaded_data[sample['id']]
         else:
@@ -74,7 +75,8 @@ class DataHandler:
 
 
     def _post_process_single(self,val,sample,result):
-
+        """ Private method: Applies all post processing functions to a single sample and stores them.
+        """
         # Post process result
         for key in self.post_processing:
             val[key].append(self.post_processing[key](result))
@@ -86,10 +88,19 @@ class DataHandler:
 
 
     def filter(self, filter_fun):
-        """ Filter data from the DataHandler. Pass
+        """ Filter data from the DataHandler. Pass the desired filters
 
+        :param filter_fun: The name of the sampling plan.
+        :type filter: Function or BuiltinFunction_or_Method
+
+        :raises assertion: No post processing function is set
+        :raises assertion: filter_fun must be either Function of BuiltinFunction_or_Method
+
+        :return: Returns the post processed samples that satisfy the filter
+        :rtype: dict
         """
         assert self.flags['set_post_processing'], 'No post processing function is set. Cannot query data.'
+        assert isinstance(filter_fun, (types.FunctionType, types.BuiltinFunctionType)), 'post_processing_function must be either Function or BuiltinFunction_or_Method, you have {}'.format(type(filter_fun))
 
         val = self._init_results()
 
@@ -110,6 +121,8 @@ class DataHandler:
 
 
     def _load(self, sample_id):
+        """ Private method: Load data generated from a sampling plan, either '.pkl' or '.mat'
+        """
         name = '{plan_name}_{id}'.format(plan_name=self.sampling_plan['name'], id=sample_id)
 
         if self.sampling_plan['save_format'] == 'pickle':
@@ -126,8 +139,7 @@ class DataHandler:
 
 
     def set_param(self, **kwargs):
-        """
-
+        """Set the parameters of the DataHandler
         """
         for key, value in kwargs.items():
             if not (key in self.data_fields):
@@ -137,8 +149,15 @@ class DataHandler:
 
 
     def set_post_processing(self, name, post_processing_function):
-        """
+        """Set a post processing function. The generated sampling contains ``n_samples`` samples based on the defined variables and the corresponding evaluation functions.
 
+        :param name: The name of the sampling plan.
+        :type name: string
+        :param post_processing_function: The post processing function to be evaluted
+        :type n_samples: Function or BuiltinFunction_or_Method
+
+        :raises assertion: name must be string
+        :raises assertion: post_processing_function must be either Function of BuiltinFunction_or_Method
         """
         assert isinstance(name, str), 'name must be str, you have {}'.format(type(name))
         assert isinstance(post_processing_function, (types.FunctionType, types.BuiltinFunctionType)), 'post_processing_function must be either Function or BuiltinFunction_or_Method, you have {}'.format(type(post_processing_function))
