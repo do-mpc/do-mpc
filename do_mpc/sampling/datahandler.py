@@ -34,6 +34,12 @@ class DataHandler:
         self.pre_loaded_data = {}
 
 
+    def __getitem__(self, ind):
+
+
+
+
+
     def filter(self, filter_fun):
         """ Filter data from the DataHandler. Pass
 
@@ -49,13 +55,8 @@ class DataHandler:
 
         # For each sample:
         for i, sample in enumerate(self.sampling_plan['sampling_plan']):
-            load_sample = True
 
-            if wrap_fun(**sample) == False:
-                load_sample = False
-                break
-
-            if load_sample:
+            if wrap_fun(**sample)==True:
                 # Check if this result was previously loaded. If not, add it to the dict of pre_loaded_data.
                 if sample['id'] in self.pre_loaded_data.keys():
                     result = self.pre_loaded_data['id']
