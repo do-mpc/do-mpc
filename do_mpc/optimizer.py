@@ -49,6 +49,11 @@ class Optimizer:
         # with the default numerical value.
         # This returns an identical numerical structure with all values set to the passed value.
 
+        self.flags = {
+            'prepare_nlp': False,
+            'setup': False,
+        }
+
         self._x_lb = self.model._x(-np.inf)
         self._x_ub = self.model._x(np.inf)
 
@@ -71,6 +76,102 @@ class Optimizer:
             {'slack_name': 'default', 'shape':0, 'ub': DM([]), 'penalty': 0}
         ]
         self.slack_cost = 0
+
+    @property
+    def nlp_obj(self):
+        """Query and modify (symbolically) the NLP objective function.
+        Use the variables in py:attr:`opt_x` and :py:attr:`opt_p`.
+
+        .. warning:
+
+            This is a VERY low level feature and should be used with extreme caution.
+            It is easy to break the code.
+
+        .. note:
+
+            Modifications must be done after calling :py:meth:`prepare_nlp`
+            and before calling :py:meth:`create_nlp`
+
+        """
+        assert self.flags['prepare_nlp'], 'Cannot query attribute prior to calling MPC.prepare_nlp or MPC.setup'
+        return self._nlp_obj
+
+    @nlp_obj.setter
+    def nlp_obj(self, val):
+        assert self.flags['prepare_nlp'], 'Cannot query attribute prior to calling MPC.prepare_nlp or MPC.setup'
+        assert not self.flags['setup'], 'Cannot change attribute after calling MPC.create_nlp or MPC.setup'
+        self._nlp_obj = val
+
+    @property
+    def nlp_cons(self):
+        """Query and modify (symbolically) the NLP constraints.
+        Use the variables in py:attr:`opt_x` and :py:attr:`opt_p`.
+
+
+        .. warning:
+
+            This is a VERY low level feature and should be used with extreme caution.
+            It is easy to break the code.
+
+        .. note:
+
+            Modifications must be done after calling :py:meth:`prepare_nlp`
+            and before calling :py:meth:`create_nlp`
+
+        """
+        assert self.flags['prepare_nlp'], 'Cannot query attribute prior to calling MPC.prepare_nlp or MPC.setup'
+        return self._nlp_cons
+
+    @nlp_cons.setter
+    def nlp_cons(self, val):
+        assert self.flags['prepare_nlp'], 'Cannot query attribute prior to calling prepare_nlp or setup'
+        assert not self.flags['setup'], 'Cannot change attribute after calling create_nlp or setup'
+        self._nlp_cons = val
+
+
+    @property
+    def nlp_cons_lb(self):
+        """Query and modify the lower bounds of the :py:attr:`nlp_cons`.
+
+        .. warning:
+
+            This is a VERY low level feature and should be used with extreme caution.
+            It is easy to break the code.
+
+        .. note:
+
+            Modifications must be done after calling :py:meth:`prepare_nlp`
+
+        """
+        assert self.flags['prepare_nlp'], 'Cannot query attribute prior to calling MPC.prepare_nlp or MPC.setup'
+        return self._nlp_cons_lb
+
+    @nlp_cons_lb.setter
+    def nlp_cons_lb(self, val):
+        assert self.flags['prepare_nlp'], 'Cannot query attribute prior to calling prepare_nlp or setup'
+        self._nlp_cons_lb = val
+
+    @property
+    def nlp_cons_ub(self):
+        """Query and modify the upper bounds of the :py:attr:`nlp_cons`.
+
+        .. warning:
+
+            This is a VERY low level feature and should be used with extreme caution.
+            It is easy to break the code.
+
+        .. note:
+
+            Modifications must be done after calling :py:meth:`prepare_nlp`
+
+        """
+        assert self.flags['prepare_nlp'], 'Cannot query attribute prior to calling MPC.prepare_nlp or MPC.setup'
+        return self._nlp_cons_ub
+
+    @nlp_cons_ub.setter
+    def nlp_cons_ub(self, val):
+        assert self.flags['prepare_nlp'], 'Cannot query attribute prior to calling prepare_nlp or setup'
+        self._nlp_cons_ub = val
 
 
     @IndexedProperty
@@ -499,7 +600,7 @@ class Optimizer:
         assert self.flags['setup'] == True, 'optimizer was not setup yet. Please call optimizer.setup().'
 
         r = self.S(x0=self.opt_x_num, lbx=self.lb_opt_x, ubx=self.ub_opt_x,
-            ubg=self.cons_ub, lbg=self.cons_lb, p=self.opt_p_num)
+            ubg=self.nlp_cons_ub, lbg=self.nlp_cons_lb, p=self.opt_p_num)
         # Note: .master accesses the underlying vector of the structure.
         self.opt_x_num.master = r['x']
         self.opt_x_num_unscaled.master = r['x']*self.opt_x_scaling
@@ -760,3 +861,52 @@ class Optimizer:
             'branch_offset': branch_offset
         }
         return n_branches, n_scenarios, child_scenario, parent_scenario, branch_offset
+
+
+    def prepare_nlp(self):
+        """Prepare the optimization problem.
+        Typically, this method is called internally from :py:meth:`setup`.
+
+        Users should only call this method if they intend to modify the objective with :py:attr:`nlp_obj`,
+        the constraints with :py:attr:`nlp_cons`, :py:attr:`nlp_cons_lb` and :py:attr:`nlp_cons_ub`.
+
+        To finish the setup process, users MUST call :py:meth:`create_nlp` afterwards.
+
+        .. note:
+
+            Do NOT call :py:meth:`setup` if you intend to go the manual route with :py:meth:`prepare_nlp` and :py:meth:`create_nlp`.
+
+        .. note:
+
+            Only AFTER calling :py:meth:`prepare_nlp` the previously mentionned attributes
+            :py:attr:`nlp_obj`, :py:attr:`nlp_cons`, :py:attr:`nlp_cons_lb`, :py:attr:`nlp_cons_ub`
+            become available.
+
+        """
+
+        # MPC and MHE have similar methods. The documentation is valid for both of them.
+        self._prepare_nlp()
+
+    def create_nlp(self):
+        """Create the optimization problem.
+        Typically, this method is called internally from :py:meth:`setup`.
+
+        Users should only call this method if they intend to modify the objective with :py:attr:`nlp_obj`,
+        the constraints with :py:attr:`nlp_cons`, :py:attr:`nlp_cons_lb` and :py:attr:`nlp_cons_ub`.
+
+        To finish the setup process, users MUST call :py:meth:`create_nlp` afterwards.
+
+        .. note:
+
+            Do NOT call :py:meth:`setup` if you intend to go the manual route with :py:meth:`prepare_nlp` and :py:meth:`create_nlp`.
+
+        .. note:
+
+            Only AFTER calling :py:meth:`prepare_nlp` the previously mentionned attributes
+            :py:attr:`nlp_obj`, :py:attr:`nlp_cons`, :py:attr:`nlp_cons_lb`, :py:attr:`nlp_cons_ub`
+            become available.
+
+        """
+
+        # MPC and MHE have similar methods. The documentation is valid for both of them.
+        self._create_nlp()

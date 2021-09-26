@@ -136,14 +136,13 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         self.nlpsol_opts = {} # Will update default options with this dict.
 
         # Flags are checked when calling .setup.
-        self.flags = {
-            'setup': False,
+        self.flags.update({
             'set_objective': False,
             'set_rterm': False,
             'set_tvp_fun': False,
             'set_p_fun': False,
             'set_initial_guess': False,
-        }
+        })
 
     @property
     def opt_x_num(self):
@@ -257,6 +256,97 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     @opt_p_num.setter
     def opt_p_num(self, val):
         self._opt_p_num = val
+
+    @property
+    def opt_x(self):
+        """Full structure of (symbolic) MPC optimization variables.
+
+        The attribute is a CasADi symbolic structure with nested power indices.
+        It can be indexed as follows:
+
+        ::
+
+            # dynamic states:
+            opt_x['_x', time_step, scenario, collocation_point, _x_name]
+            # algebraic states:
+            opt_x['_z', time_step, scenario, collocation_point, _z_name]
+            # inputs:
+            opt_x['_u', time_step, scenario, _u_name]
+            # slack variables for soft constraints:
+            opt_x['_eps', time_step, scenario, _nl_cons_name]
+
+        The names refer to those given in the :py:class:`do_mpc.model.Model` configuration.
+        Further indices are possible, if the variables are itself vectors or matrices.
+
+        The attribute can be used to alter the objective function or constraints of the NLP.
+
+        ** How to query?**
+
+        Querying the structure is more complicated than it seems at first look because of the scenario-tree used
+        for robust MPC. To obtain all collocation points for the finite element at time-step :math:`k` and scenario :math:`b` use:
+
+        ::
+
+            horzcat(*[mpc.opt_x['_x',k,b,-1]]+mpc.opt_x['_x',k+1,b,:-1])
+
+        Due to the multi-stage formulation at any given time :math:`k` we can have multiple future scenarios.
+        However, there is only exactly one scenario that lead to the current node in the tree.
+        Thus the collocation points associated to the finite element :math:`k` lie in the past.
+
+        The concept is illustrated in the figure below:
+
+        .. figure:: ../static/collocation_points_scenarios.svg
+
+        .. note::
+
+            The attribute ``opt_x`` carries the scaled values of all variables.
+
+        .. note::
+
+            The attribute is populated when calling :py:func:`setup` or :py:func:`prepare_nlp`
+        """
+        return self._opt_x_num
+
+    @opt_x.setter
+    def opt_x(self, val):
+        self._opt_x = val
+
+    @property
+    def opt_p(self):
+        """Full structure of (symbolic) MPC parameters.
+
+        The attribute is a CasADi numeric structure with nested power indices.
+        It can be indexed as follows:
+
+        ::
+
+            # initial state:
+            opt_p['_x0', _x_name]
+            # uncertain scenario parameters
+            opt_p['_p', scenario, _p_name]
+            # time-varying parameters:
+            opt_p['_tvp', time_step, _tvp_name]
+            # input at time k-1:
+            opt_p['_u_prev', time_step, scenario]
+
+        The names refer to those given in the :py:class:`do_mpc.model.Model` configuration.
+        Further indices are possible, if the variables are itself vectors or matrices.
+
+        .. warning::
+
+            Do not tweak or overwrite this attribute unless you known what you are doing.
+
+        .. note::
+
+            The attribute is populated when calling :py:func:`setup` or :py:func:`prepare_nlp`
+
+        """
+        return self._opt_p_num
+
+    @opt_p.setter
+    def opt_p(self, val):
+        self._opt_p = val
+
 
     @IndexedProperty
     def terminal_bounds(self, ind):
@@ -819,19 +909,11 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         .. _`background article`: ../theory_mpc.html#robust-multi-stage-nmpc
 
         """
-        nl_cons_input = self.model['x', 'u', 'z', 'tvp', 'p']
-        self._setup_nl_cons(nl_cons_input)
-        self._check_validity()
-        self._setup_mpc_optim_problem()
 
-        # Gather meta information:
-        meta_data = {key: getattr(self, key) for key in self.data_fields}
-        meta_data.update({'structure_scenario': self.scenario_tree['structure_scenario']})
-        self.data.set_meta(**meta_data)
+        self.prepare_nlp()
+        self.create_nlp()
 
-        self._prepare_data()
 
-        self.flags['setup'] = True
 
     def set_initial_guess(self):
         """Initial guess for optimization variables.
@@ -940,12 +1022,13 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         return u0.full()
 
 
-    def _setup_mpc_optim_problem(self):
-        """Private method of the MPC class to construct the MPC optimization problem.
-        The method depends on inherited methods from the :py:class:`do_mpc.optimizer.Optimizer`.
-
-        The :py:class:`do_mpc.estimator.MHE` has a similar method with similar structure.
+    def _prepare_nlp(self):
+        """Internal method. See detailed documentation with optimizer.prepare_nlp
         """
+        nl_cons_input = self.model['x', 'u', 'z', 'tvp', 'p']
+        self._setup_nl_cons(nl_cons_input)
+        self._check_validity()
+
         # Obtain an integrator (collocation, discrete-time) and the amount of intermediate (collocation) points
         ifcn, n_total_coll_points = self._setup_discretization()
         n_branches, n_scenarios, child_scenario, parent_scenario, branch_offset = self._setup_scenario_tree()
@@ -967,7 +1050,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             n_eps = self.n_horizon
 
         # Create struct for optimization variables:
-        self.opt_x = opt_x = self.model.sv.sym_struct([
+        self._opt_x = opt_x = self.model.sv.sym_struct([
             # One additional point (in the collocation dimension) for the final point.
             entry('_x', repeat=[self.n_horizon+1, n_max_scenarios,
                                 1+n_total_coll_points], struct=self.model._x),
@@ -976,7 +1059,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             entry('_u', repeat=[self.n_horizon, n_u_scenarios], struct=self.model._u),
             entry('_eps', repeat=[n_eps, n_max_scenarios], struct=self._eps),
         ])
-        self.n_opt_x = self.opt_x.shape[0]
+        self.n_opt_x = self._opt_x.shape[0]
         # NOTE: The entry _x[k,child_scenario[k,s,b],:] starts with the collocation points from s to b at time k
         #       and the last point contains the child node
         # NOTE: Currently there exist dummy collocation points for the initial state (for each branch)
@@ -991,7 +1074,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
 
         # Create struct for optimization parameters:
-        self.opt_p = opt_p = self.model.sv.sym_struct([
+        self._opt_p = opt_p = self.model.sv.sym_struct([
             entry('_x0', struct=self.model._x),
             entry('_tvp', repeat=self.n_horizon+1, struct=self.model._tvp),
             entry('_p', repeat=self.n_combinations, struct=self.model._p),
@@ -1006,9 +1089,9 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             entry('_aux', repeat=[self.n_horizon, n_max_scenarios], struct=self.model._aux_expression)
         ])
         # Create mutable symbolic expression from the struct defined above.
-        self.opt_aux = opt_aux = self.model.sv.struct(self.aux_struct)
+        self._opt_aux = opt_aux = self.model.sv.struct(self.aux_struct)
 
-        self.n_opt_aux = self.opt_aux.shape[0]
+        self.n_opt_aux = opt_aux.shape[0]
 
         self.lb_opt_x = opt_x(-np.inf)
         self.ub_opt_x = opt_x(np.inf)
@@ -1143,24 +1226,49 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         self.ub_opt_x['_eps'] = self._eps_ub.cat
 
 
-        cons = vertcat(*cons)
-        self.cons_lb = vertcat(*cons_lb)
-        self.cons_ub = vertcat(*cons_ub)
+        # Write all created elements to self:
+        self._nlp_obj = obj
+        self._nlp_cons = cons
+        self._nlp_cons_lb = cons_lb
+        self._nlp_cons_ub = cons_ub
 
-        self.n_opt_lagr = cons.shape[0]
+
+        # Initialize copies of structures with numerical values (all zero):
+        self._opt_x_num = self._opt_x(0)
+        self.opt_x_num_unscaled = self._opt_x(0)
+        self._opt_p_num = self._opt_p(0)
+        self.opt_aux_num = self._opt_aux(0)
+
+        self.flags['prepare_nlp'] = True
+
+    def _create_nlp(self):
+        """Internal method. See detailed documentation in optimizer.create_nlp
+        """
+
+
+        self._nlp_cons = vertcat(*self._nlp_cons)
+        self._nlp_cons_lb = vertcat(*self._nlp_cons_lb)
+        self._nlp_cons_ub = vertcat(*self._nlp_cons_ub)
+
+        self.n_opt_lagr = self._nlp_cons.shape[0]
         # Create casadi optimization object:
         nlpsol_opts = {
             'expand': False,
             'ipopt.linear_solver': 'mumps',
         }.update(self.nlpsol_opts)
-        nlp = {'x': vertcat(opt_x), 'f': obj, 'g': cons, 'p': vertcat(opt_p)}
+        nlp = {'x': vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons, 'p': vertcat(self._opt_p)}
         self.S = nlpsol('S', 'ipopt', nlp, self.nlpsol_opts)
 
-        # Create copies of these structures with numerical values (all zero):
-        self.opt_x_num = self.opt_x(0)
-        self.opt_x_num_unscaled = self.opt_x(0)
-        self.opt_p_num = self.opt_p(0)
-        self.opt_aux_num = self.opt_aux(0)
 
         # Create function to caculate all auxiliary expressions:
-        self.opt_aux_expression_fun = Function('opt_aux_expression_fun', [opt_x, opt_p], [opt_aux])
+        self.opt_aux_expression_fun = Function('opt_aux_expression_fun', [self._opt_x, self._opt_p], [self._opt_aux])
+
+
+        # Gather meta information:
+        meta_data = {key: getattr(self, key) for key in self.data_fields}
+        meta_data.update({'structure_scenario': self.scenario_tree['structure_scenario']})
+        self.data.set_meta(**meta_data)
+
+        self._prepare_data()
+
+        self.flags['setup'] = True
