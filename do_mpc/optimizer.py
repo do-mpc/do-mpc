@@ -80,14 +80,28 @@ class Optimizer:
     @property
     def nlp_obj(self):
         """Query and modify (symbolically) the NLP objective function.
-        Use the variables in py:attr:`opt_x` and :py:attr:`opt_p`.
+        Use the variables in :py:attr:`opt_x` and :py:attr:`opt_p`.
 
-        .. warning:
+        It is advised to add to the current objective, e.g.:
+
+        ::
+
+            mpc.prepare_nlp()
+            # Modify the objective
+            mpc.nlp_obj += sum1(vertcat(*mpc.opt_x['_x', -1, 0])**2)
+            # Finish creating the NLP
+            mpc.create_nlp()
+
+        See the documentation of :py:attr:`opt_x` and :py:attr:`opt_p` on how to query these attributes.
+
+        .. warning::
 
             This is a VERY low level feature and should be used with extreme caution.
             It is easy to break the code.
 
-        .. note:
+            Be especially careful NOT to accidentially overwrite the default objective.
+
+        .. note::
 
             Modifications must be done after calling :py:meth:`prepare_nlp`
             and before calling :py:meth:`create_nlp`
@@ -105,15 +119,40 @@ class Optimizer:
     @property
     def nlp_cons(self):
         """Query and modify (symbolically) the NLP constraints.
-        Use the variables in py:attr:`opt_x` and :py:attr:`opt_p`.
+        Use the variables in :py:attr:`opt_x` and :py:attr:`opt_p`.
 
+        Prior to calling :py:meth:`create_nlp` this attribute returns a list of symbolic constraints.
+        After calling :py:meth:`create_nlp` this attribute returns the concatenation of this list
+        and the attribute cannot be altered anymore.
 
-        .. warning:
+        It is advised to append to the current list of :py:attr:`nlp_cons`:
+
+        ::
+
+            mpc.prepare_nlp()
+
+            # Create new constraint: Input at timestep 0 and 1 must be identical.
+            extra_cons = mpc.opt_x['_u', 0, 0]-mpc.opt_x['_u',1, 0]
+            mpc.nlp_cons.append(
+                extra_cons
+            )
+
+            # Create appropriate upper and lower bound (here they are both 0 to create an equality constraint)
+            mpc.nlp_cons_lb.append(np.zeros(extra_cons.shape))
+            mpc.nlp_cons_ub.append(np.zeros(extra_cons.shape))
+
+            mpc.create_nlp()
+
+        See the documentation of :py:attr:`opt_x` and :py:attr:`opt_p` on how to query these attributes.
+
+        .. warning::
 
             This is a VERY low level feature and should be used with extreme caution.
             It is easy to break the code.
 
-        .. note:
+            Be especially careful NOT to accidentially overwrite the default objective.
+
+        .. note::
 
             Modifications must be done after calling :py:meth:`prepare_nlp`
             and before calling :py:meth:`create_nlp`
@@ -133,12 +172,18 @@ class Optimizer:
     def nlp_cons_lb(self):
         """Query and modify the lower bounds of the :py:attr:`nlp_cons`.
 
-        .. warning:
+        Prior to calling :py:meth:`create_nlp` this attribute returns a list of lower bounds
+        matching the list of constraints obtained with :py:attr:`nlp_cons`.
+        After calling :py:meth:`create_nlp` this attribute returns the concatenation of this list.
+
+        Values for lower (and upper) bounds MUST be added when adding new constraints to :py:attr:`nlp_cons`.
+
+        .. warning::
 
             This is a VERY low level feature and should be used with extreme caution.
             It is easy to break the code.
 
-        .. note:
+        .. note::
 
             Modifications must be done after calling :py:meth:`prepare_nlp`
 
@@ -155,12 +200,18 @@ class Optimizer:
     def nlp_cons_ub(self):
         """Query and modify the upper bounds of the :py:attr:`nlp_cons`.
 
-        .. warning:
+        Prior to calling :py:meth:`create_nlp` this attribute returns a list of upper bounds
+        matching the list of constraints obtained with :py:attr:`nlp_cons`.
+        After calling :py:meth:`create_nlp` this attribute returns the concatenation of this list.
+
+        Values for upper (and lower) bounds MUST be added when adding new constraints to :py:attr:`nlp_cons`.
+
+        .. warning::
 
             This is a VERY low level feature and should be used with extreme caution.
             It is easy to break the code.
 
-        .. note:
+        .. note::
 
             Modifications must be done after calling :py:meth:`prepare_nlp`
 
@@ -872,11 +923,11 @@ class Optimizer:
 
         To finish the setup process, users MUST call :py:meth:`create_nlp` afterwards.
 
-        .. note:
+        .. note::
 
             Do NOT call :py:meth:`setup` if you intend to go the manual route with :py:meth:`prepare_nlp` and :py:meth:`create_nlp`.
 
-        .. note:
+        .. note::
 
             Only AFTER calling :py:meth:`prepare_nlp` the previously mentionned attributes
             :py:attr:`nlp_obj`, :py:attr:`nlp_cons`, :py:attr:`nlp_cons_lb`, :py:attr:`nlp_cons_ub`
@@ -896,11 +947,11 @@ class Optimizer:
 
         To finish the setup process, users MUST call :py:meth:`create_nlp` afterwards.
 
-        .. note:
+        .. note::
 
             Do NOT call :py:meth:`setup` if you intend to go the manual route with :py:meth:`prepare_nlp` and :py:meth:`create_nlp`.
 
-        .. note:
+        .. note::
 
             Only AFTER calling :py:meth:`prepare_nlp` the previously mentionned attributes
             :py:attr:`nlp_obj`, :py:attr:`nlp_cons`, :py:attr:`nlp_cons_lb`, :py:attr:`nlp_cons_ub`

@@ -58,7 +58,31 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
     5. Use the low-level API (:py:func:`get_p_template` and :py:func:`set_p_fun`) or high level API (:py:func:`set_uncertainty_values`) to create scenarios for robust MPC (optional).
 
-    6. Finally, call :py:func:`setup`.
+    6. To finalize the class configuration there are two routes. The default approach is to call :py:meth:`setup`. For deep customization use the combination of :py:meth:`prepare_nlp` and :py:meth:`create_nlp`
+
+    .. graphviz::
+
+        :name: route_to_setup
+        :caption: Route to setting up the MPC class.
+        :align: center
+
+        digraph G {
+            graph [fontname = "Consolas"];
+            node [fontname = "Consolas", shape=box, fontcolor="#404040", color="#707070"];
+            edge [fontname = "Consolas", color="#707070"];
+
+            start [label="Two ways to setup"];
+            setup [label="``setup``", href="../api/do_mpc.controller.setup.html", target="_top"];
+            create_nlp [label="``create_nlp``", href="../api/do_mpc.controller.create_nlp.html", target="_top"];
+            process [label="Modify NLP"];
+            prepare_nlp [label="``prepare_nlp``", href="../api/do_mpc.controller.prepare_nlp.html", target="_top"];
+            finish [label="Configured MPC class"]
+
+            start -> setup, prepare_nlp;
+            prepare_nlp -> process;
+            process -> create_nlp;
+            setup, create_nlp -> finish;
+        }
 
     .. warning::
 
@@ -171,7 +195,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         The attribute can be used **to manually set a custom initial guess or for debugging purposes**.
 
-        ** How to query ``opt_x_num``?**
+        **How to query?**
 
         Querying the structure is more complicated than it seems at first look because of the scenario-tree used
         for robust MPC. To obtain all collocation points for the finite element at time-step :math:`k` and scenario :math:`b` use:
@@ -280,7 +304,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         The attribute can be used to alter the objective function or constraints of the NLP.
 
-        ** How to query?**
+        **How to query?**
 
         Querying the structure is more complicated than it seems at first look because of the scenario-tree used
         for robust MPC. To obtain all collocation points for the finite element at time-step :math:`k` and scenario :math:`b` use:
@@ -305,7 +329,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
             The attribute is populated when calling :py:func:`setup` or :py:func:`prepare_nlp`
         """
-        return self._opt_x_num
+        return self._opt_x
 
     @opt_x.setter
     def opt_x(self, val):
@@ -341,7 +365,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             The attribute is populated when calling :py:func:`setup` or :py:func:`prepare_nlp`
 
         """
-        return self._opt_p_num
+        return self._opt_p
 
     @opt_p.setter
     def opt_p(self, val):
