@@ -58,30 +58,54 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
     5. Use the low-level API (:py:func:`get_p_template` and :py:func:`set_p_fun`) or high level API (:py:func:`set_uncertainty_values`) to create scenarios for robust MPC (optional).
 
-    6. To finalize the class configuration there are two routes. The default approach is to call :py:meth:`setup`. For deep customization use the combination of :py:meth:`prepare_nlp` and :py:meth:`create_nlp`
+    6. Use :py:meth:`get_tvp_template` and :py:meth:`set_tvp_fun` to create a method to obtain new time-varying parameters at each iteration.
+
+    7. To finalize the class configuration there are two routes. The default approach is to call :py:meth:`setup`. For deep customization use the combination of :py:meth:`prepare_nlp` and :py:meth:`create_nlp`. See graph below for an illustration of the process.
 
     .. graphviz::
-
         :name: route_to_setup
         :caption: Route to setting up the MPC class.
         :align: center
 
         digraph G {
-            graph [fontname = "Consolas"];
-            node [fontname = "Consolas", shape=box, fontcolor="#404040", color="#707070"];
-            edge [fontname = "Consolas", color="#707070"];
+            graph [fontname = "helvetica"];
+            rankdir=LR;
 
-            start [label="Two ways to setup"];
-            setup [label="``setup``", href="../api/do_mpc.controller.setup.html", target="_top"];
-            create_nlp [label="``create_nlp``", href="../api/do_mpc.controller.create_nlp.html", target="_top"];
-            process [label="Modify NLP"];
-            prepare_nlp [label="``prepare_nlp``", href="../api/do_mpc.controller.prepare_nlp.html", target="_top"];
-            finish [label="Configured MPC class"]
+            subgraph cluster_main {
+                node [fontname = "helvetica", shape=box, fontcolor="#404040", color="#707070"];
+                edge [fontname = "helvetica", color="#707070"];
 
-            start -> setup, prepare_nlp;
-            prepare_nlp -> process;
-            process -> create_nlp;
-            setup, create_nlp -> finish;
+                start [label="Two ways to setup"];
+                setup [label="setup", href="../api/do_mpc.controller.MPC.setup.html", target="_top", fontname = "Consolas"];
+                create_nlp [label="create_nlp", href="../api/do_mpc.controller.MPC.create_nlp.html", target="_top", fontname = "Consolas"];
+                process [label="Modify NLP"];
+                prepare_nlp [label="prepare_nlp", href="../api/do_mpc.controller.MPC.prepare_nlp.html", target="_top", fontname = "Consolas"];
+                finish [label="Configured MPC class"]
+                start -> setup, prepare_nlp;
+                prepare_nlp -> process;
+                process -> create_nlp;
+                setup, create_nlp -> finish;
+                color=none;
+            }
+
+            subgraph cluster_modification {
+                rankdir=TB;
+                node [fontname = "helvetica", shape=box, fontcolor="#404040", color="#707070"];
+                edge [fontname = "helvetica", color="#707070"];
+                opt_x [label="opt_x", href="../api/do_mpc.controller.MPC.opt_x.html", target="_top", fontname = "Consolas"];
+                opt_p [label="opt_p", href="../api/do_mpc.controller.MPC.opt_p.html", target="_top", fontname = "Consolas"];
+                nlp_cons [label="nlp_cons", href="../api/do_mpc.controller.MPC.nlp_cons.html", target="_top", fontname = "Consolas"];
+                nlp_obj [label="nlp_obj", href="../api/do_mpc.controller.MPC.nlp_obj.html", target="_top", fontname = "Consolas"];
+
+                opt_x -> nlp_cons, nlp_obj;
+                opt_p -> nlp_cons, nlp_obj;
+
+                label = "Attributes to modify the NLP.";
+		        color=black;
+            }
+
+            nlp_cons -> process;
+            nlp_obj -> process;
         }
 
     .. warning::

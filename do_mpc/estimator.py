@@ -125,9 +125,58 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
     6. Optionally, set further (non-linear) constraints with :py:func:`set_nl_cons`.
 
-    7. Use :py:func:`get_p_template` and :py:func:`set_p_fun` to set the function for the parameters.
+    7. Use :py:func:`get_p_template` and :py:func:`set_p_fun` to set the function for the (not estimated) parameters.
 
-    8. Finally, call :py:func:`setup`.
+    8. Use :py:meth:`get_tvp_template` and :py:meth:`set_tvp_fun` to create a method to obtain new time-varying parameters at each iteration.
+
+    9. To finalize the class configuration there are two routes. The default approach is to call :py:meth:`setup`. For deep customization use the combination of :py:meth:`prepare_nlp` and :py:meth:`create_nlp`. See graph below for an illustration of the process.
+
+
+    .. graphviz::
+        :name: route_to_setup
+        :caption: Route to setting up the MHE class.
+        :align: center
+
+        digraph G {
+            graph [fontname = "helvetica"];
+            rankdir=LR;
+
+            subgraph cluster_main {
+                node [fontname = "helvetica", shape=box, fontcolor="#404040", color="#707070"];
+                edge [fontname = "helvetica", color="#707070"];
+
+                start [label="Two ways to setup"];
+                setup [label="setup", href="../api/do_mpc.estimator.MHE.setup.html", target="_top", fontname = "Consolas"];
+                create_nlp [label="create_nlp", href="../api/do_mpc.estimator.MHE.create_nlp.html", target="_top", fontname = "Consolas"];
+                process [label="Modify NLP"];
+                prepare_nlp [label="prepare_nlp", href="../api/do_mpc.estimator.MHE.prepare_nlp.html", target="_top", fontname = "Consolas"];
+                finish [label="Configured MHE class"]
+                start -> setup, prepare_nlp;
+                prepare_nlp -> process;
+                process -> create_nlp;
+                setup, create_nlp -> finish;
+                color=none;
+            }
+
+            subgraph cluster_modification {
+                rankdir=TB;
+                node [fontname = "helvetica", shape=box, fontcolor="#404040", color="#707070"];
+                edge [fontname = "helvetica", color="#707070"];
+                opt_x [label="opt_x", href="../api/do_mpc.estimator.MHE.opt_x.html", target="_top", fontname = "Consolas"];
+                opt_p [label="opt_p", href="../api/do_mpc.estimator.MHE.opt_p.html", target="_top", fontname = "Consolas"];
+                nlp_cons [label="nlp_cons", href="../api/do_mpc.estimator.MHE.nlp_cons.html", target="_top", fontname = "Consolas"];
+                nlp_obj [label="nlp_obj", href="../api/do_mpc.estimator.MHE.nlp_obj.html", target="_top", fontname = "Consolas"];
+
+                opt_x -> nlp_cons, nlp_obj;
+                opt_p -> nlp_cons, nlp_obj;
+
+                label = "Attributes to modify the NLP.";
+		        color=black;
+            }
+
+            nlp_cons -> process;
+            nlp_obj -> process;
+        }
 
     .. warning::
 
