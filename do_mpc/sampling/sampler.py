@@ -156,4 +156,4 @@ class Sampler:
 
                 self._save(save_name, result)
 
-            printProgressBar(i, self.sampling_plan['n_samples'], prefix = 'Progress:', suffix = 'Complete', length = 50)
+            printProgressBar(i+1, self.sampling_plan['n_samples'], prefix = 'Progress:', suffix = 'Complete', length = 50)
