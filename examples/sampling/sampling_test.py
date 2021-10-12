@@ -34,14 +34,10 @@ sampler.sample_data()
 
 dh = do_mpc.sampling.DataHandler(plan)
 
-dh.set_compilation_function(lambda x: x)
+dh.set_post_processing('res_1', lambda x: x)
+dh.set_post_processing('res_2', lambda x: x**2)
 
 
-res = dh[lambda: True]
+res = dh[:]
 
 pdb.set_trace()
-#
-# comp.set_compilation_function()
-#
-#
-# comp[alpha<3, beta=2]
