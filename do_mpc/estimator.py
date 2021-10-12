@@ -125,9 +125,58 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
     6. Optionally, set further (non-linear) constraints with :py:func:`set_nl_cons`.
 
-    7. Use :py:func:`get_p_template` and :py:func:`set_p_fun` to set the function for the parameters.
+    7. Use :py:func:`get_p_template` and :py:func:`set_p_fun` to set the function for the (not estimated) parameters.
 
-    8. Finally, call :py:func:`setup`.
+    8. Use :py:meth:`get_tvp_template` and :py:meth:`set_tvp_fun` to create a method to obtain new time-varying parameters at each iteration.
+
+    9. To finalize the class configuration there are two routes. The default approach is to call :py:meth:`setup`. For deep customization use the combination of :py:meth:`prepare_nlp` and :py:meth:`create_nlp`. See graph below for an illustration of the process.
+
+
+    .. graphviz::
+        :name: route_to_setup
+        :caption: Route to setting up the MHE class.
+        :align: center
+
+        digraph G {
+            graph [fontname = "helvetica"];
+            rankdir=LR;
+
+            subgraph cluster_main {
+                node [fontname = "helvetica", shape=box, fontcolor="#404040", color="#707070"];
+                edge [fontname = "helvetica", color="#707070"];
+
+                start [label="Two ways to setup"];
+                setup [label="setup", href="../api/do_mpc.estimator.MHE.setup.html", target="_top", fontname = "Consolas"];
+                create_nlp [label="create_nlp", href="../api/do_mpc.estimator.MHE.create_nlp.html", target="_top", fontname = "Consolas"];
+                process [label="Modify NLP"];
+                prepare_nlp [label="prepare_nlp", href="../api/do_mpc.estimator.MHE.prepare_nlp.html", target="_top", fontname = "Consolas"];
+                finish [label="Configured MHE class"]
+                start -> setup, prepare_nlp;
+                prepare_nlp -> process;
+                process -> create_nlp;
+                setup, create_nlp -> finish;
+                color=none;
+            }
+
+            subgraph cluster_modification {
+                rankdir=TB;
+                node [fontname = "helvetica", shape=box, fontcolor="#404040", color="#707070"];
+                edge [fontname = "helvetica", color="#707070"];
+                opt_x [label="opt_x", href="../api/do_mpc.estimator.MHE.opt_x.html", target="_top", fontname = "Consolas"];
+                opt_p [label="opt_p", href="../api/do_mpc.estimator.MHE.opt_p.html", target="_top", fontname = "Consolas"];
+                nlp_cons [label="nlp_cons", href="../api/do_mpc.estimator.MHE.nlp_cons.html", target="_top", fontname = "Consolas"];
+                nlp_obj [label="nlp_obj", href="../api/do_mpc.estimator.MHE.nlp_obj.html", target="_top", fontname = "Consolas"];
+
+                opt_x -> nlp_cons, nlp_obj;
+                opt_p -> nlp_cons, nlp_obj;
+
+                label = "Attributes to modify the NLP.";
+		        color=black;
+            }
+
+            nlp_cons -> process;
+            nlp_obj -> process;
+        }
 
     .. warning::
 
@@ -248,14 +297,14 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self._v = self.model._v
 
         # Flags are checked when calling .setup.
-        self.flags = {
+        self.flags.update({
             'setup': False,
             'set_tvp_fun': False,
             'set_p_fun': False,
             'set_y_fun': False,
             'set_objective': False,
             'set_initial_guess': False,
-        }
+        })
 
     @property
     def p_est0(self):
@@ -397,6 +446,89 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
     def opt_p_num(self, val):
         self._opt_p_num = val
 
+    @property
+    def opt_x(self):
+        """Full structure of the (symbolic) MHE optimization variables.
+
+        The attribute is a CasADi numeric structure with nested power indices.
+        It can be indexed as follows:
+
+        ::
+
+            # dynamic states:
+            opt_x['_x', time_step, collocation_point, _x_name]
+            # algebraic states:
+            opt_x['_z', time_step, collocation_point, _z_name]
+            # inputs:
+            opt_x['_u', time_step, _u_name]
+            # estimated parameters:
+            opt_x_Num['_p_est', _p_names]
+            # slack variables for soft constraints:
+            opt_x['_eps', time_step, _nl_cons_name]
+
+        The names refer to those given in the :py:class:`do_mpc.model.Model` configuration.
+        Further indices are possible, if the variables are itself vectors or matrices.
+
+        The attribute can be used to alter the objective function or constraints of the NLP.
+
+        .. note::
+
+            The attribute ``opt_x`` carries the scaled values of all variables.
+
+        .. warning::
+
+            Do not tweak or overwrite this attribute unless you known what you are doing.
+
+        .. note::
+
+            The attribute is populated when calling :py:func:`setup` or :py:func:`prepare_nlp`
+
+        """
+        return self._opt_x
+
+    @opt_x.setter
+    def opt_x(self, val):
+        self._opt_x = val
+
+    @property
+    def opt_p(self):
+        """Full structure of (symbolic) MHE parameters.
+
+        The attribute can be used to alter the objective function or constraints of the NLP.
+
+        The attribute is a CasADi numeric structure with nested power indices.
+        It can be indexed as follows:
+
+        ::
+
+            # previously estimated state:
+            opt_p['_x_prev', _x_name]
+            # previously estimated parameters:
+            opt_p['_p_est_prev', _x_name]
+            # known parameters
+            opt_p['_p_set', _p_name]
+            # time-varying parameters:
+            opt_p['_tvp', time_step, _tvp_name]
+            # sequence of measurements:
+            opt_p['_y_meas', time_step, _y_name]
+
+        The names refer to those given in the :py:class:`do_mpc.model.Model` configuration.
+        Further indices are possible, if the variables are itself vectors or matrices.
+
+        .. warning::
+
+            Do not tweak or overwrite this attribute unless you known what you are doing.
+
+        .. note::
+
+            The attribute is populated when calling :py:func:`setup` or :py:func:`create_nlp`.
+
+        """
+        return self._opt_p
+
+    @opt_p.setter
+    def opt_p(self, val):
+        self._opt_p = val
 
     def set_param(self, **kwargs):
         """Method to set the parameters of the :py:class:`MHE` class. Parameters must be passed as pairs of valid keywords and respective argument.
@@ -911,22 +1043,9 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             After this call, the :py:func:`solve` and :py:func:`make_step` method is applicable.
         """
 
-        nl_cons_input = self.model['x', 'u', 'z', 'tvp']
-        nl_cons_input += [self._p_est, self._p_set]
-        self._setup_nl_cons(nl_cons_input)
+        self.prepare_nlp()
+        self.create_nlp()
 
-        # Concatenate _p_est_scaling und _p_set_scaling to p_scaling (and make it a struct again)
-        self._p_scaling = self.model._p(self._p_cat_fun(self._p_est_scaling, self._p_set_scaling))
-
-        # Gather meta information:
-        meta_data = {key: getattr(self, key) for key in self.data_fields}
-        self.data.set_meta(**meta_data)
-
-        self._check_validity()
-        self._setup_mhe_optim_problem()
-
-        self._prepare_data()
-        self.flags['setup'] = True
 
     def make_step(self, y0):
         """Main method of the class during runtime. This method is called at each timestep
@@ -1029,14 +1148,19 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         return x_next.full()
 
-    def _setup_mhe_optim_problem(self):
-        """Private method of the MHE class to construct the MHE optimization problem.
-        The method depends on inherited methods from the :py:class:`do_mpc.optimizer.Optimizer`,
-        such as :py:func:`do_mpc.optimizer.Optimizer._setup_discretization` and
-        :py:func:`do_mpc.optimizer.Optimizer._setup_scenario_tree`.
-
-        The MPC has a similar method with similar structure.
+    def _prepare_nlp(self):
+        """Internal method. See detailed documentation in optimizer.prepare_nlp
         """
+
+        nl_cons_input = self.model['x', 'u', 'z', 'tvp']
+        nl_cons_input += [self._p_est, self._p_set]
+        self._setup_nl_cons(nl_cons_input)
+        self._check_validity()
+
+        # Concatenate _p_est_scaling und _p_set_scaling to p_scaling (and make it a struct again)
+        self._p_scaling = self.model._p(self._p_cat_fun(self._p_est_scaling, self._p_set_scaling))
+
+
         # Obtain an integrator (collocation, discrete-time) and the amount of intermediate (collocation) points
         ifcn, n_total_coll_points = self._setup_discretization()
 
@@ -1048,7 +1172,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
 
         # Create struct for optimization variables:
-        self.opt_x = opt_x = self.model.sv.sym_struct([
+        self._opt_x = opt_x = self.model.sv.sym_struct([
             entry('_x', repeat=[self.n_horizon+1, 1+n_total_coll_points], struct=self.model._x),
             entry('_z', repeat=[self.n_horizon,   max(n_total_coll_points,1)], struct=self.model._z),
             entry('_u', repeat=[self.n_horizon], struct=self.model._u),
@@ -1058,7 +1182,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             entry('_p_est', struct=self._p_est),
         ])
 
-        self.n_opt_x = self.opt_x.shape[0]
+        self.n_opt_x = opt_x.shape[0]
         # NOTE: The entry _x[k,:] starts with the collocation points from s to b at time k
         #       and the last point contains the child node
         # NOTE: Currently there exist dummy collocation points for the initial state (for each branch)
@@ -1075,7 +1199,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
 
         # Create struct for optimization parameters:
-        self.opt_p = opt_p = self.model.sv.sym_struct([
+        self._opt_p = opt_p = self.model.sv.sym_struct([
             entry('_x_prev', struct=self.model._x),
             entry('_p_est_prev', struct=self._p_est_prev),
             entry('_p_set', struct=self._p_set),
@@ -1089,9 +1213,9 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             entry('_aux', repeat=[self.n_horizon], struct=self.model._aux_expression)
         ])
         # Create mutable symbolic expression from the struct defined above.
-        self.opt_aux = opt_aux = self.model.sv.struct(self.aux_struct)
+        self._opt_aux = opt_aux = self.model.sv.struct(self.aux_struct)
 
-        self.n_opt_aux = self.opt_aux.shape[0]
+        self.n_opt_aux = opt_aux.shape[0]
 
         self.lb_opt_x = opt_x(-np.inf)
         self.ub_opt_x = opt_x(np.inf)
@@ -1114,7 +1238,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         obj += arrival_cost
 
         # Get concatenated parameters vector containing the estimated and fixed parameters (scaled)
-        _p = self._p_cat_fun(self.opt_x['_p_est'], self.opt_p['_p_set']/self._p_set_scaling)
+        _p = self._p_cat_fun(opt_x['_p_est'], opt_p['_p_set']/self._p_set_scaling)
 
         # For all control intervals
         for k in range(self.n_horizon):
@@ -1210,39 +1334,64 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self.lb_opt_x['_p_est'] = self._p_est_lb.cat/self._p_est_scaling
         self.ub_opt_x['_p_est'] = self._p_est_ub.cat/self._p_est_scaling
 
-        cons = vertcat(*cons)
-        self.cons_lb = vertcat(*cons_lb)
-        self.cons_ub = vertcat(*cons_ub)
+
+        # Write all created elements to self:
+        self._nlp_obj = obj
+        self._nlp_cons = cons
+        self._nlp_cons_lb = cons_lb
+        self._nlp_cons_ub = cons_ub
+
+        # Initialize copies of structures with numerical values (all zero):
+        self._opt_x_num = self._opt_x(0)
+        self.opt_x_num_unscaled = self._opt_x(0)
+        self._opt_p_num = self._opt_p(0)
+        self.opt_aux_num = self._opt_aux(0)
+
+        self.flags['prepare_nlp'] = True
+
+
+    def _create_nlp(self):
+        """Internal method. See detailed documentation in optimizer.create_nlp
+        """
+
+
+        self._nlp_cons = vertcat(*self._nlp_cons)
+        self._nlp_cons_lb = vertcat(*self._nlp_cons_lb)
+        self._nlp_cons_ub = vertcat(*self._nlp_cons_ub)
+
 
         # Validity check:
-        _test_obj_fun = Function('f', [opt_x, opt_p], [obj])
-        _test_cons_fun = Function('f', [opt_x, opt_p], [cons])
+        _test_obj_fun = Function('f', [self._opt_x, self._opt_p], [self._nlp_obj])
+        _test_cons_fun = Function('f', [self._opt_x, self._opt_p], [self._nlp_cons])
         try:
-            _test_obj_fun(opt_x(0),opt_p(0))
+            _test_obj_fun(self.opt_x_num,self.opt_p_num)
         except:
             err_msg = 'The MHE optimization problem objective function contains unknown symbolic variables.'
             raise Exception(err_msg)
         try:
-            _test_cons_fun(opt_x(0),opt_p(0))
+            _test_cons_fun(self.opt_x_num,self.opt_p_num)
         except:
             err_msg = 'The MHE optimization problem constraint function contains unknown symbolic variables.'
             raise Exception(err_msg)
 
 
-        self.n_opt_lagr = cons.shape[0]
+        self.n_opt_lagr = self._nlp_cons.shape[0]
         # Create casadi optimization object:
         nlpsol_opts = {
             'expand': False,
             'ipopt.linear_solver': 'mumps',
         }.update(self.nlpsol_opts)
-        nlp = {'x': vertcat(opt_x), 'f': obj, 'g': cons, 'p': vertcat(opt_p)}
+        nlp = {'x': vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons, 'p': vertcat(self._opt_p)}
         self.S = nlpsol('S', 'ipopt', nlp, self.nlpsol_opts)
 
-        # Create copies of these structures with numerical values (all zero):
-        self.opt_x_num = self.opt_x(0)
-        self.opt_x_num_unscaled = self.opt_x(0)
-        self.opt_p_num = self.opt_p(0)
-        self.opt_aux_num = self.opt_aux(0)
+
 
         # Create function to caculate all auxiliary expressions:
-        self.opt_aux_expression_fun = Function('opt_aux_expression_fun', [opt_x, opt_p], [opt_aux])
+        self.opt_aux_expression_fun = Function('opt_aux_expression_fun', [self._opt_x, self._opt_p], [self._opt_aux])
+
+        # Gather meta information:
+        meta_data = {key: getattr(self, key) for key in self.data_fields}
+        self.data.set_meta(**meta_data)
+
+        self._prepare_data()
+        self.flags['setup'] = True
