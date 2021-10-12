@@ -28,19 +28,34 @@ import pdb
 import sys
 import unittest
 
-sys.path.append('../')
-import do_mpc
-sys.path.pop(-1)
+from importlib import reload
+import copy
 
-sys.path.append('../examples/rotating_oscillating_masses_mhe_mpc/')
-from template_model import template_model
-from template_mpc import template_mpc
-from template_simulator import template_simulator
-from template_mhe import template_mhe
-sys.path.pop(-1)
+do_mpc_path = '../'
+if not do_mpc_path in sys.path:
+    sys.path.append('../')
+
+import do_mpc
 
 
 class TestRotatingMasses(unittest.TestCase):
+    def setUp(self):
+        """Add path of test case and import the modules.
+        If this test isn't the first to run, the modules need to be reloaded.
+        Reset path afterwards.
+        """
+        default_path = copy.deepcopy(sys.path)
+        sys.path.append('../examples/rotating_oscillating_masses_mhe_mpc/')
+        import template_model
+        import template_mpc
+        import template_simulator
+        import template_mhe
+
+        self.template_model = reload(template_model)
+        self.template_mpc = reload(template_mpc)
+        self.template_simulator = reload(template_simulator)
+        self.template_mhe = reload(template_mhe)
+        sys.path = default_path
 
     def test_SX(self):
         self.RotatingMasses('SX')
@@ -53,10 +68,10 @@ class TestRotatingMasses(unittest.TestCase):
         Get configured do-mpc modules:
         """
 
-        model = template_model(symvar_type)
-        mpc = template_mpc(model)
-        simulator = template_simulator(model)
-        mhe = template_mhe(model)
+        model = self.template_model.template_model(symvar_type)
+        mpc = self.template_mpc.template_mpc(model)
+        simulator = self.template_simulator.template_simulator(model)
+        mhe = self.template_mhe.template_mhe(model)
 
         """
         Set initial state
