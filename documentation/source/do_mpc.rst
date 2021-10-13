@@ -30,7 +30,7 @@ Note the following important inheritance of **do-mpc** classes:
 .. currentmodule:: do_mpc
 
 
-.. rubric:: Modules
+.. rubric:: Core modules
 .. autosummary::
     :toctree: api
 
@@ -47,3 +47,16 @@ Note the following important inheritance of **do-mpc** classes:
     data
 
     graphics
+
+
+.. currentmodule:: do_mpc.sampling
+
+.. rubric:: Sampling tools
+.. autosummary::
+    :toctree: api
+
+    samplingplanner
+
+    sampler
+
+    datahandler
