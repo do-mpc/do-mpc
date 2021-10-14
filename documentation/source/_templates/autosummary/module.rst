@@ -23,4 +23,16 @@
     {% endfor %}
 {% endif %}
 
+{% if modules %}
+.. autosummary::
+   :toctree:
+   :nosignatures:
+   :recursive:
+   :template: module.rst
+   {% for module in modules %}
+   {{ module }}
+   {% endfor %}
+{% endif %}
+
+
 This page is auto-generated. Page source is not available on Github.
