@@ -1,6 +1,6 @@
 import sys
-sys.path.append('../../')
-sys.path.append('../oscillating_masses_discrete/')
+sys.path.append('../../../../')
+sys.path.append('../../../oscillating_masses_discrete/')
 import do_mpc
 
 from template_model import template_model
@@ -29,7 +29,7 @@ sp.set_sampling_var('X0', gen_initial_states)
 
 sp.set_param(overwrite=True)
 
-plan = sp.gen_sampling_plan('oscillating_masses', n_samples = 10)
+plan = sp.gen_sampling_plan(n_samples = 10)
 
 
 """ Execute sampling plan """
@@ -77,4 +77,6 @@ dh = do_mpc.sampling.DataHandler(plan)
 dh.set_post_processing('input', lambda data: data['_u', 'u'])
 dh.set_post_processing('state', lambda data: data['_x', 'x'])
 
-res = dh.filter(lambda: True)
+dh.set_param(data_dir = './sample_results/')
+
+res = dh[:]
