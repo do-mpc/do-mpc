@@ -45,7 +45,7 @@ def sample_function(X0):
     mpc.set_initial_guess()
 
     # run the closed loop for 150 steps
-    for k in range(100):
+    for k in range(10):
         u0 = mpc.make_step(x0)
         y_next = simulator.make_step(u0)
         x0 = estimator.make_step(y_next)
@@ -76,10 +76,24 @@ def main():
     # DataHandling
     dh = do_mpc.sampling.DataHandler(plan)
 
+    dh.set_param(data_dir = './closed_loop_samples/')
+
+    res0 = dh[0]
+    res1 = dh[:]
+    res2 = dh.filter(lambda X0: X0[0]<1.2)
+
     dh.set_post_processing('input', lambda data: data['_u', 'u'])
     dh.set_post_processing('state', lambda data: data['_x', 'x'])
 
-    dh.set_param(data_dir = './closed_loop_samples/')
+    res3 = dh[0]
+    res4 = dh[:]
+    res5 = dh.filter(lambda X0: X0[0]<1.2)
+    res6 = dh.filter(lambda id: id=='001')
+
+    # Return nothing:
+    res7 = dh.filter(lambda X0: X0[0]>10)
+    res8 = dh[8]
+
 
 if __name__ == '__main__':
     main()
