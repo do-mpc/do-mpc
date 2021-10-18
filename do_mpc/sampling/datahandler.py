@@ -9,6 +9,7 @@ import scipy.io as sio
 import copy
 from do_mpc.tools import load_pickle, save_pickle
 import types
+import logging
 
 
 
@@ -39,18 +40,28 @@ class DataHandler:
 
 
     def __getitem__(self, ind):
-        """ Filter data from the DataHandler. Pass the desired indices via slicing and returns the post processed data.
+        """ Index results from the :py:class:`DataHandler`. Pass an index or a slice operator.
         """
-        assert self.flags['set_post_processing'], 'No post processing function is set. Cannot query data.'
         assert self.data_dir is not None, 'Must set data_dir before querying items.'
 
         val = self._init_results()
 
-        # For each sample:
-        for i, sample in enumerate(self.sampling_plan[ind]):
+        try:
+            if isinstance(ind, int):
+                samples = [self.sampling_plan[ind]]
+            elif isinstance(ind, (tuple, slice, list)):
+                samples = self.sampling_plan[ind]
+            else:
+                raise Exception('ind must be of type int, tuple, slice or list. You have {}'.format(type(ind)))
+        except IndexError:
+            print('---------------------------------------------------------------')
+            print('Trying to access a non-existent element from the sampling plan.')
+            print('---------------------------------------------------------------')
+            raise
 
+        # For each sample:
+        for sample in samples:
             # Check if this result was previously loaded. If not, add it to the dict of pre_loaded_data.
-            # pdb.set_trace()
             result = self._lazy_loading(sample)
 
             val = self._post_process_single(val,sample,result)
@@ -59,16 +70,19 @@ class DataHandler:
 
 
     def _init_results(self):
-        """Private method: initializes the resulting dictionary such that all sampling_vars and post processed data is included
+        """Private method: initializes the resulting dictionary such that all sampling_vars and post processed data is included.
         """
         val = {key: [] for key in self.sampling_vars}
-        val.update({key: [] for key in self.post_processing.keys()})
+        if self.flags['set_post_processing']:
+            val.update({key: [] for key in self.post_processing.keys()})
+        else:
+            val.update({'res': []})
 
         return val
 
 
     def _lazy_loading(self,sample):
-        """ Private method: Chekcs if data is already loaded to reduce the computational load.
+        """ Private method: Checks if data is already loaded to reduce the computational load.
         """
         if sample['id'] in self.pre_loaded_data.keys():
             result = self.pre_loaded_data[sample['id']]
@@ -83,8 +97,15 @@ class DataHandler:
         """ Private method: Applies all post processing functions to a single sample and stores them.
         """
         # Post process result
-        for key in self.post_processing:
-            val[key].append(self.post_processing[key](result))
+        if self.flags['set_post_processing']:
+            for key in self.post_processing:
+                if result is not None:
+                    val[key].append(self.post_processing[key](result))
+                else:
+                    val[key].append(result)
+        # Result without post processing
+        else:
+            val['res'] = result
 
         for var_i in self.sampling_vars:
             val[var_i].append(sample[var_i])
@@ -93,7 +114,26 @@ class DataHandler:
 
 
     def filter(self, filter_fun):
-        """ Filter data from the DataHandler. Pass the desired filters
+        """ Filter data from the DataHandler. Pass the desired filters.
+        This allows to return only a subset from the created samples based on arbitrary conditions applied to the variables in the sampling plan.
+
+        **Example**:
+
+        ::
+
+            sp = do_mpc.sampling.SamplingPlanner()
+
+            # SamplingPlanner with two variables alpha and beta:
+            sp.set_sampling_var('alpha', np.random.randn)
+            sp.set_sampling_var('beta', lambda: np.random.randint(0,5))
+            plan = sp.gen_sampling_plan()
+
+            ...
+
+            dh = do_mpc.sampling.DataHandler(plan)
+            # Return all samples with alpha < 0 and beta > 2
+            dh.filter(lambda alpha, beta: alpha < 0 and beta > 2)
+
 
         :param filter_fun: The name of the sampling plan.
         :type filter: Function or BuiltinFunction_or_Method
@@ -104,7 +144,6 @@ class DataHandler:
         :return: Returns the post processed samples that satisfy the filter
         :rtype: dict
         """
-        assert self.flags['set_post_processing'], 'No post processing function is set. Cannot query data.'
         assert isinstance(filter_fun, (types.FunctionType, types.BuiltinFunctionType)), 'post_processing_function must be either Function or BuiltinFunction_or_Method, you have {}'.format(type(filter_fun))
 
         val = self._init_results()
@@ -114,8 +153,7 @@ class DataHandler:
             return filter_fun(**{arg_i: kwargs[arg_i] for arg_i in filter_fun.__code__.co_varnames})
 
         # For each sample:
-        for i, sample in enumerate(self.sampling_plan):
-
+        for sample in self.sampling_plan:
             if wrap_fun(**sample)==True:
                 # Check if this result was previously loaded. If not, add it to the dict of pre_loaded_data.
                 result = self._lazy_loading(sample)
@@ -135,10 +173,14 @@ class DataHandler:
         elif self.save_format == 'mat':
             load_name = self.data_dir + name+'.mat'
 
-        if self.save_format == 'pickle':
-            result = load_pickle(load_name)
-        elif self.save_format == 'mat':
-            result = sio.loadmat(load_name)
+        try:
+            if self.save_format == 'pickle':
+                result = load_pickle(load_name)
+            elif self.save_format == 'mat':
+                result = sio.loadmat(load_name)
+        except FileNotFoundError:
+            logging.warning('Could not find or load file: {}. Check data_dir parameter and make sure sample has already been generated.'.format(load_name))
+            result = None
 
         return result
 
@@ -154,7 +196,11 @@ class DataHandler:
 
 
     def set_post_processing(self, name, post_processing_function):
-        """Set a post processing function. The generated sampling contains ``n_samples`` samples based on the defined variables and the corresponding evaluation functions.
+        """Set a post processing function.
+        The post processing function is applied to all loaded samples, e.g. with :py:meth:`__getitem__` or :py:meth:`filter`.
+
+
+        The generated sampling contains ``n_samples`` samples based on the defined variables and the corresponding evaluation functions.
 
         :param name: The name of the sampling plan.
         :type name: string
