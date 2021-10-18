@@ -23,12 +23,16 @@ class DataHandler:
         # Parameters that can be set for the DataHandler:
         self.data_fields = [
             'data_dir',
+            'sample_name',
+            'save_format'
         ]
 
-        self.data_dir = './{}/'.format(sampling_plan['name'])
+        self.data_dir = None
+        self.sample_name = 'sample'
+        self.save_format = 'pickle'
 
         self.sampling_plan = sampling_plan
-        self.sampling_vars = sampling_plan['sampling_plan'][0].keys()
+        self.sampling_vars = list(sampling_plan[0].keys())
         self.post_processing = {}
 
         self.pre_loaded_data = {}
@@ -38,11 +42,12 @@ class DataHandler:
         """ Filter data from the DataHandler. Pass the desired indices via slicing and returns the post processed data.
         """
         assert self.flags['set_post_processing'], 'No post processing function is set. Cannot query data.'
+        assert self.data_dir is not None, 'Must set data_dir before querying items.'
 
         val = self._init_results()
 
         # For each sample:
-        for i, sample in enumerate(self.sampling_plan['sampling_plan'][ind]):
+        for i, sample in enumerate(self.sampling_plan[ind]):
 
             # Check if this result was previously loaded. If not, add it to the dict of pre_loaded_data.
             # pdb.set_trace()
@@ -109,7 +114,7 @@ class DataHandler:
             return filter_fun(**{arg_i: kwargs[arg_i] for arg_i in filter_fun.__code__.co_varnames})
 
         # For each sample:
-        for i, sample in enumerate(self.sampling_plan['sampling_plan']):
+        for i, sample in enumerate(self.sampling_plan):
 
             if wrap_fun(**sample)==True:
                 # Check if this result was previously loaded. If not, add it to the dict of pre_loaded_data.
@@ -123,16 +128,16 @@ class DataHandler:
     def _load(self, sample_id):
         """ Private method: Load data generated from a sampling plan, either '.pkl' or '.mat'
         """
-        name = '{plan_name}_{id}'.format(plan_name=self.sampling_plan['name'], id=sample_id)
+        name = '{sample_name}_{id}'.format(sample_name=self.sample_name, id=sample_id)
 
-        if self.sampling_plan['save_format'] == 'pickle':
+        if self.save_format == 'pickle':
             load_name = self.data_dir + name + '.pkl'
-        elif self.sampling_plan['save_format'] == 'mat':
+        elif self.save_format == 'mat':
             load_name = self.data_dir + name+'.mat'
 
-        if self.sampling_plan['save_format'] == 'pickle':
+        if self.save_format == 'pickle':
             result = load_pickle(load_name)
-        elif self.sampling_plan['save_format'] == 'mat':
+        elif self.save_format == 'mat':
             result = sio.loadmat(load_name)
 
         return result
