@@ -14,60 +14,59 @@ import logging
 
 
 class DataHandler:
+    """Post-processing data created from a sampling plan.
+    Data (individual samples) were created with :py:class:`do_mpc.sampling.sampler.Sampler`.
+    The list of all samples originates from :py:class:`do_mpc.sampling.samplingplanner.SamplingPlanner` and is used to
+    initiate this class (``sampling_plan``).
+
+    **Configuration and retrieving processed data:**
+
+    1. Initiate the object with the ``sampling_plan`` originating from :py:class:`do_mpc.sampling.samplingplanner.SamplingPlanner`.
+
+    2. Set parameters with :py:meth:`set_param`. Most importantly, the directory in which the individual samples are located should be passe with ``data_dir`` argument.
+
+    3. (Optional) set one (or multiple) post-processing functions. These functions are applied to each loaded sample and can, e.g., extract or compile important information.
+
+    4. Load and return samples either by indexing with the :py:meth:`__getitem__` method or by filtering with :py:meth:`filter`.
+
+    **Example:**
+
+    ::
+
+        sp = do_mpc.sampling.SamplingPlanner()
+
+        # Plan with two variables alpha and beta:
+        sp.set_sampling_var('alpha', np.random.randn)
+        sp.set_sampling_var('beta', lambda: np.random.randint(0,5))
+
+        plan = sp.gen_sampling_plan(n_samples=10)
+
+        sampler = do_mpc.sampling.Sampler(plan)
+
+        # Sampler computes the product of two variables alpha and beta
+        # that were created in the SamplingPlanner:
+
+        def sample_function(alpha, beta):
+            return alpha*beta
+
+        sampler.set_sample_function(sample_function)
+
+        sampler.sample_data()
+
+        # Create DataHandler object with same plan:
+        dh = do_mpc.sampling.DataHandler(plan)
+
+        # Assume you want to compute the square of the result of each sample
+        dh.set_post_processing('square', lambda res: res**2)
+
+        # As well as the value itself:
+        dh.set_post_processing('default', lambda res: res)
+
+        # Query all post-processed results with:
+        dh[:]
+
+    """
     def __init__(self, sampling_plan):
-        """Post-processing data created from a sampling plan.
-        Data (individual samples) were created with :py:class:`do_mpc.sampling.sampler.Sampler`.
-        The list of all samples originates from :py:class:`do_mpc.sampling.samplingplanner.SamplingPlanner` and is used to
-        initiate this class (``sampling_plan``).
-
-        **Configuration and retrieving processed data:**
-
-        1. Initiate the object with the ``sampling_plan`` originating from :py:class:`do_mpc.sampling.samplingplanner.SamplingPlanner`.
-
-        2. Set parameters with :py:meth:`set_param`. Most importantly, the directory in which the individual samples are located should be passe with ``data_dir`` argument.
-
-        3. (Optional) set one (or multiple) post-processing functions. These functions are applied to each loaded sample and can, e.g., extract or compile important information.
-
-        4. Load and return samples either by indexing with the :py:meth:`__getitem__` method or by filtering with :py:meth:`filter`.
-
-        **Example:**
-
-        ::
-
-            sp = do_mpc.sampling.SamplingPlanner()
-
-            # Plan with two variables alpha and beta:
-            sp.set_sampling_var('alpha', np.random.randn)
-            sp.set_sampling_var('beta', lambda: np.random.randint(0,5))
-
-            plan = sp.gen_sampling_plan(n_samples=10)
-
-            sampler = do_mpc.sampling.Sampler(plan)
-
-            # Sampler computes the product of two variables alpha and beta
-            # that were created in the SamplingPlanner:
-
-            def sample_function(alpha, beta):
-                return alpha*beta
-
-            sampler.set_sample_function(sample_function)
-
-            sampler.sample_data()
-
-            # Create DataHandler object with same plan:
-            dh = do_mpc.sampling.DataHandler(plan)
-
-            # Assume you want to compute the square of the result of each sample
-            dh.set_post_processing('square', lambda res: res**2)
-
-            # As well as the value itself:
-            dh.set_post_processing('default', lambda res: res)
-
-            # Query all post-processed results with:
-            dh[:]
-
-        """
-
         self.flags = {
             'set_post_processing' : False,
         }
@@ -251,13 +250,13 @@ class DataHandler:
             datahandler.set_param(overwrite = True)
 
 
-        :param data_dir: Directory where the data can be found (as defined in the :py:clas:`do_mpc.sampling.sampler.Sampler`).
+        :param data_dir: Directory where the data can be found (as defined in the :py:class:`do_mpc.sampling.sampler.Sampler`).
         :type data_dir: bool
 
-        :param sample_name: Naming scheme for samples (as defined in the :py:clas:`do_mpc.sampling.sampler.Sampler`).
+        :param sample_name: Naming scheme for samples (as defined in the :py:class:`do_mpc.sampling.sampler.Sampler`).
         :type sample_name: str
 
-        :save_format: Choose either ``pickle`` or ``mat`` (as defined in the :py:clas:`do_mpc.sampling.sampler.Sampler`).
+        :save_format: Choose either ``pickle`` or ``mat`` (as defined in the :py:class:`do_mpc.sampling.sampler.Sampler`).
         :type save_format: str
 
         """
@@ -273,8 +272,8 @@ class DataHandler:
         The post processing function is applied to all loaded samples, e.g. with :py:meth:`__getitem__` or :py:meth:`filter`.
         Users can set an arbitrary amount of post processing functions by repeatedly calling this method.
 
-        ..note::
-        
+        .. note::
+
             Setting a post processing function with an already existing name will overwrite the previously set post processing function.
 
         **Example:**

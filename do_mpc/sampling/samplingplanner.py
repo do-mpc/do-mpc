@@ -85,12 +85,12 @@ class SamplingPlanner:
         Optionally add a function to generate values for the sampled variable (e.g. following some distribution).
         The parameter ``fun_var_pdf`` defaults to ``None``.
 
-        ..note::
+        .. note::
 
             If no value-generating function is passed (for any of the introduced variables),
             all sampling cases must be created manually with :py:meth:`add_sampling_case`.
 
-        ..note::
+        .. note::
 
             Value generating function ``fun_var_pdf`` must not require inputs.
 
@@ -126,7 +126,7 @@ class SamplingPlanner:
         Create a sampling case by choosing values for the previously introduced sampling variables (with :py:meth:`set_sampling_var`).
 
         Method takes arbitrary (keyword, argument) pairs, where the keywords must refer to previously introduced sampling variables.
-        py:meth:`add_sampling_case` will automatically augment the sampling case with values for variables that are not passed as arguments.
+        :py:meth:`add_sampling_case` will automatically augment the sampling case with values for variables that are not passed as arguments.
         This only works if these variables were created with the argument ``fun_var_pdf``.
 
         **Example:**

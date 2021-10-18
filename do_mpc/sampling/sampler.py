@@ -17,15 +17,13 @@ class Sampler:
 
     **Configuration and sampling:**
 
-    1. Set variables which should be sampled with :py:func:`set_sampling_var`.
+    1. (Optional) use :py:meth:`set_param` to configure the class. Use :py:attr:`data_dir` to choose the save location for the samples.
 
-    2. (Optional) use :py:meth:`set_param` to configure the class. Use :py:attr:`data_dir` to choose the save location for the samples.
+    2. Set the sample generating function with :py:meth:`set_sample_function`. This function is executed for each of the samples in the ``sampling_plan``.
 
-    3. Set the sample generating function with :py:meth:`set_sample_function`. This function is executed for each of the samples in the ``sampling_plan``.
+    3. Use :py:meth:`sample_data` to generate all samples defined in the ``sampling_plan``. A new file is written for each sample.
 
-    4. Use :py:meth:`sample_data` to generate all samples defined in the ``sampling_plan``. A new file is written for each sample.
-
-    5. **Or:** Create an individual sample result with :py:meth:`sample_idx`, where an index (``int``) referring to the ``sampling_plan`` determines the sampled case.
+    4. **Or:** Create an individual sample result with :py:meth:`sample_idx`, where an index (``int``) referring to the ``sampling_plan`` determines the sampled case.
 
     .. note::
 
@@ -92,8 +90,8 @@ class Sampler:
 
         ::
 
-            sp = do_mpc.sampling.SamplingPlanner()
-            sp.data_dir = './samples/experiment_1/'
+            sampler = do_mpc.sampling.Sampler()
+            sampler.data_dir = './samples/experiment_1/'
 
         This will set the directory to the indicated path. If the path does not exist, all folders are created.
 
