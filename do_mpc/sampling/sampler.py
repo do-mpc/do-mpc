@@ -11,7 +11,49 @@ from do_mpc.tools import load_pickle, save_pickle, printProgressBar
 
 
 class Sampler:
-    """The **do-mpc** Sampler class.
+    """Generate samples based on a sampling plan.
+    Initiate the class by passing a :py:class:`do_mpc.sampling.samplingplanner.SamplingPlanner` (``sampling_plan``) object.
+    The class can be configured to create samples based on the defined cases in the ``sampling_plan``.
+
+    **Configuration and sampling:**
+
+    1. Set variables which should be sampled with :py:func:`set_sampling_var`.
+
+    2. (Optional) use :py:meth:`set_param` to configure the class. Use :py:attr:`data_dir` to choose the save location for the samples.
+
+    3. Set the sample generating function with :py:meth:`set_sample_function`. This function is executed for each of the samples in the ``sampling_plan``.
+
+    4. Use :py:meth:`sample_data` to generate all samples defined in the ``sampling_plan``. A new file is written for each sample.
+
+    5. **Or:** Create an individual sample result with :py:meth:`sample_idx`, where an index (``int``) referring to the ``sampling_plan`` determines the sampled case.
+
+    .. note::
+
+        By default, the :py:class:`Sampler` will only create samples that do not already exist in the chosen :py:attr:`data_dir`.
+
+    **Example:**
+
+    ::
+
+        sp = do_mpc.sampling.SamplingPlanner()
+
+        # Plan with two variables alpha and beta:
+        sp.set_sampling_var('alpha', np.random.randn)
+        sp.set_sampling_var('beta', lambda: np.random.randint(0,5))
+
+        plan = sp.gen_sampling_plan(n_samples=10)
+
+        sampler = do_mpc.sampling.Sampler(plan)
+
+        # Sampler computes the product of two variables alpha and beta
+        # that were created in the SamplingPlanner:
+
+        def sample_function(alpha, beta):
+            return alpha*beta
+
+        sampler.set_sample_function(sample_function)
+
+        sampler.sample_data()
 
     """
     def __init__(self, sampling_plan):
@@ -45,6 +87,16 @@ class Sampler:
         """Set the save directory for the results.
         If the directory does not exist yet, it is created. If the directory is nested all (non-existing)
         parent folders are also created.
+
+        **Example:**
+
+        ::
+
+            sp = do_mpc.sampling.SamplingPlanner()
+            sp.data_dir = './samples/experiment_1/'
+
+        This will set the directory to the indicated path. If the path does not exist, all folders are created.
+
         """
         return self._data_dir
 
@@ -54,7 +106,7 @@ class Sampler:
         pathlib.Path(val).mkdir(parents=True, exist_ok=True)
 
     def set_param(self, **kwargs):
-        """Configure the :py:class:Sampler`` class.
+        """Configure the :py:class:`Sampler` class.
 
         Parameters must be passed as pairs of valid keywords and respective argument.
         For example:
@@ -64,7 +116,7 @@ class Sampler:
             sampler.set_param(overwrite = True)
 
 
-        :param overwrite: Should previously created results be overwritten. Default is ``False`
+        :param overwrite: Should previously created results be overwritten. Default is ``False``
         :type overwrite: bool
 
         :param sample_name: Naming scheme for samples.
@@ -73,7 +125,7 @@ class Sampler:
         :save_format: Choose either ``pickle`` or ``mat``.
         :type save_format: str
 
-        :print_progress: Print progress bar to terminal. Default is ``True``.
+        :print_progress: Print progress-bar to terminal. Default is ``True``.
         :type save_format: bool
 
         """
@@ -148,8 +200,15 @@ class Sampler:
 
     def sample_idx(self, idx):
         """Sample case based on the index of the sample.
+
+        :param idx: Index of the ``sampling_plan`` for which the sample should be created.
+        :type idx: int
+
+        :raises assertion: Index must be between 0 and ``n_samples``.
+        :raises assertion: sample_function must be set prior to sampling data.
         """
         #assert isinstance(idx, int), 'idx must be of type index'
+        assert self.flags['set_sample_function'], 'Cannot sample before setting the sample function with Sampler.set_sample_function'
         assert idx>=0 and idx<=len(self.sampling_plan), 'Invalid value for idx. Must be between 0 and {}. You have {}'.format(len(self.sampling_plan), idx)
 
         # Pop sample id from dictionary (not an argument to the sample function)
@@ -176,10 +235,18 @@ class Sampler:
 
     def sample_data(self):
         """Sample data after having configured the :py:class:`Sampler`.
-        No user input is required and the method will iterate through all the items defined in the ``sampling_plan`` (obtained with :py:class:SamplingPlanner).
-        Depending on your ``sample_function`` (set with :py:meth:`set_sample_function`) and the total number of samples, executing this method may take some time.
+        No user input is required and the method will iterate through all the items defined in the ``sampling_plan``
+        (obtained with :py:class:`do_mpc.sampling.samplingplanner.SamplingPlanner`).
+
+        .. note::
+
+            Depending on your ``sample_function`` (set with :py:meth:`set_sample_function`) and the total number of samples, executing this method may take some time.
+
+        .. note::
+
+            If ``sampler.set_param(overwrite = False)`` (default) data will only be sampled for instances that do not yet exist.
+
         """
-        assert self.flags['set_sample_function'], 'Cannot sample before setting the sample function with Sampler.set_sample_function'
 
         for i, _ in enumerate(self.sampling_plan):
 
