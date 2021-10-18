@@ -15,12 +15,12 @@ class Sampler:
 
     """
     def __init__(self, sampling_plan):
-        assert isinstance(sampling_plan, dict), 'sampling_plan must be a dict'
-        assert isinstance(sampling_plan['sampling_plan'], list), 'sampling_plan must contain key list with list'
-        assert np.all([isinstance(plan_i, dict) for plan_i in sampling_plan['sampling_plan']]), 'All elements of sampling plan must be a dictionary.'
+        assert isinstance(sampling_plan, list), 'sampling_plan must be a list'
+        assert np.all([isinstance(plan_i, dict) for plan_i in sampling_plan]), 'All elements of sampling plan must be a dictionary.'
 
         self.sampling_plan = sampling_plan
-        self.sampling_vars = sampling_plan['sampling_plan'][0].keys()
+        self.sampling_vars = list(sampling_plan[0].keys())
+        self.n_samples = len(sampling_plan)
 
         self.flags = {
             'set_sample_function': False,
@@ -28,17 +28,23 @@ class Sampler:
 
         # Parameters that can be set for the Sampler:
         self.data_fields = [
-            'data_dir',
             'overwrite',
+            'sample_name',
+            'save_format',
+            'print_progress'
         ]
 
-        self.data_dir = './{}/'.format(sampling_plan['name'])
+        self.data_dir = './sample_results/'
+        self.sample_name = 'sample'
+        self.save_format = 'pickle'
         self.overwrite = False
+        self.print_progress = True
 
     @property
     def data_dir(self):
         """Set the save directory for the results.
-        If the directory does not exist yet, it is created. This is also possible for nested structures.
+        If the directory does not exist yet, it is created. If the directory is nested all (non-existing)
+        parent folders are also created.
         """
         return self._data_dir
 
@@ -60,6 +66,15 @@ class Sampler:
 
         :param overwrite: Should previously created results be overwritten. Default is ``False`
         :type overwrite: bool
+
+        :param sample_name: Naming scheme for samples.
+        :type sample_name: str
+
+        :save_format: Choose either ``pickle`` or ``mat``.
+        :type save_format: str
+
+        :print_progress: Print progress bar to terminal. Default is ``True``.
+        :type save_format: bool
 
         """
         for key, value in kwargs.items():
@@ -110,12 +125,12 @@ class Sampler:
         """Private method. Used in :py:meth:`sample_data`.
         Creates the name for a given sample based on the sample plan name and the sample id.
         """
-        name = '{plan_name}_{id}'.format(plan_name=self.sampling_plan['name'], id=sample_id)
+        name = '{sample_name}_{id}'.format(sample_name=self.sample_name, id=sample_id)
 
-        if self.sampling_plan['save_format'] == 'pickle':
-            save_name = self.data_dir + name + '.pkl'
-        elif self.sampling_plan['save_format'] == 'mat':
-            save_name = self.data_dir + name+'.mat'
+        if self.save_format == 'pickle':
+            save_name = name + '.pkl'
+        elif self.save_format == 'mat':
+            save_name = name+'.mat'
 
         return save_name
 
@@ -124,13 +139,39 @@ class Sampler:
         """Private method. Saves the result for a single sample in the defined format.
         Considers the ``overwrite`` parameter to check if existing results should be overwritten.
         """
-        if os.path.isfile(save_name) or self.overwrite:
-            None
-        else:
-            if self.sampling_plan['save_format'] == 'pickle':
-                save_pickle(save_name, result)
-            elif self.sampling_plan['save_format'] == 'mat':
-                sio.savemat(save_name, {name: result})
+        if not os.path.isfile(self.data_dir + save_name) or self.overwrite:
+            if self.save_format == 'pickle':
+                save_pickle(self.data_dir + save_name, result)
+            elif self.save_format == 'mat':
+                sio.savemat(self.data_dir + save_name, {name: result})
+
+
+    def sample_idx(self, idx):
+        """Sample case based on the index of the sample.
+        """
+        #assert isinstance(idx, int), 'idx must be of type index'
+        assert idx>=0 and idx<=len(self.sampling_plan), 'Invalid value for idx. Must be between 0 and {}. You have {}'.format(len(self.sampling_plan), idx)
+
+        # Pop sample id from dictionary (not an argument to the sample function)
+        sample_i = copy.copy(self.sampling_plan[idx])
+        sample_id = sample_i.pop('id')
+
+        # Create and safe result if sample result does not exist:
+        save_name = self._save_name(sample_id)
+        blocker_name = 'temp_' + save_name
+        if not os.path.isfile(self.data_dir + save_name) or self.overwrite:
+            if not os.path.isfile(self.data_dir + blocker_name):
+                # Block execution of other threads by saving a dummy file
+                self._save(blocker_name, [])
+                # Call sample function to create sample (pass sample information)
+                result = self.sample_function(**sample_i)
+                # Save  true results:
+                self._save(save_name, result)
+                # Delete dummy blocker file:
+                os.remove(self.data_dir + blocker_name)
+
+        if self.print_progress:
+            printProgressBar(idx+1, self.n_samples, prefix = 'Progress:', suffix = 'Complete', length = 50)
 
 
     def sample_data(self):
@@ -140,20 +181,6 @@ class Sampler:
         """
         assert self.flags['set_sample_function'], 'Cannot sample before setting the sample function with Sampler.set_sample_function'
 
-        for i, sample in enumerate(self.sampling_plan['sampling_plan']):
+        for i, _ in enumerate(self.sampling_plan):
 
-            # Pop sample id from dictionary (not an argument to the sample function)
-            sample_i = copy.copy(sample)
-            sample_id = sample_i.pop('id')
-
-
-            # Create and safe result if sample result does not exist:
-            save_name = self._save_name(sample_id)
-            if not os.path.isfile(save_name) or self.overwrite:
-
-                # Call sample function to create sample (pass sample information)
-                result = self.sample_function(**sample_i)
-
-                self._save(save_name, result)
-
-            printProgressBar(i+1, self.sampling_plan['n_samples'], prefix = 'Progress:', suffix = 'Complete', length = 50)
+            self.sample_idx(i)
