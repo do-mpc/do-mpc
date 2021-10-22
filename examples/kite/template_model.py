@@ -56,6 +56,9 @@ def template_model():
     E_0 = model.set_variable('_p',  'E_0')
     v_0 = model.set_variable('_p', 'v_0')
 
+    _ = model.set_expression('E_0', E_0)
+    _ = model.set_expression('v_0', v_0)
+
     E 		= E_0 - c_tilde * u_tilde**2
     v_a 	= v_0 * E * cos(theta)
     P_D 	= (rho * v_0**2)/2.0

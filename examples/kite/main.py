@@ -39,8 +39,8 @@ from template_simulator import template_simulator
 
 """ User settings: """
 show_animation = True
-user_anim = False
 store_results = False
+store_animation = False
 
 """
 Get configured do-mpc modules:
@@ -49,7 +49,6 @@ w_ref = 6+10*np.random.rand()
 E_0 = 5+3*np.random.rand()
 h_min = 80+40*np.random.rand()
 
-# (theta,phi)
 
 model = template_model()
 mpc = template_mpc(model, w_ref, E_0, h_min=h_min)
@@ -75,10 +74,6 @@ theta_0 = m_theta-tightness*r_theta+2*tightness*r_theta*np.random.rand()
 phi_0 = m_phi-tightness*r_phi+2*tightness*r_phi*np.random.rand()
 psi_0 = m_psi-tightness*r_psi+2*tightness*r_psi*np.random.rand()
 
-# Prevously (fixed) initial states:
-# theta_0 = 0.39359907+0.05
-# phi_0 = 0.72791537
-# psi_0 = 0.1
 
 x0 = np.array([theta_0, phi_0, psi_0]).reshape(-1,1)
 
@@ -91,54 +86,93 @@ mpc.set_initial_guess()
 """
 Setup graphic:
 """
-if user_anim:
-    fig, ax = plt.subplots(figsize=(8,5))
-    color = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
-    phi_pred = mpc.data.prediction(('_x', 'phi'))[0]
-    theta_pred = mpc.data.prediction(('_x', 'theta'))[0]
-    pred_lines = ax.plot(phi_pred, theta_pred, color=color[0], linestyle='--', linewidth=1)
-
-    phi = mpc.data['_x', 'phi']
-    theta = mpc.data['_x', 'theta']
-
-    res_lines = ax.plot(phi, theta, color=color[0])
-else:
-    # fig, ax = plt.subplots(2,figsize=(8,5))
-    # graphics = do_mpc.graphics.Graphics(simulator.data)
-    # graphics.add_line('_p', 'E_0', axis=ax[0])
-    # graphics.add_line('_p', 'v_0', axis=ax[1])
-    fig, ax, graphics = do_mpc.graphics.default_plot(simulator.data)
-
-
+fig = plt.figure(figsize=(16,9))
 plt.ion()
+
+mpc_graphics = do_mpc.graphics.Graphics(mpc.data)
+sim_graphics = do_mpc.graphics.Graphics(simulator.data)
+
+ax1 = plt.subplot2grid((4, 2), (0, 0), rowspan=4)
+ax2 = plt.subplot2grid((4, 2), (0, 1))
+ax3 = plt.subplot2grid((4, 2), (1, 1), sharex=ax2)
+ax4 = plt.subplot2grid((4, 2), (2, 1))
+ax5 = plt.subplot2grid((4, 2), (3, 1))
+
+color = plt.rcParams['axes.prop_cycle'].by_key()['color']
+
+phi_pred = mpc.data.prediction(('_x', 'phi'))[0]
+theta_pred = mpc.data.prediction(('_x', 'theta'))[0]
+pred_lines = ax1.plot(phi_pred, theta_pred, color=color[0], linestyle='--', linewidth=1)
+
+phi = mpc.data['_x', 'phi']
+theta = mpc.data['_x', 'theta']
+res_lines = ax1.plot(phi, theta, color=color[0])
+
+# Height of kite
+mpc_graphics.add_line(var_type='_aux', var_name='height_kite', axis=ax2)
+mpc_graphics.add_line('_u','u_tilde',axis=ax3)
+sim_graphics.add_line('_p','E_0', axis=ax4)
+sim_graphics.add_line('_p','v_0', axis=ax5)
+
+ax2.set_ylabel('kite height [m]')
+ax3.set_ylabel('input [-]')
+ax4.set_ylabel('E_0')
+ax5.set_ylabel('v_0')
 
 """
 Run MPC main loop:
 """
 
-for k in range(700):
+n_steps = 200
+
+for k in range(n_steps):
     u0 = mpc.make_step(x0)
     y_next = simulator.make_step(u0)
     x0 = estimator.make_step(y_next)
 
     if show_animation:
-        if user_anim:
-            phi_pred = mpc.data.prediction(('_x', 'phi'))[0]
-            theta_pred = mpc.data.prediction(('_x', 'theta'))[0]
-            for i in range(phi_pred.shape[1]):
-                pred_lines[i].set_data(phi_pred[:,i], theta_pred[:,i])
-            phi = mpc.data['_x', 'phi']
-            theta = mpc.data['_x', 'theta']
-            res_lines[0].set_data(phi, theta)
-            ax.relim()
-            ax.autoscale()
-        else:
-            graphics.plot_results()
-            #graphics.plot_predictions()
-            graphics.reset_axes()
+        phi_pred = mpc.data.prediction(('_x', 'phi'))[0]
+        theta_pred = mpc.data.prediction(('_x', 'theta'))[0]
+        for i in range(phi_pred.shape[1]):
+            pred_lines[i].set_data(phi_pred[:,i], theta_pred[:,i])
+        phi = mpc.data['_x', 'phi']
+        theta = mpc.data['_x', 'theta']
+        res_lines[0].set_data(phi, theta)
+        ax1.relim()
+        ax1.autoscale()
+
+        mpc_graphics.plot_results()
+        mpc_graphics.plot_predictions()
+        mpc_graphics.reset_axes()
+        sim_graphics.plot_results()
+        sim_graphics.reset_axes()
+
         plt.show()
         plt.pause(0.01)
+
+
+if store_animation:
+    from matplotlib.animation import FuncAnimation, FFMpegWriter, ImageMagickWriter
+    def update(t_ind):
+        phi_pred = mpc.data.prediction(('_x', 'phi'), t_ind)[0]
+        theta_pred = mpc.data.prediction(('_x', 'theta'), t_ind)[0]
+        for i in range(phi_pred.shape[1]):
+            pred_lines[i].set_data(phi_pred[:,i], theta_pred[:,i])
+        phi = mpc.data['_x', 'phi'][:t_ind]
+        theta = mpc.data['_x', 'theta'][:t_ind]
+        res_lines[0].set_data(phi, theta)
+        ax1.relim()
+        ax1.autoscale()
+
+        mpc_graphics.plot_results(t_ind)
+        mpc_graphics.plot_predictions(t_ind)
+        mpc_graphics.reset_axes()
+        sim_graphics.plot_results(t_ind)
+
+    anim = FuncAnimation(fig, update, frames=n_steps, repeat=False)
+    gif_writer = ImageMagickWriter(fps=20)
+    anim.save('anim_kite.gif', writer=gif_writer)
 
 input('Press any key to exit.')
 
