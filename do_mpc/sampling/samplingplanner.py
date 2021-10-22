@@ -37,8 +37,32 @@ class SamplingPlanner:
             'id_precision',
         ]
 
+        self.data_dir = './'
         self.overwrite = False
         self.id_precision = 3
+
+    @property
+    def data_dir(self):
+        """Set the save directory for the ``samplingplan``.
+        If the directory does not exist yet, it is created. If the directory is nested all (non-existing)
+        parent folders are also created.
+
+        **Example:**
+
+        ::
+
+            sp = do_mpc.sampling.SamplingPlanner()
+            sp.data_dir = './samples/experiment_1/'
+
+        This will set the directory to the indicated path. If the path does not exist, all folders are created.
+
+        """
+        return self._data_dir
+
+    @data_dir.setter
+    def data_dir(self, val):
+        self._data_dir = val
+        pathlib.Path(val).mkdir(parents=True, exist_ok=True)
 
     def set_param(self, **kwargs):
         """Set the parameters of the :py:class:`SamplingPlanner` class. Parameters must be passed as pairs of valid keywords and respective argument.
@@ -192,7 +216,8 @@ class SamplingPlanner:
 
     def export(self, sampling_plan_name):
         """Export SamplingPlan in pickle format.
-        Pass ``sampling_plan_name`` containing the path where to export. File extension can be added (but will be stripped automatically).
+        Pass ``sampling_plan_name`` without any path. File extension can be added (but will be stripped automatically).
+        Change the path with :py:attr:`data_dir`.
 
         :param sampling_plan_name: Name of the exported sampling plan file.
         :type sampling_plan_name: str
@@ -204,11 +229,12 @@ class SamplingPlanner:
         # Strip file extension from name:
         sampling_plan_name = os.path.splitext(sampling_plan_name)[0]
 
-        if not os.path.isfile(sampling_plan_name + '.pkl') or self.overwrite:
-            save_pickle(sampling_plan_name, self.sampling_plan)
+        full_name = self.data_dir + sampling_plan_name + '.pkl'
+        if not os.path.isfile(full_name) or self.overwrite:
+            save_pickle(full_name, self.sampling_plan)
         else:
             for i in range(1,10000):
-                if not os.path.isfile(sampling_plan_name + '_' + str(i) + '.pkl'):
-                    self.sampling_plan.update({'name': sampling_plan_name + '_' + str(i)})
-                    save_pickle(sampling_plan_name + '_' + str(i), self.sampling_plan)
+                full_name = self.data_dir + sampling_plan_name + str(i) + '.pkl'
+                if not os.path.isfile(full_name):
+                    save_pickle(full_name, self.sampling_plan)
                     break

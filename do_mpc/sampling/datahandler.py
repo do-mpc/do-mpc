@@ -86,15 +86,13 @@ class DataHandler:
         self.sampling_vars = list(sampling_plan[0].keys())
         self.post_processing = {}
 
-        self.pre_loaded_data = {}
+        self.pre_loaded_data = {'id':[], 'data':[]}
 
 
     def __getitem__(self, ind):
         """ Index results from the :py:class:`DataHandler`. Pass an index or a slice operator.
         """
         assert self.data_dir is not None, 'Must set data_dir before querying items.'
-
-        val = self._init_results()
 
         try:
             if isinstance(ind, int):
@@ -109,63 +107,52 @@ class DataHandler:
             print('---------------------------------------------------------------')
             raise
 
+        return_list = []
+
         # For each sample:
         for sample in samples:
             # Check if this result was previously loaded. If not, add it to the dict of pre_loaded_data.
             result = self._lazy_loading(sample)
+            result_processed = self._post_process_single(sample,result)
+            return_list.append(result_processed)
 
-            val = self._post_process_single(val,sample,result)
-
-        return val
-
-
-    def _init_results(self):
-        """Private method: initializes the resulting dictionary such that all sampling_vars and post processed data is included.
-        """
-        val = {key: [] for key in self.sampling_vars}
-        if self.flags['set_post_processing']:
-            val.update({key: [] for key in self.post_processing.keys()})
-        else:
-            val.update({'res': []})
-
-        return val
-
+        return return_list
 
     def _lazy_loading(self,sample):
         """ Private method: Checks if data is already loaded to reduce the computational load.
         """
-        if sample['id'] in self.pre_loaded_data.keys():
-            result = self.pre_loaded_data[sample['id']]
+        if sample['id'] in self.pre_loaded_data['id']:
+            ind = self.pre_loaded_data['id'].index(sample['id'])
+            result = self.pre_loaded_data['data'][ind]
         else:
             result = self._load(sample['id'])
-            self.pre_loaded_data.update({sample['id']: result})
+            self.pre_loaded_data['id'].append(sample['id'])
+            self.pre_loaded_data['data'].append(result)
 
         return result
 
 
-    def _post_process_single(self,val,sample,result):
+    def _post_process_single(self,sample,result):
         """ Private method: Applies all post processing functions to a single sample and stores them.
         """
+        result_processed = copy.copy(sample)
         # Post process result
         if self.flags['set_post_processing']:
             for key in self.post_processing:
                 if result is not None:
-                    val[key].append(self.post_processing[key](result))
+                    result_processed[key] = self.post_processing[key](result)
                 else:
-                    val[key].append(result)
+                    result_processed[key] = None
         # Result without post processing
         else:
-            val['res'] = result
+            result_processed['res'] = result
 
-        for var_i in self.sampling_vars:
-            val[var_i].append(sample[var_i])
-
-        return val
+        return result_processed
 
 
-    def filter(self, filter_fun):
-        """ Filter data from the DataHandler. Pass the desired filters.
-        This allows to return only a subset from the created samples based on arbitrary conditions applied to the variables in the sampling plan.
+    def filter(self, input_filter=None, output_filter=None):
+        """ Filter data from the DataHandler. Filters can be applied to inputs or to results that were obtained with the post-processing functions.
+        Filtering returns only a subset from the created samples based on arbitrary conditions.
 
         **Example**:
 
@@ -181,12 +168,14 @@ class DataHandler:
             ...
 
             dh = do_mpc.sampling.DataHandler(plan)
+            dh.set_post_processing('square', lambda res: res**2)
+
             # Return all samples with alpha < 0 and beta > 2
-            dh.filter(lambda alpha, beta: alpha < 0 and beta > 2)
+            dh.filter(input_filter = lambda alpha, beta: alpha < 0 and beta > 2)
+            # Return all samples for which the computed value square < 5
+            dh.filter(output_filter = lambda square: square < 5)
 
-        .. note::
 
-            Filters are only applied to inputs (defined in the ``sampling_plan``) of the generated data.
 
 
         :param filter_fun: Function  to filter the data.
@@ -198,23 +187,36 @@ class DataHandler:
         :return: Returns the post processed samples that satisfy the filter
         :rtype: dict
         """
-        assert isinstance(filter_fun, (types.FunctionType, types.BuiltinFunctionType)), 'post_processing_function must be either Function or BuiltinFunction_or_Method, you have {}'.format(type(filter_fun))
+        assert isinstance(input_filter, (types.FunctionType, types.BuiltinFunctionType, type(None))), 'input_filter must be either Function or BuiltinFunction_or_Method, you have {}'.format(type(input_filter))
+        assert isinstance(output_filter, (types.FunctionType, types.BuiltinFunctionType, type(None))), 'output_filter must be either Function or BuiltinFunction_or_Method, you have {}'.format(type(output_filter))
 
-        val = self._init_results()
+        return_list = []
 
         # Wrapper to ensure arbitrary arguments are accepted
-        def wrap_fun(**kwargs):
-            return filter_fun(**{arg_i: kwargs[arg_i] for arg_i in filter_fun.__code__.co_varnames})
+        def wrap_fun_in(**kwargs):
+            if input_filter is None:
+                return True
+            else:
+                return input_filter(**{arg_i: kwargs[arg_i] for arg_i in input_filter.__code__.co_varnames})
+
+        # Wrapper to ensure arbitrary arguments are accepted
+        def wrap_fun_out(**kwargs):
+            if output_filter is None:
+                return True
+            else:
+                return output_filter(**{arg_i: kwargs[arg_i] for arg_i in output_filter.__code__.co_varnames})
 
         # For each sample:
         for sample in self.sampling_plan:
-            if wrap_fun(**sample)==True:
+            if wrap_fun_in(**sample)==True:
                 # Check if this result was previously loaded. If not, add it to the dict of pre_loaded_data.
                 result = self._lazy_loading(sample)
+                result_processed = self._post_process_single(sample,result)
+                # Check if the computed post-processing value satsifies the output_filter condition:
+                if wrap_fun_out(**result_processed)==True:
+                    return_list.append(result_processed)
 
-                val = self._post_process_single(val,sample,result)
-
-        return val
+        return return_list
 
 
     def _load(self, sample_id):
