@@ -392,7 +392,7 @@ def save_results(save_list, result_name='results', result_path='./results/', ove
     :rtype: None
     """
 
-    assert isinstance(save_list, list), 'save_list must be a string.'
+    assert isinstance(save_list, list), 'save_list must be a list.'
     assert isinstance(result_name, str), 'result_name must be a string.'
     assert isinstance(result_path, str), 'results_path must be a string.'
     assert isinstance(overwrite, bool), 'overwrite must be boolean.'
