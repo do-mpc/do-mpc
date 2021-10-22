@@ -514,7 +514,7 @@ class Optimizer:
         # Set bounds, add slack variable to constraint and add cost.
         for slack_i in self.slack_vars_list:
             self._eps_ub[slack_i['slack_name']] = slack_i['ub']
-            self._nl_cons[slack_i['slack_name']] += self._eps[slack_i['slack_name']]
+            self._nl_cons[slack_i['slack_name']] -= self._eps[slack_i['slack_name']]
             self.slack_cost += sum1(slack_i['penalty']*self._eps[slack_i['slack_name']])
 
         # Objective function epsilon contribution:
