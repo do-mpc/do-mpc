@@ -1172,10 +1172,18 @@ class Model:
         self._aux = _aux
 
         # Declare functions for the right hand side and the aux_expressions.
-        self._rhs_fun = Function('rhs_fun', [_x, _u, _z, _tvp, _p, _w], [self._rhs])
-        self._alg_fun = Function('alg_fun', [_x, _u, _z, _tvp, _p, _w], [self._alg])
-        self._aux_expression_fun = Function('aux_expression_fun', [_x, _u, _z, _tvp, _p], [self._aux_expression])
-        self._meas_fun = Function('meas_fun', [_x, _u, _z, _tvp, _p, _v], [self._y_expression])
+        self._rhs_fun = Function('rhs_fun',
+                                 [_x, _u, _z, _tvp, _p, _w], [self._rhs],
+                                 ["_x", "_u", "_z", "_tvp", "_p", "_w"], ["_rhs"])
+        self._alg_fun = Function('alg_fun',
+                                 [_x, _u, _z, _tvp, _p, _w], [self._alg],
+                                 ["_x", "_u", "_z", "_tvp", "_p", "_w"], ["_alg"])
+        self._aux_expression_fun = Function('aux_expression_fun',
+                                            [_x, _u, _z, _tvp, _p], [self._aux_expression],
+                                            ["_x", "_u", "_z", "_tvp", "_p"], ["_aux_expression"])
+        self._meas_fun = Function('meas_fun',
+                                  [_x, _u, _z, _tvp, _p, _v], [self._y_expression],
+                                  ["_x", "_u", "_z", "_tvp", "_p", "_v"], ["_y_expression"])
 
         # Create and store some information about the model regarding number of variables for
         # _x, _y, _u, _z, _tvp, _p, _aux

@@ -7,7 +7,7 @@ setup(
     author='Sergio Lucia and Felix Fiedler',
     author_email='sergio.lucia@tu-berlin.de',
     url='https://www.do-mpc.com',
-    license='GNU LESSER GENERAL PUBLIC LICENSE',
+    license='GNU Lesser General Public License version 3',
     long_description=open('README.md', 'r').read(),
     long_description_content_type="text/markdown",
     install_requires=[

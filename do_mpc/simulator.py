@@ -106,7 +106,7 @@ class Simulator(do_mpc.model.IteratedVariables):
             raise Exception('You have not supplied a function to obtain the time-varying parameters defined in model. Use .set_tvp_fun() prior to setup.')
         # p_fun must be set, if p are defined in model.
         if self.flags['set_p_fun'] == False and self.model._p.size > 0:
-            raise Exception('You have not supplied a function to obtain the parameters defined in model. Use .set_p_fun() (low-level API) or .set_uncertainty_values() (high-level API) prior to setup.')
+            raise Exception('You have not supplied a function to obtain the parameters defined in model. Use .set_p_fun() prior to setup.')
 
         # Set dummy functions for tvp and p in case these parameters are unused.
         if not self.flags['set_tvp_fun']:

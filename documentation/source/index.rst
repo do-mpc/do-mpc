@@ -55,19 +55,34 @@ The development is continued at the `Laboratory of Process Automation Systems <h
 News
 ****
 
-The first do-mpc developer con­fe­rence is hosted from 13.09.-15.09.2021 at TU Dort­mund.
-More information can be found by clicking on the flyer below.
+The first do-mpc developer con­fe­rence was hosted from 13.09.-15.09.2021 at TU Dort­mund.
+For everyone who missed the event, we are happy to share the recording below:
 
-.. image:: ./static/temp/do-mpc_developer_conference_2021_flyer.png
-    :target: https://pas.bci.tu-dortmund.de/professorship/news/details/2021-do-mpc-developer-conference-12208/
-    :alt: Flyer for the 2021 do-mpc developer conference at TU Dortmund
+.. raw :: html
 
-.. admonition:: Open position
+    <style>
+    .video-container {
+    position: relative;
+    padding-bottom: 56.25%; /* 16:9 */
+    height: 0;
+    }
+    .video-container iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    }
+    </style>
 
-    The Laboratory of Process Automation Systems at TU Dortmund (Germany) has an open position for a doctoral researcher
-    with full employment (tarif group E13 TV-L).
 
-    Please click `here <https://karriere.tu-dortmund.de/job/view/880/doctorate-positions-m-f-d-ref-nr-w56-21?page_lang=en>`_ for more information
+    <!-- HTML -->
+    <div class="video-container">
+    <iframe src="https://www.youtube-nocookie.com/embed/UzWy3E8Hlcg"
+    title="YouTube video player" frameborder="0" allow="accelerometer;
+    autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen>
+    </iframe>
+    </div>
 
 Example: Robust Multi-stage MPC
 *******************************
