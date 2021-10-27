@@ -26,11 +26,9 @@ Note the following important inheritance of **do-mpc** classes:
         Estimator -> EKF, StateFeedback, MHE;
     }
 
-.. automodule:: do_mpc
 .. currentmodule:: do_mpc
 
-
-.. rubric:: Modules
+.. rubric:: Core modules
 .. autosummary::
     :toctree: api
 
@@ -47,3 +45,23 @@ Note the following important inheritance of **do-mpc** classes:
     data
 
     graphics
+
+
+.. rubric:: Sampling tools
+.. currentmodule:: do_mpc.sampling
+.. autosummary::
+    :toctree: api
+
+    samplingplanner
+
+    sampler
+
+    datahandler
+
+..
+    .. rubric:: Sampling tools
+    .. autosummary::
+        :toctree: api
+        :recursive:
+
+        sampling
