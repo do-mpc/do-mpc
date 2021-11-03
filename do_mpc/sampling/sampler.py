@@ -74,7 +74,7 @@ class Sampler:
             'print_progress'
         ]
 
-        self.data_dir = './sample_results/'
+        self.data_dir = './'
         self.sample_name = 'sample'
         self.save_format = 'pickle'
         self.overwrite = False
