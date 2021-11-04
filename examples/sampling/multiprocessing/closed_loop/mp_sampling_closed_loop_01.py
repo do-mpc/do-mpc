@@ -11,6 +11,7 @@ def main():
     np.random.seed(123)
 
     sp = do_mpc.sampling.SamplingPlanner()
+    sp.data_dir = './samples/'
 
     # Generate sampling function for initial states
     def gen_initial_states():
@@ -33,16 +34,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# pool = mp.Pool(processes=4)
-# res = [pool.apply_async(sampler.sample_data, args=()) for k in range(4)]
-# out = [p.get() for p in res]
-
-# dh = do_mpc.sampling.DataHandler(plan)
-#
-# dh.set_post_processing('res_1', lambda x: x)
-# dh.set_post_processing('res_2', lambda x: x**2)
-#
-#
-# res = dh[:]

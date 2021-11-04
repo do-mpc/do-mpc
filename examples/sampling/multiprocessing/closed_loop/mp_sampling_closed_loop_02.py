@@ -45,28 +45,28 @@ def sample_function(X0):
     mpc.set_initial_guess()
 
     # run the closed loop for 150 steps
-    for k in range(10):
+    for k in range(100):
         u0 = mpc.make_step(x0)
         y_next = simulator.make_step(u0)
         x0 = estimator.make_step(y_next)
-    return mpc.data
+    return simulator.data
 
 
 
 def main():
-    plan = load_pickle('closed_loop_mp.pkl')
+    plan = load_pickle('./samples/closed_loop_mp.pkl')
 
     sampler = do_mpc.sampling.Sampler(plan)
     sampler.set_param(overwrite = True)
     sampler.set_param(print_progress = False)
-    sampler.data_dir = './closed_loop_samples/'
+    sampler.data_dir = './samples/'
 
 
     sampler.set_sample_function(sample_function)
 
     tic = time.time()
 
-    with mp.Pool(processes=8) as pool:
+    with mp.Pool(processes=4) as pool:
         p = pool.map(sampler.sample_idx, list(range(sampler.n_samples)))
 
     toc = time.time()
@@ -76,7 +76,8 @@ def main():
     # DataHandling
     dh = do_mpc.sampling.DataHandler(plan)
 
-    dh.set_param(data_dir = './closed_loop_samples/')
+    dh.set_param(data_dir = './samples/')
+    dh.set_param(overwrite = True)
 
     res0 = dh[0]
     res1 = dh[:]

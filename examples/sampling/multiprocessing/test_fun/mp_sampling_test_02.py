@@ -7,7 +7,6 @@ import os
 import numpy as np
 import pdb
 import multiprocessing as mp
-from functools import partial
 from do_mpc.tools import load_pickle
 
 
@@ -22,11 +21,12 @@ def sample_function(alpha, beta):
     return alpha*beta
 
 def main():
-    plan = load_pickle('sp_mp_test.pkl')
+    plan = load_pickle('./samples/sp_mp_test.pkl')
 
     sampler = do_mpc.sampling.Sampler(plan)
     sampler.set_param(overwrite = True)
     sampler.set_param(print_progress = False)
+    sampler.data_dir = './samples/'
 
     sampler.set_sample_function(sample_function)
 
