@@ -26,8 +26,8 @@ def gen_initial_states():
 
 # Add variables
 sp.set_sampling_var('X0', gen_initial_states)
-
 sp.set_param(overwrite=True)
+sp.data_dir = './samples/'
 
 plan = sp.gen_sampling_plan(n_samples = 10)
 
@@ -63,6 +63,7 @@ def run_closed_loop(X0):
 
 # Feed plan to sampler
 sampler = do_mpc.sampling.Sampler(plan)
+sampler.data_dir = './samples/'
 
 # set sampling function
 sampler.set_sample_function(run_closed_loop)
@@ -77,6 +78,6 @@ dh = do_mpc.sampling.DataHandler(plan)
 dh.set_post_processing('input', lambda data: data['_u', 'u'])
 dh.set_post_processing('state', lambda data: data['_x', 'x'])
 
-dh.set_param(data_dir = './sample_results/')
+dh.data_dir = './samples/'
 
 res = dh[:]

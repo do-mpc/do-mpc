@@ -16,7 +16,7 @@ def info():
     print('process id:', os.getpid())
 
 def sample_function(alpha, beta):
-    info()
+    #info()
     time.sleep(1)
     return alpha*beta
 
@@ -25,14 +25,14 @@ def main():
 
     sampler = do_mpc.sampling.Sampler(plan)
     sampler.set_param(overwrite = True)
-    sampler.set_param(print_progress = False)
+    sampler.set_param(print_progress = True)
     sampler.data_dir = './samples/'
 
     sampler.set_sample_function(sample_function)
 
     tic = time.time()
 
-    with mp.Pool(processes=6) as pool:
+    with mp.Pool(processes=2) as pool:
         p = pool.map(sampler.sample_idx, list(range(sampler.n_samples)))
 
     toc = time.time()

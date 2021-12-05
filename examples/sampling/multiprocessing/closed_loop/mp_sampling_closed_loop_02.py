@@ -76,7 +76,7 @@ def main():
     # DataHandling
     dh = do_mpc.sampling.DataHandler(plan)
 
-    dh.set_param(data_dir = './samples/')
+    dh.data_dir = './samples/'
     dh.set_param(overwrite = True)
 
     res0 = dh[0]
