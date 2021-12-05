@@ -215,20 +215,16 @@ class Sampler:
 
         # Create and safe result if sample result does not exist:
         save_name = self._save_name(sample_id)
-        blocker_name = 'temp_' + save_name
         if not os.path.isfile(self.data_dir + save_name) or self.overwrite:
-            if not os.path.isfile(self.data_dir + blocker_name):
-                # Block execution of other threads by saving a dummy file
-                self._save(blocker_name, [])
-                # Call sample function to create sample (pass sample information)
-                result = self.sample_function(**sample_i)
-                # Save  true results:
-                self._save(save_name, result)
-                # Delete dummy blocker file:
-                os.remove(self.data_dir + blocker_name)
+            # Call sample function to create sample (pass sample information)
+            result = self.sample_function(**sample_i)
+            # Save  true results:
+            self._save(save_name, result)
+            # Add id to completion list:
+            self.completion_list.append(sample_id)
 
         if self.print_progress:
-            printProgressBar(idx+1, self.n_samples, prefix = 'Progress:', suffix = 'Complete', length = 50)
+            printProgressBar(len(self.completion_list), self.n_samples, prefix = 'Progress:', suffix = 'Complete', length = 50)
 
 
     def sample_data(self):
@@ -245,7 +241,5 @@ class Sampler:
             If ``sampler.set_param(overwrite = False)`` (default) data will only be sampled for instances that do not yet exist.
 
         """
-
         for i, _ in enumerate(self.sampling_plan):
-
             self.sample_idx(i)
