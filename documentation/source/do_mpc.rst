@@ -10,7 +10,7 @@ The core modules are used to create the **do-mpc** control loop (click on elemen
 
 .. graphviz::
     :name: control_loop
-    :caption: **do-mpc** control loop with respective classes.
+    :caption: **do-mpc** control loop and interconnection of classes.
     :align: center
 
     digraph G {
@@ -22,10 +22,14 @@ The core modules are used to create the **do-mpc** control loop (click on elemen
         MPC [href="../api/do_mpc.controller.MPC.html#mpc", target="_top", shape=box, style=filled]
         Simulator [href="../api/do_mpc.simulator.Simulator.html#simulator", target="_top", shape=box, style=filled]
         MHE [href="../api/do_mpc.estimator.MHE.html#mhe", target="_top", shape=box, style=filled]
+        Data_MPC [label="MPCData", href="../api/do_mpc.data.MPCData.html#mpcdata", target="_top", shape=box, style=filled]
+        Data_Sim [label="Data", href="../api/do_mpc.data.Data.html#data", target="_top", shape=box, style=filled]
+        Data_MHE [label="Data", href="../api/do_mpc.data.Data.html#data", target="_top", shape=box, style=filled]
+        Graphics [label="Graphics", href="../api/do_mpc.graphics.Graphics.html#graphics", target="_top", shape=box, style=filled]
 
-        Model -> MPC [label="initilize"];
-        Model -> Simulator [label="initilize"];
-        Model -> MHE [label="initilize"];
+        Model -> MPC;
+        Model -> Simulator;
+        Model -> MHE;
 
         Model [shape=box, style=filled]
 
@@ -36,6 +40,16 @@ The core modules are used to create the **do-mpc** control loop (click on elemen
             Simulator -> MHE [label="meas."];
             MHE -> MPC [label="states"];
         }}
+
+        MPC -> Data_MPC;
+        Simulator -> Data_Sim;
+        MHE -> Data_MHE;
+
+        Data_MPC -> Graphics;
+        Data_Sim -> Graphics;
+        Data_MHE -> Graphics;
+
+
     }
 
 
@@ -58,6 +72,25 @@ The core modules are used to create the **do-mpc** control loop (click on elemen
 
 
 .. rubric:: Sampling tools
+
+.. currentmodule:: do_mpc.sampling
+.. autosummary::
+    :toctree: api
+
+    samplingplanner
+
+    sampler
+
+    datahandler
+
+..
+    .. rubric:: Sampling tools
+    .. autosummary::
+        :toctree: api
+        :recursive:
+
+        sampling
+
 
 For a quick introduction of the **do-mpc** sampling tools we are providing this video tutorial:
 
@@ -86,21 +119,3 @@ For a quick introduction of the **do-mpc** sampling tools we are providing this 
     autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen>
     </iframe>
     </div>
-
-.. currentmodule:: do_mpc.sampling
-.. autosummary::
-    :toctree: api
-
-    samplingplanner
-
-    sampler
-
-    datahandler
-
-..
-    .. rubric:: Sampling tools
-    .. autosummary::
-        :toctree: api
-        :recursive:
-
-        sampling
