@@ -78,7 +78,7 @@ class DataHandler:
             'save_format'
         ]
 
-        self.data_dir = None
+        self.data_dir = './'
         self.sample_name = 'sample'
         self.save_format = 'pickle'
 
@@ -89,10 +89,19 @@ class DataHandler:
         self.pre_loaded_data = {'id':[], 'data':[]}
 
 
+    @property
+    def data_dir(self):
+        """Set the directory where the results are stored.
+        """
+        return self._data_dir
+
+    @data_dir.setter
+    def data_dir(self, val):
+        self._data_dir = val
+
     def __getitem__(self, ind):
         """ Index results from the :py:class:`DataHandler`. Pass an index or a slice operator.
         """
-        assert self.data_dir is not None, 'Must set data_dir before querying items.'
 
         try:
             if isinstance(ind, int):
