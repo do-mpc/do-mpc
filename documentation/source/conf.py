@@ -22,11 +22,12 @@ sys.path.insert(0, os.path.abspath('./'))
 # -- Project information -----------------------------------------------------
 
 project = 'do-mpc'
-copyright = '2020, Sergio Lucia and Felix Fiedler'
+copyright = '2021, Sergio Lucia and Felix Fiedler'
 author = 'Sergio Lucia and Felix Fiedler'
 
 # The full version, including alpha/beta/rc tags
-release = '4.2.5'
+release = '4.3.0'
+
 
 
 # -- General configuration ---------------------------------------------------
@@ -53,7 +54,7 @@ graphviz_output_format = 'svg'
 
 autosummary_generate = True
 
-mathjax_config = {
+mathjax3_config = {
     'extensions': ['tex2jax.js'],
     'jax': ['input/TeX', 'output/HTML-CSS'],
 }
@@ -70,6 +71,8 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', '**.ipynb_checkpoints']
 
+
+nbsphinx_allow_errors = True
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for

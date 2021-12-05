@@ -27,3 +27,4 @@ import do_mpc.estimator
 import do_mpc.optimizer
 import do_mpc.simulator
 import do_mpc.graphics
+import do_mpc.sampling

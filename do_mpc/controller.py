@@ -178,8 +178,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         self.store_lagr_multiplier = True
         self.store_solver_stats = [
             'success',
-            't_wall_S',
-            't_wall_S',
+            't_wall_total',
         ]
         self.nlpsol_opts = {} # Will update default options with this dict.
 
@@ -547,7 +546,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         :param store_lagr_multiplier: Choose whether to store the lagrange multipliers of the optimization problem. Increases the required storage. Defaults to ``True``.
         :type store_lagr_multiplier: bool
 
-        :param store_solver_stats: Choose which solver statistics to store. Must be a list of valid statistics. Defaults to ``['success','t_wall_S','t_wall_S']``.
+        :param store_solver_stats: Choose which solver statistics to store. Must be a list of valid statistics. Defaults to ``['success','t_wall_total']``.
         :type store_solver_stats: list
 
         :param nlpsol_opts: Dictionary with options for the CasADi solver call ``nlpsol`` with plugin ``ipopt``. All options are listed `here <http://casadi.sourceforge.net/api/internal/d4/d89/group__nlpsol.html>`_.

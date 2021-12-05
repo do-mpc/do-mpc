@@ -115,7 +115,7 @@ class Data:
 
             # Other fields can also be queried, e.g.:
             mpc.data['_time']                   # current time
-            mpc.data['t_wall_S']               # optimizer runtime
+            mpc.data['t_wall_total']            # optimizer runtime
             # These do not allow further indices.
 
         :return: Returns the queried data field (for all time instances)
