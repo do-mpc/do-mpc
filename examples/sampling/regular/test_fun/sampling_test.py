@@ -29,7 +29,6 @@ def main():
     sampler.data_dir = './sample_results/'
 
     def sample_function(alpha, beta):
-        time.sleep(0.1)
         return alpha*beta
 
     sampler.set_sample_function(sample_function)
@@ -44,7 +43,10 @@ def main():
 
 
     res = dh[:]
+    res1 = dh.filter(input_filter = lambda alpha: alpha<0)
+    res2 = dh.filter(output_filter = lambda res_1: res_1<0)
 
+    return res, res1, res2
 
 
 if __name__ == '__main__':
