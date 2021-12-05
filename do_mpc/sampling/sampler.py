@@ -61,6 +61,7 @@ class Sampler:
         self.sampling_plan = sampling_plan
         self.sampling_vars = list(sampling_plan[0].keys())
         self.n_samples = len(sampling_plan)
+        self.completion_list = []
 
         self.flags = {
             'set_sample_function': False,
@@ -79,6 +80,7 @@ class Sampler:
         self.save_format = 'pickle'
         self.overwrite = False
         self.print_progress = True
+        self.n_processes = 1
 
     @property
     def data_dir(self):
