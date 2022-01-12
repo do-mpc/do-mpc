@@ -182,6 +182,7 @@ Table of contents
    :maxdepth: 5
    :caption: How to use it?
 
+   Discussion
    project_structure
    FAQ
    do_mpc
