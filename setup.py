@@ -2,8 +2,8 @@ from setuptools import setup
 
 setup(
     name='do_mpc',
-    version='4.3.0',
-    packages=['do_mpc','do_mpc.tools'],
+    version='4.3.1',
+    packages=['do_mpc','do_mpc.tools', 'do_mpc.sampling'],
     author='Sergio Lucia and Felix Fiedler',
     author_email='sergio.lucia@tu-berlin.de',
     url='https://www.do-mpc.com',
