@@ -3,7 +3,7 @@
 # Model predictive control python toolbox
 
 [![Documentation Status](https://readthedocs.org/projects/do-mpc/badge/?version=latest)](https://www.do-mpc.com)
-[![Build Status](https://travis-ci.org/do-mpc/do-mpc.svg?branch=master)](https://travis-ci.org/do-mpc/do-mpc)
+[![Build Status](https://app.travis-ci.com/do-mpc/do-mpc.svg?branch=master)](https://app.travis-ci.com/do-mpc/do-mpc)
 [![PyPI version](https://badge.fury.io/py/do-mpc.svg)](https://badge.fury.io/py/do-mpc)
 [![awesome](https://img.shields.io/badge/awesome-yes-brightgreen.svg?style=flat-square)](https://github.com/do-mpc/do-mpc)
 
