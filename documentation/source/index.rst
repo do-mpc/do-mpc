@@ -181,8 +181,7 @@ Table of contents
 .. toctree::
    :maxdepth: 5
    :caption: How to use it?
-
-   Discussion
+   
    project_structure
    FAQ
    do_mpc
