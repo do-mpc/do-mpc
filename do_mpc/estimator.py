@@ -709,14 +709,14 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         # Replace model symbolic variables self.model._p with the new variables self._p_est and self._p_set:
         _p = self._p_cat_fun(self._p_est, self._p_set)
 
-        arrival_cost = substitute(arrival_cost, self.model._p, _p)
+        arrival_cost = substitute(arrival_cost, self.model._p, _p.reshape((-1,1)))
         #stage_cost = substitute(stage_cost, self.model._p, _p)
 
         #arrival_cost = substitute(arrival_cost, self._p_est, vertcat(*[self.model._p[name] for name in self._p_est.keys()]))
         #arrival_cost = substitute(arrival_cost, self._p_set, vertcat(*[self.model._p[name] for name in self._p_set.keys()]))
 
-        stage_cost = substitute(stage_cost, self._p_est, vertcat(*[self.model._p[name] for name in self._p_est.keys()]))
-        stage_cost = substitute(stage_cost, self._p_set, vertcat(*[self.model._p[name] for name in self._p_set.keys()]))
+        stage_cost = substitute(stage_cost, self._p_est, vertcat(*[self.model._p[name] for name in self._p_est.keys()]).reshape((-1,1)))
+        stage_cost = substitute(stage_cost, self._p_set, vertcat(*[self.model._p[name] for name in self._p_set.keys()]).reshape((-1,1)))
 
 
         stage_cost_input = self._w, self._v, self.model._tvp, self.model._p

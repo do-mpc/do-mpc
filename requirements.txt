@@ -1,8 +1,8 @@
-sphinx>=1.4
+sphinx
 ipykernel
 nbsphinx
-pygments==2.7.4
-docutils==0.17.1
+pygments
+docutils
 sphinx-copybutton
 graphviz
 casadi
