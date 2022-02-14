@@ -94,8 +94,12 @@ def template_mpc(model):
 
     mpc.scaling['_u','m_dot_f'] = 100
 
-    # Sot-constraint for the reactor upper bound temperature
-    mpc.set_nl_cons('T_R_UB', _x['T_R'], ub=363.15+temp_range, soft_constraint=True, penalty_term_cons=1e4)
+    # Check if robust multi-stage is active
+    if mpc.n_robust == 0:
+        # Sot-constraint for the reactor upper bound temperature
+        mpc.set_nl_cons('T_R_UB', _x['T_R'], ub=363.15+temp_range, soft_constraint=True, penalty_term_cons=1e4)
+    else:
+        mpc.bounds['upper','_x','T_R'] = 363.15+temp_range
 
 
     delH_R_var = np.array([950.0, 950.0 * 1.30, 950.0 * 0.70])
