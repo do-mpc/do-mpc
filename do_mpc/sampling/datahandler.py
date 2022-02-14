@@ -10,6 +10,7 @@ import copy
 from do_mpc.tools import load_pickle, save_pickle
 import types
 import logging
+from inspect import signature
 
 
 
@@ -149,7 +150,11 @@ class DataHandler:
         if self.flags['set_post_processing']:
             for key in self.post_processing:
                 if result is not None:
-                    result_processed[key] = self.post_processing[key](result)
+                    # post_processing function is either just a function of the result or of the sample and the result.
+                    if self.post_processing[key]['n_args'] == 1:
+                        result_processed[key] = self.post_processing[key]['function'](result)
+                    elif self.post_processing[key]['n_args'] == 2:
+                        result_processed[key] = self.post_processing[key]['function'](sample, result)
                 else:
                     result_processed[key] = None
         # Result without post processing
@@ -283,6 +288,15 @@ class DataHandler:
         The post processing function is applied to all loaded samples, e.g. with :py:meth:`__getitem__` or :py:meth:`filter`.
         Users can set an arbitrary amount of post processing functions by repeatedly calling this method.
 
+        The ``post_processing_function`` can have two possible signatures:
+
+        1. ``post_processing_function(case_definition, sample_result)``
+
+        2. ``post_processing_function(sample_result)``
+
+        Where ``case_definition`` is a ``dict`` of all variables introduced in the :py:class:`do_mpc.sampling.samplingplanner.SamplingPlanner`
+        and ``sample_results`` is the result obtained from the function introduced with :py:class:`do_mpc.sampling.sampler.Sampler.set_sample_function`.
+
         .. note::
 
             Setting a post processing function with an already existing name will overwrite the previously set post processing function.
@@ -334,5 +348,9 @@ class DataHandler:
         assert isinstance(name, str), 'name must be str, you have {}'.format(type(name))
         assert isinstance(post_processing_function, (types.FunctionType, types.BuiltinFunctionType)), 'post_processing_function must be either Function or BuiltinFunction_or_Method, you have {}'.format(type(post_processing_function))
 
-        self.post_processing.update({name: post_processing_function})
+        # Check signature of function for number of arguments.
+        sig = signature(post_processing_function)
+        n_args = len(sig.parameters.keys())
+
+        self.post_processing.update({name: {'function': post_processing_function, 'n_args': n_args}})
         self.flags['set_post_processing'] = True

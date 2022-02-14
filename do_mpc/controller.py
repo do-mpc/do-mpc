@@ -616,11 +616,18 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         if not isinstance(lterm, (casadi.DM, casadi.SX, casadi.MX)):
             raise Exception('lterm must be of type casadi.DM, casadi.SX or casadi.MX. You have: {}.'.format(type(lterm)))
 
-        self.mterm = mterm
+        if mterm is None:
+            self.mterm = DM(0)
+        else:
+            self.mterm = mterm
         # TODO: This function should be evaluated with scaled variables.
         self.mterm_fun = Function('mterm', [_x, _tvp, _p], [mterm])
 
-        self.lterm = lterm
+        if lterm is None:
+            self.lterm = DM(0)
+        else:
+            self.lterm = lterm
+
         self.lterm_fun = Function('lterm', [_x, _u, _z, _tvp, _p], [lterm])
 
         # Check if lterm and mterm use invalid variables as inputs.
@@ -1144,7 +1151,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         self.ub_opt_x = opt_x(np.inf)
 
         # Initialize objective function and constraints
-        obj = 0
+        obj = DM(0)
         cons = []
         cons_lb = []
         cons_ub = []
