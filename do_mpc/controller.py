@@ -1144,7 +1144,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         self.ub_opt_x = opt_x(np.inf)
 
         # Initialize objective function and constraints
-        obj = 0
+        obj = DM(0)
         cons = []
         cons_lb = []
         cons_ub = []
