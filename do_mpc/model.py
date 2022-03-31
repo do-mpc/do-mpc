@@ -967,7 +967,8 @@ class Model:
             else:
                 var = SX.sym(var_name+'_noise', expr.shape[0])
 
-            self._w.append(var)
+            self._w['name'].append(var_name + '_noise')
+            self._w['var'].append(var)
             expr += var
         self.rhs_list.extend([{'var_name': var_name, 'expr': expr}])
 
