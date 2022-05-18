@@ -100,7 +100,7 @@ class IteratedVariables:
             mpc.x0['temperature']    # all elements of variable
             mpc.x0['temperature', 0:2]    # 0th and 1st element
 
-        Usefull CasADi symbolic structure methods:
+        Useful CasADi symbolic structure methods:
 
         * ``.shape``
 
@@ -138,7 +138,7 @@ class IteratedVariables:
             mpc.u0['heating']    # all elements of variable
             mpc.u0['heating', 0:2]    # 0th and 1st element
 
-        Usefull CasADi symbolic structure methods:
+        Useful CasADi symbolic structure methods:
 
         * ``.shape``
 
@@ -176,7 +176,7 @@ class IteratedVariables:
             mpc.z0['temperature']    # all elements of variable
             mpc.z0['temperature', 0:2]    # 0th and 1st element
 
-        Usefull CasADi symbolic structure methods:
+        Useful CasADi symbolic structure methods:
 
         * ``.shape``
 
@@ -403,7 +403,7 @@ class Model:
                 model.x['temperature']    # all elements of variable
                 model.x['temperature', 0:2]    # 0th and 1st element
 
-            Usefull CasADi symbolic structure methods:
+            Useful CasADi symbolic structure methods:
 
             * ``.shape``
 
@@ -412,13 +412,13 @@ class Model:
             * ``.labels()``
 
 
-            :raises assertion: Cannot set model variables direcly. Use set_variable instead.
+            :raises assertion: Cannot set model variables directly Use set_variable instead.
         """
         return self._getvar('_x')
 
     @x.setter
     def x(self, val):
-        raise Exception('Cannot set model variables direcly. Use set_variable instead.')
+        raise Exception('Cannot set model variables directly Use set_variable instead.')
 
     @property
     def u(self):
@@ -441,7 +441,7 @@ class Model:
                 model.u['heating']    # all elements of variable
                 model.u['heating', 0:2]    # 0th and 1st element
 
-            Usefull CasADi symbolic structure methods:
+            Useful CasADi symbolic structure methods:
 
             * ``.shape``
 
@@ -449,13 +449,13 @@ class Model:
 
             * ``.labels()``
 
-            :raises assertion: Cannot set model variables direcly. Use set_variable instead.
+            :raises assertion: Cannot set model variables directly Use set_variable instead.
         """
         return self._getvar('_u')
 
     @u.setter
     def u(self, val):
-        raise Exception('Cannot set model variables direcly. Use set_variable instead.')
+        raise Exception('Cannot set model variables directly Use set_variable instead.')
 
     @property
     def z(self):
@@ -478,7 +478,7 @@ class Model:
             model.z['temperature']    # all elements of variable
             model.z['temperature', 0:2]    # 0th and 1st element
 
-        Usefull CasADi symbolic structure methods:
+        Useful CasADi symbolic structure methods:
 
         * ``.shape``
 
@@ -487,13 +487,13 @@ class Model:
         * ``.labels()``
 
 
-        :raises assertion: Cannot set model variables direcly. Use set_variable instead.
+        :raises assertion: Cannot set model variables directly Use set_variable instead.
         """
         return self._getvar('_z')
 
     @z.setter
     def z(self, val):
-        raise Exception('Cannot set model variables direcly. Use set_variable instead.')
+        raise Exception('Cannot set model variables directly Use set_variable instead.')
 
     @property
     def p(self):
@@ -516,7 +516,7 @@ class Model:
             model.p['temperature']    # all elements of variable
             model.p['temperature', 0:2]    # 0th and 1st element
 
-        Usefull CasADi symbolic structure methods:
+        Useful CasADi symbolic structure methods:
 
         * ``.shape``
 
@@ -525,13 +525,13 @@ class Model:
         * ``.labels()``
 
 
-        :raises assertion: Cannot set model variables direcly. Use set_variable instead.
+        :raises assertion: Cannot set model variables directly Use set_variable instead.
         """
         return self._getvar('_p')
 
     @p.setter
     def p(self, val):
-        raise Exception('Cannot set model variables direcly. Use set_variable instead.')
+        raise Exception('Cannot set model variables directly Use set_variable instead.')
 
     @property
     def tvp(self):
@@ -554,7 +554,7 @@ class Model:
                 model.tvp['temperature']    # all elements of variable
                 model.tvp['temperature', 0:2]    # 0th and 1st element
 
-            Usefull CasADi symbolic structure methods:
+            Useful CasADi symbolic structure methods:
 
             * ``.shape``
 
@@ -562,13 +562,13 @@ class Model:
 
             * ``.labels()``
 
-            :raises assertion: Cannot set model variables direcly. Use set_variable instead.
+            :raises assertion: Cannot set model variables directly Use set_variable instead.
         """
         return self._getvar('_tvp')
 
     @tvp.setter
     def tvp(self, val):
-        raise Exception('Cannot set model variables direcly. Use set_variable instead.')
+        raise Exception('Cannot set model variables directly Use set_variable instead.')
 
     @property
     def y(self):
@@ -591,7 +591,7 @@ class Model:
                 model.y['temperature', 0] # 0th element of variable
                 model.y['temperature']    # all elements of variable
 
-            Usefull CasADi symbolic structure methods:
+            Useful CasADi symbolic structure methods:
 
             * ``.shape``
 
@@ -599,13 +599,13 @@ class Model:
 
             * ``.labels()``
 
-            :raises assertion: Cannot set model variables direcly. Use set_meas instead.
+            :raises assertion: Cannot set model variables directly Use set_meas instead.
         """
         return self._getvar('_y')
 
     @y.setter
     def y(self, val):
-        raise Exception('Cannot set model variables direcly. Use set_variable instead.')
+        raise Exception('Cannot set model variables directly Use set_variable instead.')
 
     @property
     def aux(self):
@@ -629,7 +629,7 @@ class Model:
                 model.aux['dtemp', 0] # 0th element of variable
                 model.aux['dtemp']    # all elements of variable
 
-            Usefull CasADi symbolic structure methods:
+            Useful CasADi symbolic structure methods:
 
             * ``.shape``
 
@@ -637,13 +637,13 @@ class Model:
 
             * ``.labels()``
 
-            :raises assertion: Cannot set aux direcly. Use set_expression instead.
+            :raises assertion: Cannot set aux directly Use set_expression instead.
         """
         return self._getvar('_aux')
 
     @aux.setter
     def aux(self, val):
-        raise Exception('Cannot set model variables direcly. Use set_variable instead.')
+        raise Exception('Cannot set model variables directly Use set_variable instead.')
 
     @property
     def w(self):
@@ -658,7 +658,7 @@ class Model:
                 The process noise is used for the :py:class:`do_mpc.estimator.MHE` and
                 can be used to simulate a disturbed system in the :py:class:`do_mpc.simulator.Simulator`.
 
-            Usefull CasADi symbolic structure methods:
+            Useful CasADi symbolic structure methods:
 
             * ``.shape``
 
@@ -666,7 +666,7 @@ class Model:
 
             * ``.labels()``
 
-            :raises assertion: Cannot set w direcly.
+            :raises assertion: Cannot set w directly
         """
         return self._getvar('_w')
 
@@ -688,7 +688,7 @@ class Model:
                 The measurement noise is used for the :py:class:`do_mpc.estimator.MHE` and
                 can be used to simulate a disturbed system in the :py:class:`do_mpc.simulator.Simulator`.
 
-            Usefull CasADi symbolic structure methods:
+            Useful CasADi symbolic structure methods:
 
             * ``.shape``
 
@@ -696,7 +696,7 @@ class Model:
 
             * ``.labels()``
 
-            :raises assertion: Cannot set v direcly.
+            :raises assertion: Cannot set v directly
         """
         return self._getvar('_v')
 
