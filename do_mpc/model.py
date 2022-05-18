@@ -371,6 +371,10 @@ class Model:
         else:
             # Before calling setup the attributes _x,_u,_z etc. are dicts with the keys: name and var.
             sym_dict = getattr(self, var_name)
+            if var_name == '_aux_expression':  # or possibly '_aux, depending on what is called in the getter
+                # create the required dict from what is currently a 
+                sym_dict = {'name':[entry.name for entry in sym_dict], 
+                            'var': [entry.expr for entry in sym_dict]}
             # We use the same method as in setup to create symbolic structures from these dicts
             sym_struct = self._convert2struct(sym_dict)
             # We then create a mutable structure of the same structure
@@ -639,7 +643,7 @@ class Model:
 
             :raises assertion: Cannot set aux directly Use set_expression instead.
         """
-        return self._getvar('_aux')
+        return self._getvar('_aux_expression')
 
     @aux.setter
     def aux(self, val):
