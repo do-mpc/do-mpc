@@ -30,6 +30,216 @@ import time
 import do_mpc.data
 import do_mpc.optimizer
 from do_mpc.tools.indexedproperty import IndexedProperty
+from scipy.signal import cont2discrete
+from scipy.linalg import solve_discrete_are,solve_continuous_are
+import do_mpc.model
+
+class LQR:
+    def __init__(self,model):
+        self.model = model
+        
+        assert model.flags['setup'] == True, 'Model for MPC was not setup. After the complete model creation call model.setup().'
+        #self.linear = False
+        self.model_type = model.model_type
+        
+        self.data_fields = [
+            't_sample',
+            'n_horizon',
+            'Q',
+            'R',
+            'P',
+            'R_delu',
+            'method',
+            'xss',
+            'uss']
+        self.u0 = np.array([])
+        self.n_horizon = 0
+        self.P = np.array([])
+        self.t_sample = 0
+        self.R_delu = np.array([])
+        self.method = None
+        self.xss = np.array([])
+        self.uss = np.array([])
+        self.Q = np.array([])
+        self.R = np.array([])
+        #self.K =np.array([])
+        self.flags = {'linear':False,
+                      'setup': False}
+        
+    def conversion_to_discrete_time(self):
+        
+        #Checks the model type
+        if self.model.model_type == 'continuous':
+            warnings.warn('sampling time is {}'.format(self.t_sample))
+            I = np.identity(self.model.n_x)
+            tempA = np.exp(self.A*self.t_sample)
+            self.B = inv(self.A)@(np.exp(self.A*self.t_sample)-I)@self.B
+            self.A = tempA
+            self.model_type = 'discrete'
+        return self.A,self.B
+    
+    def state_matrix(self):
+        A = jacobian(self.model._rhs,self.model.x)
+        if A.is_constant() == True:
+            self.flags['linear'] = True
+        if A.is_constant() == False:
+            #self.flags['linear'] = False
+            raise Exception('given model is not linear. Lineaize the model using lqr.linearize() before setup().')
+        return A
+    def input_matrx(self):
+        B = jacobian(self.model._rhs,self.model.u)
+        if B.is_constant() == True:
+            self.flags['linear'] = True
+        if B.is_constant() == False:
+            #self.flags['linear'] = False
+            raise Exception('given model is not linear. Lineaize the model using lqr.linearize() before setup().')
+        return B
+        
+    def discrete_gain(self,A,B):
+        assert self.Q.size != 0 and self.R.size != 0 , 'Enter tuning parameter Q and R for the lqr problem using set_param() function.'
+        assert self.model_type == 'discrete', 'conver the model from continous to discrete using model_type_conversion() function.'
+        if self.n_horizon !=0:
+            assert self.P.size != 0, 'Terminal cost is required to calculate gain. Enter the required value using set_param() function.'
+            temp_p = self.P
+            for k in range(self.n_horizon):
+                 K = -np.linalg.inv(np.transpose(B)@temp_p@B+self.R)@np.transpose(B)@temp_p@A
+                 temp_pi = self.Q+np.transpose(A)@temp_p@A-np.transpose(A)@temp_p@B@np.linalg.inv(np.transpose(B)@temp_p@B+self.R)@np.transpose(B)@temp_p@A
+                 temp_p = temp_pi
+            return K
+        elif self.n_horizon == 0:
+            pi_discrete = solve_discrete_are(A,B, self.Q, self.R)
+            K = -np.linalg.inv(np.transpose(B)@pi_discrete@B+self.R)@np.transpose(B)@pi_discrete@A
+            return K
+    
+    
+    def input_rate_penalization(self):
+        assert self.R_delu.size != 0 , 'set R_delu parameter using set_param() fun.'
+        identity_u = np.identity(np.shape(self.B)[1])
+        zeros_A = np.zeros((np.shape(self.B)[1],np.shape(self.A)[1]))
+        self.A_new = np.block([[self.A,self.B],[zeros_A,identity_u]])
+        self.B_new = np.block([[self.B],[identity_u]])
+        zeros_Q = np.zeros((np.shape(self.Q)[0],np.shape(self.R)[1]))
+        zeros_Ru = np.zeros((np.shape(self.R)[0],np.shape(self.Q)[1]))
+        self.Q = np.block([[self.Q,zeros_Q],[zeros_Ru,self.R]])
+        self.P = np.block([[self.P,zeros_Q],[zeros_Ru,self.R]])
+        self.R = self.R_delu
+        if self.n_horizon == None:
+            K = self.discrete_gain(self.A_new, self.B_new)
+            return K
+        elif self.n_horizon != None:
+            K = self.discrete_gain(self.A_new, self.B_new)
+            return K
+    
+    def set_param(self,**kwargs):
+        for key, value in kwargs.items():
+            if not (key in self.data_fields):
+                print('Warning: Key {} does not exist for LQR.'.format(key))
+            else:
+                setattr(self, key, value)
+                
+        
+    def steady_state(self):
+        assert self.flags['setup'] == True, 'LQR is not setup. Please run setup() fun to calculate steady state.'
+        assert self.flags['linear'] == True, 'provide a linear model by executing linearize() function'
+        I = np.identity(np.shape(self.A)[0])
+        if self.xss.size == 0:
+            self.xss = np.linalg.inv(I-self.A)@self.B@self.uss
+            return self.xss
+        elif self.uss.size == 0 and np.shape(self.B)[0] != np.shape(self.B)[1]:
+            self.uss = np.linalg.pinv(self.B)@(I-self.A)@self.xss
+            return self.uss
+        elif self.uss.size == 0 and np.shape(self.B)[0] == np.shape(self.B)[1]:
+            self.uss = np.linalg.inv(self.B)@(I-self.A)@self.xss
+            return self.uss   
+        
+        
+    def make_step(self,x0):
+        assert self.flags['setup'] == True, 'LQR is not setup. run setup() function.'
+        if self.u0.size == 0:
+            self.u0 = np.zeros((np.shape(self.B)[1],1))
+        if self.method == "setPointTrack":
+            #assert self.xss != 0 or self.uss!=0 ,'steady state and input does not match'
+            if self.xss.size != 0 and self.uss.size != 0:
+                #assert self.steady_state() == self.xss or self.steady_state() == self.uss, 'steady state and input does not match'
+                self.u0 = self.K@(x0-self.xss)+self.uss
+            elif self.xss.size == 0 and self.uss.size == 0:
+                raise Exception('Enter xss and uss via set_param() function to track setpoint or compute steady state setpoint using steady_state() function')
+            else:
+                raise Exception('run steady_state() function to commpute steady state setpoint')
+            return self.u0
+        elif self.method == "inputRatePenalization":
+            if np.shape(self.K)[1]==np.shape(x0)[0]:
+                self.u0 = self.K@(x0)
+                return self.u0+x0[-self.model.n_u:]
+            elif np.shape(self.K)[1]!=np.shape(x0)[0] and np.shape(self.K)[1]== np.shape(np.block([[x0],[self.u0]]))[0]:
+                x0_new = np.block([[x0],[self.u0]])
+                self.u0 = self.K@(x0_new)
+                return self.u0+x0_new[-self.model.n_u:]
+        elif self.method == None:
+            self.u0 = self.K@x0
+            return self.u0
+        
+    def convert_to_array(self,A,B):
+        #assert self.A != None, 'Matrix A is not available'
+        A_new = np.zeros((np.shape(A)))
+        B_new = np.zeros((np.shape(B)))
+        for n in range(np.shape(A)[0]):
+            for m in range(np.shape(A)[1]):
+                A_new[n,m] = np.array(str(A[n,m]))
+        for i in range(np.shape(B)[0]):
+            for j in range(np.shape(B)[1]):
+                B_new[i,j] = np.array(str(B[i,j]))
+        return A_new,B_new
+    
+    def DaetoODEmodel(self):
+        daeModel = do_mpc.model.Model(self.model_type)
+        x = []
+        for i in range(self.model.n_x):
+            x.append(daeModel.set_variable('_x',self.model.x.keys()[i]))
+        for j in range(self.model.n_u):
+            x.append(daeModel.set_variable('_x',self.model.u.keys()[j+1]))
+        for k in range(self.model.n_z):
+            x.append(daeModel.set_variable('_x',self.model.z.keys()[k+1]))
+        q = daeModel.set_variable('_u','q',(self.model.n_u,1))
+        #var = daeModel['_x','_u','_z','_tvp','_p','_w']
+        #rhs = self.model._rhs_fun(*var)
+        z_next = -inv(jacobian(self.model._alg,self.model._z))@jacobian(self.model._alg,self.model._x)@self.model._rhs-inv(jacobian(self.model._alg,self.model._z))@jacobian(self.model._alg,self.model._u)@q
+        u_next = q
+        for i in range(self.model.n_x):
+            daeModel.set_rhs(self.model.x.keys()[i],self.model._rhs[self.model.x.keys()[i]])
+        for j in range(self.model.n_u):
+            daeModel.set_rhs(self.model.u.keys()[j+1],daeModel.u['q',j])
+        for k in range(self.model.n_z):
+            daeModel.set_rhs(self.model.z.keys()[k+1],z_next[k])
+        daeModel.setup()
+        # q = SX.sym('q',self.model.n_u)
+        # daeModel = self.model
+        # z_next = -inv(jacobian(self.model._alg,self.model._z))@jacobian(self.model._alg,self.model._x)@self.model._rhs-inv(jacobian(self.model._alg,self.model._z))@jacobian(self.model._alg,self.model._u)@q
+        return daeModel
+        
+        
+    
+
+    def setup(self):
+        A = self.A_extract()
+        B = self.B_extract()
+        [self.A,self.B] = self.convert_to_array(A, B)
+        #self.A = np.full((self.model.n_x,self.model.n_x),self.A)
+        #self.B = np.full((self.model.n_x,self.model.n_u),self.B)
+        if self.model_type == 'continuous':
+            [self.A,self.B] = self.conversion_to_discrete_time()
+            
+        #self.B = self.B.full()
+        assert self.flags['linear']== True, 'Model is not linear'
+        if self.n_horizon == 0:
+            warnings.warn('discrete infinite horizon gain will be computed since prediction horizon is set to default value 0')
+        if self.method in ['setPointTrack',None]:
+            self.K = self.discrete_gain(self.A,self.B)
+        elif self.method == 'inputRatePenalization':
+            self.K = self.input_rate_penalization()
+        else:
+            raise Exception('method must be setPointTrack, inputRatePenalization, None. you have {}'.format(self.method))
+        self.flags['setup'] = True
 
 class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     """Model predictive controller.
