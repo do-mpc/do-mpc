@@ -1210,3 +1210,43 @@ class Model:
         delattr(self, 'alg_list')
 
         self.flags['setup'] = True
+
+    def linearize(self,xss,uss):
+        #Check whether model setup is done
+        assert self.flags['setup'] == True, 'Run this function after original model is setup'
+        
+        #Initializing new model
+        linearizedModel = Model(self.model_type)
+        
+        #Setting states and inputs
+        x = []
+        for i in range(self.n_x):
+            x.append(linearizedModel.set_variable('_x',self.x.keys()[i]))
+        u = []
+        for j in range(self.n_u):
+            u.append(linearizedModel.set_variable('_u',self.u.keys()[j+1]))
+        
+        #Converting rhs eq. with respect to variables of linear model of same name
+        var = linearizedModel['x','u','z','tvp','p','w']
+        rhs = self._rhs_fun(*var)
+        
+        #Calculating jacobian with respect to states
+        tempA = jacobian(rhs,linearizedModel.x)
+        sub_A = Function('sub_A',[linearizedModel.x,linearizedModel.u],[tempA])
+        A = sub_A(xss,uss) 
+        
+        #Calculating jacobian with respect to inputs
+        tempB = jacobian(rhs,linearizedModel.u)
+        sub_B = Function('sub_B',[linearizedModel.x,linearizedModel.u],[tempB])
+        B = sub_B(xss,uss)
+        
+        #Computing rhs of the model
+        x_next = A@linearizedModel.x+B@linearizedModel.u
+        for i in range(self.n_x):
+            linearizedModel.set_rhs(linearizedModel.x.keys()[i],x_next[i])
+            
+        #setting up the model
+        linearizedModel.setup()
+        
+        return linearizedModel
+
