@@ -229,55 +229,61 @@ class Optimizer:
         assert self.flags['prepare_nlp'], 'Cannot query attribute prior to calling prepare_nlp or setup'
         self._nlp_cons_ub = val
 
-    @property
-    def lb_opt_x(self):
+    @IndexedProperty
+    def lb_opt_x(self, ind):
         """Query and modify the lower bounds of all optimization variables :py:attr:`opt_x`.
         This is a more advanced method of setting bounds on optimization variables of the MPC/MHE problem.
         Users with less experience are advised to use :py:attr:`bounds` instead.
 
         The attribute returns a nested structure that can be indexed using powerindexing. Please refer to :py:attr:`opt_x` for more details. 
 
-        .. warning::
+        .. note::
 
-            This is a VERY low level feature and should be used with extreme caution.
-            It is easy to break the code.
+            The attribute automatically considers the scaling variables when setting the bounds. See :py:attr:`scaling` for more details.
 
         .. note::
 
             Modifications must be done after calling :py:meth:`prepare_nlp` or :py:meth:`setup` respectively.
 
         """
-        return self._lb_opt_x
+        return self._lb_opt_x[ind] 
 
     @lb_opt_x.setter
-    def lb_opt_x(self, val):
-        # Cannot overwrite this property
-        raise Exception('Cannot overwrite lb_opt_x')
+    def lb_opt_x(self, ind, val):
+        self._lb_opt_x[ind] = val
+        # Get canonical index 
+        cind = self._lb_opt_x.f[ind]
+        # Modify the newly set values by considering the scaling variables. This requires the canonical index.
+        self._lb_opt_x.master[cind] = self._lb_opt_x.master[cind]/self.opt_x_scaling.master[cind]
+        
 
-    @property
-    def ub_opt_x(self):
-        """Query and modify the uppper bounds of all optimization variables :py:attr:`opt_x`.
+
+    @IndexedProperty
+    def ub_opt_x(self, ind):
+        """Query and modify the lower bounds of all optimization variables :py:attr:`opt_x`.
         This is a more advanced method of setting bounds on optimization variables of the MPC/MHE problem.
         Users with less experience are advised to use :py:attr:`bounds` instead.
 
         The attribute returns a nested structure that can be indexed using powerindexing. Please refer to :py:attr:`opt_x` for more details. 
 
-        .. warning::
+        .. note::
 
-            This is a VERY low level feature and should be used with extreme caution.
-            It is easy to break the code.
+            The attribute automatically considers the scaling variables when setting the bounds. See :py:attr:`scaling` for more details.
 
         .. note::
 
             Modifications must be done after calling :py:meth:`prepare_nlp` or :py:meth:`setup` respectively.
 
         """
-        return self._ub_opt_x
+        return self._ub_opt_x[ind]
 
     @ub_opt_x.setter
-    def ub_opt_x(self, val):
-        # Cannot overwrite this property
-        raise Exception('Cannot overwrite ub_opt_x')
+    def ub_opt_x(self, ind, val):
+        self._ub_opt_x[ind] = val
+        # Get canonical index
+        cind = self._ub_opt_x.f[ind]
+        # Modify the newly set values by considering the scaling variables. This requires the canonical index.
+        self._ub_opt_x.master[cind] = self._ub_opt_x.master[cind]/self.opt_x_scaling.master[cind]
 
 
     @IndexedProperty
@@ -712,8 +718,8 @@ class Optimizer:
 
         solver_call_kwargs = {
             'x0': self.opt_x_num,
-            'lbx': self.lb_opt_x,
-            'ubx': self.ub_opt_x,
+            'lbx': self._lb_opt_x,
+            'ubx': self._ub_opt_x,
             'lbg': self.nlp_cons_lb,
             'ubg': self.nlp_cons_ub,
             'p': self.opt_p_num,
