@@ -52,6 +52,7 @@ class Optimizer:
         self.flags = {
             'prepare_nlp': False,
             'setup': False,
+            'initial_run': False,
         }
 
         self._x_lb = self.model._x(-np.inf)
@@ -650,8 +651,25 @@ class Optimizer:
         """
         assert self.flags['setup'] == True, 'optimizer was not setup yet. Please call optimizer.setup().'
 
-        r = self.S(x0=self.opt_x_num, lbx=self.lb_opt_x, ubx=self.ub_opt_x,
-            ubg=self.nlp_cons_ub, lbg=self.nlp_cons_lb, p=self.opt_p_num)
+        solver_call_kwargs = {
+            'x0': self.opt_x_num,
+            'lbx': self.lb_opt_x,
+            'ubx': self.ub_opt_x,
+            'lbg': self.nlp_cons_lb,
+            'ubg': self.nlp_cons_ub,
+            'p': self.opt_p_num,
+        }
+
+        # Warmstarting the optimizer after the initial run:
+        if self.flags['initial_run']:
+            solver_call_kwargs.update({
+                'lam_x0': self.lam_x_num,
+                'lam_g0': self.lam_g_num,
+            })
+
+
+
+        r = self.S(**solver_call_kwargs)
         # Note: .master accesses the underlying vector of the structure.
         self.opt_x_num.master = r['x']
         self.opt_x_num_unscaled.master = r['x']*self.opt_x_scaling
@@ -666,6 +684,9 @@ class Optimizer:
                 self.opt_x_num,
                 self.opt_p_num
             )
+        
+        # For warmstarting purposes: Flag that initial run has been completed.
+        self.flags['initial_run'] = True
 
     def _setup_discretization(self):
         """Private method that creates the discretization for the optimizer (MHE or MPC).
