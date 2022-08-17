@@ -69,6 +69,10 @@ class Optimizer:
         self._z_scaling = self.model._z(1.0)
         self._p_scaling = self.model._p(1.0) # only meaningful for MHE.
 
+        # Dummy variables for bounds of all optimization variables
+        self._lb_opt_x = None
+        self._ub_opt_x = None
+
         # Lists for further non-linear constraints (optional). Constraints are formulated as cons < ub
         self.nl_cons_list = [
             {'expr_name': 'default', 'expr': DM([]), 'ub': DM([])}
@@ -225,6 +229,56 @@ class Optimizer:
         assert self.flags['prepare_nlp'], 'Cannot query attribute prior to calling prepare_nlp or setup'
         self._nlp_cons_ub = val
 
+    @property
+    def lb_opt_x(self):
+        """Query and modify the lower bounds of all optimization variables :py:attr:`opt_x`.
+        This is a more advanced method of setting bounds on optimization variables of the MPC/MHE problem.
+        Users with less experience are advised to use :py:attr:`bounds` instead.
+
+        The attribute returns a nested structure that can be indexed using powerindexing. Please refer to :py:attr:`opt_x` for more details. 
+
+        .. warning::
+
+            This is a VERY low level feature and should be used with extreme caution.
+            It is easy to break the code.
+
+        .. note::
+
+            Modifications must be done after calling :py:meth:`prepare_nlp` or :py:meth:`setup` respectively.
+
+        """
+        return self._lb_opt_x
+
+    @lb_opt_x.setter
+    def lb_opt_x(self, val):
+        # Cannot overwrite this property
+        raise Exception('Cannot overwrite lb_opt_x')
+
+    @property
+    def ub_opt_x(self):
+        """Query and modify the uppper bounds of all optimization variables :py:attr:`opt_x`.
+        This is a more advanced method of setting bounds on optimization variables of the MPC/MHE problem.
+        Users with less experience are advised to use :py:attr:`bounds` instead.
+
+        The attribute returns a nested structure that can be indexed using powerindexing. Please refer to :py:attr:`opt_x` for more details. 
+
+        .. warning::
+
+            This is a VERY low level feature and should be used with extreme caution.
+            It is easy to break the code.
+
+        .. note::
+
+            Modifications must be done after calling :py:meth:`prepare_nlp` or :py:meth:`setup` respectively.
+
+        """
+        return self._ub_opt_x
+
+    @ub_opt_x.setter
+    def ub_opt_x(self, val):
+        # Cannot overwrite this property
+        raise Exception('Cannot overwrite ub_opt_x')
+
 
     @IndexedProperty
     def bounds(self, ind):
@@ -310,6 +364,10 @@ class Optimizer:
         # Set value on struct:
         var_struct[var_name] = val
 
+        # Update bounds of optimization variables, if the problem is already created:
+        if self.flags['prepare_nlp']:
+            self._update_bounds()
+
 
     @IndexedProperty
     def scaling(self, ind):
@@ -378,6 +436,7 @@ class Optimizer:
     @scaling.setter
     def scaling(self, ind, val):
         """See Docstring for scaling getter method"""
+        assert not self.flags['setup'], 'Scaling can only be set before the optimization problem is created.'
         assert isinstance(ind, tuple), 'Power index must include bound_type, var_type, var_name (as a tuple).'
         assert len(ind)>=2, 'Power index must include bound_type, var_type, var_name (as a tuple).'
         var_type   = ind[0]
