@@ -307,7 +307,8 @@ class MPCData(Data):
                 f_ind = self.opt_x.f[(ind[0], slice(None), lambda v: horzcat(*v),slice(None), -1)+ind[1:]]
                 f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind], dtype='int32')
                 # sort pred such that each column belongs to one scenario
-                f_ind = f_ind[range(f_ind.shape[0]),:,structure_scenario.T].T
+                # - By indexing structure_scenario until f_ind.shape[0] we cover the case of _x and _z at the same time
+                f_ind = f_ind[range(f_ind.shape[0]),:,structure_scenario[:f_ind.shape[0],:].T].T
                 # Store f_ind:
                 self.prediction_queries['ind'].append(ind)
                 self.prediction_queries['f_ind'].append(f_ind)
