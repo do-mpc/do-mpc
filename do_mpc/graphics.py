@@ -360,7 +360,7 @@ class Graphics:
 
 
 
-def default_plot(data, states_list=None, inputs_list=None, aux_list=None, **kwargs):
+def default_plot(data, states_list=None, dae_states_list=None, inputs_list=None, aux_list=None, **kwargs):
     """Pass a :py:class:`do_mpc.data.Data` object and create a default **do-mpc** plot.
     By default all states, inputs and auxiliary expressions are plotted on individual axes.
     Pass lists of states, inputs and aux names (string) to plot only a subset of these
@@ -373,6 +373,9 @@ def default_plot(data, states_list=None, inputs_list=None, aux_list=None, **kwar
 
     :param states_list: List of strings containing a subset of state names defined in py:class:`do_mpc.model.Model`. These states are plotted.
     :type states_list: list
+
+    :param dae_states_list: List of strings containing a subset of dae states (_z) names defined in py:class:`do_mpc.model.Model`. These states are plotted.
+    :type dae_states_list: list
 
     :param inputs_list: List of strings containing a subset of input names defined in py:class:`do_mpc.model.Model`. These inputs are plotted.
     :type inputs_list: list
@@ -397,6 +400,13 @@ def default_plot(data, states_list=None, inputs_list=None, aux_list=None, **kwar
     else:
         assert set(states_list).issubset(data.model['_x'].keys()), err_message.format('states_list',data.model['_x'].keys(), states_list)
 
+    if dae_states_list is None:
+        dae_states_list = data.model['_z'].keys()
+        # Pop default variable:
+        dae_states_list.pop(0)
+    else:
+        assert set(dae_states_list).issubset(data.model['_u'].keys()), err_message.format('dae_states_list',data.model['_z'].keys(), dae_states_list)
+
     if inputs_list is None:
         inputs_list = data.model['_u'].keys()
         # Pop default variable:
@@ -414,8 +424,9 @@ def default_plot(data, states_list=None, inputs_list=None, aux_list=None, **kwar
     n_x = len(states_list)
     n_u = len(inputs_list)
     n_aux = len(aux_list)
+    n_z = len(dae_states_list)
 
-    n_plot = n_x + n_u + n_aux
+    n_plot = n_x + n_u + n_aux + n_z
 
     # Create figure:
     fig, ax = plt.subplots(n_plot, 1, sharex=True, **kwargs)
@@ -429,16 +440,23 @@ def default_plot(data, states_list=None, inputs_list=None, aux_list=None, **kwar
     # Create graphics instance:
     graphics = Graphics(data)
 
+    counter = 0
     # Add lines/ labels for states:
-    for i, x_i in enumerate(states_list):
+    for i, x_i in enumerate(states_list, counter):
         graphics.add_line('_x', x_i, ax[i])
         ax[i].set_ylabel(x_i)
+    counter += n_x
+    for i, z_i in enumerate(dae_states_list, counter):
+        graphics.add_line('_z', z_i, ax[i])
+        ax[i].set_ylabel(z_i)
+    counter += n_z
     # Add lines/ labels for inputs:
-    for i, u_i in enumerate(inputs_list, n_x):
+    for i, u_i in enumerate(inputs_list, counter):
         graphics.add_line('_u', u_i, ax[i])
         ax[i].set_ylabel(u_i)
+    counter += n_u
     # Add lines/ labels for auxiliary expressions:
-    for i, aux_i in enumerate(aux_list, n_x+n_u):
+    for i, aux_i in enumerate(aux_list, counter):
         graphics.add_line('_aux', aux_i, ax[i])
         ax[i].set_ylabel(aux_i)
 

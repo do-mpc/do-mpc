@@ -44,15 +44,18 @@ class Timer:
         msg = 'Average runtime {avg}+-{var}{unit}. Fastest run {min}{unit}, slowest run {max}{unit}.'
         print(msg.format(avg=t_mean, var=t_var, unit=self.unit, min=t_min, max=t_max))
 
-    def hist(self, ax=None, *args, **kwargs):
+    def hist(self, *args, **kwargs):
         t_arr = np.round(np.array(self.t_list)*self.factor)
         t_mean = np.mean(t_arr)
-        if ax == None:
-            fig, ax = plt.subplots()
 
+        fig, ax = plt.subplots()
         ax.axvline(t_mean, color='black')
         ax.hist(t_arr, *args, **kwargs)
         ax.set_xlabel('time in {}'.format(self.unit))
         ax.set_ylabel('number of instances')
 
         plt.show()
+
+        return fig, ax
+
+        
