@@ -768,26 +768,31 @@ class Optimizer:
 
         There is no point in calling this method as part of the public API.
         """
+        # Scaled variables
         _x, _u, _z, _tvp, _p, _w = self.model['x', 'u', 'z', 'tvp', 'p', 'w']
 
-        rhs = substitute(self.model._rhs, _x, _x*self._x_scaling.cat)
-        rhs = substitute(rhs, _u, _u*self._u_scaling.cat)
-        rhs = substitute(rhs, _z, _z*self._z_scaling.cat)
-        rhs = substitute(rhs, _p, _p*self._p_scaling.cat) # only meaningful for MHE.
+        # Unscale variables
+        _x_unscaled = _x*self._x_scaling.cat
+        _u_unscaled = _u*self._u_scaling.cat
+        _z_unscaled = _z*self._z_scaling.cat
+        _p_unscaled = _p*self._p_scaling.cat
 
-        alg = substitute(self.model._alg, _x, _x*self._x_scaling.cat)
-        alg = substitute(alg, _u, _u*self._u_scaling.cat)
-        alg = substitute(alg, _z, _z*self._z_scaling.cat)
-        alg = substitute(alg, _p, _p*self._p_scaling.cat) # only meaningful for MHE.
+        # Create _rhs and _alg
+        _rhs = self.model._rhs_fun(_x_unscaled, _u_unscaled, _z_unscaled, _tvp, _p_unscaled, _w)
+        _alg = self.model._alg_fun(_x_unscaled, _u_unscaled, _z_unscaled, _tvp, _p_unscaled, _w)
+
+        # Scale (only _rhs)
+        _rhs_scaled = _rhs/self._x_scaling.cat
+
 
         if self.model.model_type == 'discrete':
             _i = self.model.sv.sym('i', 0)
             # discrete integrator ifcs mimics the API the collocation ifcn.
-            ifcn = Function('ifcn', [_x, _i, _u, _z, _tvp, _p, _w], [alg, rhs/self._x_scaling.cat])
+            ifcn = Function('ifcn', [_x, _i, _u, _z, _tvp, _p, _w], [_alg, _rhs_scaled])
             n_total_coll_points = 0
         elif self.state_discretization == 'collocation':
-            ffcn = Function('ffcn', [_x, _u, _z, _tvp, _p, _w], [rhs/self._x_scaling.cat])
-            afcn = Function('afcn', [_x, _u, _z, _tvp, _p, _w], [alg])
+            ffcn = Function('ffcn', [_x, _u, _z, _tvp, _p, _w], [_rhs_scaled])
+            afcn = Function('afcn', [_x, _u, _z, _tvp, _p, _w], [_alg])
             # Get collocation information
             coll = self.collocation_type
             deg = self.collocation_deg

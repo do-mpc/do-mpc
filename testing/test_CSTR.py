@@ -27,6 +27,7 @@ from casadi.tools import *
 import pdb
 import sys
 import unittest
+import pickle
 
 from importlib import reload
 import copy
@@ -59,18 +60,31 @@ class TestCSTR(unittest.TestCase):
 
     def test_SX(self):
         print('Testing SX implementation')
-        self.CSTR('SX')
+        model = self.template_model.template_model('SX')
+        self.CSTR(model)
 
     def test_MX(self):
         print('Testing MX implementation')
-        self.CSTR('MX')
+        model = self.template_model.template_model('MX')
+        self.CSTR(model)
 
-    def CSTR(self, symvar_type):
+    def test_pickle_unpickle(self):
+        print('Testing SX implementation with pickle / unpickle')
+        # Test if pickling / unpickling works for the SX model:
+        model = self.template_model.template_model('SX')
+        with open('model.pkl', 'wb') as f:
+            pickle.dump(model, f)
+
+        # Load the casadi structure
+        with open('model.pkl', 'rb') as f:
+            model_unpickled = pickle.load(f)
+        self.CSTR(model_unpickled)
+
+    def CSTR(self, model):
         """
         Get configured do-mpc modules:
         """
 
-        model = self.template_model.template_model(symvar_type)
         mpc = self.template_mpc.template_mpc(model)
         simulator = self.template_simulator.template_simulator(model)
         estimator = do_mpc.estimator.StateFeedback(model)
