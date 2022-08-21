@@ -111,22 +111,27 @@ class LQR:
     
     
     def input_rate_penalization(self):
+        #verifying the given model is daemodel
+        assert self.model.flags['dae2odemodel']==False, 'Already performing input rate penalization without the use of this function'
+        
+        #Verifying input cost matrix for input rate penalization
         assert self.R_delu.size != 0 , 'set R_delu parameter using set_param() fun.'
+        
+        #Modifying A and B matrix for input rate penalization
         identity_u = np.identity(np.shape(self.B)[1])
         zeros_A = np.zeros((np.shape(self.B)[1],np.shape(self.A)[1]))
         self.A_new = np.block([[self.A,self.B],[zeros_A,identity_u]])
         self.B_new = np.block([[self.B],[identity_u]])
         zeros_Q = np.zeros((np.shape(self.Q)[0],np.shape(self.R)[1]))
         zeros_Ru = np.zeros((np.shape(self.R)[0],np.shape(self.Q)[1]))
+        
+        #Modifying Q and R matrix for input rate penalization
         self.Q = np.block([[self.Q,zeros_Q],[zeros_Ru,self.R]])
         self.P = np.block([[self.P,zeros_Q],[zeros_Ru,self.R]])
         self.R = self.R_delu
-        if self.n_horizon == None:
-            K = self.discrete_gain(self.A_new, self.B_new)
-            return K
-        elif self.n_horizon != None:
-            K = self.discrete_gain(self.A_new, self.B_new)
-            return K
+        K = self.discrete_gain(self.A_new, self.B_new)
+        return K
+ 
     
     def set_param(self,**kwargs):
         for key, value in kwargs.items():
