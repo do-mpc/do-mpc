@@ -46,15 +46,13 @@ class LQR:
             't_sample',
             'n_horizon',
             'method',
-            'xss',
-            'uss']
         self.u0 = np.array([])
         self.n_horizon = 0
         self.t_sample = 0
         self.method = None
-        self.xss = np.array([])
-        self.uss = np.array([])
         #self.K =np.array([])
+        #Initialize mode of LQR
+        self.mode = 'setPointTrack'
         self.flags = {'linear':False,
                       'setup': False}
         
@@ -147,6 +145,8 @@ class LQR:
         
     def make_step(self,x0):
         assert self.flags['setup'] == True, 'LQR is not setup. run setup() function.'
+        if self.xss is None and self.uss is None:
+            self.set_point()
         if self.u0.size == 0:
             self.u0 = np.zeros((np.shape(self.B)[1],1))
         if self.method == "setPointTrack":
@@ -246,6 +246,28 @@ class LQR:
         if self.n_horizon != 0:
             assert self.P.shape == self.Q.shape, 'P must have same shape as Q. You have {}'.format(P.shape)
 
+    def set_point(self,xss = None,uss = None,zss = None):   
+        assert self.flags['setup'] == True, 'LQR is not setup. run setup() function.'
+        if xss is None:
+            self.xss = np.zeros((self.model.n_x,1))
+        else:
+            self.xss = xss
+        
+        if uss is None:
+            self.uss = np.zeros((self.model.n_u,1))
+        else:
+            self.uss = uss
+        
+        if self.model.flags['dae2odemodel'] == True:
+            if zss is None:
+                self.zss = np.zeros((np.shape(self.delZ)[0],1))
+            else:
+                self.zss = zss
+                self.xss = np.block([[self.xss],[self.uss],[self.zss]])
+            assert self.zss.shape == (np.shape(self.delZ)[0],1), 'xss must be of shape {}. You have {}'.format((np.shape(self.delZ)[0],1),self.zss.shape)
+            
+        assert self.xss.shape == (self.model.n_x,1), 'xss must be of shape {}. You have {}'.format((self.model.n_x,1),self.xss.shape)
+        assert self.uss.shape == (self.model.n_u,1), 'uss must be of shape {}. You have {}'.format((self.model.n_u,1),self.uss.shape)
 
     def setup(self):
         A = self.A_extract()
