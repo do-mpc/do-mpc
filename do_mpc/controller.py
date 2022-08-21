@@ -56,17 +56,25 @@ class LQR:
         self.flags = {'linear':False,
                       'setup': False}
         
-    def conversion_to_discrete_time(self):
+        self.xss = None
+        self.uss = None
+    def continuous_to_discrete_time(self):
         
         #Checks the model type
         if self.model.model_type == 'continuous':
             warnings.warn('sampling time is {}'.format(self.t_sample))
-            I = np.identity(self.model.n_x)
-            tempA = np.exp(self.A*self.t_sample)
-            self.B = inv(self.A)@(np.exp(self.A*self.t_sample)-I)@self.B
-            self.A = tempA
+            C = np.identity(self.model.n_x)
+            D = np.zeros((self.model.n_x,self.model.n_u))
+
+            dis_sys = cont2discrete((self.A,self.B,C,D), self.t_sample, self.conv_method)
+
+            A_dis = dis_sys[0]
+            B_dis = dis_sys[1]
+            
+            #Initializing new model type
             self.model_type = 'discrete'
-        return self.A,self.B
+            
+        return A_dis,B_dis
     
     def state_matrix(self):
         A = jacobian(self.model._rhs,self.model.x)
