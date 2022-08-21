@@ -94,21 +94,25 @@ class LQR:
         return B
         
     def discrete_gain(self,A,B):
-        assert self.Q.size != 0 and self.R.size != 0 , 'Enter tuning parameter Q and R for the lqr problem using set_param() function.'
-        assert self.model_type == 'discrete', 'conver the model from continous to discrete using model_type_conversion() function.'
+        #Verifying the availability of cost matrices
+        assert np.shape(self.Q) == (self.model.n_x,self.model.n_x) and np.shape(self.R) == (self.model.n_u,self.model.n_u) , 'Enter tuning parameter Q and R for the lqr problem using set_objective() function.'
+        assert self.model_type == 'discrete', 'convert the model from continous to discrete using model_type_conversion() function.'
+        
+        #calculating finite horizon gain
         if self.n_horizon !=0:
-            assert self.P.size != 0, 'Terminal cost is required to calculate gain. Enter the required value using set_param() function.'
+            assert self.P.size != 0, 'Terminal cost is required to calculate gain. Enter the required value using set_objective() function.'
             temp_p = self.P
             for k in range(self.n_horizon):
                  K = -np.linalg.inv(np.transpose(B)@temp_p@B+self.R)@np.transpose(B)@temp_p@A
                  temp_pi = self.Q+np.transpose(A)@temp_p@A-np.transpose(A)@temp_p@B@np.linalg.inv(np.transpose(B)@temp_p@B+self.R)@np.transpose(B)@temp_p@A
                  temp_p = temp_pi
             return K
+        
+        #Calculating infinite horizon gain
         elif self.n_horizon == 0:
             pi_discrete = solve_discrete_are(A,B, self.Q, self.R)
             K = -np.linalg.inv(np.transpose(B)@pi_discrete@B+self.R)@np.transpose(B)@pi_discrete@A
             return K
-    
     
     def input_rate_penalization(self):
         #verifying the given model is daemodel
