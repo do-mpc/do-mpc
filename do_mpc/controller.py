@@ -39,22 +39,26 @@ class LQR:
         self.model = model
         
         assert model.flags['setup'] == True, 'Model for MPC was not setup. After the complete model creation call model.setup().'
-        #self.linear = False
         self.model_type = model.model_type
         
+        #Parameters necessary for setting up LQR
         self.data_fields = [
             't_sample',
             'n_horizon',
-            'method',
-        self.u0 = np.array([])
+            'mode',
+            'conv_method'
+            ]
+        #Initialize prediction horizon for the problem
         self.n_horizon = 0
         self.t_sample = 0
-        self.method = None
-        #self.K =np.array([])
+        
+        self.conv_method = 'zoh'
         #Initialize mode of LQR
         self.mode = 'setPointTrack'
         self.flags = {'linear':False,
-                      'setup': False}
+                      'setup':False}
+        
+        self.u0 = np.array([[]])
         
         self.xss = None
         self.uss = None
@@ -84,7 +88,7 @@ class LQR:
             self.flags['linear'] = False
             raise Exception('given model is not linear. Lineaize the model using model.linearize() before setup().')
         return A
-    def input_matrx(self):
+    
     def input_matrix(self):
         #Calculating jacobian with respect to input variables
         B = jacobian(self.model._rhs,self.model.u)
@@ -147,8 +151,7 @@ class LQR:
                 print('Warning: Key {} does not exist for LQR.'.format(key))
             else:
                 setattr(self, key, value)
-                
-        
+                        
     def steady_state(self):
         assert self.flags['setup'] == True, 'LQR is not setup. Please run setup() fun to calculate steady state.'
         assert self.flags['linear'] == True, 'provide a linear model by executing linearize() function'
