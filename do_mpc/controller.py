@@ -80,17 +80,21 @@ class LQR:
         A = jacobian(self.model._rhs,self.model.x)
         if A.is_constant() == True:
             self.flags['linear'] = True
-        if A.is_constant() == False:
-            #self.flags['linear'] = False
-            raise Exception('given model is not linear. Lineaize the model using lqr.linearize() before setup().')
+        elif A.is_constant() == False:
+            self.flags['linear'] = False
+            raise Exception('given model is not linear. Lineaize the model using model.linearize() before setup().')
         return A
     def input_matrx(self):
+    def input_matrix(self):
+        #Calculating jacobian with respect to input variables
         B = jacobian(self.model._rhs,self.model.u)
+        
+        #Check whether obtained matrix is constant
         if B.is_constant() == True:
             self.flags['linear'] = True
-        if B.is_constant() == False:
-            #self.flags['linear'] = False
-            raise Exception('given model is not linear. Lineaize the model using lqr.linearize() before setup().')
+        elif B.is_constant() == False:
+            self.flags['linear'] = False
+            raise Exception('given model is not linear. Lineaize the model using model.linearize() before setup().')
         return B
         
     def discrete_gain(self,A,B):
