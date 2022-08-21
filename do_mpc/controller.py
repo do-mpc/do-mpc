@@ -171,20 +171,33 @@ class LQR:
             self.u0 = self.K@x0
             return self.u0
         
-    def convert_to_array(self,A,B):
-        #assert self.A != None, 'Matrix A is not available'
-        A_new = np.zeros((np.shape(A)))
-        B_new = np.zeros((np.shape(B)))
-        for n in range(np.shape(A)[0]):
-            for m in range(np.shape(A)[1]):
-                A_new[n,m] = np.array(str(A[n,m]))
-        for i in range(np.shape(B)[0]):
-            for j in range(np.shape(B)[1]):
-                B_new[i,j] = np.array(str(B[i,j]))
-        return A_new,B_new
-    
+    def convertSX_to_array(self,A,B):
+        """Converts casadi symbolic variable to numpy array.
         
+        The following method is initially convets casADi SX or MX variable to casadi DM variable.
+        Then using :casadi:func:`full` to convert to numpy array. 
         
+        :param A: State matrix - constant matrix with no variables
+        :type A: Casadi SX or MX
+
+        :param B: Input matrix - constant matrix with no variables
+        :type B: Casadi SX or MX 
+
+        :return: State matrix :math::`A`
+        :rtype A: numpy.ndarray
+
+        :return: Input matrix :math::`B`
+        :rtype B: numpy.ndarray 
+        """
+        y1 = A
+        y2 = B
+        A_new = Function('A_new',[],[y1])
+        B_new = Function('B_new',[],[y2])
+        A = A_new()
+        B = B_new()
+        arr_A = A['o0'].full()
+        arr_B = B['o0'].full()
+        return arr_A,arr_B
     
     def dae_model_gain(self,A,B):
         assert not self.Q is None, "run this function after setting objective using set_objective()"
