@@ -45,23 +45,15 @@ class LQR:
         self.data_fields = [
             't_sample',
             'n_horizon',
-            'Q',
-            'R',
-            'P',
-            'R_delu',
             'method',
             'xss',
             'uss']
         self.u0 = np.array([])
         self.n_horizon = 0
-        self.P = np.array([])
         self.t_sample = 0
-        self.R_delu = np.array([])
         self.method = None
         self.xss = np.array([])
         self.uss = np.array([])
-        self.Q = np.array([])
-        self.R = np.array([])
         #self.K =np.array([])
         self.flags = {'linear':False,
                       'setup': False}
@@ -213,6 +205,47 @@ class LQR:
             K = self.discrete_gain(A, B)
         return K
         
+    def set_objective(self, Q = None, R = None, P = None, Rdelu = None, delZ = None):
+        assert self.flags['setup'] == False, 'Objective can not be set after LQR is setup'
+        if Q is None:
+            self.Q = np.zeros((self.model.n_x,self.model.n_x))
+            warnings.warn('Q is chosen as matrix of zeros.')
+        else:
+            self.Q = Q
+        
+        if R is None:
+            self.R = np.zeros((self.model.n_u,self.model.n_u))
+            warnings.warn('R is chosen as matrix of zeros.')
+        else:
+            self.R = R
+            
+        if P is None and self.n_horizon != 0:
+            self.P = Q
+            warnings.warn('P is not given explicitly. Q is chosen as P for calculating finite discrete gain')
+        else:
+            self.P = P
+
+        if (self.mode == 'inputRatePenalization' or self.model.flags['dae2odemodel'] == True) and Rdelu != None:
+            self.Rdelu = Rdelu
+        elif (self.mode == 'inputRatePenalization' or self.model.flags['dae2odemodel']==True) and Rdelu == None:
+            raise Exception('Please set input cost matrix for input rate penalization/daemodel using set_objective()')
+            
+        if self.model.flags['dae2odemodel'] == True and delZ != None and np.shape(self.Q) != (self.model.n_x,self.model.n_x):
+            self.delZ = delZ
+        elif self.model.flags['dae2odemodel'] == True and delZ == None:
+            raise Exception('Please set cost matrix for algebraic variables using set_objective() for evaluating daemodel')
+        if self.model.flags['dae2odemodel']==False:    
+            assert self.Q.shape == (self.model.n_x,self.model.n_x), 'Q must have shape = {}. You have {}'.format((self.model.n_x,self.model.n_x),self.Q.shape)
+            assert self.R.shape == (self.model.n_u,self.model.n_u), 'R must have shape = {}. You have {}'.format((self.model.n_u,self.model.n_u),self.R.shape)
+        if isinstance(self.Q, (casadi.DM, casadi.SX, casadi.MX)):
+            raise Exception('Q matrix must be of type class numpy.ndarray')
+        if isinstance(self.R, (casadi.DM, casadi.SX, casadi.MX)):
+            raise Exception('R matrix must be of type class numpy.ndarray')
+        if self.n_horizon != 0 and isinstance(self.P, (casadi.DM, casadi.SX, casadi.MX)):
+            raise Exception('P matrix must be of type class numpy.ndarray')
+        if self.n_horizon != 0:
+            assert self.P.shape == self.Q.shape, 'P must have same shape as Q. You have {}'.format(P.shape)
+
 
     def setup(self):
         A = self.A_extract()
