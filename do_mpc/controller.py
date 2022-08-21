@@ -141,34 +141,38 @@ class LQR:
         elif self.uss.size == 0 and np.shape(self.B)[0] == np.shape(self.B)[1]:
             self.uss = np.linalg.inv(self.B)@(I-self.A)@self.xss
             return self.uss   
-        
-        
-    def make_step(self,x0):
+                
+    def make_step(self,x0,z0=None):
         assert self.flags['setup'] == True, 'LQR is not setup. run setup() function.'
         if self.xss is None and self.uss is None:
             self.set_point()
         if self.u0.size == 0:
             self.u0 = np.zeros((np.shape(self.B)[1],1))
-        if self.method == "setPointTrack":
-            #assert self.xss != 0 or self.uss!=0 ,'steady state and input does not match'
+        if self.mode == "setPointTrack" and self.model.flags['dae2odemodel'] == False:
             if self.xss.size != 0 and self.uss.size != 0:
-                #assert self.steady_state() == self.xss or self.steady_state() == self.uss, 'steady state and input does not match'
                 self.u0 = self.K@(x0-self.xss)+self.uss
             elif self.xss.size == 0 and self.uss.size == 0:
                 raise Exception('Enter xss and uss via set_param() function to track setpoint or compute steady state setpoint using steady_state() function')
             else:
                 raise Exception('run steady_state() function to commpute steady state setpoint')
             return self.u0
-        elif self.method == "inputRatePenalization":
+        elif self.mode == "inputRatePenalization" and self.model.flags['dae2odemodel']==False:
             if np.shape(self.K)[1]==np.shape(x0)[0]:
-                self.u0 = self.K@(x0)
-                return self.u0+x0[-self.model.n_u:]
+                self.u0 = self.K@(x0-self.xss)+self.uss
+                self.u0 = self.u0+x0[-self.model.n_u:]
             elif np.shape(self.K)[1]!=np.shape(x0)[0] and np.shape(self.K)[1]== np.shape(np.block([[x0],[self.u0]]))[0]:
                 x0_new = np.block([[x0],[self.u0]])
                 self.u0 = self.K@(x0_new)
-                return self.u0+x0_new[-self.model.n_u:]
-        elif self.method == None:
-            self.u0 = self.K@x0
+                self.u0 = self.u0+x0_new[-self.model.n_u:]
+            return self.u0
+        elif self.model.flags['dae2odemodel']==True:
+            assert z0 != None,'Please pass initial value for algebraic variables'
+            x0_new = np.block([[x0],[self.u0],[z0]])
+            self.u0 = self.K@(x0_new-self.xss)+self.uss
+            if np.shape(x0)[0]==np.shape(x0)[0]+np.shape(self.u0)[0]-1:
+                self.u0 = self.u0+x0_new[np.shape(x0)[0]]
+            else:
+                self.u0 = self.u0+x0_new[np.shape(x0)[0]:np.shape(x0)[0]+np.shape(self.u0)[0]-1]
             return self.u0
         
     def convertSX_to_array(self,A,B):
