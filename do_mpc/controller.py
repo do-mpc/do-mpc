@@ -1356,6 +1356,43 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         return u0.full()
 
 
+    def _update_bounds(self):
+        """Private method to update the bounds of the optimization variables based on the current values defined with :py:attr:`scaling`.
+        """
+        if self.cons_check_colloc_points:   # Constraints for all collocation points.
+            # Dont bound the initial state
+            self.lb_opt_x['_x', 1:self.n_horizon] = self._x_lb.cat
+            self.ub_opt_x['_x', 1:self.n_horizon] = self._x_ub.cat
+
+            # Bounds for the algebraic variables:
+            self.lb_opt_x['_z'] = self._z_lb.cat
+            self.ub_opt_x['_z'] = self._z_ub.cat
+
+            # Terminal bounds
+            self.lb_opt_x['_x', self.n_horizon, :, -1] = self._x_terminal_lb.cat
+            self.ub_opt_x['_x', self.n_horizon, :, -1] = self._x_terminal_ub.cat
+        else:   # Constraints only at the beginning of the finite Element
+            # Dont bound the initial state
+            self.lb_opt_x['_x', 1:self.n_horizon, :, -1] = self._x_lb.cat
+            self.ub_opt_x['_x', 1:self.n_horizon, :, -1] = self._x_ub.cat
+
+            # Bounds for the algebraic variables:
+            self.lb_opt_x['_z', :, :, 0] = self._z_lb.cat
+            self.ub_opt_x['_z', :, : ,0] = self._z_ub.cat
+
+            # Terminal bounds
+            self.lb_opt_x['_x', self.n_horizon, :, -1] = self._x_terminal_lb.cat
+            self.ub_opt_x['_x', self.n_horizon, :, -1] = self._x_terminal_ub.cat
+
+        # Bounds for the inputs along the horizon
+        self.lb_opt_x['_u'] = self._u_lb.cat
+        self.ub_opt_x['_u'] = self._u_ub.cat
+
+        # Bounds for the slack variables:
+        self.lb_opt_x['_eps'] = self._eps_lb.cat
+        self.ub_opt_x['_eps'] = self._eps_ub.cat
+
+
     def _prepare_nlp(self):
         """Internal method. See detailed documentation with optimizer.prepare_nlp
         """
@@ -1427,8 +1464,8 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         self.n_opt_aux = opt_aux.shape[0]
 
-        self.lb_opt_x = opt_x(-np.inf)
-        self.ub_opt_x = opt_x(np.inf)
+        self._lb_opt_x = opt_x(-np.inf)
+        self._ub_opt_x = opt_x(np.inf)
 
         # Initialize objective function and constraints
         obj = DM(0)
@@ -1524,40 +1561,8 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                     opt_aux['_aux', k, s_] = self.model._aux_expression_fun(
                         opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s_u], opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
 
-
-
-        if self.cons_check_colloc_points:   # Constraints for all collocation points.
-            # Dont bound the initial state
-            self.lb_opt_x['_x', 1:self.n_horizon] = self._x_lb.cat/self._x_scaling
-            self.ub_opt_x['_x', 1:self.n_horizon] = self._x_ub.cat/self._x_scaling
-
-            # Bounds for the algebraic variables:
-            self.lb_opt_x['_z'] = self._z_lb.cat/self._z_scaling
-            self.ub_opt_x['_z'] = self._z_ub.cat/self._z_scaling
-
-            # Terminal bounds
-            self.lb_opt_x['_x', self.n_horizon, :, -1] = self._x_terminal_lb.cat/self._x_scaling
-            self.ub_opt_x['_x', self.n_horizon, :, -1] = self._x_terminal_ub.cat/self._x_scaling
-        else:   # Constraints only at the beginning of the finite Element
-            # Dont bound the initial state
-            self.lb_opt_x['_x', 1:self.n_horizon, :, -1] = self._x_lb.cat/self._x_scaling
-            self.ub_opt_x['_x', 1:self.n_horizon, :, -1] = self._x_ub.cat/self._x_scaling
-
-            # Bounds for the algebraic variables:
-            self.lb_opt_x['_z', :, :, 0] = self._z_lb.cat/self._z_scaling
-            self.ub_opt_x['_z', :, : ,0] = self._z_ub.cat/self._z_scaling
-
-            # Terminal bounds
-            self.lb_opt_x['_x', self.n_horizon, :, -1] = self._x_terminal_lb.cat/self._x_scaling
-            self.ub_opt_x['_x', self.n_horizon, :, -1] = self._x_terminal_ub.cat/self._x_scaling
-
-        # Bounds for the inputs along the horizon
-        self.lb_opt_x['_u'] = self._u_lb.cat/self._u_scaling
-        self.ub_opt_x['_u'] = self._u_ub.cat/self._u_scaling
-
-        # Bounds for the slack variables:
-        self.lb_opt_x['_eps'] = self._eps_lb.cat
-        self.ub_opt_x['_eps'] = self._eps_ub.cat
+        # Set bounds for all optimization variables
+        self._update_bounds()
 
 
         # Write all created elements to self:

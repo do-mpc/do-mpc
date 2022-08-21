@@ -27,6 +27,7 @@ from casadi.tools import *
 import pdb
 import sys
 import unittest
+import pickle
 
 from importlib import reload
 import copy
@@ -58,17 +59,28 @@ class TestRotatingMasses(unittest.TestCase):
         sys.path = default_path
 
     def test_SX(self):
-        self.RotatingMasses('SX')
+        model = self.template_model.template_model('SX')
+        self.RotatingMasses(model)
 
     def test_MX(self):
-        self.RotatingMasses('MX')
+        model = self.template_model.template_model('MX')
+        self.RotatingMasses(model)
 
-    def RotatingMasses(self, symvar_type):
+    def test_pickle_unpickle(self):
+        model = self.template_model.template_model('SX')
+        with open('model.pkl', 'wb') as f:
+            pickle.dump(model, f)
+
+        # Load the casadi structure
+        with open('model.pkl', 'rb') as f:
+            model_unpickled = pickle.load(f)
+        self.RotatingMasses(model_unpickled)
+
+    def RotatingMasses(self, model):
         """
         Get configured do-mpc modules:
         """
 
-        model = self.template_model.template_model(symvar_type)
         mpc = self.template_mpc.template_mpc(model)
         simulator = self.template_simulator.template_simulator(model)
         mhe = self.template_mhe.template_mhe(model)

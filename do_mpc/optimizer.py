@@ -52,6 +52,7 @@ class Optimizer:
         self.flags = {
             'prepare_nlp': False,
             'setup': False,
+            'initial_run': False,
         }
 
         self._x_lb = self.model._x(-np.inf)
@@ -67,6 +68,10 @@ class Optimizer:
         self._u_scaling = self.model._u(1.0)
         self._z_scaling = self.model._z(1.0)
         self._p_scaling = self.model._p(1.0) # only meaningful for MHE.
+
+        # Dummy variables for bounds of all optimization variables
+        self._lb_opt_x = None
+        self._ub_opt_x = None
 
         # Lists for further non-linear constraints (optional). Constraints are formulated as cons < ub
         self.nl_cons_list = [
@@ -224,6 +229,62 @@ class Optimizer:
         assert self.flags['prepare_nlp'], 'Cannot query attribute prior to calling prepare_nlp or setup'
         self._nlp_cons_ub = val
 
+    @IndexedProperty
+    def lb_opt_x(self, ind):
+        """Query and modify the lower bounds of all optimization variables :py:attr:`opt_x`.
+        This is a more advanced method of setting bounds on optimization variables of the MPC/MHE problem.
+        Users with less experience are advised to use :py:attr:`bounds` instead.
+
+        The attribute returns a nested structure that can be indexed using powerindexing. Please refer to :py:attr:`opt_x` for more details. 
+
+        .. note::
+
+            The attribute automatically considers the scaling variables when setting the bounds. See :py:attr:`scaling` for more details.
+
+        .. note::
+
+            Modifications must be done after calling :py:meth:`prepare_nlp` or :py:meth:`setup` respectively.
+
+        """
+        return self._lb_opt_x[ind] 
+
+    @lb_opt_x.setter
+    def lb_opt_x(self, ind, val):
+        self._lb_opt_x[ind] = val
+        # Get canonical index 
+        cind = self._lb_opt_x.f[ind]
+        # Modify the newly set values by considering the scaling variables. This requires the canonical index.
+        self._lb_opt_x.master[cind] = self._lb_opt_x.master[cind]/self.opt_x_scaling.master[cind]
+        
+
+
+    @IndexedProperty
+    def ub_opt_x(self, ind):
+        """Query and modify the lower bounds of all optimization variables :py:attr:`opt_x`.
+        This is a more advanced method of setting bounds on optimization variables of the MPC/MHE problem.
+        Users with less experience are advised to use :py:attr:`bounds` instead.
+
+        The attribute returns a nested structure that can be indexed using powerindexing. Please refer to :py:attr:`opt_x` for more details. 
+
+        .. note::
+
+            The attribute automatically considers the scaling variables when setting the bounds. See :py:attr:`scaling` for more details.
+
+        .. note::
+
+            Modifications must be done after calling :py:meth:`prepare_nlp` or :py:meth:`setup` respectively.
+
+        """
+        return self._ub_opt_x[ind]
+
+    @ub_opt_x.setter
+    def ub_opt_x(self, ind, val):
+        self._ub_opt_x[ind] = val
+        # Get canonical index
+        cind = self._ub_opt_x.f[ind]
+        # Modify the newly set values by considering the scaling variables. This requires the canonical index.
+        self._ub_opt_x.master[cind] = self._ub_opt_x.master[cind]/self.opt_x_scaling.master[cind]
+
 
     @IndexedProperty
     def bounds(self, ind):
@@ -309,6 +370,10 @@ class Optimizer:
         # Set value on struct:
         var_struct[var_name] = val
 
+        # Update bounds of optimization variables, if the problem is already created:
+        if self.flags['prepare_nlp']:
+            self._update_bounds()
+
 
     @IndexedProperty
     def scaling(self, ind):
@@ -377,6 +442,7 @@ class Optimizer:
     @scaling.setter
     def scaling(self, ind, val):
         """See Docstring for scaling getter method"""
+        assert not self.flags['setup'], 'Scaling can only be set before the optimization problem is created.'
         assert isinstance(ind, tuple), 'Power index must include bound_type, var_type, var_name (as a tuple).'
         assert len(ind)>=2, 'Power index must include bound_type, var_type, var_name (as a tuple).'
         var_type   = ind[0]
@@ -650,8 +716,25 @@ class Optimizer:
         """
         assert self.flags['setup'] == True, 'optimizer was not setup yet. Please call optimizer.setup().'
 
-        r = self.S(x0=self.opt_x_num, lbx=self.lb_opt_x, ubx=self.ub_opt_x,
-            ubg=self.nlp_cons_ub, lbg=self.nlp_cons_lb, p=self.opt_p_num)
+        solver_call_kwargs = {
+            'x0': self.opt_x_num,
+            'lbx': self._lb_opt_x,
+            'ubx': self._ub_opt_x,
+            'lbg': self.nlp_cons_lb,
+            'ubg': self.nlp_cons_ub,
+            'p': self.opt_p_num,
+        }
+
+        # Warmstarting the optimizer after the initial run:
+        if self.flags['initial_run']:
+            solver_call_kwargs.update({
+                'lam_x0': self.lam_x_num,
+                'lam_g0': self.lam_g_num,
+            })
+
+
+
+        r = self.S(**solver_call_kwargs)
         # Note: .master accesses the underlying vector of the structure.
         self.opt_x_num.master = r['x']
         self.opt_x_num_unscaled.master = r['x']*self.opt_x_scaling
@@ -666,6 +749,9 @@ class Optimizer:
                 self.opt_x_num,
                 self.opt_p_num
             )
+        
+        # For warmstarting purposes: Flag that initial run has been completed.
+        self.flags['initial_run'] = True
 
     def _setup_discretization(self):
         """Private method that creates the discretization for the optimizer (MHE or MPC).
@@ -682,26 +768,31 @@ class Optimizer:
 
         There is no point in calling this method as part of the public API.
         """
+        # Scaled variables
         _x, _u, _z, _tvp, _p, _w = self.model['x', 'u', 'z', 'tvp', 'p', 'w']
 
-        rhs = substitute(self.model._rhs, _x, _x*self._x_scaling.cat)
-        rhs = substitute(rhs, _u, _u*self._u_scaling.cat)
-        rhs = substitute(rhs, _z, _z*self._z_scaling.cat)
-        rhs = substitute(rhs, _p, _p*self._p_scaling.cat) # only meaningful for MHE.
+        # Unscale variables
+        _x_unscaled = _x*self._x_scaling.cat
+        _u_unscaled = _u*self._u_scaling.cat
+        _z_unscaled = _z*self._z_scaling.cat
+        _p_unscaled = _p*self._p_scaling.cat
 
-        alg = substitute(self.model._alg, _x, _x*self._x_scaling.cat)
-        alg = substitute(alg, _u, _u*self._u_scaling.cat)
-        alg = substitute(alg, _z, _z*self._z_scaling.cat)
-        alg = substitute(alg, _p, _p*self._p_scaling.cat) # only meaningful for MHE.
+        # Create _rhs and _alg
+        _rhs = self.model._rhs_fun(_x_unscaled, _u_unscaled, _z_unscaled, _tvp, _p_unscaled, _w)
+        _alg = self.model._alg_fun(_x_unscaled, _u_unscaled, _z_unscaled, _tvp, _p_unscaled, _w)
+
+        # Scale (only _rhs)
+        _rhs_scaled = _rhs/self._x_scaling.cat
+
 
         if self.model.model_type == 'discrete':
             _i = self.model.sv.sym('i', 0)
             # discrete integrator ifcs mimics the API the collocation ifcn.
-            ifcn = Function('ifcn', [_x, _i, _u, _z, _tvp, _p, _w], [alg, rhs/self._x_scaling.cat])
+            ifcn = Function('ifcn', [_x, _i, _u, _z, _tvp, _p, _w], [_alg, _rhs_scaled])
             n_total_coll_points = 0
         elif self.state_discretization == 'collocation':
-            ffcn = Function('ffcn', [_x, _u, _z, _tvp, _p, _w], [rhs/self._x_scaling.cat])
-            afcn = Function('afcn', [_x, _u, _z, _tvp, _p, _w], [alg])
+            ffcn = Function('ffcn', [_x, _u, _z, _tvp, _p, _w], [_rhs_scaled])
+            afcn = Function('afcn', [_x, _u, _z, _tvp, _p, _w], [_alg])
             # Get collocation information
             coll = self.collocation_type
             deg = self.collocation_deg

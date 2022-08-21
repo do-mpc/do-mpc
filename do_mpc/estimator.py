@@ -1147,6 +1147,43 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         return x_next.full()
 
+    def _update_bounds(self):
+        """Private method to update the bounds of the optimization variables based on the current values defined with :py:attr:`scaling`.
+
+        .. note::
+
+            Bounds are automatically scaled as they invoke the :py:attr:lb_opt_x` and :py:attr:`ub_opt_x` methods. Scaling is done automatically in these methods.
+        """
+        
+        if self.cons_check_colloc_points:   # Constraints for all collocation points.
+            # Bounds for the states on all discretize values along the horizon
+            self.lb_opt_x['_x'] = self._x_lb.cat
+            self.ub_opt_x['_x'] = self._x_ub.cat
+
+            # Bounds for the algebraic states along the horizon
+            self.lb_opt_x['_z'] = self._z_lb.cat
+            self.ub_opt_x['_z'] = self._z_ub.cat
+        else:   # Constraints only at the beginning of the finite Element
+            # Bounds for the states on all discretize values along the horizon
+            self.lb_opt_x['_x', 1:self.n_horizon, -1] = self._x_lb.cat
+            self.ub_opt_x['_x', 1:self.n_horizon, -1] = self._x_ub.cat
+
+            # Bounds for the algebraic states along the horizon
+            self.lb_opt_x['_z', :, 0] = self._z_lb.cat
+            self.ub_opt_x['_z', :, 0] = self._z_ub.cat
+
+        # Bounds for the inputs along the horizon
+        self.lb_opt_x['_u'] = self._u_lb.cat
+        self.ub_opt_x['_u'] = self._u_ub.cat
+
+        # Bounds for the slack variables along the horizon:
+        self.lb_opt_x['_eps'] = self._eps_lb.cat
+        self.ub_opt_x['_eps'] = self._eps_ub.cat
+
+        # Bounds for the inputs along the horizon
+        self.lb_opt_x['_p_est'] = self._p_est_lb.cat
+        self.ub_opt_x['_p_est'] = self._p_est_ub.cat
+
     def _prepare_nlp(self):
         """Internal method. See detailed documentation in optimizer.prepare_nlp
         """
@@ -1216,8 +1253,8 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         self.n_opt_aux = opt_aux.shape[0]
 
-        self.lb_opt_x = opt_x(-np.inf)
-        self.ub_opt_x = opt_x(np.inf)
+        self._lb_opt_x = opt_x(-np.inf)
+        self._ub_opt_x = opt_x(np.inf)
 
         # Initialize objective function and constraints
         obj = DM(0)
@@ -1304,34 +1341,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
                 opt_x_unscaled['_x', k, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1], opt_p['_tvp', k], _p)
 
 
-        if self.cons_check_colloc_points:   # Constraints for all collocation points.
-            # Bounds for the states on all discretize values along the horizon
-            self.lb_opt_x['_x'] = self._x_lb.cat/self._x_scaling
-            self.ub_opt_x['_x'] = self._x_ub.cat/self._x_scaling
-
-            # Bounds for the algebraic states along the horizon
-            self.lb_opt_x['_z'] = self._z_lb.cat/self._z_scaling
-            self.ub_opt_x['_z'] = self._z_ub.cat/self._z_scaling
-        else:   # Constraints only at the beginning of the finite Element
-            # Bounds for the states on all discretize values along the horizon
-            self.lb_opt_x['_x', 1:self.n_horizon, -1] = self._x_lb.cat/self._x_scaling
-            self.ub_opt_x['_x', 1:self.n_horizon, -1] = self._x_ub.cat/self._x_scaling
-
-            # Bounds for the algebraic states along the horizon
-            self.lb_opt_x['_z', :, 0] = self._z_lb.cat/self._z_scaling
-            self.ub_opt_x['_z', :, 0] = self._z_ub.cat/self._z_scaling
-
-        # Bounds for the inputs along the horizon
-        self.lb_opt_x['_u'] = self._u_lb.cat/self._u_scaling
-        self.ub_opt_x['_u'] = self._u_ub.cat/self._u_scaling
-
-        # Bounds for the slack variables along the horizon:
-        self.lb_opt_x['_eps'] = self._eps_lb.cat
-        self.ub_opt_x['_eps'] = self._eps_ub.cat
-
-        # Bounds for the inputs along the horizon
-        self.lb_opt_x['_p_est'] = self._p_est_lb.cat/self._p_est_scaling
-        self.ub_opt_x['_p_est'] = self._p_est_ub.cat/self._p_est_scaling
+        self._update_bounds()
 
 
         # Write all created elements to self:
