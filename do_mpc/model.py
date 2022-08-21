@@ -25,6 +25,7 @@ from casadi import *
 from casadi.tools import *
 import pdb
 import warnings
+from do_mpc.tools.casstructure import _SymVar, _struct_MX, _struct_SX
 
 
 class IteratedVariables:
@@ -215,22 +216,6 @@ class IteratedVariables:
             raise Exception('Passing object of type {} to set the current time. Must be of type {}'.format(type(val), types))
 
 
-class _SymVar:
-    def __init__(self, symvar_type):
-        assert symvar_type in ['SX', 'MX'], 'symvar_type must be either SX or MX, you have: {}'.format(symvar_type)
-
-        if symvar_type == 'MX':
-            self.sym = MX.sym
-            self.struct = struct_MX
-            self.sym_struct = struct_symMX
-            self.dtype = MX
-        if symvar_type == 'SX':
-            self.sym = SX.sym
-            self.struct = struct_SX
-            self.sym_struct = struct_symSX
-            self.dtype = SX
-
-
 class Model:
     """The **do-mpc** model class. This class holds the full model description and is at the core of
     :py:class:`do_mpc.simulator.Simulator`, :py:class:`do_mpc.controller.MPC` and :py:class:`do_mpc.estimator.Estimator`.
@@ -333,6 +318,41 @@ class Model:
             'setup': False,
             'dae2odemodel': False
         }
+
+    def __getstate__(self):
+        """
+        Returns the state of the :py:class:`Model` for pickling.
+
+        .. warning::
+
+            The :py:class:`Model` class supports pickling only if:
+
+            1. The model is configured with ``SX`` variables.
+
+            2. The model is setup with :py:func:`setup`.
+        """
+        # Raise exception if model is using MX symvars
+        if self.symvar_type == 'MX':
+            raise Exception('Pickling of models using MX symvars is not supported.')
+        # Raise exception if model is not setup
+        if not self.flags['setup']:
+            raise Exception('Pickling of unsetup models is not supported.')
+
+        state = self.__dict__.copy()
+        return state
+
+    def __setstate__(self, state):
+        """
+        Sets the state of the :py:class:`Model` for unpickling. Please see :py:func:`__getstate__` for details and restrictions on pickling.
+        """
+        self.__dict__.update(state)
+
+        # Update expressions with new symbolic variables created when unpickling:
+        self._rhs = self._rhs(self._rhs_fun(self._x, self._u, self._z, self._tvp, self._p, self._w))
+        self._alg = self._alg(self._alg_fun(self._x, self._u, self._z, self._tvp, self._p, self._w))
+        self._aux_expression = self._aux_expression(self._aux_expression_fun(self._x, self._u, self._z, self._tvp, self._p))
+        self._y_expression = self._y_expression(self._meas_fun(self._x, self._u, self._z, self._tvp, self._p, self._v))
+
 
     def __getitem__(self, ind):
         """The :py:class:`Model` class supports the ``__getitem__`` method,
@@ -1065,7 +1085,12 @@ class Model:
             for var, name in zip(var_dict['var'], var_dict['name']):
                 subs = substitute(subs, var, sym_struct[name])
 
-        return expr(subs)
+        if self.symvar_type == 'MX':
+            expr = expr(subs)
+        else:
+            expr.master = subs
+        
+        return expr
 
     def _substitute_exported_vars(self, var_dict_list, sym_struct_list):
         """Helper function for :py:func:`setup`. Not part of the public API.
