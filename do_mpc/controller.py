@@ -308,21 +308,17 @@ class LQR:
         assert self.uss.shape == (self.model.n_u,1), 'uss must be of shape {}. You have {}'.format((self.model.n_u,1),self.uss.shape)
 
     def setup(self):
-        A = self.A_extract()
-        B = self.B_extract()
-        [self.A,self.B] = self.convert_to_array(A, B)
-        #self.A = np.full((self.model.n_x,self.model.n_x),self.A)
-        #self.B = np.full((self.model.n_x,self.model.n_u),self.B)
+        A = self.state_matrix()
+        B = self.input_matrix()
+        [self.A,self.B] = self.convertSX_to_array(A, B)
         if self.model_type == 'continuous':
-            [self.A,self.B] = self.conversion_to_discrete_time()
-            
-        #self.B = self.B.full()
+            [self.A,self.B] = self.continuous_to_discrete_time()
         assert self.flags['linear']== True, 'Model is not linear'
         if self.n_horizon == 0:
             warnings.warn('discrete infinite horizon gain will be computed since prediction horizon is set to default value 0')
-        if self.method in ['setPointTrack',None]:
+        if self.mode in ['setPointTrack',None] and self.model.flags['dae2odemodel'] == False and self.model.n_z==0:
             self.K = self.discrete_gain(self.A,self.B)
-        elif self.method == 'inputRatePenalization':
+        elif self.mode == 'inputRatePenalization' and self.model.flags['dae2odemodel'] == False and self.model.n_z==0:
             self.K = self.input_rate_penalization()
         elif self.model.flags['dae2odemodel'] == True:
             self.K = self.dae_model_gain(self.A, self.B)
