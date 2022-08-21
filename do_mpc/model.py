@@ -330,7 +330,8 @@ class Model:
         self.alg_list = [entry('default', expr=[])]
 
         self.flags = {
-            'setup': False
+            'setup': False,
+            'dae2odemodel': False
         }
 
     def __getitem__(self, ind):
@@ -1249,4 +1250,48 @@ class Model:
         linearizedModel.setup()
         
         return linearizedModel
+
+    def dae_to_ode_model(self):
+        #Check whether model setup is done
+        assert self.flags['setup'] == True, 'Run this function after original model is setup'
+
+        #Initializing new model
+        daeModel = Model(self.model_type)
+        
+        #Setting states and inputs
+        x = []
+        for i in range(self.n_x):
+            x.append(daeModel.set_variable('_x',self.x.keys()[i]))
+        for j in range(self.n_u):
+            x.append(daeModel.set_variable('_x',self.u.keys()[j+1]))
+        for k in range(self.n_z):
+            x.append(daeModel.set_variable('_x',self.z.keys()[k+1]))
+        q = daeModel.set_variable('_u','q',(self.n_u,1))
+        
+        #Extracting variables
+        x_new = daeModel.x[self.x.keys()]
+        u_new = daeModel.x[self.u.keys()[1:]]
+        z_new = daeModel.x[self.z.keys()[1:]]
+        tvp_new = daeModel.tvp[self.tvp.keys()]
+        p_new = daeModel.p[self.p.keys()]
+        w_new = daeModel.w[self.w.keys()]
+        
+        #Converting rhs eq. with respect to variables of linear model of same name
+        rhs = self._rhs_fun(vertcat(*x_new),vertcat(*u_new),vertcat(*z_new),vertcat(*tvp_new),vertcat(*p_new),vertcat(*w_new))
+        alg = self._alg_fun(vertcat(*x_new),vertcat(*u_new),vertcat(*z_new),vertcat(*tvp_new),vertcat(*p_new),vertcat(*w_new))
+        z_next = -inv(jacobian(alg,vertcat(*z_new)))@jacobian(alg,vertcat(*x_new))@rhs-inv(jacobian(alg,vertcat(*z_new)))@jacobian(alg,vertcat(*u_new))@q
+        u_next = q
+        
+        #Computing rhs of the model
+        for i in range(self.n_x):
+            daeModel.set_rhs(self.x.keys()[i],rhs[i])
+        for j in range(self.n_u):
+            daeModel.set_rhs(self.u.keys()[j+1],daeModel.u['q',j])
+        for k in range(self.n_z):
+            daeModel.set_rhs(self.z.keys()[k+1],z_next[k])
+        
+        #setting up the model
+        daeModel.setup()
+        daeModel.flags['dae2odemodel'] = True
+        return daeModel
 

@@ -191,34 +191,28 @@ class LQR:
                 B_new[i,j] = np.array(str(B[i,j]))
         return A_new,B_new
     
-    def DaetoODEmodel(self):
-        daeModel = do_mpc.model.Model(self.model_type)
-        x = []
-        for i in range(self.model.n_x):
-            x.append(daeModel.set_variable('_x',self.model.x.keys()[i]))
-        for j in range(self.model.n_u):
-            x.append(daeModel.set_variable('_x',self.model.u.keys()[j+1]))
-        for k in range(self.model.n_z):
-            x.append(daeModel.set_variable('_x',self.model.z.keys()[k+1]))
-        q = daeModel.set_variable('_u','q',(self.model.n_u,1))
-        #var = daeModel['_x','_u','_z','_tvp','_p','_w']
-        #rhs = self.model._rhs_fun(*var)
-        z_next = -inv(jacobian(self.model._alg,self.model._z))@jacobian(self.model._alg,self.model._x)@self.model._rhs-inv(jacobian(self.model._alg,self.model._z))@jacobian(self.model._alg,self.model._u)@q
-        u_next = q
-        for i in range(self.model.n_x):
-            daeModel.set_rhs(self.model.x.keys()[i],self.model._rhs[self.model.x.keys()[i]])
-        for j in range(self.model.n_u):
-            daeModel.set_rhs(self.model.u.keys()[j+1],daeModel.u['q',j])
-        for k in range(self.model.n_z):
-            daeModel.set_rhs(self.model.z.keys()[k+1],z_next[k])
-        daeModel.setup()
-        # q = SX.sym('q',self.model.n_u)
-        # daeModel = self.model
-        # z_next = -inv(jacobian(self.model._alg,self.model._z))@jacobian(self.model._alg,self.model._x)@self.model._rhs-inv(jacobian(self.model._alg,self.model._z))@jacobian(self.model._alg,self.model._u)@q
-        return daeModel
         
         
     
+    def dae_model_gain(self,A,B):
+        assert not self.Q is None, "run this function after setting objective using set_objective()"
+        if np.shape(self.Q)==(self.model.n_x,self.model.n_x) and np.shape(self.R)==(self.model.n_u,self.model.n_u):
+            K = self.discrete_gain(A, B)
+        else:
+            zeros_Q_u_col = np.zeros((np.shape(self.Q)[0],np.shape(self.R)[0]+np.shape(self.delZ)[0]))
+            zeros_Q_z_col = np.zeros((np.shape(self.R)[0],np.shape(self.delZ)[0]))
+            zeros_Q_u_row = np.zeros((np.shape(self.R)[0],np.shape(self.Q)[0]))
+            zeros_Q_z_row = np.zeros((np.shape(self.delZ)[0],np.shape(self.Q)[0]+np.shape(self.R)[0]))
+            self.Q = np.block([[self.Q,zeros_Q_u_col],
+                               [zeros_Q_u_row, self.R, zeros_Q_z_col],
+                               [zeros_Q_z_row,self.delZ]])
+            self.R = self.Rdelu
+            self.P = np.block([[self.P,zeros_Q_u_col],
+                               [zeros_Q_u_row, self.R, zeros_Q_z_col],
+                               [zeros_Q_z_row,self.delZ]])
+            K = self.discrete_gain(A, B)
+        return K
+        
 
     def setup(self):
         A = self.A_extract()
@@ -237,8 +231,12 @@ class LQR:
             self.K = self.discrete_gain(self.A,self.B)
         elif self.method == 'inputRatePenalization':
             self.K = self.input_rate_penalization()
-        else:
-            raise Exception('method must be setPointTrack, inputRatePenalization, None. you have {}'.format(self.method))
+        elif self.model.flags['dae2odemodel'] == True:
+            self.K = self.dae_model_gain(self.A, self.B)
+        elif not self.mode in ['setPointTrack','inputRatePenalization']:
+            raise Exception('mode must be setPointTrack, inputRatePenalization, None. you have {}'.format(self.method))
+        elif self.model.flags['dae2odemodel'] == False and self.model.n_z !=0:
+            raise Exception('You model contains algebraic states. Please convert the dae model to ode model using model.dae_to_ode_model().')
         self.flags['setup'] = True
 
 class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
