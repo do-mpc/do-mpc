@@ -27,7 +27,7 @@ import pdb
 import itertools
 import time
 import warnings
-
+import subprocess
 
 from do_mpc.tools.indexedproperty import IndexedProperty
 
@@ -689,6 +689,70 @@ class Optimizer:
         self.flags['set_tvp_fun'] = True
 
         self.tvp_fun = tvp_fun
+
+    def compile_nlp(self, overwrite = False, cname = 'nlp.c', libname='nlp.so', compiler_command=None):
+        """Compile the NLP. This may accelerate the optimization.
+        As compilation is time consuming, the default option is to NOT overwrite (``overwrite=False``) an existing compilation.
+        If an existing compilation with the name ``libname`` is found, it is used. **This can be dangerous, if the NLP has changed**
+        (user tweaked the cost function, the model etc.).
+
+        .. warning:: 
+
+            This feature is experimental and currently only supported on Linux and MacOS.
+
+
+        **What happens here?**
+        
+        1. The NLP is written to a C-file (``cname``)
+        
+        
+        2. The C-File (``cname``) is compiled. The custom compiler uses:
+
+        ::
+
+            gcc -fPIC -shared -O1 {cname} -o {libname}
+
+        3. The compiled library is linked to the NLP. This overwrites the original NLP. Options from the previous NLP (e.g. linear solver) are kept.
+
+        ::
+
+            self.S = nlpsol('solver_compiled', 'ipopt', f'{libname}', self.nlpsol_opts)      
+
+
+        :param overwrite: If True, the existing compiled NLP will be overwritten.
+        :type overwrite: bool
+        :param cname: Name of the C file that will be exported.
+        :type cname: str
+        :param libname: Name of the shared library that will be created after compilation.
+        :type libname: str
+        :param compiler_command: Command to use for compiling. If None, the default compiler command will be used. Please make sure to use matching strings for ``libname`` when supplying your custom compiler command.
+        :type compiler_command: str
+
+        """
+        if not self.flags['setup']:
+            raise Exception('Optimizer not setup. Call setup first.')
+
+        if sys.platform  not in ('darwin', 'linux', 'linux2'):
+            raise Exception('Compilation not supported on this platform.')
+
+        if compiler_command is None:
+            compiler_command = "gcc -fPIC -shared -O1 {cname} -o {libname}".format(cname=cname, libname=libname)
+
+        # Only compile if not already compiled:
+        if overwrite or not os.path.isfile(libname):
+            # Create c code from solver object
+            print('Generating c-code of nlp.')
+            self.S.generate_dependencies(cname)
+            # Compile c code
+            print('Compiling c-code of nlp.')
+            subprocess.Popen(compiler_command, shell=True).wait()
+
+
+        # Overwrite solver object with loaded nlp:
+        self.S = nlpsol('solver_compiled', 'ipopt', {libname}, self.nlpsol_opts)
+        print('Using compiled NLP solver.')
+
+            
 
     def solve(self):
         """Solves the optmization problem.
