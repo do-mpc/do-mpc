@@ -384,7 +384,7 @@ class Simulator(do_mpc.model.IteratedVariables):
             If no initial values for :py:attr:`z0` were supplied during setup, they default to zero.
 
         """
-        assert self.flags['setup'] == True, 'MPC was not setup yet. Please call MPC.setup().'
+        assert self.flags['setup'] == True, 'Simulator was not setup yet. Please call Simulator.setup().'
 
         self.sim_z_num['_z'] = self._z0.cat
 
