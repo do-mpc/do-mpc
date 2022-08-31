@@ -317,6 +317,8 @@ class Model:
         self.flags = {
             'setup': False
         }
+        # Discrete-list of inputs for MINLP
+        self.integer = []
 
     def __getstate__(self):
         """
@@ -729,7 +731,7 @@ class Model:
         raise Exception('Cannot set measurement noise directly.')
 
 
-    def set_variable(self, var_type, var_name, shape=(1,1)):
+    def set_variable(self, var_type, var_name, integer=False, shape=(1,1)):
         """Introduce new variables to the model class. Define variable type, name and shape (optional).
 
         **Example:**
@@ -754,7 +756,7 @@ class Model:
             Long name                    short name   Remark
             ===========================  ===========  ============================
             ``states``                   ``_x``       Required
-            ``inputs``                   ``_u``       optional
+            ``inputs``                   ``_u``       Optional
             ``algebraic``                ``_z``       Optional
             ``parameter``                ``_p``       Optional
             ``timevarying_parameter``    ``_tvp``     Optional
@@ -776,7 +778,10 @@ class Model:
         assert self.flags['setup'] == False, 'Cannot call .set_variable after setup.'
         assert isinstance(var_type, str), 'var_type must be str, you have: {}'.format(type(var_type))
         assert isinstance(var_name, str), 'var_name must be str, you have: {}'.format(type(var_name))
+        assert isinstance(integer, bool), 'integer must be bool, you have: {}'.format(type(discrete))
         assert isinstance(shape, (tuple,int)), 'shape must be tuple or int, you have: {}'.format(type(shape))
+        if integer==True:
+            assert var_type == '_u', 'Only inputs can be declared as integer variables, you tried to declare {} as integer variable'.format(var_type) 
 
         # Get short names:
         var_type =var_type.replace('states', '_x'
@@ -797,6 +802,10 @@ class Model:
         # Extend var list with new entry:
         getattr(self, var_type)['var'].append(var)
         getattr(self, var_type)['name'].append(var_name)
+
+        # Fill integer list with input variables that are integer variables
+        if var_type=='_u' and integer==True : self.integer += [var_name]
+        # Naming? Integer
 
         return var
 

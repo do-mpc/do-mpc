@@ -182,6 +182,11 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         ]
         self.nlpsol_opts = {} # Will update default options with this dict.
 
+        # Initialize integer-lists for MINLP
+        self.integer = []
+        self.integer_u = self.model.integer
+
+
         # Flags are checked when calling .setup.
         self.flags.update({
             'set_objective': False,
@@ -1150,6 +1155,36 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             entry('_u', repeat=[self.n_horizon, n_u_scenarios], struct=self.model._u),
             entry('_eps', repeat=[n_eps, n_max_scenarios], struct=self._eps),
         ])
+        """
+        # Build discrete vector for MINLP
+        count_x = (self.n_horizon+1)*n_max_scenarios*(1+n_total_coll_points)*self.model._x.shape[0]
+        count_z = self.n_horizon*n_max_scenarios*max(n_total_coll_points,1)*self.model._z.shape[0]
+        count_u = self.n_horizon*n_u_scenarios*self.model._u.shape[0]
+        count_eps = n_eps*n_max_scenarios*self._eps.shape[0]
+
+        self.discrete += np.zeros(count_x+count_z, dtype=bool).tolist()
+        self.discrete += self.discrete_u*int((count_u/len(self.discrete_u)))
+        self.discrete += np.zeros(count_eps, dtype=bool).tolist()
+        n_opt = opt_x.shape[0]
+        dis = len(self.discrete)
+        check_discrete = self.discrete
+        assert n_opt == dis , 'opt_x and self.discrete must have the same length'
+        """
+        
+        # Create integer list for MINLP if any input is discrete
+        if self.integer_u != []:
+            # Create a Sym_Struct with similar structure, but only booleans with value 'False'  
+            opt_x_integer_flag = opt_x(False)
+            # Set all integer variables to true
+            for u_int in self.integer_u:
+                opt_x_integer_flag['_u',:,:,u_int] = True
+            # Fill the integer-list with the bool-values from the struct
+            for k in range(opt_x_integer_flag.cat.shape[0]):
+                self.integer += [bool(opt_x_integer_flag.cat[k])]
+            # pdb.set_trace()
+   
+        
+
         self.n_opt_x = self._opt_x.shape[0]
         # NOTE: The entry _x[k,child_scenario[k,s,b],:] starts with the collocation points from s to b at time k
         #       and the last point contains the child node
@@ -1315,8 +1350,12 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             'expand': False,
             'ipopt.linear_solver': 'mumps',
         }.update(self.nlpsol_opts)
+        # Is it a MINLP?
+        MINLP = {"discrete":self.integer} if True in self.integer else self.nlpsol_opts
         nlp = {'x': vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons, 'p': vertcat(self._opt_p)}
-        self.S = nlpsol('S', 'ipopt', nlp, self.nlpsol_opts)
+        # Use BOMNIN for MINLP and IPOPT for NLP
+        self.S = nlpsol('S', 'bonmin' if True in self.integer else 'ipopt', nlp, MINLP)
+        
 
 
         # Create function to caculate all auxiliary expressions:
