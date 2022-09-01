@@ -182,6 +182,10 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         ]
         self.nlpsol_opts = {} # Will update default options with this dict.
 
+        # List from model object that contains the names of the integer input varables. Integer inputs yield a MINLP problem. 
+        self.integer_u = self.model.integer
+
+
         # Flags are checked when calling .setup.
         self.flags.update({
             'set_objective': False,
@@ -189,6 +193,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             'set_tvp_fun': False,
             'set_p_fun': False,
             'set_initial_guess': False,
+            'MINLP': True if bool(self.integer_u) else False, # checks if there are any integer inputs
         })
 
     @property
@@ -1149,7 +1154,18 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                                 max(n_total_coll_points,1)], struct=self.model._z),
             entry('_u', repeat=[self.n_horizon, n_u_scenarios], struct=self.model._u),
             entry('_eps', repeat=[n_eps, n_max_scenarios], struct=self._eps),
-        ])
+        ])   
+
+        # Create integer list for MINLP if any input is discrete
+        if self.flags['MINLP']:
+            # Create a Sym_Struct with similar structure, but with only booleans of value 'False'  
+            opt_x_integer_flag = opt_x(False)
+            # Set all integer variables to true
+            for u_int in self.integer_u:
+                opt_x_integer_flag['_u',:,:,u_int] = True
+            # Convert Sym_Struct to list with boolean entries
+            self.opt_x_integer_flag = np.ndarray.flatten(np.array(opt_x_integer_flag.cat, dtype=bool)).tolist()
+
         self.n_opt_x = self._opt_x.shape[0]
         # NOTE: The entry _x[k,child_scenario[k,s,b],:] starts with the collocation points from s to b at time k
         #       and the last point contains the child node
@@ -1315,8 +1331,17 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             'expand': False,
             'ipopt.linear_solver': 'mumps',
         }.update(self.nlpsol_opts)
+        # Use BOMNIN for MINLP and IPOPT for NLP
+        if self.flags['MINLP']:
+            self.nlpsol_opts.update({
+            'discrete': self.opt_x_integer_flag
+            })
+            solvername = 'bonmin'
+        else:
+            solvername = 'ipopt'
+
         nlp = {'x': vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons, 'p': vertcat(self._opt_p)}
-        self.S = nlpsol('S', 'ipopt', nlp, self.nlpsol_opts)
+        self.S = nlpsol('S', solvername, nlp, self.nlpsol_opts)       
 
 
         # Create function to caculate all auxiliary expressions:
