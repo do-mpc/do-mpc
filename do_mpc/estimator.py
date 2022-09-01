@@ -295,8 +295,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         self._w = self.model._w
         self._v = self.model._v
 
-        # Discrete-lists for MINLP
-        self.integer = []
+        # List from model object that contains the names of the integer input varables. Integer inputs yield a MINLP problem.
         self.integer_u = self.model.integer
 
         # Flags are checked when calling .setup.
@@ -307,6 +306,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             'set_y_fun': False,
             'set_objective': False,
             'set_initial_guess': False,
+            'MINLP': True if bool(self.integer_u) else False, # checks if there are any integer inputs
         })
 
     @property
@@ -1222,16 +1222,15 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             entry('_p_est', struct=self._p_est),
         ])
 
-        # Complete integer list for MINLP if any input is discrete
-        if self.integer != []:
-            # Create a Sym_Struct with similar structure as opt_x, but with booleans of value 'False'  
+        # Create integer list for MINLP if any input is discrete
+        if self.flags['MINLP']:
+            # Create a Sym_Struct with similar structure, but with only booleans of value 'False'  
             opt_x_integer_flag = opt_x(False)
-            # Set all input integer variables to true
+            # Set all integer variables to true
             for u_int in self.integer_u:
                 opt_x_integer_flag['_u',:,:,u_int] = True
-            # Fill the integer-list with the bool-values from the struct
-            for k in range(opt_x_integer_flag.cat.shape[0]):
-                self.integer += [bool(opt_x_integer_flag.cat[k])]
+            # Convert Sym_Struct to list with boolean entries
+            self.opt_x_integer_flag = np.ndarray.flatten(np.array(opt_x_integer_flag.cat, dtype=bool)).tolist()
 
         self.n_opt_x = opt_x.shape[0]
         # NOTE: The entry _x[k,:] starts with the collocation points from s to b at time k
@@ -1405,11 +1404,17 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             'expand': False,
             'ipopt.linear_solver': 'mumps',
         }.update(self.nlpsol_opts)
-        # Is it a MINLP?
-        MINLP = {"discrete":self.integer} if True in self.integer else self.nlpsol_opts
-        nlp = {'x': vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons, 'p': vertcat(self._opt_p)}
         # Use BONMIN for MINLP and IPOPT for NLP
-        self.S = nlpsol('S','bonmin' if True in self.integer else 'ipopt', nlp, MINLP)
+        if self.flags['MINLP']:
+            self.nlpsol_opts.update({
+            'discrete': self.opt_x_integer_flag
+            })
+            solvername = 'bonmin'
+        else:
+            solvername = 'ipopt'
+
+        nlp = {'x': vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons, 'p': vertcat(self._opt_p)}
+        self.S = nlpsol('S',solvername, nlp, self.nlpsol_opts)
 
 
 

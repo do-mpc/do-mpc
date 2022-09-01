@@ -28,7 +28,7 @@ def template_model(symvar_type='SX'):
     x_1 = model.set_variable('_x', 'x_1')
     
     # Input struct (optimization paramters)
-    inp = model.set_variable('_u', 'inp', integer=True)
+    inp = model.set_variable('_u', 'inp', input_type_integer=True)
     
     # Differential equations
     model.set_rhs('x_0', x_0 - x_0*x_1 - c0*x_0*inp)

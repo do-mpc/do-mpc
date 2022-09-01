@@ -182,8 +182,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         ]
         self.nlpsol_opts = {} # Will update default options with this dict.
 
-        # Initialize integer-lists for MINLP
-        self.integer = []
+        # List from model object that contains the names of the integer input varables. Integer inputs yield a MINLP problem. 
         self.integer_u = self.model.integer
 
 
@@ -194,6 +193,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             'set_tvp_fun': False,
             'set_p_fun': False,
             'set_initial_guess': False,
+            'MINLP': True if bool(self.integer_u) else False, # checks if there are any integer inputs
         })
 
     @property
@@ -1154,36 +1154,17 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                                 max(n_total_coll_points,1)], struct=self.model._z),
             entry('_u', repeat=[self.n_horizon, n_u_scenarios], struct=self.model._u),
             entry('_eps', repeat=[n_eps, n_max_scenarios], struct=self._eps),
-        ])
-        """
-        # Build discrete vector for MINLP
-        count_x = (self.n_horizon+1)*n_max_scenarios*(1+n_total_coll_points)*self.model._x.shape[0]
-        count_z = self.n_horizon*n_max_scenarios*max(n_total_coll_points,1)*self.model._z.shape[0]
-        count_u = self.n_horizon*n_u_scenarios*self.model._u.shape[0]
-        count_eps = n_eps*n_max_scenarios*self._eps.shape[0]
+        ])   
 
-        self.discrete += np.zeros(count_x+count_z, dtype=bool).tolist()
-        self.discrete += self.discrete_u*int((count_u/len(self.discrete_u)))
-        self.discrete += np.zeros(count_eps, dtype=bool).tolist()
-        n_opt = opt_x.shape[0]
-        dis = len(self.discrete)
-        check_discrete = self.discrete
-        assert n_opt == dis , 'opt_x and self.discrete must have the same length'
-        """
-        
         # Create integer list for MINLP if any input is discrete
-        if self.integer_u != []:
-            # Create a Sym_Struct with similar structure, but only booleans with value 'False'  
+        if self.flags['MINLP']:
+            # Create a Sym_Struct with similar structure, but with only booleans of value 'False'  
             opt_x_integer_flag = opt_x(False)
             # Set all integer variables to true
             for u_int in self.integer_u:
                 opt_x_integer_flag['_u',:,:,u_int] = True
-            # Fill the integer-list with the bool-values from the struct
-            for k in range(opt_x_integer_flag.cat.shape[0]):
-                self.integer += [bool(opt_x_integer_flag.cat[k])]
-            # pdb.set_trace()
-   
-        
+            # Convert Sym_Struct to list with boolean entries
+            self.opt_x_integer_flag = np.ndarray.flatten(np.array(opt_x_integer_flag.cat, dtype=bool)).tolist()
 
         self.n_opt_x = self._opt_x.shape[0]
         # NOTE: The entry _x[k,child_scenario[k,s,b],:] starts with the collocation points from s to b at time k
@@ -1350,12 +1331,17 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             'expand': False,
             'ipopt.linear_solver': 'mumps',
         }.update(self.nlpsol_opts)
-        # Is it a MINLP?
-        MINLP = {"discrete":self.integer} if True in self.integer else self.nlpsol_opts
-        nlp = {'x': vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons, 'p': vertcat(self._opt_p)}
         # Use BOMNIN for MINLP and IPOPT for NLP
-        self.S = nlpsol('S', 'bonmin' if True in self.integer else 'ipopt', nlp, MINLP)
-        
+        if self.flags['MINLP']:
+            self.nlpsol_opts.update({
+            'discrete': self.opt_x_integer_flag
+            })
+            solvername = 'bonmin'
+        else:
+            solvername = 'ipopt'
+
+        nlp = {'x': vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons, 'p': vertcat(self._opt_p)}
+        self.S = nlpsol('S', solvername, nlp, self.nlpsol_opts)       
 
 
         # Create function to caculate all auxiliary expressions:
