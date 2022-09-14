@@ -6,12 +6,15 @@ import pathlib
 import pdb
 import scipy.io as sio
 import copy
+import itertools
 from do_mpc.tools import load_pickle, save_pickle
 
 
 class SamplingPlanner:
     """A class for generating sampling plans.
     These sampling plans will be executed by :py:class:`do_mpc.sampling.sampler.Sampler` to generate data.
+
+    The class can be created with optional keyword arguments which are passed to :py:meth:`set_param`.
 
     **Configuration and sampling plan generation:**
 
@@ -26,7 +29,7 @@ class SamplingPlanner:
     5. Export the plan with all sampling cases with :py:meth:`export`
 
     """
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.sampling_vars = []
         self.sampling_var_names = []
         self.sampling_plan = []
@@ -40,6 +43,9 @@ class SamplingPlanner:
         self.data_dir = './'
         self.overwrite = False
         self.id_precision = 3
+
+        if kwargs:
+            self.set_param(**kwargs)
 
     @property
     def data_dir(self):
@@ -212,6 +218,43 @@ class SamplingPlanner:
 
 
         return self.sampling_plan
+
+    def product(self, **kwargs):
+        """Cartesian product of input variables.
+        This method is inspired by `itertools.product <https://docs.python.org/3/library/itertools.html#itertools.product>`_.
+
+        Must pass a list for each ``sampling_var`` that should be considered. Not all ``sampling_vars`` must be referenced. 
+        Sampling vars that are excluded, will generate a value according to their assigned ``fun_var_pdf`` (see :py:meth:`set_sampling_var`).
+
+        :param kwargs: Keyword arguments of the form ``var_name=var_values``.
+        :type kwargs: dict
+        :return: None
+        :rtype: NoneType
+        """
+        # Check if all key word values are lists:
+        check = np.alltrue([isinstance(v, list) for v in kwargs.values()])
+        if not check:
+            raise ValueError('keyword values must be lists')
+
+        # Check if all key words are existing sampling variables:
+        keys = kwargs.keys()
+        check = np.alltrue([v in self.sampling_var_names for v in keys])
+        if not check:
+            raise ValueError('keyword names must be existing sampling variables')
+
+        # Create cartesian product of all values passen in kwargs:
+        values = list(itertools.product(*list(kwargs.values())))
+
+        # Create new sampling cases:
+        for value in values:
+            # Zip together the value(s) of the current case with the respective keys:
+            case = dict(zip(keys, value))
+            # Add sampling case
+            self.add_sampling_case(**case)
+
+
+        return self.sampling_plan
+        
 
 
     def export(self, sampling_plan_name):

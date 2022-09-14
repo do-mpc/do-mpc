@@ -15,6 +15,8 @@ class Sampler:
     Initiate the class by passing a :py:class:`do_mpc.sampling.samplingplanner.SamplingPlanner` (``sampling_plan``) object.
     The class can be configured to create samples based on the defined cases in the ``sampling_plan``.
 
+    The class can be created with optional keyword arguments which are passed to :py:meth:`set_param`.
+
     **Configuration and sampling:**
 
     1. (Optional) use :py:meth:`set_param` to configure the class. Use :py:attr:`data_dir` to choose the save location for the samples.
@@ -54,7 +56,7 @@ class Sampler:
         sampler.sample_data()
 
     """
-    def __init__(self, sampling_plan):
+    def __init__(self, sampling_plan, **kwargs):
         assert isinstance(sampling_plan, list), 'sampling_plan must be a list'
         assert np.all([isinstance(plan_i, dict) for plan_i in sampling_plan]), 'All elements of sampling plan must be a dictionary.'
 
@@ -81,6 +83,11 @@ class Sampler:
         self.overwrite = False
         self.print_progress = True
         self.n_processes = 1
+
+        if kwargs:
+            self.set_param(**kwargs)
+
+        
 
     @property
     def data_dir(self):

@@ -20,6 +20,8 @@ class DataHandler:
     The list of all samples originates from :py:class:`do_mpc.sampling.samplingplanner.SamplingPlanner` and is used to
     initiate this class (``sampling_plan``).
 
+    The class can be created with optional keyword arguments which are passed to :py:meth:`set_param`.
+
     **Configuration and retrieving processed data:**
 
     1. Initiate the object with the ``sampling_plan`` originating from :py:class:`do_mpc.sampling.samplingplanner.SamplingPlanner`.
@@ -67,7 +69,7 @@ class DataHandler:
         dh[:]
 
     """
-    def __init__(self, sampling_plan):
+    def __init__(self, sampling_plan, **kwargs):
         self.flags = {
             'set_post_processing' : False,
         }
@@ -88,6 +90,9 @@ class DataHandler:
         self.post_processing = {}
 
         self.pre_loaded_data = {'id':[], 'data':[]}
+
+        if kwargs:
+            self.set_param(**kwargs)
 
 
     @property
@@ -193,13 +198,13 @@ class DataHandler:
 
 
         :param filter_fun: Function  to filter the data.
-        :type filter: Function or BuiltinFunction_or_Method
+        :type filter_fun: Function or BuiltinFunction_or_Method
 
         :raises assertion: No post processing function is set
         :raises assertion: filter_fun must be either Function of BuiltinFunction_or_Method
 
         :return: Returns the post processed samples that satisfy the filter
-        :rtype: dict
+        :rtype: list
         """
         assert isinstance(input_filter, (types.FunctionType, types.BuiltinFunctionType, type(None))), 'input_filter must be either Function or BuiltinFunction_or_Method, you have {}'.format(type(input_filter))
         assert isinstance(output_filter, (types.FunctionType, types.BuiltinFunctionType, type(None))), 'output_filter must be either Function or BuiltinFunction_or_Method, you have {}'.format(type(output_filter))
