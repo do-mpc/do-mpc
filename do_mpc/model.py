@@ -1238,6 +1238,39 @@ class Model:
         self.flags['setup'] = True
 
     def linearize(self,xss,uss):
+        """Linearize the non-linear model to linear model.
+        
+        This method uses the taylor expansion series to linearize non-linear model to linear model at the specified 
+        set points. Linearized model retains the same variable names for all states, inputs with respect to the original model.
+        The non-linear model equation this method can solve is as follows:
+        
+            .. math::
+                \\dot{x} = f(x,u)
+                
+        The above model is linearized around steady state set point :math:`x_{ss}` and steady state input :math:`u_{ss}`
+        
+        .. math::
+            \\frac{\\partial f}{\\partial x}|_{x_{ss}} = 0 \\\\
+            \\frac{\\partial f}{\\partial u}|_{u_{ss}} = 0
+                
+        The linearized model is as follows:
+            
+            .. math::
+                \\Delta\\dot{x} = A \\Delta x + B \\Delta u
+                
+        Similarly it can be extended to discrete time systems.
+                
+        :param xss: Steady state set point
+        :type xss: numpy.ndarray
+        
+        :param uss: Steady state input
+        :type uss: numpy.ndarray
+        
+        :return: Linearized Model
+        :rtype: model.Model 
+        
+
+        """
         #Check whether model setup is done
         assert self.flags['setup'] == True, 'Run this function after original model is setup'
         
@@ -1277,6 +1310,34 @@ class Model:
         return linearizedModel
 
     def dae_to_ode_model(self):
+        """Converts index-1 DAE system to ODE system.
+        
+        This method utilizes the differentiation method of converting index-1 DAE systems to ODE systems. This method
+        cannot handle higher index DAE systems. The DAE system is as follows:
+        
+            .. math::
+                \\dot{x} = f(x,u,z) \\\\
+                    0 = g(x,u,z)
+       
+        where :math:`x` is the states, :math:`u` is the input and :math:`z` is the algebraic states of the system.
+        Differentiation method is as follows:
+        
+            .. math::
+                \\dot{z} = -\\frac{\\partial g}{\\partial z}^{-1}\\frac{\\partial g}{\\partial x}f-\\frac{\\partial g}{\\partial z}^{-1}\\frac{\\partial g}{\\partial u}\\dot{u}
+        
+        Therefore the converted ODE system looks like:
+        
+            .. math::
+                \\begin{pmatrix} \\dot{x} \\\\ \\dot{u} \\\\ \\dot{z} \\end{pmatrix} = \\begin{pmatrix} f(x,u,z) \\\\ q \\\\ g(x,u,z) \\end{pmatrix}
+        
+        where :math:`\\dot{x},\\dot{u},\\dot{z}` are the states of the model and q is the input to the model. Similarly, it can be extended to discrete time systems.
+        
+        :return: Converted ODE Model
+        :rtype: model.Model 
+        
+
+
+        """
         #Check whether model setup is done
         assert self.flags['setup'] == True, 'Run this function after original model is setup'
 
