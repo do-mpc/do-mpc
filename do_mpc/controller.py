@@ -35,6 +35,31 @@ from scipy.linalg import solve_discrete_are,solve_continuous_are
 import do_mpc.model
 
 class LQR:
+    """Linear Quadratic Regulator.
+    
+    Use this class to configure and run the LQR controller
+    according to the previously configured :py:class:`do_mpc.model.Model` instance.
+    
+    **Configuration and setup:**
+    
+    Configuring and setting up the LQR controller involves the following steps:
+    
+    1. Use :py:func:`set_param` to configure the :py:class:`LQR` instance.
+    
+    2. Set the objective of the control problem with :py:func:`set_objective`
+    
+    3. To finalize the class configuration call :py:meth:`setup`.
+    
+    After configuring LQR controller, the controller can be made to operate in two modes. 
+    
+    1. Set point tracking mode - can be enabled by setting the setpoint using :py:func:`set_point` (default)
+    
+    2. Input Rate Penalization mode - can be enabled by executing :py:func:`input_rate_penalization` and also passing sufficent arguments to the :py:func:`set_objective`
+    
+    .. note::
+        During runtime call :py:func:`make_step` with the current state :math:`x` to obtain the optimal control input :math:`u`.
+        During runtitme call :py:func:`set_point` with the set points of input :math:`u_{ss}`, states :math:`x_{ss}` and algebraic states :math:`z_{ss}` in order to update the respective set points.
+    """
     def __init__(self,model):
         self.model = model
         
@@ -50,11 +75,14 @@ class LQR:
             ]
         #Initialize prediction horizon for the problem
         self.n_horizon = 0
+        
+        #Initialize sampling time for continuous time system to discrete time system conversion
         self.t_sample = 0
         
         self.conv_method = 'zoh'
         #Initialize mode of LQR
         self.mode = 'setPointTrack'
+        
         self.flags = {'linear':False,
                       'setup':False}
         
@@ -63,7 +91,23 @@ class LQR:
         self.xss = None
         self.uss = None
     def continuous_to_discrete_time(self):
+        """Converts continuous time to discrete time system.
         
+        This method utilizes the exisiting function in scipy library called :math:`cont2discrete` to convert continuous time to discrete time system.This method 
+        allows the user to specify the type of discretization. For more details about the function `click here`_ .
+         
+        .. _`click here`: https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.cont2discrete.html
+            
+        where :math:`A_{discrete}` and :math:`B_{discrete}` are the discrete state matrix and input matrix repectively and :math:`t_{sample}`
+        is the sampling time. Sampling time is set using :py:func:`set_param`.
+        
+        .. warning::
+            sampling time is zero when not specified or not required
+        
+        :return: State :math:`A_{discrete}` and input :math:`B_{discrete}` matrices as a tuple
+        :rtype: numpy.ndarray
+
+        """
         #Checks the model type
         if self.model.model_type == 'continuous':
             warnings.warn('sampling time is {}'.format(self.t_sample))
@@ -81,7 +125,20 @@ class LQR:
         return A_dis,B_dis
     
     def state_matrix(self):
+        """Extracts state matix from ODE or difference equation.
+        
+        This method utilizes the API :py:func:`jacobian` from casadi in order to obtain the repective state matrix.
+
+        :raises exception: given model is not linear. Lineaize the model using :py:func:`model.linearize` after :py:meth:`model.setup`.
+
+        :return: Extracted state matrix :math:`A`
+        :rtype: casadi.SX
+
+        """
+        #Calculating jacobian with respect to state variables
         A = jacobian(self.model._rhs,self.model.x)
+        
+        #Check whether the obtained matrix is constant
         if A.is_constant() == True:
             self.flags['linear'] = True
         elif A.is_constant() == False:
@@ -90,6 +147,16 @@ class LQR:
         return A
     
     def input_matrix(self):
+        """Extracts input matix from ODE or difference equation.
+        
+        This method utilizes the API :py:func:`jacobian` from casadi in order to obtain the respective input matrix.
+
+        :raises exception: given model is not linear. Lineaize the model using :py:func:`model.linearize` after :py:func:`model.setup`.
+
+        :return: Extracted input matrix :math:`B`
+        :rtype: casadi.SX
+
+        """
         #Calculating jacobian with respect to input variables
         B = jacobian(self.model._rhs,self.model.u)
         
@@ -98,10 +165,44 @@ class LQR:
             self.flags['linear'] = True
         elif B.is_constant() == False:
             self.flags['linear'] = False
-            raise Exception('given model is not linear. Lineaize the model using model.linearize() before setup().')
+            raise Exception('given model is not linear. Lineaize the model using model.linearize() after model.setup().')
         return B
         
     def discrete_gain(self,A,B):
+        """Computes discrete gain. 
+        
+        This method computes both finite discrete gain and infinite discrete gain depending on the availability 
+        of prediction horizon. The gain computed using explicit solution for both finite time and infinite time.
+        
+        For finite time:
+            
+            .. math::
+                \\pi(N) &= P_f\\\\
+                K(k) & = -(B'\\pi(k+1)B)^{-1}B'\\pi(k+1)A\\\\
+                \\pi(k) & = Q+A'\\pi(k+1)A-A'\\pi(k+1)B(B'\\pi(k+1)B+R)^{-1}B'\\pi(k+1)A
+       
+        For infinite time:
+            
+            .. math::
+                K & = -(B'PB+P)^{-1}B'PA\\\\
+                P & = Q+A'PA-A'PB(R+B'PB)^{-1}B'PA\\\\
+        
+        For example:
+            
+            ::
+                
+                K = lqr.discrete_gain(A,B)
+                                  
+        :param A: State matrix - constant matrix with no variables
+        :type A: numpy.ndarray
+
+        :param B: Input matrix - constant matrix with no variables
+        :type B: numpy.ndarray                 
+        
+        :return: Gain matrix :math:`K`
+        :rtype: numpy.ndarray
+
+        """
         #Verifying the availability of cost matrices
         assert np.shape(self.Q) == (self.model.n_x,self.model.n_x) and np.shape(self.R) == (self.model.n_u,self.model.n_u) , 'Enter tuning parameter Q and R for the lqr problem using set_objective() function.'
         assert self.model_type == 'discrete', 'convert the model from continous to discrete using model_type_conversion() function.'
@@ -123,6 +224,31 @@ class LQR:
             return K
     
     def input_rate_penalization(self):
+        """Computes lqr gain for the input rate penalization mode.
+        
+        This method modifies the state matrix and input matrix according to the input rate penalization method. Due to this objective function also gets modified.
+        The input rate penalization formulation is given as:
+            
+            .. math::
+                x(k+1) = \\tilde{A} x(k) + \\tilde{B}\\Delta u(k)\\\\
+                
+                \\text{where} 
+                \\tilde{A} = \\begin{bmatrix} 
+                                A & B \\\\
+                                0 & I \\end{bmatrix},
+                \\tilde{B} = \\begin{bmatrix} B \\\\
+                             I \\end{bmatrix}
+                            
+        
+        The above formulation is with respect to discrete time system. After formulating the objective, discrete gain is calculated
+        using :py:func:`discrete_gain`
+        
+        :return: Gain matrix :math:`K`
+        :rtype: numpy.ndarray
+        
+
+        """
+        
         #verifying the given model is daemodel
         assert self.model.flags['dae2odemodel']==False, 'Already performing input rate penalization without the use of this function'
         
@@ -141,11 +267,53 @@ class LQR:
         self.Q = np.block([[self.Q,zeros_Q],[zeros_Ru,self.R]])
         self.P = np.block([[self.P,zeros_Q],[zeros_Ru,self.R]])
         self.R = self.R_delu
+        
+        #Computing gain matrix
         K = self.discrete_gain(self.A_new, self.B_new)
         return K
  
     
     def set_param(self,**kwargs):
+        """Set the parameters of the :py:class:`LQR` class. Parameters must be passed as pairs of valid keywords and respective argument.
+        For example:
+
+        ::
+
+            lqr.set_param(n_horizon = 20)
+
+        It is also possible and convenient to pass a dictionary with multiple parameters simultaneously as shown in the following example:
+
+        ::
+
+            setup_lqr = {
+                'n_horizon': 20,
+                't_sample': 0.5,
+            }
+            lqr.set_param(**setup_mpc)
+        
+        This makes use of thy python "unpack" operator. See `more details here`_.
+
+        .. _`more details here`: https://codeyarns.github.io/tech/2012-04-25-unpack-operator-in-python.html
+
+        .. note:: The only required parameters  are ``n_horizon``. All other parameters are optional.
+
+        .. note:: :py:func:`set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
+
+        The following parameters are available:
+            
+        :param n_horizon: Prediction horizon of the optimal control problem. Parameter must be set by user.
+        :type n_horizon: int
+
+        :param t_sample: Sampling time for converting continuous time system to discrete time system.
+        :type t_sample: float
+        
+        :param mode: mode for operating LQR
+        :type mode: String
+        
+        :param conv_method: Method for converting continuous time to discrete time system
+        :type conv_method: String
+        
+        """
         for key, value in kwargs.items():
             if not (key in self.data_fields):
                 print('Warning: Key {} does not exist for LQR.'.format(key))
@@ -153,9 +321,31 @@ class LQR:
                 setattr(self, key, value)
                         
     def steady_state(self):
+        """Calculates steady states for the given input or states.
+        
+        This method calculates steady states for the given steady state input and vice versa.
+        The mathematical formulation can be described as 
+            
+            .. math::
+                x_{ss} = (I-A)^{-1}Bu_{ss}\\\\
+                
+               or\\\\
+                
+                u_{ss} = B^{-1}(I-A)x_{ss}
+        
+        :return: Steady state
+        :rtype: numpy.ndarray
+        
+        :return: Steady state input
+        :rtype: numpy.ndarray
+
+        """
+        #Check whether the model is linear and setup
         assert self.flags['setup'] == True, 'LQR is not setup. Please run setup() fun to calculate steady state.'
-        assert self.flags['linear'] == True, 'provide a linear model by executing linearize() function'
+        assert self.flags['linear'] == True, 'Provide a linear model by executing linearize() function'
         I = np.identity(np.shape(self.A)[0])
+        
+        #Calculation of steady state
         if self.xss.size == 0:
             self.xss = np.linalg.inv(I-self.A)@self.B@self.uss
             return self.xss
@@ -167,19 +357,49 @@ class LQR:
             return self.uss   
                 
     def make_step(self,x0,z0=None):
+        """Main method of the class during runtime. This method is called at each timestep
+        and returns the control input for the current initial state.
+        
+        .. note::
+            
+            :math:`z0` should be passed when the original model of the system contains algebraic variables
+            
+        .. note::
+            
+            LQR will always run in the set point tracking mode irrespective of the set point is not specified
+            
+        .. note::
+            
+            LQR cannot be made to execute in the input rate penalization mode if the model is converted from DAE to ODE system.
+            Because the converted model itself is in input rate penalization mode.
+
+        :param x0: Current state of the system.
+        :type x0: numpy.ndarray
+        
+        :param z0: Current algebraic state of the system (optional).
+        :type z0: numpy.ndarray
+
+        :return: u0
+        :rtype: numpy.ndarray
+        """
+        #verify setup of lqr is done
         assert self.flags['setup'] == True, 'LQR is not setup. run setup() function.'
+        
+        #setting setpoints
         if self.xss is None and self.uss is None:
             self.set_point()
+        
+        #Initializing u0
         if self.u0.size == 0:
             self.u0 = np.zeros((np.shape(self.B)[1],1))
+        
+        #Calculate u in set point tracking mode
         if self.mode == "setPointTrack" and self.model.flags['dae2odemodel'] == False:
             if self.xss.size != 0 and self.uss.size != 0:
                 self.u0 = self.K@(x0-self.xss)+self.uss
-            elif self.xss.size == 0 and self.uss.size == 0:
-                raise Exception('Enter xss and uss via set_param() function to track setpoint or compute steady state setpoint using steady_state() function')
-            else:
-                raise Exception('run steady_state() function to commpute steady state setpoint')
             return self.u0
+        
+        #Calculate u in input rate penalization mode
         elif self.mode == "inputRatePenalization" and self.model.flags['dae2odemodel']==False:
             if np.shape(self.K)[1]==np.shape(x0)[0]:
                 self.u0 = self.K@(x0-self.xss)+self.uss
@@ -189,6 +409,8 @@ class LQR:
                 self.u0 = self.K@(x0_new)
                 self.u0 = self.u0+x0_new[-self.model.n_u:]
             return self.u0
+        
+        #Calculate u for converted ode model
         elif self.model.flags['dae2odemodel']==True:
             assert z0 != None,'Please pass initial value for algebraic variables'
             x0_new = np.block([[x0],[self.u0],[z0]])
@@ -203,7 +425,12 @@ class LQR:
         """Converts casadi symbolic variable to numpy array.
         
         The following method is initially convets casADi SX or MX variable to casadi DM variable.
-        Then using :casadi:func:`full` to convert to numpy array. 
+        Then using casadi API, casadi variable is converted to numpy array.
+        For example:
+            
+        ::
+            
+            [A_new,B_new] = lqr.convertSX_to_array(A,B)
         
         :param A: State matrix - constant matrix with no variables
         :type A: Casadi SX or MX
@@ -211,27 +438,71 @@ class LQR:
         :param B: Input matrix - constant matrix with no variables
         :type B: Casadi SX or MX 
 
-        :return: State matrix :math::`A`
-        :rtype A: numpy.ndarray
+        :return: State matrix :math:`A`
+        :rtype: numpy.ndarray
 
-        :return: Input matrix :math::`B`
-        :rtype B: numpy.ndarray 
+        :return: Input matrix :math:`B`
+        :rtype: numpy.ndarray 
         """
+        
+        #Creating casadi function to conver to DM type
         y1 = A
         y2 = B
         A_new = Function('A_new',[],[y1])
         B_new = Function('B_new',[],[y2])
         A = A_new()
         B = B_new()
+        
+        #Converting from DM to numpy array
         arr_A = A['o0'].full()
         arr_B = B['o0'].full()
         return arr_A,arr_B
     
     def dae_model_gain(self,A,B):
+        """Computes discrete gain for the model converted with the help of :py:func:`model.dae_to_ode_model`.
+        
+        This method computes gain for the converted ode model in which total number of states differ from the original model.
+        Therefore this method computes the :math:`Q` and :math:`R` for the converted ode model. The parameter for objective function 
+        is set using :py:func:`set_objective`. The cost matrices are modified as follows
+        
+        .. math::
+              Q_{mod} = \\begin{bmatrix} Q & 0 & 0 \\\\ 0 & R & 0 \\\\ 0 & 0 & \\Delta Z \\end{bmatrix}
+                
+        .. math::
+              R_{mod} = \\Delta R\\\\
+        
+        .. math::
+            P_{mod} = \\begin{bmatrix}
+                    P & 0 & 0\\\\ 0 & R & 0\\\\
+                    0 & 0 & \\Delta Z
+                \\end{bmatrix}
+        
+        Where :math:`Q` and :math:`R` are the cost matrices of converted ode model, :math:`\\Delta R` is the cost matrix for the
+        penalized input rate and :math:`\\Delta Z`  is the cost matrix for the algebraic variables. All the variables can be set using :py:func:`set_objective`.
+        
+        After modifying the weight matrices, discrete gain is calculated using :py:func:`discrete_gain`.
+        For example:
+            
+            ::
+                
+                K = lqr.dae_model_gain(A,B)
+        
+        :param A: State matrix
+        :type A: numpy.ndarray
+        
+        :param B: Input matrix
+        :type B: numpy.ndarray
+        
+        :return: Gain matrix - :math:`K`
+        :rtype: numpy.ndarray
+
+        """
+        #Verify the size of Q
         assert not self.Q is None, "run this function after setting objective using set_objective()"
         if np.shape(self.Q)==(self.model.n_x,self.model.n_x) and np.shape(self.R)==(self.model.n_u,self.model.n_u):
             K = self.discrete_gain(A, B)
         else:
+            #Compute new Q and R
             zeros_Q_u_col = np.zeros((np.shape(self.Q)[0],np.shape(self.R)[0]+np.shape(self.delZ)[0]))
             zeros_Q_z_col = np.zeros((np.shape(self.R)[0],np.shape(self.delZ)[0]))
             zeros_Q_u_row = np.zeros((np.shape(self.R)[0],np.shape(self.Q)[0]))
@@ -243,38 +514,93 @@ class LQR:
             self.P = np.block([[self.P,zeros_Q_u_col],
                                [zeros_Q_u_row, self.R, zeros_Q_z_col],
                                [zeros_Q_z_row,self.delZ]])
+            #Compute discrete gain
             K = self.discrete_gain(A, B)
         return K
         
     def set_objective(self, Q = None, R = None, P = None, Rdelu = None, delZ = None):
+        """Sets the cost matrix for the Optimal Control Problem.
+        
+        This method sets the inputs, states and algebraic states cost matrices for the given problem.
+        
+        .. note::
+            For the problem to be solved in input rate penalization mode, :math:`Q`, :math:`R` and :math:`Rdelu` should be set.
+        
+        .. note::
+            For a problem with dae to ode converted model, :math:`Q`, :math:`R`, :math:`Rdelu` and :math:`delZ` should be set.
+            
+        For example:
+            
+            ::
+                
+                # Values used are to show how to use this function.
+                # For ODE models
+                lqr.set_objective(Q = np.identity(2), R = np.identity(2))
+                
+                # For ODE models with input rate penalization
+                lqr.set_objective(Q = np.identity(2), R = 5*np.identity(2), Rdelu = np.identity(2))
+                
+                # For DAE converted to ODE models
+                lqr.set_objective(Q = np.identity(2), R = 5*np.identity(2), Rdelu = np.identity(2), delZ = np.identity(1))
+                
+        
+        :param Q: State cost matrix
+        :type Q: numpy.ndarray
+        
+        :param R: Input cost matrix
+        :type R: numpy.ndarray
+        
+        :param Rdelu: Input rate cost matrix
+        :type Rdelu: numpy.ndarray
+        
+        :param delZ: Algebraic state cost matrix
+        :type delZ: numpy.ndarray
+        
+        :raises exception: Please set input cost matrix for input rate penalization/daemodel using :py:func:`set_objective`.
+        :raises exception: Please set cost matrix for algebraic variables using :py:func:`set_objective` for evaluating daemodel
+        :raises exception: Q matrix must be of type class numpy.ndarray
+        :raises exception: R matrix must be of type class numpy.ndarray
+        :raises exception: P matrix must be of type class numpy.ndarray
+
+        .. warning::
+            Q, R, P is chosen as matrix of zeros since it is not passed explicitly.
+            P is not given explicitly. Q is chosen as P for calculating finite discrete gain
+
+        """
+        
+        #Verify the setup is not complete
         assert self.flags['setup'] == False, 'Objective can not be set after LQR is setup'
+        
+        #Set Q, R, P
         if Q is None:
             self.Q = np.zeros((self.model.n_x,self.model.n_x))
-            warnings.warn('Q is chosen as matrix of zeros.')
+            warnings.warn('Q is chosen as matrix of zeros since Q is not passed explicitly.')
         else:
             self.Q = Q
-        
         if R is None:
             self.R = np.zeros((self.model.n_u,self.model.n_u))
             warnings.warn('R is chosen as matrix of zeros.')
         else:
-            self.R = R
-            
+            self.R = R   
         if P is None and self.n_horizon != 0:
             self.P = Q
             warnings.warn('P is not given explicitly. Q is chosen as P for calculating finite discrete gain')
         else:
             self.P = P
 
+        #Set delRu for input rate penalization or converted ode model
         if (self.mode == 'inputRatePenalization' or self.model.flags['dae2odemodel'] == True) and Rdelu != None:
             self.Rdelu = Rdelu
         elif (self.mode == 'inputRatePenalization' or self.model.flags['dae2odemodel']==True) and Rdelu == None:
             raise Exception('Please set input cost matrix for input rate penalization/daemodel using set_objective()')
-            
+        
+        #Set delZ for converted ode model
         if self.model.flags['dae2odemodel'] == True and delZ != None and np.shape(self.Q) != (self.model.n_x,self.model.n_x):
             self.delZ = delZ
         elif self.model.flags['dae2odemodel'] == True and delZ == None:
             raise Exception('Please set cost matrix for algebraic variables using set_objective() for evaluating daemodel')
+        
+        #Verify shape of Q,R,P
         if self.model.flags['dae2odemodel']==False:    
             assert self.Q.shape == (self.model.n_x,self.model.n_x), 'Q must have shape = {}. You have {}'.format((self.model.n_x,self.model.n_x),self.Q.shape)
             assert self.R.shape == (self.model.n_u,self.model.n_u), 'R must have shape = {}. You have {}'.format((self.model.n_u,self.model.n_u),self.R.shape)
@@ -288,7 +614,34 @@ class LQR:
             assert self.P.shape == self.Q.shape, 'P must have same shape as Q. You have {}'.format(P.shape)
 
     def set_point(self,xss = None,uss = None,zss = None):   
-        assert self.flags['setup'] == True, 'LQR is not setup. run setup() function.'
+        """Sets setpoints for states and inputs.
+        
+        This method can be used to set setpoints at each time step. It can be called inside simulation loop to change the set point dynamically.
+        
+        .. note::
+            If setpoints is not specifically mentioned it will be set to zero (default).
+        
+        For example:
+            
+            ::
+                
+                # For ODE models
+                lqr.set_point(xss = np.array([[10],[15]]) ,uss = np.array([[2],[3]]))
+                
+                # For DAE to ODE converted models
+                lqr.set_point(xss = np.array([[10],[15]]) ,uss = np.array([[2],[3]]), zss = np.array([[3]]))
+
+        :param xss: set point for states of the system(optional)
+        :type xss: numpy.ndarray
+        
+        :param uss: set point for input of the system(optional)
+        :type uss: numpy.ndarray
+        
+        :param zss: set point for algebraic states of the system(optional)
+        :type zss: numpy.ndarray
+
+        """
+        assert self.flags['setup'] == True, 'LQR is not setup. Run setup() function.'
         if xss is None:
             self.xss = np.zeros((self.model.n_x,1))
         else:
@@ -311,6 +664,13 @@ class LQR:
         assert self.uss.shape == (self.model.n_u,1), 'uss must be of shape {}. You have {}'.format((self.model.n_u,1),self.uss.shape)
 
     def setup(self):
+        """Prepares lqr for execution.
+        This method initializes and make sure that all the necessary parameters required to run the lqr are available.
+        
+        :raises exception: mode must be setPointTrack, inputRatePenalization, None. you have {string value}
+
+        """
+        
         A = self.state_matrix()
         B = self.input_matrix()
         [self.A,self.B] = self.convertSX_to_array(A, B)
