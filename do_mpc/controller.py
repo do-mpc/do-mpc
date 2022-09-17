@@ -100,18 +100,17 @@ class LQR:
     def continuous_to_discrete_time(self):
         """Converts continuous time to discrete time system.
         
-        This method utilizes the exisiting function in scipy library called :math:`cont2discrete` to convert continuous time to discrete time system.This method 
+        This method utilizes the exisiting function in scipy library called ``cont2discrete`` to convert continuous time to discrete time system.This method 
         allows the user to specify the type of discretization. For more details about the function `click here`_ .
          
         .. _`click here`: https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.cont2discrete.html
             
-        where :math:`A_{discrete}` and :math:`B_{discrete}` are the discrete state matrix and input matrix repectively and :math:`t_{sample}`
+        where :math:`A_{\\text{discrete}}` and :math:`B_{\\text{discrete}}` are the discrete state matrix and input matrix repectively and :math:`t_{\\text{sample}}`
         is the sampling time. Sampling time is set using :py:func:`set_param`.
         
         .. warning::
             sampling time is zero when not specified or not required
         
-        :return: State :math:`A_{discrete}` and input :math:`B_{discrete}` matrices as a tuple
         :return: State :math:`A_{\\text{discrete}}` and input :math:`B_{\\text{discrete}}` matrices as a tuple
         :rtype: numpy.ndarray
 
@@ -240,7 +239,7 @@ class LQR:
             .. math::
                 x(k+1) = \\tilde{A} x(k) + \\tilde{B}\\Delta u(k)\\\\
                 
-                \\text{where} 
+                \\text{where} \\quad
                 \\tilde{A} = \\begin{bmatrix} 
                                 A & B \\\\
                                 0 & I \\end{bmatrix},
@@ -474,7 +473,7 @@ class LQR:
         """Computes discrete gain for the model converted with the help of :py:func:`model.dae_to_ode_model`.
         
         This method computes gain for the converted ode model in which total number of states differ from the original model.
-        Therefore this method computes the :math:`Q` and :math:`R` for the converted ode model. The parameter for objective function 
+        Therefore this method computes the ``Q`` and ``R`` for the converted ode model. The parameter for objective function 
         is set using :py:func:`set_objective`. The cost matrices are modified as follows
         
         .. math::
@@ -489,7 +488,7 @@ class LQR:
                     0 & 0 & \\Delta Z
                 \\end{bmatrix}
         
-        Where :math:`Q` and :math:`R` are the cost matrices of converted ode model, :math:`\\Delta R` is the cost matrix for the
+        Where ``Q`` and ``R`` are the cost matrices of converted ode model, :math:`\\Delta R` is the cost matrix for the
         penalized input rate and :math:`\\Delta Z`  is the cost matrix for the algebraic variables. All the variables can be set using :py:func:`set_objective`.
         
         After modifying the weight matrices, discrete gain is calculated using :py:func:`discrete_gain`.
@@ -536,10 +535,10 @@ class LQR:
         This method sets the inputs, states and algebraic states cost matrices for the given problem.
         
         .. note::
-            For the problem to be solved in input rate penalization mode, :math:`Q`, :math:`R` and :math:`Rdelu` should be set.
+            For the problem to be solved in input rate penalization mode, ``Q``, ``R`` and ``Rdelu`` should be set.
         
         .. note::
-            For a problem with dae to ode converted model, :math:`Q`, :math:`R`, :math:`Rdelu` and :math:`delZ` should be set.
+            For a problem with dae to ode converted model, ``Q``, ``R``, ``Rdelu`` and ``delZ`` should be set.
             
         For example:
             
@@ -575,8 +574,8 @@ class LQR:
         :raises exception: P matrix must be of type class numpy.ndarray
 
         .. warning::
-            Q, R, P is chosen as matrix of zeros since it is not passed explicitly.
-            P is not given explicitly. Q is chosen as P for calculating finite discrete gain
+            ``Q``, ``R``, ``P`` is chosen as matrix of zeros since it is not passed explicitly.
+            If ``P`` is not given explicitly, then ``Q`` is chosen as ``P`` for calculating finite discrete gain
 
         """
         
