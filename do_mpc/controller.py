@@ -63,7 +63,7 @@ class LQR:
     def __init__(self,model):
         self.model = model
         
-        assert model.flags['setup'] == True, 'Model for MPC was not setup. After the complete model creation call model.setup().'
+        assert model.flags['setup'] == True, 'Model for LQR was not setup. After the complete model creation call model.setup().'
         self.model_type = model.model_type
         
         #Parameters necessary for setting up LQR
@@ -105,6 +105,7 @@ class LQR:
             sampling time is zero when not specified or not required
         
         :return: State :math:`A_{discrete}` and input :math:`B_{discrete}` matrices as a tuple
+        :return: State :math:`A_{\\text{discrete}}` and input :math:`B_{\\text{discrete}}` matrices as a tuple
         :rtype: numpy.ndarray
 
         """
@@ -204,7 +205,7 @@ class LQR:
 
         """
         #Verifying the availability of cost matrices
-        assert np.shape(self.Q) == (self.model.n_x,self.model.n_x) and np.shape(self.R) == (self.model.n_u,self.model.n_u) , 'Enter tuning parameter Q and R for the lqr problem using set_objective() function.'
+        assert self.Q.size != 0 and self.R.size != 0 , 'Enter tuning parameter Q and R for the lqr problem using set_objective() function.'
         assert self.model_type == 'discrete', 'convert the model from continous to discrete using model_type_conversion() function.'
         
         #calculating finite horizon gain
@@ -253,7 +254,7 @@ class LQR:
         assert self.model.flags['dae2odemodel']==False, 'Already performing input rate penalization without the use of this function'
         
         #Verifying input cost matrix for input rate penalization
-        assert self.R_delu.size != 0 , 'set R_delu parameter using set_param() fun.'
+        assert self.Rdelu.size != 0 , 'set R_delu parameter using set_param() fun.'
         
         #Modifying A and B matrix for input rate penalization
         identity_u = np.identity(np.shape(self.B)[1])
@@ -266,7 +267,7 @@ class LQR:
         #Modifying Q and R matrix for input rate penalization
         self.Q = np.block([[self.Q,zeros_Q],[zeros_Ru,self.R]])
         self.P = np.block([[self.P,zeros_Q],[zeros_Ru,self.R]])
-        self.R = self.R_delu
+        self.R = self.Rdelu
         
         #Computing gain matrix
         K = self.discrete_gain(self.A_new, self.B_new)
