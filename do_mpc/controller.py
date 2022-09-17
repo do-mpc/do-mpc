@@ -432,8 +432,8 @@ class LQR:
                 self.u0 = self.u0+x0_new[np.shape(x0)[0]:np.shape(x0)[0]+np.shape(self.u0)[0]-1]
             return self.u0
         
-    def convertSX_to_array(self,A,B):
-        """Converts casadi symbolic variable to numpy array.
+    def _convertSX_to_array(self,A,B):
+        """Internal method. Converts casadi symbolic variable to numpy array.
         
         The following method is initially convets casADi SX or MX variable to casadi DM variable.
         Then using casadi API, casadi variable is converted to numpy array.
@@ -684,7 +684,7 @@ class LQR:
         
         A = self.state_matrix()
         B = self.input_matrix()
-        [self.A,self.B] = self.convertSX_to_array(A, B)
+        [self.A,self.B] = self._convertSX_to_array(A, B)
         if self.model_type == 'continuous':
             [self.A,self.B] = self.continuous_to_discrete_time()
         assert self.flags['linear']== True, 'Model is not linear'
