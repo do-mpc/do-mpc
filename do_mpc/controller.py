@@ -38,7 +38,14 @@ class LQR:
     """Linear Quadratic Regulator.
     
     Use this class to configure and run the LQR controller
-    according to the previously configured :py:class:`do_mpc.model.Model` instance.
+    according to the previously configured :py:class:`do_mpc.model.Model` instance. 
+    
+    Two types of LQR can be desgined:
+        \\begin{itemize}
+            \\item Finite Horizon LQR
+            \\item Infinite Horizon LQR
+        \\end{itemize}
+    If ``n_horizon`` is set using :py:func:`set_param`, then finite horizon lqr can be designed. If ``n_horizon`` is set as ``None``, then infinite horizon lqr can be designed.
     
     **Configuration and setup:**
     
@@ -74,7 +81,7 @@ class LQR:
             'conv_method'
             ]
         #Initialize prediction horizon for the problem
-        self.n_horizon = 0
+        self.n_horizon = None
         
         #Initialize sampling time for continuous time system to discrete time system conversion
         self.t_sample = 0
@@ -175,14 +182,14 @@ class LQR:
         This method computes both finite discrete gain and infinite discrete gain depending on the availability 
         of prediction horizon. The gain computed using explicit solution for both finite time and infinite time.
         
-        For finite time:
+        For finite horizon LQR, the problem formulation is as follows:
             
             .. math::
                 \\pi(N) &= P_f\\\\
                 K(k) & = -(B'\\pi(k+1)B)^{-1}B'\\pi(k+1)A\\\\
                 \\pi(k) & = Q+A'\\pi(k+1)A-A'\\pi(k+1)B(B'\\pi(k+1)B+R)^{-1}B'\\pi(k+1)A
        
-        For infinite time:
+        For infinite horizon LQR, the problem formulation is as follows:
             
             .. math::
                 K & = -(B'PB+P)^{-1}B'PA\\\\
@@ -209,7 +216,7 @@ class LQR:
         assert self.model_type == 'discrete', 'convert the model from continous to discrete using model_type_conversion() function.'
         
         #calculating finite horizon gain
-        if self.n_horizon !=0:
+        if self.n_horizon !=None:
             assert self.P.size != 0, 'Terminal cost is required to calculate gain. Enter the required value using set_objective() function.'
             temp_p = self.P
             for k in range(self.n_horizon):
@@ -219,7 +226,7 @@ class LQR:
             return K
         
         #Calculating infinite horizon gain
-        elif self.n_horizon == 0:
+        elif self.n_horizon == None:
             pi_discrete = solve_discrete_are(A,B, self.Q, self.R)
             K = -np.linalg.inv(np.transpose(B)@pi_discrete@B+self.R)@np.transpose(B)@pi_discrete@A
             return K
@@ -276,6 +283,10 @@ class LQR:
     
     def set_param(self,**kwargs):
         """Set the parameters of the :py:class:`LQR` class. Parameters must be passed as pairs of valid keywords and respective argument.
+        
+        Two different kinds of LQR can be desgined. In order to design a finite horizon LQR, ``n_horizon`` and to design a infinite horizon LQR, ``n_horizon`` 
+        should be set to ``None``(default value).
+        
         For example:
 
         ::
@@ -583,7 +594,7 @@ class LQR:
             warnings.warn('R is chosen as matrix of zeros.')
         else:
             self.R = R   
-        if P is None and self.n_horizon != 0:
+        if P is None and self.n_horizon != None:
             self.P = Q
             warnings.warn('P is not given explicitly. Q is chosen as P for calculating finite discrete gain')
         else:
@@ -609,9 +620,9 @@ class LQR:
             raise Exception('Q matrix must be of type class numpy.ndarray')
         if isinstance(self.R, (casadi.DM, casadi.SX, casadi.MX)):
             raise Exception('R matrix must be of type class numpy.ndarray')
-        if self.n_horizon != 0 and isinstance(self.P, (casadi.DM, casadi.SX, casadi.MX)):
+        if self.n_horizon != None and isinstance(self.P, (casadi.DM, casadi.SX, casadi.MX)):
             raise Exception('P matrix must be of type class numpy.ndarray')
-        if self.n_horizon != 0:
+        if self.n_horizon != None:
             assert self.P.shape == self.Q.shape, 'P must have same shape as Q. You have {}'.format(P.shape)
 
     def set_setpoint(self,xss = None,uss = None,zss = None):   
@@ -678,7 +689,7 @@ class LQR:
         if self.model_type == 'continuous':
             [self.A,self.B] = self.continuous_to_discrete_time()
         assert self.flags['linear']== True, 'Model is not linear'
-        if self.n_horizon == 0:
+        if self.n_horizon == None:
             warnings.warn('discrete infinite horizon gain will be computed since prediction horizon is set to default value 0')
         if self.mode in ['setPointTrack',None] and self.model.flags['dae2odemodel'] == False and self.model.n_z==0:
             self.K = self.discrete_gain(self.A,self.B)
