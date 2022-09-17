@@ -52,13 +52,13 @@ class LQR:
     
     After configuring LQR controller, the controller can be made to operate in two modes. 
     
-    1. Set point tracking mode - can be enabled by setting the setpoint using :py:func:`set_point` (default)
+    1. Set point tracking mode - can be enabled by setting the setpoint using :py:func:`set_setpoint` (default)
     
     2. Input Rate Penalization mode - can be enabled by executing :py:func:`input_rate_penalization` and also passing sufficent arguments to the :py:func:`set_objective`
     
     .. note::
         During runtime call :py:func:`make_step` with the current state :math:`x` to obtain the optimal control input :math:`u`.
-        During runtitme call :py:func:`set_point` with the set points of input :math:`u_{ss}`, states :math:`x_{ss}` and algebraic states :math:`z_{ss}` in order to update the respective set points.
+        During runtime call :py:func:`set_setpoint` with the set points of input :math:`u_{ss}`, states :math:`x_{ss}` and algebraic states :math:`z_{ss}` in order to update the respective set points.
     """
     def __init__(self,model):
         self.model = model
@@ -388,7 +388,7 @@ class LQR:
         
         #setting setpoints
         if self.xss is None and self.uss is None:
-            self.set_point()
+            self.set_setpoint()
         
         #Initializing u0
         if self.u0.size == 0:
@@ -614,7 +614,7 @@ class LQR:
         if self.n_horizon != 0:
             assert self.P.shape == self.Q.shape, 'P must have same shape as Q. You have {}'.format(P.shape)
 
-    def set_point(self,xss = None,uss = None,zss = None):   
+    def set_setpoint(self,xss = None,uss = None,zss = None):   
         """Sets setpoints for states and inputs.
         
         This method can be used to set setpoints at each time step. It can be called inside simulation loop to change the set point dynamically.
@@ -627,10 +627,10 @@ class LQR:
             ::
                 
                 # For ODE models
-                lqr.set_point(xss = np.array([[10],[15]]) ,uss = np.array([[2],[3]]))
+                lqr.set_setpoint(xss = np.array([[10],[15]]) ,uss = np.array([[2],[3]]))
                 
                 # For DAE to ODE converted models
-                lqr.set_point(xss = np.array([[10],[15]]) ,uss = np.array([[2],[3]]), zss = np.array([[3]]))
+                lqr.set_setpoint(xss = np.array([[10],[15]]) ,uss = np.array([[2],[3]]), zss = np.array([[3]]))
 
         :param xss: set point for states of the system(optional)
         :type xss: numpy.ndarray
