@@ -272,7 +272,8 @@ class LQR:
         
         #Modifying Q and R matrix for input rate penalization
         self.Q = np.block([[self.Q,zeros_Q],[zeros_Ru,self.R]])
-        self.P = np.block([[self.P,zeros_Q],[zeros_Ru,self.R]])
+        if self.n_horizon != None:
+            self.P = np.block([[self.P,zeros_Q],[zeros_Ru,self.R]])
         self.R = self.Rdelu
         
         #Computing gain matrix
