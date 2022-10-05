@@ -243,12 +243,13 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
         # Create seperate structs for the estimated and the set parameters (the union of both are all parameters of the model.)
         _p = model._p
         self._p_est  = self.model.sv.sym_struct(
-            [entry('default', shape=(0,0))]+
+            [entry('default', shape=(0,1))]+
             [entry(p_i, shape=_p[p_i].shape) for p_i in _p.keys() if p_i in p_est_list]
         )
         self._p_set  = self.model.sv.sym_struct(
             [entry(p_i, shape=_p[p_i].shape) for p_i in _p.keys() if p_i not in p_est_list]
         )
+
 
         # Enable to "unite" _p_est and _p_set to _p
         p_cat = vertcat(_p)
@@ -258,6 +259,8 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
                 _p_subs.append(self._p_est[name])
             elif name in self._p_set.keys():
                 _p_subs.append(self._p_set[name])
+
+
 
         # In the expression p_cat substitute all variables from _p with the elements from _p_est and _p_set:
         p_cat = substitute(p_cat, _p, vertcat(*_p_subs))
