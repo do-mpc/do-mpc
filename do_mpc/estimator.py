@@ -556,7 +556,10 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
         .. note:: The only required parameters  are ``n_horizon`` and ``t_step``. All other parameters are optional.
 
-        .. note:: :py:func:`set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
+        .. note:: 
+            
+            :py:func:`set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
+            This only works prior to calling :py:func:`setup`. 
 
         The following parameters are available:
 
