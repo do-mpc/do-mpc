@@ -293,13 +293,13 @@ class ONNXConversion:
 
 
 class Operations:
-    """ CasADi operations, which are available in the :py:class:`ONNXConverter` class.
+    """ CasADi operations, which are available in the :py:class:`ONNXConversion` class.
     See `ONNX documentation <https://github.com/onnx/onnx/blob/main/docs/Operators.md>`_ for a full list of operations.
 
     .. note::
 
-        This class is not intended to be used directly. It is used by the :py:class:`ONNXConverter` class.
-        The purpose of this class is to provide a list of all available operations in the :py:class:`ONNXConverter` class.
+        This class is not intended to be used directly. It is used by the :py:class:`ONNXConversion` class.
+        The purpose of this class is to provide a list of all available operations in the :py:class:`ONNXConversion` class.
 
     """
     def __init__(self):
