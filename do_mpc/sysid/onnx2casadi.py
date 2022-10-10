@@ -1,26 +1,3 @@
-#
-#   This file is part of do-mpc
-#
-#   do-mpc: An environment for the easy, modular and efficient implementation of
-#        robust nonlinear model predictive control
-#
-#   Copyright (c) 2014-2019 Sergio Lucia, Alexandru Tatulea-Codrean
-#                        TU Dortmund. All rights reserved
-#
-#   do-mpc is free software: you can redistribute it and/or modify
-#   it under the terms of the GNU Lesser General Public License as
-#   published by the Free Software Foundation, either version 3
-#   of the License, or (at your option) any later version.
-#
-#   do-mpc is distributed in the hope that it will be useful,
-#   but WITHOUT ANY WARRANTY; without even the implied warranty of
-#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#   GNU Lesser General Public License for more details.
-#
-#   You should have received a copy of the GNU General Public License
-#   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
-
-
 import casadi
 import onnx
 import tf2onnx
@@ -59,7 +36,7 @@ class ONNX2Casadi:
     tf2onnx.convert.from_keras() and is fully normal and expected.
     """
     
-    def __init__(self, model, model_name=-1):
+    def __init__(self, model, model_name=None):
         """ Initializes the converted model.
         Pass either a keras or ONNX model.
         """
@@ -102,7 +79,6 @@ class ONNX2Casadi:
         
          
         # Determining output layer names
-        
         self.output_layers = [out.name for out in self.graph.output]
         all_layers = [n.name for n in list(self.graph.input)] + [n.output[0] for n in self.nodes]
         self.layers = all_layers
@@ -111,6 +87,9 @@ class ONNX2Casadi:
         self.relevant_layers = []
         self.relevant_values = {}
 
+
+        # Create instance of operations class
+        self.operations = _Operations()
         
 
     @property
@@ -147,7 +126,7 @@ class ONNX2Casadi:
             
     
     def convert(self, verbose=False, **kwargs):
-        """ This method generates the actual casadi conversion.
+        """ Convert ONNX model to CasADi model.
         
         Args:
             verbose: if True (default value), a message will be printed after
@@ -169,7 +148,7 @@ class ONNX2Casadi:
         
         
              
-        # For the sake of better code readability, the variables are first renamed
+        # Rename for shorther notation
         graph = self.graph
         nodes = self.nodes
         init_tensors = self.initialized_tensors
@@ -220,10 +199,7 @@ class ONNX2Casadi:
             symvar_type = casadi.MX
             self.symvar_type = casadi.casadi.MX
             
-            
-        
-            
-            
+              
             
         # Defining activation functions (should be extended, if a required
         # activation function is not available here !)
@@ -358,3 +334,50 @@ class ONNX2Casadi:
         if out == None:
             raise Exception("The layer '{}' is unknown.\nIt should be either a name of onnx computational node (see the property: self.layers) or possibly a name of one of the original Keras model layers (see the property: self.relevant_layers)".format(key))
         return out
+
+
+
+class _Operations:
+    """ Class for the definition of the CasADi operations, which are used in the
+    ONNX2CasADi class.
+
+    Method names are the same as the ONNX operation names.
+    """
+    def __init__(self):
+        pass
+
+    def tanh(self,x, attribute = None):
+        return casadi.tanh(x)
+
+    def sigmoid(self,x, attribute = None):
+        return casadi.sigmoid(x)
+
+    def relu(self,x, attribute = None):
+        return casadi.fmax(0,x)
+
+    def leaky_relu(self,x, attribute = None):
+        return casadi.fmax(0.01*x,x)
+
+    def elu(self,x, attribute = None):
+        return casadi.fmax(0,x) + casadi.fmin(0,casadi.exp(x)-1)
+
+    def MatMul(self,*args, attribute = None):
+        return casadi.mtimes(*args)
+
+    def Add(self,*args, attribute = None):
+        return  casadi.sum(args)
+
+    def Sum(self,*args, attribute = None):
+        return  self.Add(*args)
+
+    def Concat(self,*args, attribute = None):
+        if attribute[0].i == 0:
+            return casadi.vertcat(*args)
+        else:
+            return casadi.horzcat(*args)
+    
+    def Unsqueeze(self,*args, attribute = None):
+        return args[0]
+
+    
+
