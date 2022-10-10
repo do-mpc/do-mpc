@@ -1,39 +1,53 @@
 import casadi
 import onnx
 import numpy as np
-import tensorflow as tf
 import pdb
 
 
-class ONNX2Casadi:
-    """ Transform ONNX model into casadi mathematical symbolic expressions.
+class ONNXConversion:
+    """ Transform `ONNX model <https://onnx.ai>`_ model. 
+    The transformation returns a CasADi expression of the model and can be used e.g. in the :py:class:`do_mpc.model.Model` class.
+
+    .. note::
+
+        The feature is experimental and currently only has a limited number of supported operations.
+        All supported operations can be found in the :py:class:`Operations` class.
+
+        Other known limitations are listed at the end of this page.
     
-    The ONNX2Casadi class is only then operative, if the model to be transformed
-    does not include numerical arrays of a 3rd or higher order: Inputs and all
-    computation results are either scalars or at most vectors and no matrices 
-    (convolutional networks can not be converted).
+    **How to use:** 
+
+    1. Create an ONNX model in your favorite framework (e.g. `TensorFlow <https://www.tensorflow.org/>`_, `PyTorch <https://pytorch.org/>`_, `Keras <https://keras.io/>`_, `ONNX <https://onnx.ai/>`_).
     
-    The __init__ method defines and initializes the object properties, which are 
-    relevant for the following CasADi-conversion steps. For better understanding
-    of the open-source software tool CasADi please visit https://web.casadi.org/
+    2. Initiate the :py:class:`ONNXConversion` class with the ONNX model as input.
+
+    3. Obtain information about model inputs and ouputs by printing the class instance.
+
+    4. Call the :py:meth:`ONNXConversion.convert` method, passing with keyword arguments the external inputs of the model. The inputs are propagated through the model and all node expressions are created.
+
+    5. Query the class instance with the respective layer or node name to obtain the CasADi expression of the respective layer or node.
+
+    .. note::
+
+        Aa convenience feature, the :py:meth:`ONNXConversion.convert` method can be called with a `Keras <https://keras.io/>`_ model instead of an `ONNX model <https://onnx.ai>`_ model.
+        The conversion to an ONNX model is done automatically.
+
+    **Example:**
+
+    ::
     
-    The model is only converted by applying the method "convert".
+        model_input = keras.Input(shape=(3), name='input')
+        hidden_layer = keras.layers.Dense(5, activation='relu', name='hidden')(model_input)
+        output_layer = keras.layers.Dense(1, activation='linear', name='output')(hidden_layer)
+
+        keras_model = keras.Model(inputs=model_input, outputs=output_layer)
+
+        casadi_converter = onnxconversion.ONNX2Casadi(keras_model)
+
+    Obtain information about the model inputs and outputs by calling ``print(casadi_converter)``, yielding, in this example:
+
     
-    To better understand how this tool works, see
-    https://github.com/do-mpc/do-mpc/tree/master/examples/onnx_conversion/onnx_to_casadi_conversion.py
-            
-            
-    **Warning**
-    
-    1) If you are getting the following error while running the script or
-       installing the corresponding python package:
-           - Powershell error concerning version conflict of the FlatBuffers
-       try to upgrade your tensorflow package using the following poweshell command:
-           pip install tensorflow --upgrade
-           
-    2) While passing a keras model to the class ONNX2Casadi a very long comment
-    will be generated and printed in the python console. This is due to the function
-    tf2onnx.convert.from_keras() and is fully normal and expected.
+
     """
     
     def __init__(self, model, model_name=None):
@@ -45,8 +59,9 @@ class ONNX2Casadi:
         if isinstance(model,(tf.keras.Model)):
             try:
                 import tf2onnx
+                import tensorflow as tf
             except:
-                raise Exception("The package 'tf2onnx' is not installed. Please install it, e.g. using 'pip install tf2onnx'.")
+                raise Exception("The package 'tf2onnx' or 'tensorflow' is not installed. Please install it..")
 
             model_input_signature = [tf.TensorSpec(np.array(self.determine_shape(inp_spec.shape)),
                                         name=inp_spec.name) for inp_spec in model.input_spec]
@@ -124,8 +139,8 @@ class ONNX2Casadi:
         """
         shape = []
         for dimension in raw_shape:
-            if dimension != None:
-                shape.append(dimension)
+            #if dimension != None:
+            shape.append(dimension)
         return tuple(shape)
     
     
@@ -160,36 +175,31 @@ class ONNX2Casadi:
         inputshape = self.inputshape
         
             
-        # Sanity check: Are the dimensions of kwargs correct. Do we have the right names and number of inputs?
-        self.input = {}
-        if len(kwargs) == len(inputshape):
-            if not all( layer_name in list(kwargs.keys()) for layer_name in list(inputshape.keys()) ):
-                raise Exception("False input layer names.\n The input layers are {}".format(list(inputshape.keys())))
-                
-            for input_name, shape in inputshape.items():
-                if isinstance(kwargs[input_name],(np.ndarray)):
-                    if kwargs[input_name].shape != inputshape[input_name]:
-                        raise Exception("The shape of the input '{}' should be {}".format(input_name,inputshape[input_name]))
-                
-                elif isinstance(kwargs[input_name],(casadi.SX,casadi.MX)):
-                    if ( (len(inputshape[input_name]) == 1) and (
-                            inputshape[input_name][0] != kwargs[input_name].shape[0])) and (
-                                inputshape[input_name] != kwargs[input_name].shape):
-                        raise Exception("The shape of the input '{}' should be {}".format(input_name,inputshape[input_name]))
-                    
-                else:
-                    raise Exception("Input should be of the datatype numpy.ndarray, casadi.casadi.MX or casadi.casadi.SX")
-                
-                self.input[input_name] = kwargs[input_name]
-            
-        else:
+        # Sanity check: Right number of inputs?
+        if len(kwargs) != len(inputshape):
             raise Exception("The model takes {} inputs for the layers {}".format(len(inputshape.keys()),list(inputshape.keys())))
-            
 
-        # Sanity check: Are all the input variables of the same CasADi symbolic 
-        for inp in self.input.values():
-            if not isinstance(inp,(casadi.SX,casadi.MX,np.ndarray)):
-                raise Exception("Input should be of the datatype numpy.ndarray, casadi.casadi.MX or casadi.casadi.SX")
+        # Sanity check: Right names for inputs
+        if not all( layer_name in list(kwargs.keys()) for layer_name in list(inputshape.keys()) ):
+            raise Exception("False input layer names.\n The input layers are {}".format(list(inputshape.keys())))
+
+        # Sanity check: Right type for inputs
+        if not all(isinstance(value,(casadi.SX,casadi.MX, casadi.DM, np.ndarray)) for value in kwargs.values()):
+            raise Exception("Wrong input type. Please pass a CasADi variable or numpy array as input.")
+
+        # Create dict "input" and check the shape of the inputs
+        self.input = {}   
+
+        for input_name, shape in inputshape.items():
+            # TODO: Write comments on all checks
+            check_1 = (len(inputshape[input_name]) == 1)
+            check_2 = (inputshape[input_name][0] != kwargs[input_name].shape[0])
+            check_3 = (inputshape[input_name] != kwargs[input_name].shape)
+            if check_1 and check_2 and check_3:
+                raise Exception("The shape of the input '{}' should be {}".format(input_name,inputshape[input_name]))
+
+            self.input[input_name] = kwargs[input_name]
+
 
 
         # Computation of all node values
@@ -218,7 +228,8 @@ class ONNX2Casadi:
                 
                 # Conversion into CasADi and shape correction in case of (1,) as input shape
                 if isinstance(all_values[input_layer_name],(np.ndarray)):
-                    all_values[input_layer_name] = casadi.DM(np.atleast_2d(all_values[input_layer_name]))
+                    pass
+                    #all_values[input_layer_name] = casadi.DM(np.atleast_2d(all_values[input_layer_name]))
 
                 ins.append(all_values[input_layer_name]) # critical ! input_layer_name should be already contained in all_values => Assumption: ONNX graph representation is correctly arranged
                 
@@ -250,7 +261,7 @@ class ONNX2Casadi:
 
 
 
-class _Operations:
+class Operations:
     """ Class for the definition of the CasADi operations, which are used in the
     ONNX2CasADi class.
 
@@ -263,7 +274,8 @@ class _Operations:
         return casadi.tanh(x)
 
     def Sigmoid(self,x, attribute = None):
-        return casadi.sigmoid(x)
+        out = 1/(1+casadi.exp(-x))
+        return out
 
     def Relu(self,x, attribute = None):
         return casadi.fmax(0,x)
@@ -275,13 +287,19 @@ class _Operations:
         return casadi.mtimes(*args)
 
     def Add(self,*args, attribute = None):
-        return  casadi.sum(args)
+        """Addition of two or more tensors.
+        See `ONNX documentation <https://github.com/onnx/onnx/blob/main/docs/Operators.md#add>`_ for more details.
+        """
+        out = 0
+        for arg in args:
+            out += arg
+        return out
 
     def Sum(self,*args, attribute = None):
         return  self.Add(*args)
 
     def Concat(self,*args, attribute = None):
-        if attribute[0].i == 0:
+        if attribute[0].i in (0,2):
             return casadi.vertcat(*args)
         else:
             return casadi.horzcat(*args)
@@ -306,6 +324,15 @@ class _Operations:
             slices[ax_k] = slice(start_k,end_k)
 
         return args[0][tuple(slices)]
+
+    def Reshape(self, *args, attribute = None):
+        # TODO: Check if this is correct
+        data = args[0]
+        shape = args[1]
+        return data.reshape(tuple(shape))
+
+    def Shape(self, *args, attribute = None):
+        return args[0].shape
 
 
     
