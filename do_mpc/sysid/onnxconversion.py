@@ -84,17 +84,6 @@ class ONNXConversion:
     :param from_keras: (Optional) Flag to indicate that the model is a Keras model.
     :type from_keras: bool
 
-    Known limitations:
-    ------------------
-
-    1. The feature supports only a subset of operations from the ONNX specification.
-
-    2. CasADi does not support tensors of rank 2 or larger. In other words: All tensors must be vectors.
-
-
-    
-
-
     """
     
     def __init__(self, model, model_name=None, from_keras=False):  
