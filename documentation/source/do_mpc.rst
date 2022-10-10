@@ -6,7 +6,25 @@ Classes and functions of each module are shown on their respective page.
 .. currentmodule:: do_mpc
 
 .. rubric:: Core modules
-The core modules are used to create the **do-mpc** control loop (click on elements to open documentation page):
+The core modules are used to create the **do-mpc** control loop (click on elements to open documentation page).
+
+.. currentmodule:: do_mpc   
+.. autosummary::
+    :toctree: api
+
+    model
+
+    simulator
+
+    optimizer
+
+    controller
+
+    estimator
+
+    data
+
+    graphics
 
 .. graphviz::
     :name: control_loop
@@ -53,23 +71,16 @@ The core modules are used to create the **do-mpc** control loop (click on elemen
     }
 
 
+.. rubric:: System identification tools
+
+.. currentmodule:: do_mpc.sysid
 .. autosummary::
     :toctree: api
 
-    model
+    onnxconversion
 
-    simulator
 
-    optimizer
-
-    controller
-
-    estimator
-
-    data
-
-    graphics
-
+    
 
 .. rubric:: Sampling tools
 
@@ -82,14 +93,6 @@ The core modules are used to create the **do-mpc** control loop (click on elemen
     sampler
 
     datahandler
-
-..
-    .. rubric:: Sampling tools
-    .. autosummary::
-        :toctree: api
-        :recursive:
-
-        sampling
 
 
 For a quick introduction of the **do-mpc** sampling tools we are providing this video tutorial:

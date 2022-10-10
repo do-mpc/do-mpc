@@ -5,7 +5,7 @@ import pdb
 
 
 class ONNXConversion:
-    """ Transform `ONNX model <https://onnx.ai>`_ model. 
+    """ Transform `ONNX model <https://onnx.ai>`_. 
     The transformation returns a CasADi expression of the model and can be used e.g. in the :py:class:`do_mpc.model.Model` class.
 
     .. note::
@@ -29,11 +29,12 @@ class ONNXConversion:
 
     .. note::
 
-        Aa convenience feature, the :py:meth:`ONNXConversion.convert` method can be called with a `Keras <https://keras.io/>`_ model instead of an `ONNX model <https://onnx.ai>`_ model.
+        As a convenience feature, the :py:meth:`ONNXConversion.convert` method can be called with a `Keras <https://keras.io/>`_ model instead of an `ONNX model <https://onnx.ai>`_ model.
         The conversion to an ONNX model is done automatically.
 
     **Example:**
 
+    We start with a simple Keras model and 
     ::
     
         model_input = keras.Input(shape=(3), name='input')
@@ -42,28 +43,72 @@ class ONNXConversion:
 
         keras_model = keras.Model(inputs=model_input, outputs=output_layer)
 
-        casadi_converter = onnxconversion.ONNX2Casadi(keras_model)
+        casadi_converter = do_mpc.sysid.ONNXConversion(keras_model)
 
     Obtain information about the model inputs and outputs by calling ``print(casadi_converter)``, yielding, in this example:
 
+    .. code-block:: console
+
+        ONNX2Casadi model 'casadi_model' 
+        ----------------------------------
+        Call 'convert' by supplying the inputs with respective name and shape below.
+        Input shape of 'input' is (1, 3)
+        ----------------------------------
+        Query the instance with the following keywords to obtain the CasADi expression of the respective layer or graph operation node:
+        - 'input'
+        - 'model_4/hidden/MatMul:0'
+        - 'model_4/hidden/Relu:0'
+        - 'output'
+
+    Call the :py:meth:`ONNXConversion.convert` method, considering the name and shape of the inputs:
+
+    :: 
+
+        # Inputs can be numpy arrays
+        casadi_converter.convert(input=np.ones((1,3)))
+
+        # or CasADi expressions
+        x = casadi.SX.sym('x',1,3)
+        casadi_converter.convert(input=x)
+
+    Query the instance with the respective layer or node name to obtain the CasADi expression of the respective layer or node:
+
+    ::
+
+        print(casadi_converter['output'])
+
+    :param model: ``ONNX`` model or ``Keras`` model.
+    :type model: ``onnx.ModelProto`` or ``keras.Model``
+    :param model_name: (Optional) name of the model
+    :type model_name: str
+    :param from_keras: (Optional) Flag to indicate that the model is a Keras model.
+    :type from_keras: bool
+
+    Known limitations:
+    ------------------
+
+    1. The feature supports only a subset of operations from the ONNX specification.
+
+    2. CasADi does not support tensors of rank 2 or larger. In other words: All tensors must be vectors.
+
+
     
+
 
     """
     
-    def __init__(self, model, model_name=None):
-        """ Initializes the converted model.
-        Pass either a keras or ONNX model.
-        """
-        
+    def __init__(self, model, model_name=None, from_keras=False):  
         # In case of a keras model as input, convert it to an ONNX model
-        if isinstance(model,(tf.keras.Model)):
+        if from_keras:
             try:
                 import tf2onnx
                 import tensorflow as tf
             except:
                 raise Exception("The package 'tf2onnx' or 'tensorflow' is not installed. Please install it..")
 
-            model_input_signature = [tf.TensorSpec(np.array(self.determine_shape(inp_spec.shape)),
+            assert isinstance(model,(tf.keras.Model)), 'The input model is not a Keras model.'
+
+            model_input_signature = [tf.TensorSpec(np.array(self._determine_shape(inp_spec.shape)),
                                         name=inp_spec.name) for inp_spec in model.input_spec]
             self.onnx_model, _ = tf2onnx.convert.from_keras(model,output_path=None,
                                                             input_signature=model_input_signature)
@@ -72,9 +117,9 @@ class ONNXConversion:
         elif isinstance(model,(onnx.onnx_ml_pb2.ModelProto)):
             self.onnx_model = model
             self.name = "casadi_model" if not isinstance(model_name, (str)) else model_name
-        
+
         else:
-            raise Exception("Please pass a keras or onnx model as input")
+            raise Exception("Please pass a keras or onnx model as input. Please use the from_keras flag to convert a keras model to an onnx model.")
             
         
         
@@ -102,11 +147,13 @@ class ONNXConversion:
         
 
         # Create instance of operations class
-        self.operations = _Operations()
+        self.operations = Operations()
         
 
     def __repr__(self):
         """ Prints information about the converter.
+
+        Use this method to obtain information about the model inputs and outputs. 
         """
 
         # Create message
@@ -124,7 +171,8 @@ class ONNXConversion:
         
         
 
-    def determine_shape(self,raw_shape):
+    def _determine_shape(self,raw_shape):
+        #TODO: I am not sure we need this. In any case this should be a private method. The user wont activate it.
         """ This method helps to determine the relevant array shape from a given
         ambiguous shape representation.
         
@@ -149,22 +197,6 @@ class ONNXConversion:
     def convert(self, verbose=False, **kwargs):
         """ Convert ONNX model to CasADi model.
         
-        Args:
-            verbose: if True (default value), a message will be printed after
-                each successful conversion of a ONNX graph operation.
-            symvar_type: Chose between the casadi-specific "SX" or "MX" symbolic
-                variables 
-            kwargs: Input values as CasADi variables with specified input 
-                variable name
-                
-        Returns:
-            casadi_model: A CasADi symbolic function which is mathematically 
-                equivalent to the model operation.
-            output_values: The symbolic expression of the model output with respect
-                to the symbolic input variables x, y and z.
-            self.values: A dictionary with the names of all included ONNX-specific
-                computation operations as keys and their CasADi symbolic expressions
-                with respect to the symbolic input variables x,y and z. 
         """
         
         
@@ -235,7 +267,10 @@ class ONNXConversion:
                 
             
             # Determination of the operation type and subsequent computation
-            out = getattr(self.operations, n.op_type)(*ins, attribute=n.attribute)
+            if hasattr(self.operations, n.op_type):
+                out = getattr(self.operations, n.op_type)(*ins, attribute=n.attribute)
+            else:
+                raise Exception("Operation '{}' not implemented. Please consider the limited set of operations available to the tool.".format(n.op_type))
             
 
             all_values[n.output[0]] = out
@@ -248,7 +283,14 @@ class ONNXConversion:
 
     def __getitem__(self, key):
         """ Enables the output of the CasADi expression of a specific layer or 
-        graph operation node.
+        graph operation node. 
+
+        To learn about possible keywords, use the method '__repr__' of the converter, i.e.:
+
+        ::
+
+            print(converter)
+
         """
         node_values = self.node_values
 
@@ -262,10 +304,14 @@ class ONNXConversion:
 
 
 class Operations:
-    """ Class for the definition of the CasADi operations, which are used in the
-    ONNX2CasADi class.
+    """ CasADi operations, which are available in the :py:class:`ONNXConverter` class.
+    See `ONNX documentation <https://github.com/onnx/onnx/blob/main/docs/Operators.md>`_ for a full list of operations.
 
-    Method names are the same as the ONNX operation names.
+    .. note::
+
+        This class is not intended to be used directly. It is used by the :py:class:`ONNXConverter` class.
+        The purpose of this class is to provide a list of all available operations in the :py:class:`ONNXConverter` class.
+
     """
     def __init__(self):
         pass

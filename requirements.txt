@@ -10,3 +10,4 @@ numpy
 matplotlib
 recommonmark
 scipy
+onnx
