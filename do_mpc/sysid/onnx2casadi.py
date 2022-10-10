@@ -1,8 +1,8 @@
 import casadi
 import onnx
-import tf2onnx
 import numpy as np
 import tensorflow as tf
+import pdb
 
 
 class ONNX2Casadi:
@@ -43,6 +43,11 @@ class ONNX2Casadi:
         
         # In case of a keras model as input, convert it to an ONNX model
         if isinstance(model,(tf.keras.Model)):
+            try:
+                import tf2onnx
+            except:
+                raise Exception("The package 'tf2onnx' is not installed. Please install it, e.g. using 'pip install tf2onnx'.")
+
             model_input_signature = [tf.TensorSpec(np.array(self.determine_shape(inp_spec.shape)),
                                         name=inp_spec.name) for inp_spec in model.input_spec]
             self.onnx_model, _ = tf2onnx.convert.from_keras(model,output_path=None,
@@ -70,38 +75,39 @@ class ONNX2Casadi:
         
             
         # Determining the input shape 
-        inputshape = {}
+        self.inputshape = {}
         for inpn in self.graph.input:
             if inpn.name not in self.initialized_tensors.keys():
-                inputshape[inpn.name] = tuple([shape_dim.dim_value for shape_dim in inpn.type.tensor_type.shape.dim])
-        
-        self._inputshape = inputshape
+                self.inputshape[inpn.name] = tuple([shape_dim.dim_value for shape_dim in inpn.type.tensor_type.shape.dim])
         
          
         # Determining output layer names
         self.output_layers = [out.name for out in self.graph.output]
-        all_layers = [n.name for n in list(self.graph.input)] + [n.output[0] for n in self.nodes]
-        self.layers = all_layers
+        self.layers = [n.name for n in list(self.graph.input)] + [n.output[0] for n in self.nodes]
         
-        # Initializing relevant layers
-        self.relevant_layers = []
-        self.relevant_values = {}
-
 
         # Create instance of operations class
         self.operations = _Operations()
         
 
-    @property
-    def inputshape(self):
-        return self._inputshape
-    
-    @inputshape.setter
-    def inputshape(self,inpshape):
-        raise Exception("The inputshape property can not be changed. It will be automatically generated while passing an input model")
+    def __repr__(self):
+        """ Prints information about the converter.
+        """
+
+        # Create message
+        repr_message = "ONNX2Casadi model '{}' \n".format(self.name)
+        repr_message += "----------------------------------\n"
+        repr_message += "Call 'convert' by supplying the inputs with respective name and shape below.\n"
+        for name, shape in self.inputshape.items():
+            repr_message += "Input shape of '{}' is {}\n".format(name, shape)
+        repr_message += "----------------------------------\n"
+        repr_message += "Query the instance with the following keywords to obtain the CasADi expression of the respective layer or graph operation node:\n"
+        for name in self.layers:
+            repr_message += " - '{}'\n".format(name)
+
+        return repr_message
         
-    
-    
+        
 
     def determine_shape(self,raw_shape):
         """ This method helps to determine the relevant array shape from a given
@@ -147,34 +153,29 @@ class ONNX2Casadi:
         """
         
         
-             
         # Rename for shorther notation
         graph = self.graph
         nodes = self.nodes
         init_tensors = self.initialized_tensors
-        inputshape = self._inputshape
-        # all_input_layers = self.all_input_layers
-        output_layers = self.output_layers
-        all_layers = self.layers 
+        inputshape = self.inputshape
         
             
         # Sanity check: Are the dimensions of kwargs correct. Do we have the right names and number of inputs?
-        
         self.input = {}
         if len(kwargs) == len(inputshape):
             if not all( layer_name in list(kwargs.keys()) for layer_name in list(inputshape.keys()) ):
-                raise Exception("False input layer names.\nThe input layers are {}".format(list(inputshape.keys())))
+                raise Exception("False input layer names.\n The input layers are {}".format(list(inputshape.keys())))
                 
             for input_name, shape in inputshape.items():
                 if isinstance(kwargs[input_name],(np.ndarray)):
                     if kwargs[input_name].shape != inputshape[input_name]:
-                        raise Exception("The shape of the input '{}' should be {}".foramt(input_element,inputshape[input_name]))
+                        raise Exception("The shape of the input '{}' should be {}".format(input_name,inputshape[input_name]))
                 
                 elif isinstance(kwargs[input_name],(casadi.SX,casadi.MX)):
                     if ( (len(inputshape[input_name]) == 1) and (
                             inputshape[input_name][0] != kwargs[input_name].shape[0])) and (
                                 inputshape[input_name] != kwargs[input_name].shape):
-                        raise Exception("The shape of the input '{}' should be {}".foramt(input_element,inputshape[input_name]))
+                        raise Exception("The shape of the input '{}' should be {}".format(input_name,inputshape[input_name]))
                     
                 else:
                     raise Exception("Input should be of the datatype numpy.ndarray, casadi.casadi.MX or casadi.casadi.SX")
@@ -186,35 +187,18 @@ class ONNX2Casadi:
             
 
         # Sanity check: Are all the input variables of the same CasADi symbolic 
-        # type: SX or MX:
-        global input_types
-        input_types = [type(inp) for inp in self.input.values()]
-
-        if (casadi.casadi.SX in input_types) and (casadi.casadi.MX in input_types):
-            raise Exception("Please use only one casadi symbolic type: SX or MX for all inputs")
-        elif casadi.casadi.SX in input_types:
-            symvar_type = casadi.SX
-            self.symvar_type = casadi.casadi.SX
-        elif casadi.casadi.MX in input_types:
-            symvar_type = casadi.MX
-            self.symvar_type = casadi.casadi.MX
-            
-              
-            
-        # Defining activation functions (should be extended, if a required
-        # activation function is not available here !)
-        var = self.symvar_type.sym("var",1)
-        act_func_dict = {"Tanh":np.tanh,"Sigmoid":casadi.Function("Sigmoid",[var],[1/(1+np.exp(-var))]),
-                     "Relu":casadi.Function("relu",[var],[(var>=0)*var]),
-                     "Elu":casadi.Function("elu",[var],[var*(var>=0)+(np.exp(var)-1)*(var<=0)])}
-
+        for inp in self.input.values():
+            if not isinstance(inp,(casadi.SX,casadi.MX,np.ndarray)):
+                raise Exception("Input should be of the datatype numpy.ndarray, casadi.casadi.MX or casadi.casadi.SX")
 
 
         # Computation of all node values
         node_values = self.input.copy() # "node_values" contains only input node values as initial values
         all_values = self.input.copy()
         all_values.update(init_tensors) # "all_values" contains initializer and input node values as initial values
-        for n in nodes[0:]:
+        
+        # Iterate over all nodes
+        for n in nodes:
             if verbose:
                 print("\nProcessing of {}".format(n.name))
                 
@@ -234,105 +218,34 @@ class ONNX2Casadi:
                 
                 # Conversion into CasADi and shape correction in case of (1,) as input shape
                 if isinstance(all_values[input_layer_name],(np.ndarray)):
-                    if len(all_values[input_layer_name].shape) == 1:
-                        all_values[input_layer_name] = np.array([all_values[input_layer_name]])
-                    all_values[input_layer_name] = symvar_type(all_values[input_layer_name])
+                    all_values[input_layer_name] = casadi.DM(np.atleast_2d(all_values[input_layer_name]))
+
                 ins.append(all_values[input_layer_name]) # critical ! input_layer_name should be already contained in all_values => Assumption: ONNX graph representation is correctly arranged
                 
             
-            ## Determination of the operation type and subsequent computation
+            # Determination of the operation type and subsequent computation
+            out = getattr(self.operations, n.op_type)(*ins, attribute=n.attribute)
             
-            # input-weight-multiplication 
-            if n.op_type == "MatMul":
-                out = ins[0]@ins[1]
-                # out = ins[1]@ins[0]
-                
-            # Addition of bias to weight multiplication results from previous node
-            elif n.op_type in ["Add","Sum"]:
-                out = sum(ins)
-                
-            # Application of activation function
-            elif n.op_type in list(act_func_dict.keys()):
-                out = act_func_dict[n.op_type](ins[0])
-                
-            elif n.op_type == "Unsqueeze":
-                out = ins[0]
-                
-            # Node result concatenation (equivalent to layer concatenation)
-            elif n.op_type == "Concat":
-                if n.attribute[0].i == 0:
-                    concat_f = casadi.vertcat
-                else:
-                    concat_f = casadi.horzcat
-                out = concat_f(ins[0],ins[1])
-            
-            # The model in its actual state is capable of the conversion of other
-            # ONNX node types and operations. This design should be sufficient
-            # for the deep learning regression applications with at maximum
-            # 2-dimensional arrays as input (no convolutional neural networks or
-            # models with 3D and higher input arrays !)
-            else:
-                raise Exception("The layer type: {} is not yet included in the conversion tool".format(n.op_type))
-            if isinstance(out,(np.ndarray)):
-                out = symvar_type(out)
-            
-            # Assignment of the computation result to the variables "all_values"
-            # and "node_values" as initialization for the next node operation
+
             all_values[n.output[0]] = out
             node_values[n.output[0]] = out
         
         # Assignment of all node output values to the class object 
-        self.values = node_values
+        self.node_values = node_values
             
-          
-            
-        # computation values of relevant nodes only
-        # Relevant nodes are nodes, whose output results correspond to the
-        # layer output results: node names of bias addition and weight 
-        # multiplication operations are eliminated. Hence, as layer results are
-        # only results from concatenation nodes or activation function nodes considered
-        self.relevant_layers = []
-        self.relevant_values = {}
-        for layer, value in node_values.items():
-            operation_type = layer[layer.rfind("/")+1:].lower() # Example: "MatMul:0" from the full node 
-                                                                # name "model_1/1st_output/MatMul:0"
-            if not any(irrelevant in operation_type for irrelevant in ["matmul","biasadd","expanddims"]):
-                relevant_layer_name = layer
-                if layer.count("/")>1:
-                    # Example: "model_1" from the full layer name "model_1/xy/Tanh:0"
-                    relevant_layer_name = layer[layer.find("/")+1:layer.rfind("/")]
-                
-                # Assignment of the list of the relevant layer names and of their
-                # respective values to the ONNX2CasADi object
-                self.relevant_layers.append(relevant_layer_name)                
-                self.relevant_values[relevant_layer_name] = self.values[layer]
-                
-     
-        # Generation of the equivalent CasADi model (of the Outputs)
-        self.output_values = {}
-        for l in output_layers:
-            self.output_values[l] = all_values[l]
         
-
-        self.casadi_function = casadi.Function(self.name,list(self.input.values()),
-                    list(self.output_values.values()),list(self.input.keys()),output_layers)
-         
-        
-
 
     def __getitem__(self, key):
         """ Enables the output of the CasADi expression of a specific layer or 
         graph operation node.
         """
-        values = self.values
-        values.update(self.relevant_values)
-        out = None
-        for layer_name in values:
-            if key == layer_name:                
-                out = values[layer_name]
-        
-        if out == None:
-            raise Exception("The layer '{}' is unknown.\nIt should be either a name of onnx computational node (see the property: self.layers) or possibly a name of one of the original Keras model layers (see the property: self.relevant_layers)".format(key))
+        node_values = self.node_values
+
+        if key in node_values.keys():
+            out = node_values[key]
+        else:
+            raise Exception("The node '{}' is not contained in the ONNX graph.".format(key))
+
         return out
 
 
@@ -346,19 +259,16 @@ class _Operations:
     def __init__(self):
         pass
 
-    def tanh(self,x, attribute = None):
+    def Tanh(self,x, attribute = None):
         return casadi.tanh(x)
 
-    def sigmoid(self,x, attribute = None):
+    def Sigmoid(self,x, attribute = None):
         return casadi.sigmoid(x)
 
-    def relu(self,x, attribute = None):
+    def Relu(self,x, attribute = None):
         return casadi.fmax(0,x)
 
-    def leaky_relu(self,x, attribute = None):
-        return casadi.fmax(0.01*x,x)
-
-    def elu(self,x, attribute = None):
+    def Elu(self,x, attribute = None):
         return casadi.fmax(0,x) + casadi.fmin(0,casadi.exp(x)-1)
 
     def MatMul(self,*args, attribute = None):
@@ -377,7 +287,26 @@ class _Operations:
             return casadi.horzcat(*args)
     
     def Unsqueeze(self,*args, attribute = None):
+        # TODO: Check if this is correct
         return args[0]
+
+    def Squeeze(self, *args, attribute = None):
+        # TODO: Check if this is correct
+        return args[0]
+
+    def Slice(self, *args, attribute = None):
+        # TODO: Check if this is correct
+        ax = attribute[0].ints
+        ends = attribute[1].ints
+        starts = attribute[2].ints
+
+        slices = [slice(None,None),]*2
+
+        for ax_k, start_k, end_k in zip(ax, starts, ends):
+            slices[ax_k] = slice(start_k,end_k)
+
+        return args[0][tuple(slices)]
+
 
     
 
