@@ -46,6 +46,8 @@ class NLPHandler:
         p_sym = self.nlp_dict['p']
         f_sym = self.nlp_dict['f']
         g_sym = self.nlp_dict['g']
+        lam_g_sym = SX.sym('lam_g', g_sym.shape[0])
+        lam_x_sym = SX.sym('lam_x', x_sym.shape[0])
 
         # 1.2 extract bounds
         lbg = np.array(self.nlp_bounds['lbg'])
@@ -67,9 +69,9 @@ class NLPHandler:
         self.where_g_lower = np.argwhere(is_g_lower)[:,0]
         self.where_g_upper = np.argwhere(is_g_upper)[:,0]
 
-        nl_equal_sym = (g_sym - is_g_equal*lbg)[self.where_g_equal]
-        nl_lower_sym = (is_g_lower*lbg - g_sym)[self.where_g_lower]
-        nl_upper_sym = (g_sym - is_g_upper*ubg)[self.where_g_upper] 
+        nl_equal_sym = (g_sym - lbg)[self.where_g_equal]
+        nl_lower_sym = (lbg - g_sym)[self.where_g_lower]
+        nl_upper_sym = (g_sym - ubg)[self.where_g_upper] 
 
         # 2.1 detect presence of equality constraints
         lin_state_constraints_bool = ("lbx" in self.nlp_bounds.keys() and "ubx" in self.nlp_bounds.keys())
@@ -84,9 +86,9 @@ class NLPHandler:
             self.where_x_lower = np.argwhere(is_x_lower)[:,0]
             self.where_x_upper = np.argwhere(is_x_upper)[:,0]
 
-            lin_equal_sym = (x_sym - is_x_equal*lbx)[self.where_x_equal]
-            lin_lower_sym = (is_x_lower*lbx - x_sym)[self.where_x_lower]
-            lin_upper_sym = (x_sym - is_x_upper*ubx)[self.where_x_upper]
+            lin_equal_sym = (x_sym - lbx)[self.where_x_equal]
+            lin_lower_sym = (lbx - x_sym)[self.where_x_lower]
+            lin_upper_sym = (x_sym - ubx)[self.where_x_upper]
 
             all_equal_sym = vertcat(nl_equal_sym, lin_equal_sym)
             all_inequal_sym = vertcat(nl_upper_sym, nl_lower_sym, lin_upper_sym, lin_lower_sym)
@@ -95,6 +97,12 @@ class NLPHandler:
             all_equal_sym = nl_equal_sym
             all_inequal_sym = vertcat(nl_upper_sym, nl_lower_sym)
 
+        # Create transformation of lagrange multiplier    
+        nu_sym_transformed  = vertcat(lam_g_sym[self.where_g_equal], lam_x_sym[self.where_x_equal])
+        lam_sym_transformed = vertcat(lam_g_sym[self.where_g_upper], lam_x_sym[self.where_x_upper], lam_g_sym[self.where_g_lower], lam_x_sym[self.where_x_lower])
+
+        self.nu_function =  Function('nu_function',  [lam_g_sym, lam_x_sym], [nu_sym_transformed], ["lam_g", "lam_x"], ["nu_sym"])
+        self.lam_function = Function('lam_function', [lam_g_sym, lam_x_sym], [lam_sym_transformed], ["lam_g", "lam_x"], ["lam_sym"])
 
         # 4. create full nlp
         self.nlp_standard_full_dict = {"f":f_sym, "x":x_sym, "p":p_sym, "g":all_inequal_sym, "h":all_equal_sym}
@@ -138,8 +146,8 @@ class NLPHandler:
             raise NotImplementedError("Transformation variant {} is not implemented.".format(variant))
 
     def get_Lagrangian_sym(self):
-        """Returns the Lagrangian of the NLP in the standard form.
-        
+        """
+        Returns the Lagrangian of the NLP in the standard form.
         """
         if self.flags['transformed'] == 'full_standard':
             nlp = self.nlp_standard_full_dict
@@ -170,14 +178,22 @@ class NLPDifferentiator(NLPHandler):
 
 
     def prepare_hessian(self):
+        if self.flags['get_Lagrangian'] is False:
+            raise RuntimeError('Lagrangian not computed yet.')
         # CasADi function to compute the Hessian of the Lagrangian with opt_x and opt_lam
-        self.hessian_function = None
+        hessian_inputs = [self.nlp_standard_full_dict['x'], self.nlp_standard_full_dict['lam'], self.nlp_standard_full_dict['nu']]
+        hessian_sym, gradient_sym = hessian(self.L_sym, vertcat(*hessian_inputs))
+        self.hessian_function = Function('hessian_function', hessian_inputs, [hessian_sym], ["x", "lam", "nu"], ["hessian"])
 
-    def get_hessian(self, opt_x_num, opt_lam_num):
+
+    def get_hessian(self, x, lam_g, lam_x, *args, **kwargs):
         # Compute Hessian with opt_x and opt_lam
-        hessian = self.hessian_function(opt_x_num, opt_lam_num)
+        lam_num = self.lam_function(lam_g, lam_x)
+        nu_num  = self.nu_function(lam_g, lam_x)
 
-        return hessian
+        H = self.hessian_function(x, lam_num, nu_num)
+
+        return H
 
     
     def prepare_sensitivity(self):
@@ -227,7 +243,8 @@ def setup_NLP_example_1():
     ## setup Bounds
     lbg = -np.inf*np.ones(g_sym.shape)
     ubg = np.zeros(g_sym.shape)
-    lbg[-1]=0.0
+    ubg[-1] = 1.0
+    lbg[-1] = 1.0
 
     # lbx = np.zeros(x_sym.shape)
     lbx = -np.inf*np.ones(x_sym.shape)
@@ -270,7 +287,7 @@ if __name__ is '__main__':
     # Test 1
     p_num = np.array((0,0))
 
-    if False:
+    if True:
         S0 = nlpsol('S', 'ipopt', nlp)
         r0 = S0(x0=0, p=p_num, **nlp_bounds)
 
@@ -283,6 +300,11 @@ if __name__ is '__main__':
 
     # Test get Lagrangian
     nlp_diff.get_Lagrangian_sym()
+
+    nlp_diff.prepare_hessian()
+
+    H = nlp_diff.get_hessian(**r0)
+
 
     
 
