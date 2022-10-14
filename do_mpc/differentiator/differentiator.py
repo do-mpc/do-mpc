@@ -97,7 +97,7 @@ class NLPHandler:
             all_equal_sym = nl_equal_sym
             all_inequal_sym = vertcat(nl_upper_sym, nl_lower_sym)
 
-        # Create transformation of lagrange multiplier    
+        # Create transformation of lagrange multiplier
         nu_sym_transformed  = vertcat(lam_g_sym[self.where_g_equal], lam_x_sym[self.where_x_equal])
         lam_sym_transformed = vertcat(lam_g_sym[self.where_g_upper], lam_x_sym[self.where_x_upper], lam_g_sym[self.where_g_lower], lam_x_sym[self.where_x_lower])
 
@@ -116,7 +116,6 @@ class NLPHandler:
 
         self.nlp_standard_full_bounds = {"lbg":lbg_full_standard, "ubg":ubg_full_standard}
 
-
         # 6. symbolic expressions for dual variables
         nu_sym  = SX.sym('nu',  self.n_h) # dual variables for equality constraints
         lam_sym = SX.sym('lam', self.n_g) # dual variables for inequality constraints
@@ -124,7 +123,6 @@ class NLPHandler:
             "lam":lam_sym,
             "nu":nu_sym
         })
-
 
         print("NLP transformed: \n")
         print("[g_nl,g_x] --> [g_nl_ubg,g_x_ubx,g_nl_lbg,g_x_lbx] + [h_nl, h_x]")
@@ -135,7 +133,6 @@ class NLPHandler:
     def transform_nlp(self, variant='full_standard'):
         if variant is 'full_standard':
             self._transform_nlp_to_standard_full()
-            self._get_primal_dual_sym()
         else:
             raise NotImplementedError("Transformation variant {} is not implemented.".format(variant))
 
