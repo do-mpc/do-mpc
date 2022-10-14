@@ -97,9 +97,39 @@ class NLPHandler:
             all_equal_sym = nl_equal_sym
             all_inequal_sym = vertcat(nl_upper_sym, nl_lower_sym)
 
+        # symbolically check, wether upper or lower bounds on inequality constraints are active
+        sign_lam_g_sym = sign(lam_g_sym)
+        sign_lam_x_sym = sign(lam_x_sym)        
+
+        # correction_lam_g_upper = (sign_lam_g_sym == 1)
+        # correction_lam_x_upper = (sign_lam_x_sym == 1)
+        # correction_lam_g_lower = -1*(sign_lam_g_sym == -1)
+        # correction_lam_x_lower = -1*(sign_lam_x_sym == -1)
+
+        lam_gx_trans = []
+        lam_gx_trans.append((sign_lam_g_sym == 1)[self.where_g_upper])
+        lam_gx_trans.append((sign_lam_x_sym == 1)[self.where_x_upper])
+        lam_gx_trans.append(-1*(sign_lam_g_sym == -1)[self.where_g_lower])
+        lam_gx_trans.append(-1*(sign_lam_x_sym == -1)[self.where_x_lower])
+        lam_gx_trans_sym = vertcat(*lam_gx_trans)
+
         # Create transformation of lagrange multiplier
         nu_sym_transformed  = vertcat(lam_g_sym[self.where_g_equal], lam_x_sym[self.where_x_equal])
-        lam_sym_transformed = vertcat(lam_g_sym[self.where_g_upper], lam_x_sym[self.where_x_upper], lam_g_sym[self.where_g_lower], lam_x_sym[self.where_x_lower])
+
+        # lam_sym_transformed = vertcat((lam_g_sym*correction_lam_g_upper)[self.where_g_upper],
+        #     (lam_x_sym*correction_lam_x_upper)[self.where_x_upper], 
+        #     (lam_g_sym*correction_lam_g_lower)[self.where_g_lower], 
+            # (lam_x_sym*correction_lam_x_lower)[self.where_x_lower])
+
+        # lam_sym_transformed = vertcat((lam_g_sym*sign_lam_g_sym*(sign_lam_g_sym == 1))[self.where_g_upper],
+        #     (lam_x_sym*sign_lam_x_sym*(sign_lam_x_sym == 1))[self.where_x_upper], 
+        #     (lam_g_sym*sign_lam_g_sym*(sign_lam_g_sym == -1))[self.where_g_lower], 
+        #     (lam_x_sym*sign_lam_x_sym*(sign_lam_x_sym == -1))[self.where_x_lower])
+
+        lam_sym_transformed = vertcat(lam_g_sym[self.where_g_upper],
+            lam_x_sym[self.where_x_upper], 
+            lam_g_sym[self.where_g_lower], 
+            lam_x_sym[self.where_x_lower])*lam_gx_trans_sym
 
         self.nu_function =  Function('nu_function',  [lam_g_sym, lam_x_sym], [nu_sym_transformed], ["lam_g", "lam_x"], ["nu_sym"])
         self.lam_function = Function('lam_function', [lam_g_sym, lam_x_sym], [lam_sym_transformed], ["lam_g", "lam_x"], ["lam_sym"])
@@ -234,7 +264,7 @@ def setup_NLP_example_1():
     ## setup Bounds
     lbg = -np.inf*np.ones(g_sym.shape)
     ubg = np.zeros(g_sym.shape)
-    ubg[-1] = 1.0
+    ubg[-1] = 1.2
     lbg[-1] = 1.0
 
     # lbx = np.zeros(x_sym.shape)
