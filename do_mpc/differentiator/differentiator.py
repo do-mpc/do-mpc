@@ -116,26 +116,20 @@ class NLPHandler:
 
         self.nlp_standard_full_bounds = {"lbg":lbg_full_standard, "ubg":ubg_full_standard}
 
+
+        # 6. symbolic expressions for dual variables
+        nu_sym  = SX.sym('nu',  self.n_h) # dual variables for equality constraints
+        lam_sym = SX.sym('lam', self.n_g) # dual variables for inequality constraints
+        self.nlp_standard_full_dict.update({
+            "lam":lam_sym,
+            "nu":nu_sym
+        })
+
+
         print("NLP transformed: \n")
         print("[g_nl,g_x] --> [g_nl_ubg,g_x_ubx,g_nl_lbg,g_x_lbx] + [h_nl, h_x]")
 
         self.flags['transformed'] = 'full_standard'
-
-
-    def _get_primal_dual_sym(self):
-
-        if self.flags['transformed'] == 'full_standard':
-            nlp = self.nlp_standard_full_dict
-        else:
-            raise Exception('NLP not transformed yet.')
-
-        nu_sym  = SX.sym('nu',  self.n_h) # dual variables for equality constraints
-        lam_sym = SX.sym('lam', self.n_g) # dual variables for inequality constraints
-
-        nlp.update({
-            "lam":lam_sym,
-            "nu":nu_sym
-        })
 
 
     def transform_nlp(self, variant='full_standard'):
