@@ -101,35 +101,20 @@ class NLPHandler:
         sign_lam_g_sym = sign(lam_g_sym)
         sign_lam_x_sym = sign(lam_x_sym)        
 
-        # correction_lam_g_upper = (sign_lam_g_sym == 1)
-        # correction_lam_x_upper = (sign_lam_x_sym == 1)
-        # correction_lam_g_lower = -1*(sign_lam_g_sym == -1)
-        # correction_lam_x_lower = -1*(sign_lam_x_sym == -1)
+        # Lagrange multiplier are positive if upper bound is active and zero if not
+        # Lagrange multiplier are negative if lower bound is active and zero if not -> Invert sign
+        lam_g_upper_sym =   (sign_lam_g_sym == 1) *lam_g_sym  
+        lam_g_lower_sym = - (sign_lam_g_sym == -1)*lam_g_sym
+        lam_x_upper_sym =   (sign_lam_x_sym == 1) *lam_x_sym
+        lam_x_lower_sym = - (sign_lam_x_sym == -1)*lam_x_sym
 
-        lam_gx_trans = []
-        lam_gx_trans.append((sign_lam_g_sym == 1)[self.where_g_upper])
-        lam_gx_trans.append((sign_lam_x_sym == 1)[self.where_x_upper])
-        lam_gx_trans.append(-1*(sign_lam_g_sym == -1)[self.where_g_lower])
-        lam_gx_trans.append(-1*(sign_lam_x_sym == -1)[self.where_x_lower])
-        lam_gx_trans_sym = vertcat(*lam_gx_trans)
+        lam_sym_transformed = vertcat(
+            lam_g_upper_sym[self.where_g_upper],
+            lam_x_upper_sym[self.where_x_upper], 
+            lam_g_lower_sym[self.where_g_lower], 
+            lam_x_lower_sym[self.where_x_lower])
 
-        # Create transformation of lagrange multiplier
-        nu_sym_transformed  = vertcat(lam_g_sym[self.where_g_equal], lam_x_sym[self.where_x_equal])
-
-        # lam_sym_transformed = vertcat((lam_g_sym*correction_lam_g_upper)[self.where_g_upper],
-        #     (lam_x_sym*correction_lam_x_upper)[self.where_x_upper], 
-        #     (lam_g_sym*correction_lam_g_lower)[self.where_g_lower], 
-            # (lam_x_sym*correction_lam_x_lower)[self.where_x_lower])
-
-        # lam_sym_transformed = vertcat((lam_g_sym*sign_lam_g_sym*(sign_lam_g_sym == 1))[self.where_g_upper],
-        #     (lam_x_sym*sign_lam_x_sym*(sign_lam_x_sym == 1))[self.where_x_upper], 
-        #     (lam_g_sym*sign_lam_g_sym*(sign_lam_g_sym == -1))[self.where_g_lower], 
-        #     (lam_x_sym*sign_lam_x_sym*(sign_lam_x_sym == -1))[self.where_x_lower])
-
-        lam_sym_transformed = vertcat(lam_g_sym[self.where_g_upper],
-            lam_x_sym[self.where_x_upper], 
-            lam_g_sym[self.where_g_lower], 
-            lam_x_sym[self.where_x_lower])*lam_gx_trans_sym
+        nu_sym_transformed = vertcat(lam_g_sym[self.where_g_equal], lam_x_sym[self.where_x_equal])
 
         self.nu_function =  Function('nu_function',  [lam_g_sym, lam_x_sym], [nu_sym_transformed], ["lam_g", "lam_x"], ["nu_sym"])
         self.lam_function = Function('lam_function', [lam_g_sym, lam_x_sym], [lam_sym_transformed], ["lam_g", "lam_x"], ["lam_sym"])
