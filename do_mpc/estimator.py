@@ -1396,8 +1396,8 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
             'expand': False,
             'ipopt.linear_solver': 'mumps',
         }.update(self.nlpsol_opts)
-        nlp = {'x': vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons, 'p': vertcat(self._opt_p)}
-        self.S = nlpsol('S', 'ipopt', nlp, self.nlpsol_opts)
+        self.nlp = {'x': vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons, 'p': vertcat(self._opt_p)}
+        self.S = nlpsol('S', 'ipopt', self.nlp, self.nlpsol_opts)
 
 
 
