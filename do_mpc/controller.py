@@ -86,7 +86,8 @@ class LQR:
         #Initialize sampling time for continuous time system to discrete time system conversion
         self.t_sample = 0
         
-        self.conv_method = 'zoh'
+        self.conv_method = "zoh"
+        
         #Initialize mode of LQR
         self.mode = 'setPointTrack'
         
@@ -121,11 +122,13 @@ class LQR:
             C = np.identity(self.model.n_x)
             D = np.zeros((self.model.n_x,self.model.n_u))
 
+            
             dis_sys = cont2discrete((self.A,self.B,C,D), self.t_sample, self.conv_method)
 
             A_dis = dis_sys[0]
             B_dis = dis_sys[1]
             
+
             #Initializing new model type
             self.model_type = 'discrete'
             
@@ -369,6 +372,7 @@ class LQR:
             return self.uss   
                 
     def make_step(self,x0,z0=None):
+    def make_step(self,x0,z0=None,u0 = None):
         """Main method of the class during runtime. This method is called at each timestep
         and returns the control input for the current initial state.
         
@@ -397,6 +401,7 @@ class LQR:
         #verify setup of lqr is done
         assert self.flags['setup'] == True, 'LQR is not setup. run setup() function.'
         
+
         #setting setpoints
         if self.xss is None and self.uss is None:
             self.set_setpoint()
@@ -419,6 +424,7 @@ class LQR:
             elif np.shape(self.K)[1]!=np.shape(x0)[0] and np.shape(self.K)[1]== np.shape(np.block([[x0],[self.u0]]))[0]:
                 x0_new = np.block([[x0],[self.u0]])
                 self.u0 = self.K@(x0_new)
+                self.u0 = self.K@(x0_new-self.xss)+self.uss
                 self.u0 = self.u0+x0_new[-self.model.n_u:]
             return self.u0
         
@@ -602,8 +608,13 @@ class LQR:
 
         #Set delRu for input rate penalization or converted ode model
         if (self.mode == 'inputRatePenalization' or self.model.flags['dae2odemodel'] == True) and Rdelu != None:
+        print(self.mode == 'inputRatePenalization')
+        print(self.model.flags['dae2odemodel'])
+        print((self.mode == 'inputRatePenalization' or self.model.flags['dae2odemodel']==True))
+        if (self.mode == 'inputRatePenalization' or self.model.flags['dae2odemodel']==True) and np.all(Rdelu != None):
             self.Rdelu = Rdelu
         elif (self.mode == 'inputRatePenalization' or self.model.flags['dae2odemodel']==True) and Rdelu == None:
+        elif (self.mode == 'inputRatePenalization' or self.model.flags['dae2odemodel']==True) and np.all(Rdelu == None):
             raise Exception('Please set input cost matrix for input rate penalization/daemodel using set_objective()')
         
         #Set delZ for converted ode model
@@ -672,7 +683,14 @@ class LQR:
                 self.xss = np.block([[self.xss],[self.uss],[self.zss]])
             assert self.zss.shape == (np.shape(self.delZ)[0],1), 'xss must be of shape {}. You have {}'.format((np.shape(self.delZ)[0],1),self.zss.shape)
             
-        assert self.xss.shape == (self.model.n_x,1), 'xss must be of shape {}. You have {}'.format((self.model.n_x,1),self.xss.shape)
+        
+        if self.mode == 'inputRatePenalization':
+            self.xss = np.block([[self.xss],[self.uss]])
+            self.uss = np.zeros((self.model.n_u,1))
+            assert self.xss.shape == (self.model.n_x+self.model.n_u,1), 'xss must be of shape {}. You have {}'.format((self.model.n_x+self.model.n_u,1),self.xss.shape)
+        
+        if self.mode == 'setPointTrack':
+            assert self.xss.shape == (self.model.n_x,1), 'xss must be of shape {}. You have {}'.format((self.model.n_x,1),self.xss.shape)
         assert self.uss.shape == (self.model.n_u,1), 'uss must be of shape {}. You have {}'.format((self.model.n_u,1),self.uss.shape)
 
     def setup(self):
