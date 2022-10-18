@@ -606,9 +606,6 @@ class LQR:
             self.P = P
 
         #Set delRu for input rate penalization or converted ode model
-        print(self.mode == 'inputRatePenalization')
-        print(self.model.flags['dae2odemodel'])
-        print((self.mode == 'inputRatePenalization' or self.model.flags['dae2odemodel']==True))
         if (self.mode == 'inputRatePenalization' or self.model.flags['dae2odemodel']==True) and np.all(Rdelu != None):
             self.Rdelu = Rdelu
         elif (self.mode == 'inputRatePenalization' or self.model.flags['dae2odemodel']==True) and np.all(Rdelu == None):
