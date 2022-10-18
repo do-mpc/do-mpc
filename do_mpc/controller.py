@@ -98,6 +98,8 @@ class LQR:
         
         self.xss = None
         self.uss = None
+        
+        self._t0 = np.array([0])
     def continuous_to_discrete_time(self):
         """Converts continuous time to discrete time system.
         
@@ -121,13 +123,11 @@ class LQR:
             warnings.warn('sampling time is {}'.format(self.t_sample))
             C = np.identity(self.model.n_x)
             D = np.zeros((self.model.n_x,self.model.n_u))
-
             
             dis_sys = cont2discrete((self.A,self.B,C,D), self.t_sample, self.conv_method)
 
             A_dis = dis_sys[0]
             B_dis = dis_sys[1]
-            
 
             #Initializing new model type
             self.model_type = 'discrete'
@@ -371,7 +371,6 @@ class LQR:
             self.uss = np.linalg.inv(self.B)@(I-self.A)@self.xss
             return self.uss   
                 
-    def make_step(self,x0,z0=None):
     def make_step(self,x0,z0=None,u0 = None):
         """Main method of the class during runtime. This method is called at each timestep
         and returns the control input for the current initial state.
@@ -400,7 +399,6 @@ class LQR:
         """
         #verify setup of lqr is done
         assert self.flags['setup'] == True, 'LQR is not setup. run setup() function.'
-        
 
         #setting setpoints
         if self.xss is None and self.uss is None:
@@ -414,7 +412,6 @@ class LQR:
         if self.mode == "setPointTrack" and self.model.flags['dae2odemodel'] == False:
             if self.xss.size != 0 and self.uss.size != 0:
                 self.u0 = self.K@(x0-self.xss)+self.uss
-            return self.u0
         
         #Calculate u in input rate penalization mode
         elif self.mode == "inputRatePenalization" and self.model.flags['dae2odemodel']==False:
@@ -423,10 +420,8 @@ class LQR:
                 self.u0 = self.u0+x0[-self.model.n_u:]
             elif np.shape(self.K)[1]!=np.shape(x0)[0] and np.shape(self.K)[1]== np.shape(np.block([[x0],[self.u0]]))[0]:
                 x0_new = np.block([[x0],[self.u0]])
-                self.u0 = self.K@(x0_new)
                 self.u0 = self.K@(x0_new-self.xss)+self.uss
                 self.u0 = self.u0+x0_new[-self.model.n_u:]
-            return self.u0
         
         #Calculate u for converted ode model
         elif self.model.flags['dae2odemodel']==True:
@@ -437,7 +432,11 @@ class LQR:
                 self.u0 = self.u0+x0_new[np.shape(x0)[0]]
             else:
                 self.u0 = self.u0+x0_new[np.shape(x0)[0]:np.shape(x0)[0]+np.shape(self.u0)[0]-1]
-            return self.u0
+        
+        self._t0 = self._t0 + self.t_sample
+        if self.model.n_p != 0 or self.model.n_tvp != 0:
+            self.K = self.update_gain()
+        return self.u0
         
     def _convertSX_to_array(self,A,B):
         """Internal method. Converts casadi symbolic variable to numpy array.
@@ -607,13 +606,11 @@ class LQR:
             self.P = P
 
         #Set delRu for input rate penalization or converted ode model
-        if (self.mode == 'inputRatePenalization' or self.model.flags['dae2odemodel'] == True) and Rdelu != None:
         print(self.mode == 'inputRatePenalization')
         print(self.model.flags['dae2odemodel'])
         print((self.mode == 'inputRatePenalization' or self.model.flags['dae2odemodel']==True))
         if (self.mode == 'inputRatePenalization' or self.model.flags['dae2odemodel']==True) and np.all(Rdelu != None):
             self.Rdelu = Rdelu
-        elif (self.mode == 'inputRatePenalization' or self.model.flags['dae2odemodel']==True) and Rdelu == None:
         elif (self.mode == 'inputRatePenalization' or self.model.flags['dae2odemodel']==True) and np.all(Rdelu == None):
             raise Exception('Please set input cost matrix for input rate penalization/daemodel using set_objective()')
         
@@ -682,7 +679,6 @@ class LQR:
                 self.zss = zss
                 self.xss = np.block([[self.xss],[self.uss],[self.zss]])
             assert self.zss.shape == (np.shape(self.delZ)[0],1), 'xss must be of shape {}. You have {}'.format((np.shape(self.delZ)[0],1),self.zss.shape)
-            
         
         if self.mode == 'inputRatePenalization':
             self.xss = np.block([[self.xss],[self.uss]])
@@ -693,6 +689,153 @@ class LQR:
             assert self.xss.shape == (self.model.n_x,1), 'xss must be of shape {}. You have {}'.format((self.model.n_x,1),self.xss.shape)
         assert self.uss.shape == (self.model.n_u,1), 'uss must be of shape {}. You have {}'.format((self.model.n_u,1),self.uss.shape)
 
+    def get_p_template(self):
+        """Obtain output template for :py:func:`set_p_fun`.
+        Use this method in conjunction with :py:func:`set_p_fun`
+        to define the function for retrieving the parameters at each sampling time.
+
+        See :py:func:`set_p_fun` for more details.
+
+        :return: numerical CasADi structure
+        :rtype: struct_SX
+        """
+        return self.model._p(0)
+    
+    def set_p_fun(self,p_fun):
+        """Method to set the function which gives the values of the parameters.
+        This function must return a CasADi structure which can be obtained with :py:func:`get_p_template`.
+
+        **Example**:
+
+        In the :py:class:`do_mpc.model.Model` we have defined the following parameters:
+
+        ::
+
+            Theta_1 = model.set_variable('parameter', 'Theta_1')
+            Theta_2 = model.set_variable('parameter', 'Theta_2')
+            Theta_3 = model.set_variable('parameter', 'Theta_3')
+
+        To integrate the ODE or evaluate the discrete dynamics, the lqr needs
+        to obtain the numerical values of these parameters at each timestep.
+        In the most general case, these values can change,
+        which is why a function must be supplied that can be evaluted at each timestep to obtain the current values.
+
+        **do-mpc** requires this function to have a specific return structure which we obtain first by calling:
+
+        ::
+
+            p_template = lqr.get_p_template()
+
+        The parameter function can look something like this:
+
+        ::
+
+            p_template['Theta_1'] = 2.25e-4
+            p_template['Theta_2'] = 2.25e-4
+            p_template['Theta_3'] = 2.25e-4
+
+            def p_fun(t_now):
+                return p_template
+
+            simulator.set_p_fun(p_fun)
+
+        which results in constant parameters.
+
+        A more "interesting" variant could be this random-walk:
+
+        ::
+
+            p_template['Theta_1'] = 2.25e-4
+            p_template['Theta_2'] = 2.25e-4
+            p_template['Theta_3'] = 2.25e-4
+
+            def p_fun(t_now):
+                p_template['Theta_1'] += 1e-6*np.random.randn()
+                p_template['Theta_2'] += 1e-6*np.random.randn()
+                p_template['Theta_3'] += 1e-6*np.random.randn()
+                return p_template
+
+
+
+        :param p_fun: A function which gives the values of the parameters
+        :type p_fun: python function
+
+        :raises assert: p must have the right structure
+
+        :return: None
+        :rtype: None
+        """
+        assert isinstance(p_fun(0), structure3.DMStruct), 'p_fun has incorrect return type.'
+        assert self.get_p_template().labels() == p_fun(0).labels(), 'Incorrect output of p_fun. Use get_p_template to obtain the required structure.'
+        self.p_fun = p_fun
+        self.flags['set_p_fun'] = True
+        
+    def get_tvp_template(self):
+        """Obtain the output template for :py:func:`set_tvp_fun`.
+        Use this method in conjunction with :py:func:`set_tvp_fun`
+        to define the function for retrieving the time-varying parameters at each sampling time.
+
+        :return: numerical CasADi structure
+        :rtype: struct_SX
+        """
+        return self.model._tvp(0)
+    
+    def set_tvp_fun(self,tvp_fun):
+        """Method to set the function which returns the values of the time-varying parameters.
+        This function must return a CasADi structure which can be obtained with :py:func:`get_tvp_template`.
+
+        In the :py:class:`do_mpc.model.Model` we have defined the following parameters:
+
+        ::
+
+            a = model.set_variable('_tvp', 'a')
+
+        The integrate the ODE or evaluate the discrete dynamics, the lqr needs
+        to obtain the numerical values of these parameters at each timestep.
+        In the most general case, these values can change,
+        which is why a function must be supplied that can be evaluted at each timestep to obtain the current values.
+
+        **do-mpc** requires this function to have a specific return structure which we obtain first by calling:
+
+        ::
+
+            tvp_template = lqr.get_tvp_template()
+
+        The time-varying parameter function can look something like this:
+
+        ::
+
+            def tvp_fun(t_now):
+                tvp_template['a'] = 3
+                return tvp_template
+
+            lqr.set_tvp_fun(tvp_fun)
+
+        which results in constant parameters.
+
+        .. note::
+
+            From the perspective of the simulator there is no difference between
+            time-varying parameters and regular parameters. The difference is important only
+            for the MPC controller and MHE estimator. These methods consider a finite sequence
+            of future / past information, e.g. the weather, which can change over time.
+            Parameters, on the other hand, are constant over the entire horizon.
+
+        :param tvp_fun: Function which gives the values of the time-varying parameters
+        :type tvp_fun: function
+
+        :raises assertion: tvp_fun has incorrect return type.
+        :raises assertion: Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.
+
+        :return: None
+        :rtype: None
+        """
+        assert isinstance(tvp_fun(0), structure3.DMStruct), 'tvp_fun has incorrect return type.'
+        assert self.get_tvp_template().labels() == tvp_fun(0).labels(), 'Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.'
+        self.tvp_fun = tvp_fun
+
+        self.flags['set_tvp_fun'] = True
+    
     def setup(self):
         """Prepares lqr for execution.
         This method initializes and make sure that all the necessary parameters required to run the lqr are available.
@@ -700,7 +843,12 @@ class LQR:
         :raises exception: mode must be setPointTrack, inputRatePenalization, None. you have {string value}
 
         """
-        
+        if self.model.n_p != 0:
+            p0 = self.p_fun(self._t0)
+            self.model._rhs = self.model._rhs_fun(self.model.x,self.model.u,self.model.z,self.model.tvp,p0,self.model.w)
+        if self.model.n_tvp !=0:
+            tvp0 = self.tvp_fun(self.t0)
+            self.model._rhs = self.model._rhs_fun(self.model.x,self.model.u,self.model.z,tvp0,p0,self.model.w)
         A = self.state_matrix()
         B = self.input_matrix()
         [self.A,self.B] = self._convertSX_to_array(A, B)
@@ -715,12 +863,54 @@ class LQR:
             self.K = self.input_rate_penalization()
         elif self.model.flags['dae2odemodel'] == True:
             self.K = self.dae_model_gain(self.A, self.B)
-        elif not self.mode in ['setPointTrack','inputRatePenalization']:
+        if not self.mode in ['setPointTrack','inputRatePenalization']:
             raise Exception('mode must be setPointTrack, inputRatePenalization, None. you have {}'.format(self.method))
         elif self.model.flags['dae2odemodel'] == False and self.model.n_z !=0:
             raise Exception('You model contains algebraic states. Please convert the dae model to ode model using model.dae_to_ode_model().')
         self.flags['setup'] = True
+        
+    def update_gain(self):
+        """Updates gain matrix in each time step.
+        
+        This method is used when the model contains uncertainty parameters and time varying parameters so that parameters state matrix, input matrix and gain matrix 
+        can be updated at each time step.
+        
 
+        :raises exception: mode must be setPointTrack, inputRatePenalization, None. you have {string value}
+
+        :return: Gain matrix - :math:`K`
+        :rtype: numpy.ndarray
+
+        """
+        self.flags['setup'] = False
+        self.model_type = self.model.model_type
+        if self.model.n_p != 0:
+            p0 = self.p_fun(self._t0)
+            self.model._rhs = self.model._rhs_fun(self.model.x,self.model.u,self.model.z,self.model.tvp,p0,self.model.w)
+        if self.model.n_tvp !=0:
+            tvp0 = self.tvp_fun(self.t0)
+            self.model._rhs = self.model._rhs_fun(self.model.x,self.model.u,self.model.z,tvp0,p0,self.model.w)
+        A = self.state_matrix()
+        B = self.input_matrix()
+        [self.A,self.B] = self._convertSX_to_array(A, B)
+        if self.model_type == 'continuous':
+            [self.A,self.B] = self.continuous_to_discrete_time()
+        assert self.flags['linear']== True, 'Model is not linear'
+        if self.n_horizon == None:
+            warnings.warn('discrete infinite horizon gain will be computed since prediction horizon is set to default value 0')
+        if self.mode in ['setPointTrack',None] and self.model.flags['dae2odemodel'] == False and self.model.n_z==0:
+            K = self.discrete_gain(self.A,self.B)
+        elif self.mode == 'inputRatePenalization' and self.model.flags['dae2odemodel'] == False and self.model.n_z==0:
+            K = self.input_rate_penalization()
+        elif self.model.flags['dae2odemodel'] == True:
+            K = self.dae_model_gain(self.A, self.B)
+        if not self.mode in ['setPointTrack','inputRatePenalization']:
+            raise Exception('mode must be setPointTrack, inputRatePenalization, None. you have {}'.format(self.method))
+        elif self.model.flags['dae2odemodel'] == False and self.model.n_z !=0:
+            raise Exception('You model contains algebraic states. Please convert the dae model to ode model using model.dae_to_ode_model().')
+        self.flags['setup'] = True
+        return K
+        
 class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     """Model predictive controller.
 
