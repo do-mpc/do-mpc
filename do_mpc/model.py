@@ -1281,16 +1281,16 @@ class Model:
         
         #Setting states and inputs
         x = []
-        for i in range(self.n_x):
+        for i in range(np.size(self.x.keys())):
             x.append(linearizedModel.set_variable('_x','del_'+self.x.keys()[i],self.x[self.x.keys()[i]].size()))
         u = []
-        for j in range(self.n_u):
+        for j in range(np.size(self.u.keys())-1):
             u.append(linearizedModel.set_variable('_u','del_'+self.u.keys()[j+1],self.u[self.u.keys()[j+1]].size()))
         p = []
-        for k in range(self.n_p):
+        for k in range(np.size(self.p.keys())-1):
             p.append(linearizedModel.set_variable('_p',self.p.keys()[k+1],self.p[self.p.keys()[k+1]].size()))
         w = []
-        for l in range(self.n_w):
+        for l in range(np.size(self.w.keys())-1):
             w.append(linearizedModel.set_variable('_w',self.w.keys()[l+1],self.w[self.w.keys()[l+1]].size()))
         
         #Converting rhs eq. with respect to variables of linear model of same name
@@ -1299,18 +1299,46 @@ class Model:
         
         #Calculating jacobian with respect to states
         tempA = jacobian(rhs,linearizedModel.x)
-        sub_A = Function('sub_A',[linearizedModel.x,linearizedModel.u,linearizedModel.p],[tempA])
-        A = sub_A(xss,uss,linearizedModel.p) 
+        sub_A = Function('sub_A',[linearizedModel.x,linearizedModel.u,linearizedModel.p,linearizedModel.tvp],[tempA])
+        A = sub_A(xss,uss,linearizedModel.p,linearizedModel.tvp) 
         
         #Calculating jacobian with respect to inputs
         tempB = jacobian(rhs,linearizedModel.u)
-        sub_B = Function('sub_B',[linearizedModel.x,linearizedModel.u],[tempB])
-        B = sub_B(xss,uss)
+        sub_B = Function('sub_B',[linearizedModel.x,linearizedModel.u,linearizedModel.p,linearizedModel.tvp],[tempB])
+        B = sub_B(xss,uss,linearizedModel.p,linearizedModel.tvp)
+        
+        #Converting rhs output eq. with respect to variables of linear model of same name
+        y_rhs = self._meas_fun(*var)
+        
+        #Calculating jacobian of output equation with respect to states
+        tempC = jacobian(y_rhs,linearizedModel.x)
+        sub_C = Function('sub_C',[linearizedModel.x,linearizedModel.u,linearizedModel.p,linearizedModel.tvp],[tempC])
+        C = sub_C(xss,uss,linearizedModel.p,linearizedModel.tvp)
+        
+        #Calculating jacobian of output equation with respect to inputs
+        tempD = jacobian(y_rhs,linearizedModel.u)
+        sub_D = Function('sub_D',[linearizedModel.x,linearizedModel.u,linearizedModel.p,linearizedModel.tvp],[tempD])
+        D = sub_D(xss,uss,linearizedModel.p,linearizedModel.tvp)
+        
         
         #Computing rhs of the model
         x_next = A@linearizedModel.x+B@linearizedModel.u
-        for i in range(self.n_x):
-            linearizedModel.set_rhs(linearizedModel.x.keys()[i],x_next[i])
+        x_count = 0
+        for i in range(np.size(self.x.keys())):
+            linearizedModel.set_rhs(linearizedModel.x.keys()[i],x_next[x_count:x_count+self.x[self.x.keys()[i]].size()[0]])
+            x_count += self.x[self.x.keys()[i]].size()[0]
+        
+        #Computing output equation rhs of the model
+        y = C@linearizedModel.x+D@linearizedModel.u
+        y_count = 0
+        for j in range(np.size(self.y.keys())-1):
+            for k in range(np.size(self.v.keys())-1):
+                if self.y.keys()[j+1] == self.v.keys()[k+1]:
+                    linearizedModel.set_meas(self.y.keys()[j+1],y[y_count:y_count+self.y[self.y.keys()[j+1]].size()[0]],meas_noise = True)
+                    y_count += self.y[self.y.keys()[j+1]].size()[0]
+                else:
+                    linearizedModel.set_meas(self.y.keys()[j+1],y[y_count:y_count+self.y[self.y.keys()[j+1]].size()[0]],meas_noise = False)
+                    y_count += self.y[self.y.keys()[j+1]].size()[0]
             
         #setting up the model
         linearizedModel.setup()
@@ -1354,17 +1382,17 @@ class Model:
         
         #Setting states and inputs
         x = []
-        for i in range(self.n_x):
+        for i in range(np.size(self.x.keys())):
             x.append(daeModel.set_variable('_x',self.x.keys()[i],self.x[self.x.keys()[i]].size()))
-        for j in range(self.n_u):
+        for j in range(np.size(self.u.keys())-1):
             x.append(daeModel.set_variable('_x',self.u.keys()[j+1],self.u[self.u.keys()[j+1]].size()))
-        for k in range(self.n_z):
+        for k in range(np.size(self.z.keys())-1):
             x.append(daeModel.set_variable('_x',self.z.keys()[k+1],self.z[self.z.keys()[k+1]].size()))
         p = []
-        for l in range(self.n_p):
+        for l in range(np.size(self.p.keys())-1):
             p.append(daeModel.set_variable('_p',self.p.keys()[l+1],self.p[self.p.keys()[l+1]].size()))
         w = []
-        for m in range(self.n_w):
+        for m in range(np.size(self.w.keys())-1):
             w.append(daeModel.set_variable('_w',self.w.keys()[m+1],self.w[self.w.keys()[m+1]].size()))
         q = daeModel.set_variable('_u','q',(self.n_u,1))
         
@@ -1380,15 +1408,29 @@ class Model:
         rhs = self._rhs_fun(vertcat(*x_new),vertcat(*u_new),vertcat(*z_new),vertcat(*tvp_new),vertcat(*p_new),vertcat(*w_new))
         alg = self._alg_fun(vertcat(*x_new),vertcat(*u_new),vertcat(*z_new),vertcat(*tvp_new),vertcat(*p_new),vertcat(*w_new))
         z_next = -inv(jacobian(alg,vertcat(*z_new)))@jacobian(alg,vertcat(*x_new))@rhs-inv(jacobian(alg,vertcat(*z_new)))@jacobian(alg,vertcat(*u_new))@q
-        u_next = q
+        y_rhs = self._meas_fun(vertcat(*x_new),vertcat(*u_new),vertcat(*z_new),vertcat(*tvp_new),vertcat(*p_new),vertcat(*w_new))
         
         #Computing rhs of the model
-        for i in range(self.n_x):
-            daeModel.set_rhs(self.x.keys()[i],rhs[i])
-        for j in range(self.n_u):
+        x_count = 0
+        for i in range(np.size(self.x.keys())):
+            daeModel.set_rhs(self.x.keys()[i],rhs[x_count:x_count+self.x[self.x.keys()[i]].size()[0]])
+            x_count += self.x[self.x.keys()[i]].size()[0]
+        for j in range(np.size(self.u.keys())-1):
             daeModel.set_rhs(self.u.keys()[j+1],daeModel.u['q',j])
-        for k in range(self.n_z):
-            daeModel.set_rhs(self.z.keys()[k+1],z_next[k])
+        z_count = 0
+        for k in range(np.size(self.z.keys())-1):
+            daeModel.set_rhs(self.z.keys()[k+1],z_next[z_count:z_count+self.z[self.z.keys()[k+1]].size()[0]])
+            z_count += self.z[self.z.keys()[k+1]].size()[0]
+            
+        y_count = 0
+        for l in range(np.size(self.y.keys())-1):
+            for m in range(np.size(self.v.keys())-1):
+                if self.y.keys()[l+1] == self.v.keys()[m+1]:
+                    daeModel.set_meas(self.y.keys()[l+1],y_rhs[y_count:y_count+self.y[self.y.keys()[l+1]].size()[0]],meas_noise = True)
+                    y_count += self.y[self.y.keys()[l+1]].size()[0]
+                else:
+                    daeModel.set_meas(self.y.keys()[l+1],y_rhs[y_count:y_count+self.y[self.y.keys()[l+1]].size()[0]],meas_noise = False)
+                    y_count += self.y[self.y.keys()[l+1]].size()[0]
         
         #setting up the model
         daeModel.setup()
