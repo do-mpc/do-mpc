@@ -72,8 +72,6 @@ uss = np.array([[F_ss],[Q_ss]])
 xss = np.array([[C_ass],[C_bss],[T_Rss],[T_Jss]])
 lqr.set_setpoint(xss=xss,uss=uss)
 
-print(lqr.mode)
-print(lqr.conv_method)
 """
 Run LQR main loop:
 """
