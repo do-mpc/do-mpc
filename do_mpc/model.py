@@ -1241,7 +1241,7 @@ class Model:
         """Linearize the non-linear model to linear model.
         
         This method uses the taylor expansion series to linearize non-linear model to linear model at the specified 
-        set points. Linearized model retains the same variable names for all states, inputs with respect to the original model.
+        set points. Linearized model retains the same variable names for all states, inputs with respect to the original model. 
         The non-linear model equation this method can solve is as follows:
         
             .. math::
@@ -1258,7 +1258,9 @@ class Model:
             .. math::
                 \\Delta\\dot{x} = A \\Delta x + B \\Delta u
                 
-        Similarly it can be extended to discrete time systems.
+        Similarly it can be extended to discrete time systems. Since the linearized model has only rate of change input and state. The names are appended with 'del' to differentiate 
+        from the original model. This can be seen in the above model definition. Therefore, the solution of the lqr will be ``u`` and its corresponding ``x``. In order to fetch :math:`\\Delta u` 
+        and :math:`\\Delta x`, setpoints has to be subtracted from the solution of lqr.
                 
         :param xss: Steady state set point
         :type xss: numpy.ndarray
@@ -1280,10 +1282,16 @@ class Model:
         #Setting states and inputs
         x = []
         for i in range(self.n_x):
-            x.append(linearizedModel.set_variable('_x',self.x.keys()[i]))
+            x.append(linearizedModel.set_variable('_x','del_'+self.x.keys()[i],self.x[self.x.keys()[i]].size()))
         u = []
         for j in range(self.n_u):
-            u.append(linearizedModel.set_variable('_u',self.u.keys()[j+1]))
+            u.append(linearizedModel.set_variable('_u','del_'+self.u.keys()[j+1],self.u[self.u.keys()[j+1]].size()))
+        p = []
+        for k in range(self.n_p):
+            p.append(linearizedModel.set_variable('_p',self.p.keys()[k+1],self.p[self.p.keys()[k+1]].size()))
+        w = []
+        for l in range(self.n_w):
+            w.append(linearizedModel.set_variable('_w',self.w.keys()[l+1],self.w[self.w.keys()[l+1]].size()))
         
         #Converting rhs eq. with respect to variables of linear model of same name
         var = linearizedModel['x','u','z','tvp','p','w']
@@ -1291,8 +1299,8 @@ class Model:
         
         #Calculating jacobian with respect to states
         tempA = jacobian(rhs,linearizedModel.x)
-        sub_A = Function('sub_A',[linearizedModel.x,linearizedModel.u],[tempA])
-        A = sub_A(xss,uss) 
+        sub_A = Function('sub_A',[linearizedModel.x,linearizedModel.u,linearizedModel.p],[tempA])
+        A = sub_A(xss,uss,linearizedModel.p) 
         
         #Calculating jacobian with respect to inputs
         tempB = jacobian(rhs,linearizedModel.u)
