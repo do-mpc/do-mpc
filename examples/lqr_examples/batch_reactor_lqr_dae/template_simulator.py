@@ -40,7 +40,7 @@ def template_simulator(model):
         'integration_tool': 'idas',
         'abstol': 1e-10,
         'reltol': 1e-10,
-        't_step': 0.005
+        't_step': 0.5
         }
     simulator.set_param(**params_simulator)
     
