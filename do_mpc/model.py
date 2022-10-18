@@ -1355,11 +1355,17 @@ class Model:
         #Setting states and inputs
         x = []
         for i in range(self.n_x):
-            x.append(daeModel.set_variable('_x',self.x.keys()[i]))
+            x.append(daeModel.set_variable('_x',self.x.keys()[i],self.x[self.x.keys()[i]].size()))
         for j in range(self.n_u):
-            x.append(daeModel.set_variable('_x',self.u.keys()[j+1]))
+            x.append(daeModel.set_variable('_x',self.u.keys()[j+1],self.u[self.u.keys()[j+1]].size()))
         for k in range(self.n_z):
-            x.append(daeModel.set_variable('_x',self.z.keys()[k+1]))
+            x.append(daeModel.set_variable('_x',self.z.keys()[k+1],self.z[self.z.keys()[k+1]].size()))
+        p = []
+        for l in range(self.n_p):
+            p.append(daeModel.set_variable('_p',self.p.keys()[l+1],self.p[self.p.keys()[l+1]].size()))
+        w = []
+        for m in range(self.n_w):
+            w.append(daeModel.set_variable('_w',self.w.keys()[m+1],self.w[self.w.keys()[m+1]].size()))
         q = daeModel.set_variable('_u','q',(self.n_u,1))
         
         #Extracting variables
