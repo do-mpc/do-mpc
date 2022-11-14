@@ -78,24 +78,16 @@ class LQR:
         
         #Parameters necessary for setting up LQR
         self.data_fields = [
-            't_sample',
             'n_horizon',
             'mode',
-            'conv_method'
             ]
         #Initialize prediction horizon for the problem
         self.n_horizon = None
         
-        #Initialize sampling time for continuous time system to discrete time system conversion
-        self.t_sample = 0
-        
-        self.conv_method = "zoh"
-        
         #Initialize mode of LQR
         self.mode = 'setPointTrack'
         
-        self.flags = {'linear':False,
-                      'setup':False}
+        self.flags = {'setup':False}
         
         self.u0 = np.array([[]])
         
@@ -573,48 +565,6 @@ class LQR:
         elif self.model.flags['dae2odemodel'] == False and self.model.n_z !=0:
             raise Exception('You model contains algebraic states. Please convert the dae model to ode model using model.dae_to_ode_model().')
         self.flags['setup'] = True
-        
-    def update_gain(self):
-        """Updates gain matrix in each time step.
-        
-        This method is used when the model contains uncertainty parameters and time varying parameters so that parameters state matrix, input matrix and gain matrix 
-        can be updated at each time step.
-        
-
-        :raises exception: mode must be setPointTrack, inputRatePenalization, None. you have {string value}
-
-        :return: Gain matrix - :math:`K`
-        :rtype: numpy.ndarray
-
-        """
-        self.flags['setup'] = False
-        self.model_type = self.model.model_type
-        if self.model.n_p != 0:
-            p0 = self.p_fun(self._t0)
-            self.model._rhs = self.model._rhs_fun(self.model.x,self.model.u,self.model.z,self.model.tvp,p0,self.model.w)
-        if self.model.n_tvp !=0:
-            tvp0 = self.tvp_fun(self.t0)
-            self.model._rhs = self.model._rhs_fun(self.model.x,self.model.u,self.model.z,tvp0,p0,self.model.w)
-        A = self.state_matrix()
-        B = self.input_matrix()
-        [self.A,self.B] = self._convertSX_to_array(A, B)
-        if self.model_type == 'continuous':
-            [self.A,self.B] = self.continuous_to_discrete_time()
-        assert self.flags['linear']== True, 'Model is not linear'
-        if self.n_horizon == None:
-            warnings.warn('discrete infinite horizon gain will be computed since prediction horizon is set to default value 0')
-        if self.mode in ['setPointTrack',None] and self.model.flags['dae2odemodel'] == False and self.model.n_z==0:
-            K = self.discrete_gain(self.A,self.B)
-        elif self.mode == 'inputRatePenalization' and self.model.flags['dae2odemodel'] == False and self.model.n_z==0:
-            K = self.input_rate_penalization()
-        elif self.model.flags['dae2odemodel'] == True:
-            K = self.dae_model_gain(self.A, self.B)
-        if not self.mode in ['setPointTrack','inputRatePenalization']:
-            raise Exception('mode must be setPointTrack, inputRatePenalization, None. you have {}'.format(self.method))
-        elif self.model.flags['dae2odemodel'] == False and self.model.n_z !=0:
-            raise Exception('You model contains algebraic states. Please convert the dae model to ode model using model.dae_to_ode_model().')
-        self.flags['setup'] = True
-        return K
         
 class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     """Model predictive controller.
