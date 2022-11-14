@@ -26,6 +26,7 @@ from casadi.tools import *
 import pdb
 import warnings
 from do_mpc.tools.casstructure import _SymVar, _struct_MX, _struct_SX
+from scipy.signal import cont2discrete
 
 
 class IteratedVariables:
@@ -316,7 +317,6 @@ class Model:
 
         self.flags = {
             'setup': False,
-            'dae2odemodel': False
         }
 
     def __getstate__(self):
@@ -1254,7 +1254,7 @@ class Model:
 
         self.flags['setup'] = True
 
-    def linearize(self,xss,uss):
+    def linearize(self,xss,uss, z0 = None, tvp0 = None, p0 = None, w0 = None, v0 = None):
         """Linearize the non-linear model to linear model.
         
         This method uses the taylor expansion series to linearize non-linear model to linear model at the specified 
@@ -1292,9 +1292,20 @@ class Model:
         """
         #Check whether model setup is done
         assert self.flags['setup'] == True, 'Run this function after original model is setup'
+            
+        A,B,C,D = self.get_linear_system_matrices(xss,uss,z0,tvp0,p0,w0,v0)
         
-        #Initializing new model
-        linearizedModel = Model(self.model_type)
+        # Check if A,B,C,D are constant or expressions
+        all_constant = np.alltrue(
+            [isinstance(A, np.ndarray), isinstance(B, np.ndarray), isinstance(C, np.ndarray), isinstance(D, np.ndarray)]
+        )
+        
+        if all_constant:
+            # If all are constant, linear model is initialized
+            linearizedModel = LinearModel('continuous')
+        else:
+            # If not, LTV model is initialized
+            raise NotImplementedError('LTV models are not yet implemented.')
         
         #Setting states and inputs
         x = []
@@ -1309,35 +1320,23 @@ class Model:
         w = []
         for l in range(np.size(self.w.keys())-1):
             w.append(linearizedModel.set_variable('_w',self.w.keys()[l+1],self.w[self.w.keys()[l+1]].size()))
+        tvp = []
+        for m in range(np.size(self.tvp.keys())-1):
+            tvp.append(linearizedModel.set_variable('_tvp',self.tvp.keys()[m+1],self.tvp[self.tvp.keys()[m+1]].size()))
         
-        #Converting rhs eq. with respect to variables of linear model of same name
-        var = linearizedModel['x','u','z','tvp','p','w']
-        rhs = self._rhs_fun(*var)
+        if np.all(tvp0) == None:
+            tvp0 = linearizedModel.tvp
+        if np.all(p0) == None:
+            p0 = linearizedModel.p
+        if np.all(w0) == None:
+            w0 = linearizedModel.w
+        if np.all(v0) == None:
+            v0 = linearizedModel.v
+        if np.all(z0) == None:
+            z0 = linearizedModel.z
         
-        #Calculating jacobian with respect to states
-        tempA = jacobian(rhs,linearizedModel.x)
-        sub_A = Function('sub_A',[linearizedModel.x,linearizedModel.u,linearizedModel.p,linearizedModel.tvp],[tempA])
-        A = sub_A(xss,uss,linearizedModel.p,linearizedModel.tvp) 
-        
-        #Calculating jacobian with respect to inputs
-        tempB = jacobian(rhs,linearizedModel.u)
-        sub_B = Function('sub_B',[linearizedModel.x,linearizedModel.u,linearizedModel.p,linearizedModel.tvp],[tempB])
-        B = sub_B(xss,uss,linearizedModel.p,linearizedModel.tvp)
-        
-        #Converting rhs output eq. with respect to variables of linear model of same name
-        y_rhs = self._meas_fun(*var)
-        
-        #Calculating jacobian of output equation with respect to states
-        tempC = jacobian(y_rhs,linearizedModel.x)
-        sub_C = Function('sub_C',[linearizedModel.x,linearizedModel.u,linearizedModel.p,linearizedModel.tvp],[tempC])
-        C = sub_C(xss,uss,linearizedModel.p,linearizedModel.tvp)
-        
-        #Calculating jacobian of output equation with respect to inputs
-        tempD = jacobian(y_rhs,linearizedModel.u)
-        sub_D = Function('sub_D',[linearizedModel.x,linearizedModel.u,linearizedModel.p,linearizedModel.tvp],[tempD])
-        D = sub_D(xss,uss,linearizedModel.p,linearizedModel.tvp)
-        
-        
+        A,B,C,D = self.get_linear_system_matrices(xss,uss,z0,tvp0,p0,w0,v0)
+        linearizedModel.setup(A,B,C,D)
         #Computing rhs of the model
         x_next = A@linearizedModel.x+B@linearizedModel.u
         x_count = 0
@@ -1411,15 +1410,18 @@ class Model:
         w = []
         for m in range(np.size(self.w.keys())-1):
             w.append(daeModel.set_variable('_w',self.w.keys()[m+1],self.w[self.w.keys()[m+1]].size()))
+        tvp = []
+        for n in range(np.size(self.tvp.keys())-1):
+            tvp.append(daeModel.set_variable('_tvp',self.tvp.keys()[n+1],self.tvp[self.tvp.keys()[n+1]].size()))
         q = daeModel.set_variable('_u','q',(self.n_u,1))
         
         #Extracting variables
         x_new = daeModel.x[self.x.keys()]
         u_new = daeModel.x[self.u.keys()[1:]]
         z_new = daeModel.x[self.z.keys()[1:]]
-        tvp_new = daeModel.tvp[self.tvp.keys()]
-        p_new = daeModel.p[self.p.keys()]
-        w_new = daeModel.w[self.w.keys()]
+        tvp_new = daeModel.tvp[self.tvp.keys()[1:]]
+        p_new = daeModel.p[self.p.keys()[1:]]
+        w_new = daeModel.w[self.w.keys()[1:]]
         
         #Converting rhs eq. with respect to variables of linear model of same name
         rhs = self._rhs_fun(vertcat(*x_new),vertcat(*u_new),vertcat(*z_new),vertcat(*tvp_new),vertcat(*p_new),vertcat(*w_new))
@@ -1451,7 +1453,7 @@ class Model:
         
         #setting up the model
         daeModel.setup()
-        daeModel.flags['dae2odemodel'] = True
+        print('The states of the new model are {}' .format(daeModel.x.keys()))
         return daeModel
     
     def get_linear_system_matrices(self,xss=None,uss=None,z=None,tvp=None,p=None,w=None,v=None):
