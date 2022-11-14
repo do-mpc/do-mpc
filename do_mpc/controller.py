@@ -153,7 +153,7 @@ class LQR:
             K = -np.linalg.inv(np.transpose(B)@pi_discrete@B+self.R)@np.transpose(B)@pi_discrete@A
             return K
     
-    def input_rate_penalization(self):
+    def input_rate_penalization(self,A,B):
         """Computes lqr gain for the input rate penalization mode.
         
         This method modifies the state matrix and input matrix according to the input rate penalization method. Due to this objective function also gets modified.
@@ -169,27 +169,33 @@ class LQR:
                 \\tilde{B} = \\begin{bmatrix} B \\\\
                              I \\end{bmatrix}
                             
-        
+        Therefore, states of this system is as follows :math:`\\tilde{x} = [x,u]` where :math:`x` and :math:`u` are the states and input of the system repectively.
         The above formulation is with respect to discrete time system. After formulating the objective, discrete gain is calculated
-        using :py:func:`discrete_gain`
+        using :py:func:`discrete_gain`.
+        
+        As the system state matrix and input matrix is altered in order to obtain input rate penalization, cost matrices are also modified accordingly as follows:
+            
+            .. math::
+                \\tilde{Q} = \\begin{bmatrix}
+                                Q & 0 \\\\
+                                0 & R \\end{bmatrix},
+                \\tilde{R} = \\Delta R
+                
+            where :math:`\\Delta R` is passed as additional argument to the :py:func:`set_objective` while setting the mode of operation to ``inputRatePenalization``.
         
         :return: Gain matrix :math:`K`
         :rtype: numpy.ndarray
         
 
         """
-        
-        #verifying the given model is daemodel
-        assert self.model.flags['dae2odemodel']==False, 'Already performing input rate penalization without the use of this function'
-        
         #Verifying input cost matrix for input rate penalization
         assert self.Rdelu.size != 0 , 'set R_delu parameter using set_param() fun.'
         
         #Modifying A and B matrix for input rate penalization
-        identity_u = np.identity(np.shape(self.B)[1])
-        zeros_A = np.zeros((np.shape(self.B)[1],np.shape(self.A)[1]))
-        self.A_new = np.block([[self.A,self.B],[zeros_A,identity_u]])
-        self.B_new = np.block([[self.B],[identity_u]])
+        identity_u = np.identity(np.shape(B)[1])
+        zeros_A = np.zeros((np.shape(B)[1],np.shape(A)[1]))
+        self.A_new = np.block([[A,B],[zeros_A,identity_u]])
+        self.B_new = np.block([[B],[identity_u]])
         zeros_Q = np.zeros((np.shape(self.Q)[0],np.shape(self.R)[1]))
         zeros_Ru = np.zeros((np.shape(self.R)[0],np.shape(self.Q)[1]))
         
