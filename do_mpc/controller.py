@@ -32,7 +32,7 @@ import do_mpc.optimizer
 from do_mpc.tools.indexedproperty import IndexedProperty
 from scipy.signal import cont2discrete
 from scipy.linalg import solve_discrete_are,solve_continuous_are
-import do_mpc.model
+from do_mpc.model import Model,LinearModel
 
 class LQR:
     """Linear Quadratic Regulator.
@@ -70,7 +70,10 @@ class LQR:
     def __init__(self,model):
         self.model = model
         
+        assert isinstance(model, LinearModel), 'LQR can only be used with linear models. Initialize the model with LinearModel class.'
         assert model.flags['setup'] == True, 'Model for LQR was not setup. After the complete model creation call model.setup().'
+        assert model.model_type == 'discrete', 'Initialize LQR with discrete system. Discretize the system using LinearModel.discretize()'
+        
         self.model_type = model.model_type
         
         #Parameters necessary for setting up LQR
