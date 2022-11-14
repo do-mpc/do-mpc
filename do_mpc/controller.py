@@ -45,7 +45,7 @@ class LQR:
             \\item Finite Horizon LQR
             \\item Infinite Horizon LQR
         \\end{itemize}
-    If ``n_horizon`` is set using :py:func:`set_param`, then finite horizon lqr can be designed. If ``n_horizon`` is set as ``None``, then infinite horizon lqr can be designed.
+    If ``n_horizon`` is set using :py:func:`set_param` with a integer value, then finite horizon lqr can be designed. If ``n_horizon`` is set as ``None``, then infinite horizon lqr can be designed.
     
     **Configuration and setup:**
     
@@ -185,7 +185,11 @@ class LQR:
         """Computes discrete gain. 
         
         This method computes both finite discrete gain and infinite discrete gain depending on the availability 
-        of prediction horizon. The gain computed using explicit solution for both finite time and infinite time.
+        of prediction horizon. 
+        If prediction horizon is ``integer value`` then finite gain is computed. 
+        If predition horizon is ``None`` then infinite gain is computed.
+        
+        The gain computed using explicit solution for both finite time and infinite time.
         
         For finite horizon LQR, the problem formulation is as follows:
             
