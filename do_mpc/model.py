@@ -1201,6 +1201,11 @@ class Model:
         self._tvp = _tvp
         self._y = _y
         self._aux = _aux
+        
+        self.A_lin_expr = jacobian(self._rhs,self._x)
+        self.B_lin_expr = jacobian(self._rhs,self._u)
+        self.C_lin_expr = jacobian(self._y_expression,self._x)
+        self.D_lin_expr = jacobian(self._y_expression,self._u)
 
         # Declare functions for the right hand side and the aux_expressions.
         self._rhs_fun = Function('rhs_fun',
@@ -1215,6 +1220,18 @@ class Model:
         self._meas_fun = Function('meas_fun',
                                   [_x, _u, _z, _tvp, _p, _v], [self._y_expression],
                                   ["_x", "_u", "_z", "_tvp", "_p", "_v"], ["_y_expression"])
+        self.A_fun = Function('A_fun',
+                              [_x, _u, _z, _tvp, _p, _w],[self.A_lin_expr],
+                              ["_x", "_u", "_z", "_tvp", "_p", "_w"],["A_lin_expr"])
+        self.B_fun = Function('B_fun',
+                              [_x, _u, _z, _tvp, _p, _w],[self.B_lin_expr],
+                              ["_x", "_u", "_z", "_tvp", "_p", "_w"],["B_lin_expr"])
+        self.C_fun = Function('C_fun',
+                              [_x, _u, _z, _tvp, _p, _v],[self.C_lin_expr],
+                              ["_x", "_u", "_z", "_tvp", "_p", "_v"],["C_lin_expr"])
+        self.D_fun = Function('D_fun',
+                              [_x, _u, _z, _tvp, _p, _v],[self.D_lin_expr],
+                              ["_x", "_u", "_z", "_tvp", "_p", "_v"],["D_lin_expr"]) 
 
         # Create and store some information about the model regarding number of variables for
         # _x, _y, _u, _z, _tvp, _p, _aux
@@ -1436,4 +1453,63 @@ class Model:
         daeModel.setup()
         daeModel.flags['dae2odemodel'] = True
         return daeModel
+    
+    def get_linear_system_matrices(self,xss=None,uss=None,z=None,tvp=None,p=None,w=None,v=None):
+        """
+        
+
+        Parameters
+        ----------
+        xss : TYPE
+            DESCRIPTION.
+        uss : TYPE, optional
+            DESCRIPTION. The default is None.
+        z : TYPE, optional
+            DESCRIPTION. The default is None.
+        tvp : TYPE, optional
+            DESCRIPTION. The default is None.
+        p : TYPE, optional
+            DESCRIPTION. The default is None.
+        w : TYPE, optional
+            DESCRIPTION. The default is None.
+        v : TYPE, optional
+            DESCRIPTION. The default is None.
+
+        Returns
+        -------
+        A : TYPE
+            DESCRIPTION.
+        B : TYPE
+            DESCRIPTION.
+        C : TYPE
+            DESCRIPTION.
+        D : TYPE
+            DESCRIPTION.
+
+        """
+        if np.all(xss) == None or np.all(uss) == None:
+            assert isinstance(self,LinearModel),'Works only for the instance LinearModel'
+            A = self.A_fun()['_A'].full()
+            B = self.B_fun()['_B'].full()
+            C = self.C_fun()['_C'].full()
+            D = self.D_fun()['_D'].full()
+        else:
+            if np.all(tvp) == None:
+                tvp = self.tvp
+            if np.all(p) == None:
+                p = self.p
+            if np.all(w) == None:
+                w = self.w
+            if np.all(v) == None:
+                v = self.v
+            if np.all(z) == None:
+                z = self.z
+            A = self.A_fun(xss, uss, z, tvp, p, w)
+            B = self.B_fun(xss, uss, z, tvp, p, w)
+            C = self.C_fun(xss, uss, z, tvp, p, v)
+            D = self.D_fun(xss, uss, z, tvp, p, v)
+            
+            
+        return A,B,C,D
+
 
