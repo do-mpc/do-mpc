@@ -1308,33 +1308,49 @@ class Model:
             # If not, LTV model is initialized
             raise NotImplementedError('LTV models are not yet implemented.')
 
+
+        # Create new variables for linearized model
+        process_noise, meas_noise = self._transfer_variables(self, linearizedModel)
+
+        # Setup linearized model
+        linearizedModel.setup(A,B,C,D, process_noise=process_noise, meas_noise=meas_noise)
+        
+        return linearizedModel
+
+    
+    @staticmethod
+    def _transfer_variables(old_model, new_model):
+        """Private and static method to transfer variables from old model to new model.
+        This is used in :meth:`Model.linearize` and :meth:`Model.discretize`.
+
+        Extracts information about the noise (measurement and process) from the old model and
+        returns an array of booleans for the measurements and states (one element for each named instance).
+        """
         # Initialize array for process noise and measurement noise
-        process_noise = self.x(False)
-        meas_noise = self.y(False)
+        process_noise = old_model.x(False)
+        meas_noise = old_model.y(False)
         
         #Setting states and inputs
-        for key in self.x.keys():
-            linearizedModel.set_variable('_x', key, shape=self.x[key].shape)
-            if key in self.w.keys():
+        for key in old_model.x.keys():
+            new_model.set_variable('_x', key, shape=old_model.x[key].shape)
+            if key in old_model.w.keys():
                 process_noise[key] = True
-        for key in self.u.keys()[1:]:
-            linearizedModel.set_variable('_u', key, shape=self.u[key].shape)
-        for key in self.tvp.keys()[1:]:
-            linearizedModel.set_variable('_tvp', key, shape=self.tvp[key].shape)
-        for key in self.p.keys()[1:]:
-            linearizedModel.set_variable('_p', key, shape=self.p[key].shape)
-        for key in self.y.keys()[1:]:
-            linearizedModel.set_meas(key, self._y_expression[key], meas_noise=True)
-            if key in self.v.keys():
+        for key in old_model.u.keys()[1:]:
+            new_model.set_variable('_u', key, shape=old_model.u[key].shape)
+        for key in old_model.tvp.keys()[1:]:
+            new_model.set_variable('_tvp', key, shape=old_model.tvp[key].shape)
+        for key in old_model.p.keys()[1:]:
+            new_model.set_variable('_p', key, shape=old_model.p[key].shape)
+        for key in old_model.y.keys()[1:]:
+            new_model.set_meas(key, old_model._y_expression[key], meas_noise=True)
+            if key in old_model.v.keys():
                 meas_noise[key] = True
 
         # Convert process and meas noise to arrays
         process_noise = process_noise.cat.full().astype(bool)
         meas_noise = meas_noise.cat.full().astype(bool)
 
-        linearizedModel.setup(A,B,C,D, process_noise=process_noise, meas_noise=meas_noise)
-        
-        return linearizedModel
+        return process_noise, meas_noise
 
 
     def dae_to_ode_model(self):
@@ -1633,20 +1649,18 @@ class LinearModel(Model):
         assert self.model_type == 'continuous', 'Given model is already discrete.'
         warnings.warn('sampling time is {}'.format(t_sample))
         
-        #[arr_A,arr_B,arr_C,arr_D] = self._convertSX_MX_to_array(self.A,self.B,self.C,self.D)
+        A, B, C, D, t = cont2discrete((self.sys_A,self.sys_B,self.sys_C,self.sys_D), t_sample, conv_method)
         
-        dis_sys = cont2discrete((self.sys_A,self.sys_B,self.sys_C,self.sys_D), t_sample, conv_method)
+        discreteModel = LinearModel('discrete')
 
-        self._A = dis_sys[0]
-        self._B = dis_sys[1]
-        self._C = dis_sys[2]
-        self._D = dis_sys[3]
+        # Create new variables for linearized model
+        process_noise, meas_noise = self._transfer_variables(self, discreteModel)
+
+        # Setup linearized model
+        discreteModel.setup(A,B, process_noise=process_noise, meas_noise=meas_noise)
         
-        #Initializing new model type
-        self.model_type = 'discrete'
+        return discreteModel 
         
-        self._rhs = self._A@vertcat(self.x) + self._B@vertcat(self.u)
-        self._y_expression = self._C@vertcat(self.x) + self._D@vertcat(self.u)
         
     def get_steady_state(self,xss = None,uss = None):
         """Calculates steady states for the given input or states.
