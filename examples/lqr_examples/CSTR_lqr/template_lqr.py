@@ -33,8 +33,11 @@ def template_lqr(model):
     template_lqr: tuning parameters
     --------------------------------------------------------------------------
     """
+    t_sample = 0.5
+    model_dc = model.discretize(t_sample)
+    
     # Initialize the controller
-    lqr = do_mpc.controller.LQR(model)
+    lqr = do_mpc.controller.LQR(model_dc)
     
     # Initialize parameters
     setup_lqr = {'n_horizon':10,

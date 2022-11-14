@@ -26,8 +26,8 @@ from casadi import *
 from casadi.tools import *
 import pdb
 import sys
-#sys.path.append('../../')
-sys.path.append('F:\\Anaconda\\Lib\\site-packages\\do-mpc')
+sys.path.append('../../../')
+#sys.path.append('F:\\Anaconda\\Lib\\site-packages\\do-mpc')
 import do_mpc
 from do_mpc.tools.timer import Timer
 
