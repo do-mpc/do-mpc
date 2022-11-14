@@ -296,7 +296,7 @@ class LQR:
         
         #Initializing u0
         if self.u0.size == 0:
-            self.u0 = np.zeros((np.shape(self.B)[1],1))
+            self.u0 = np.zeros((self.model.n_u,1))
         
         #Calculate u in set point tracking mode
         if self.mode == "setPointTrack":
