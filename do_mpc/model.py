@@ -1254,7 +1254,7 @@ class Model:
 
         self.flags['setup'] = True
 
-    def linearize(self,xss,uss, z0 = None, tvp0 = None, p0 = None, w0 = None, v0 = None):
+    def linearize(self, xss=None, uss=None, tvp0 = None, p0 = None):
         """Linearize the non-linear model to linear model.
         
         This method uses the taylor expansion series to linearize non-linear model to linear model at the specified 
@@ -1292,8 +1292,9 @@ class Model:
         """
         #Check whether model setup is done
         assert self.flags['setup'] == True, 'Run this function after original model is setup'
-            
-        A,B,C,D = self.get_linear_system_matrices(xss,uss,z0,tvp0,p0,w0,v0)
+        assert self.z.size == 0, 'Linearization around steady state is not supported for DAEs'    
+        
+        A,B,C,D = self.get_linear_system_matrices(xss,uss, tvp=tvp0, p=p0)
         
         # Check if A,B,C,D are constant or expressions
         all_constant = np.alltrue(
@@ -1306,60 +1307,35 @@ class Model:
         else:
             # If not, LTV model is initialized
             raise NotImplementedError('LTV models are not yet implemented.')
+
+        # Initialize array for process noise and measurement noise
+        process_noise = self.x(False)
+        meas_noise = self.y(False)
         
         #Setting states and inputs
-        x = []
-        for i in range(np.size(self.x.keys())):
-            x.append(linearizedModel.set_variable('_x','del_'+self.x.keys()[i],self.x[self.x.keys()[i]].size()))
-        u = []
-        for j in range(np.size(self.u.keys())-1):
-            u.append(linearizedModel.set_variable('_u','del_'+self.u.keys()[j+1],self.u[self.u.keys()[j+1]].size()))
-        p = []
-        for k in range(np.size(self.p.keys())-1):
-            p.append(linearizedModel.set_variable('_p',self.p.keys()[k+1],self.p[self.p.keys()[k+1]].size()))
-        w = []
-        for l in range(np.size(self.w.keys())-1):
-            w.append(linearizedModel.set_variable('_w',self.w.keys()[l+1],self.w[self.w.keys()[l+1]].size()))
-        tvp = []
-        for m in range(np.size(self.tvp.keys())-1):
-            tvp.append(linearizedModel.set_variable('_tvp',self.tvp.keys()[m+1],self.tvp[self.tvp.keys()[m+1]].size()))
-        
-        if np.all(tvp0) == None:
-            tvp0 = linearizedModel.tvp
-        if np.all(p0) == None:
-            p0 = linearizedModel.p
-        if np.all(w0) == None:
-            w0 = linearizedModel.w
-        if np.all(v0) == None:
-            v0 = linearizedModel.v
-        if np.all(z0) == None:
-            z0 = linearizedModel.z
-        
-        A,B,C,D = self.get_linear_system_matrices(xss,uss,z0,tvp0,p0,w0,v0)
-        linearizedModel.setup(A,B,C,D)
-        #Computing rhs of the model
-        x_next = A@linearizedModel.x+B@linearizedModel.u
-        x_count = 0
-        for i in range(np.size(self.x.keys())):
-            linearizedModel.set_rhs(linearizedModel.x.keys()[i],x_next[x_count:x_count+self.x[self.x.keys()[i]].size()[0]])
-            x_count += self.x[self.x.keys()[i]].size()[0]
-        
-        #Computing output equation rhs of the model
-        y = C@linearizedModel.x+D@linearizedModel.u
-        y_count = 0
-        for j in range(np.size(self.y.keys())-1):
-            for k in range(np.size(self.v.keys())-1):
-                if self.y.keys()[j+1] == self.v.keys()[k+1]:
-                    linearizedModel.set_meas(self.y.keys()[j+1],y[y_count:y_count+self.y[self.y.keys()[j+1]].size()[0]],meas_noise = True)
-                    y_count += self.y[self.y.keys()[j+1]].size()[0]
-                else:
-                    linearizedModel.set_meas(self.y.keys()[j+1],y[y_count:y_count+self.y[self.y.keys()[j+1]].size()[0]],meas_noise = False)
-                    y_count += self.y[self.y.keys()[j+1]].size()[0]
-            
-        #setting up the model
-        linearizedModel.setup()
+        for key in self.x.keys():
+            linearizedModel.set_variable('_x', key, shape=self.x[key].shape)
+            if key in self.w.keys():
+                process_noise[key] = True
+        for key in self.u.keys()[1:]:
+            linearizedModel.set_variable('_u', key, shape=self.u[key].shape)
+        for key in self.tvp.keys()[1:]:
+            linearizedModel.set_variable('_tvp', key, shape=self.tvp[key].shape)
+        for key in self.p.keys()[1:]:
+            linearizedModel.set_variable('_p', key, shape=self.p[key].shape)
+        for key in self.y.keys()[1:]:
+            linearizedModel.set_meas(key, self._y_expression[key], meas_noise=True)
+            if key in self.v.keys():
+                meas_noise[key] = True
+
+        # Convert process and meas noise to arrays
+        process_noise = process_noise.cat.full().astype(bool)
+        meas_noise = meas_noise.cat.full().astype(bool)
+
+        linearizedModel.setup(A,B,C,D, process_noise=process_noise, meas_noise=meas_noise)
         
         return linearizedModel
+
 
     def dae_to_ode_model(self):
         """Converts index-1 DAE system to ODE system.
@@ -1456,216 +1432,53 @@ class Model:
         print('The states of the new model are {}' .format(daeModel.x.keys()))
         return daeModel
     
-    def get_linear_system_matrices(self,xss=None,uss=None,z=None,tvp=None,p=None,w=None,v=None):
+    def get_linear_system_matrices(self, xss=None, uss=None, z=None, tvp=None,p=None):
         """
+        Returns the matrix quadrupel :math:`(A,B,C,D)` of the linearized system around the operating point (``xss,uss,z,tvp,p,w,v``).
+        All arguments are optional in which case the matrices might still be symbolic. 
+        If the matrices are not symbolic, they are returned as numpy arrays.
+        """
+
+        # Default values for all variables are the symbolic variables themselves.
+        if isinstance(xss, type(None)):
+            xss = self.x
+        if isinstance(uss, type(None)):
+            uss = self.u
+        if isinstance(z, type(None)):
+            z = self.z
+        if isinstance(tvp, type(None)):
+            tvp = self.tvp
+        if isinstance(p, type(None)):
+            p = self.p
+    
+        # Noise variables are always set to zero.
+        w = self.w(0)
+        v = self.v(0)
         
 
-        Parameters
-        ----------
-        xss : TYPE
-            DESCRIPTION.
-        uss : TYPE, optional
-            DESCRIPTION. The default is None.
-        z : TYPE, optional
-            DESCRIPTION. The default is None.
-        tvp : TYPE, optional
-            DESCRIPTION. The default is None.
-        p : TYPE, optional
-            DESCRIPTION. The default is None.
-        w : TYPE, optional
-            DESCRIPTION. The default is None.
-        v : TYPE, optional
-            DESCRIPTION. The default is None.
+        # Create A,B,C,D matrices and check if (for the given inputs) they are constant are still symbolic.
+        # Constant matrices are converted to numpy arrays.
 
-        Returns
-        -------
-        A : TYPE
-            DESCRIPTION.
-        B : TYPE
-            DESCRIPTION.
-        C : TYPE
-            DESCRIPTION.
-        D : TYPE
-            DESCRIPTION.
-
-        """
-        if np.all(xss) == None or np.all(uss) == None:
-            assert isinstance(self,LinearModel),'Works only for the instance LinearModel'
-            A = self.A_fun()['_A'].full()
-            B = self.B_fun()['_B'].full()
-            C = self.C_fun()['_C'].full()
-            D = self.D_fun()['_D'].full()
-        else:
-            if np.all(tvp) == None:
-                tvp = self.tvp
-            if np.all(p) == None:
-                p = self.p
-            if np.all(w) == None:
-                w = self.w
-            if np.all(v) == None:
-                v = self.v
-            if np.all(z) == None:
-                z = self.z
-            A = self.A_fun(xss, uss, z, tvp, p, w)
-            B = self.B_fun(xss, uss, z, tvp, p, w)
-            C = self.C_fun(xss, uss, z, tvp, p, v)
-            D = self.D_fun(xss, uss, z, tvp, p, v)
-            
-            
+        A = self.A_fun(xss, uss, z, tvp, p, w)
+        if A.is_constant():
+            A = DM(A).full()
+        B = self.B_fun(xss, uss, z, tvp, p, w)
+        if B.is_constant():
+            B = DM(B).full()
+        C = self.C_fun(xss, uss, z, tvp, p, v)
+        if C.is_constant():
+            C = DM(C).full()
+        D = self.D_fun(xss, uss, z, tvp, p, v)
+        if D.is_constant():
+            D = DM(D).full()
+              
         return A,B,C,D
 
 class LinearModel(Model):
-    def __init__(self,model_type=None, symvar_type='SX'):
-        Model.__init__(self,model_type=model_type, symvar_type=symvar_type)
-        
-    def setup(self,A=None,B=None,C=None,D=None):
-        """Setup method must be called to finalize the modelling process.
-        All required model variables must be declared.
-        The right hand side expression for ``_x`` must have been set with :py:func:`set_rhs`.
-
-        Sets default measurement function (state feedback) if :py:func:`set_meas` was not called.
-
-        .. warning::
-
-            After calling :py:func:`setup`, the model is locked and no further variables,
-            expressions etc. can be set.
-
-        :raises assertion: Definition of right hand side (rhs) is incomplete
-
-        :return: None
-        :rtype: None
-        """
-
-        if np.all(C) == None and np.all(D) == None:
-            # Set all states as measurements if set_meas was not called by user.
-            if not self._y_expression:
-                for name, var in zip(self._x['name'], self._x['var']):
-                    self.set_meas(name, var, meas_noise=False)
-
-            # Write self._y_expression (measurement equations) as struct symbolic expression structures.
-            self._y_expression = self.sv.struct(self._y_expression)
-
-        # Create structure from listed symbolic variables:
-        _x =  self._convert2struct(self._x)
-        _w =  self._convert2struct(self._w)
-        _v =  self._convert2struct(self._v)
-        _u =  self._convert2struct(self._u)
-        _z =  self._convert2struct(self._z)
-        _p =  self._convert2struct(self._p)
-        _tvp =  self._convert2struct(self._tvp)
-        _aux =  self._convert2struct(self._aux)
-        _y =  self._convert2struct(self._y)
-
-        # Write self._aux_expression.
-        self._aux_expression = self.sv.struct(self._aux_expression)
+    def __init__(self, model_type=None, symvar_type='SX'):
+        super().__init__(model_type, symvar_type)
 
 
-        # Create alg equations:
-        self._alg = self.sv.struct(self.alg_list)
-
-        if np.all(A) == None and np.all(B) == None and np.all(C)==None and np.all(D)==None:
-            # Create mutable struct with identical structure as _x to hold the right hand side.
-            self._rhs = self.sv.struct(_x)
-
-            # Set the expressions in self._rhs with the previously defined SX.sym variables.
-            # Check if an expression is set for every state of the system.
-            _x_names = set(self._x['name'])
-            for rhs_i in self.rhs_list:
-                self._rhs[rhs_i['var_name']] = rhs_i['expr']
-                _x_names -= set([rhs_i['var_name']])
-            assert len(_x_names) == 0, 'Definition of right hand side (rhs) is incomplete. Missing: {}. Use: set_rhs to define expressions.'.format(_x_names)
-
-            var_dict_list = [self._x, self._w, self._v, self._u, self._z, self._p, self._tvp]
-            sym_struct_list = [_x, _w, _v, _u, _z, _p, _tvp]
-
-            self._rhs = self._substitute_struct_vars(var_dict_list, sym_struct_list, self._rhs)
-            self._alg = self._substitute_struct_vars(var_dict_list, sym_struct_list, self._alg)
-            self._aux_expression = self._substitute_struct_vars(var_dict_list, sym_struct_list, self._aux_expression)
-            self._y_expression = self._substitute_struct_vars(var_dict_list, sym_struct_list, self._y_expression)
-
-            self._substitute_exported_vars(var_dict_list, sym_struct_list)
-        
-            self._A = jacobian(self._rhs,_x)
-            self._B = jacobian(self._rhs,_u)
-            self._C = jacobian(self._y_expression,_x)
-            self._D = jacobian(self._y_expression,_u)
-            
-            # Remove temporary storage for the symbolic variables. This allows to pickle the class.
-            delattr(self, 'rhs_list')
-            delattr(self, 'alg_list')
-            
-        else:
-            self._A = A
-            self._B = B
-            self._C = C
-            self._D = D
-            
-            #Setting up right hand side equation
-            self._rhs = self._A@vertcat(_x)+self._B@vertcat(_u)
-            self._y_expression = self._C@vertcat(_x)+self._D@vertcat(_u)
-        
-        self._x = _x
-        self._w = _w
-        self._v = _v
-        self._u = _u
-        self._z = _z
-        self._p = _p
-        self._tvp = _tvp
-        self._y = _y
-        self._aux = _aux
-        
-        # Declare functions for the right hand side and the aux_expressions.
-        self._rhs_fun = Function('rhs_fun',
-                                 [_x, _u, _z, _tvp, _p, _w], [self._rhs],
-                                 ["_x", "_u", "_z", "_tvp", "_p", "_w"], ["_rhs"])
-        self._alg_fun = Function('alg_fun',
-                                 [_x, _u, _z, _tvp, _p, _w], [self._alg],
-                                 ["_x", "_u", "_z", "_tvp", "_p", "_w"], ["_alg"])
-        self._aux_expression_fun = Function('aux_expression_fun',
-                                            [_x, _u, _z, _tvp, _p], [self._aux_expression],
-                                            ["_x", "_u", "_z", "_tvp", "_p"], ["_aux_expression"])
-        self._meas_fun = Function('meas_fun',
-                                  [_x, _u, _z, _tvp, _p, _v], [self._y_expression],
-                                  ["_x", "_u", "_z", "_tvp", "_p", "_v"], ["_y_expression"])
-        self.A_fun = Function('A_fun',
-                              [_x, _u, _z, _tvp, _p, _w],[self._A],
-                              ["_x", "_u", "_z", "_tvp", "_p", "_w"],["_A"])
-        self.B_fun = Function('B_fun',
-                              [_x, _u, _z, _tvp, _p, _w],[self._B],
-                              ["_x", "_u", "_z", "_tvp", "_p", "_w"],["_B"])
-        self.C_fun = Function('C_fun',
-                              [_x, _u, _z, _tvp, _p, _v],[self._C],
-                              ["_x", "_u", "_z", "_tvp", "_p", "_v"],["_C"])
-        self.D_fun = Function('D_fun',
-                              [_x, _u, _z, _tvp, _p, _v],[self._D],
-                              ["_x", "_u", "_z", "_tvp", "_p", "_v"],["_D"]) 
-        
-        all_constant = np.alltrue(
-            [isinstance(A, np.ndarray), isinstance(B, np.ndarray), isinstance(C, np.ndarray), isinstance(D, np.ndarray)])
-        
-        if all_constant == False:
-            self._A,self._B,self._C,self._D = self.get_linear_system_matrices()
-            all_constant = np.alltrue(
-            [isinstance(self._A, np.ndarray), isinstance(self._B, np.ndarray), isinstance(self._C, np.ndarray), isinstance(self._D, np.ndarray)])
-        assert all_constant == True, 'Please provide a linear model.' 
-
-        # Create and store some information about the model regarding number of variables for
-        # _x, _y, _u, _z, _tvp, _p, _aux
-        self.n_x = self._x.shape[0]
-        self.n_y = self._y.shape[0]
-        self.n_u = self._u.shape[0]
-        self.n_z = self._z.shape[0]
-        self.n_tvp = self._tvp.shape[0]
-        self.n_p = self._p.shape[0]
-        self.n_aux = self._aux_expression.shape[0]
-        self.n_w = self._w.shape[0]
-        self.n_v = self._v.shape[0]
-
-        msg = 'Must have the same number of algebraic equations (you have {}) and variables (you have {}).'
-        assert self.n_z == self._alg.shape[0], msg.format(self._alg.shape[0], self.n_z)
-
-        self.flags['setup'] = True
-        
     @property
     def sys_A(self):
         assert self.flags['setup'] == True, 'Attributes are available after the model is setup.'
@@ -1685,6 +1498,113 @@ class LinearModel(Model):
     def sys_D(self):
         assert self.flags['setup'] == True, 'Attributes are available after the model is setup.'
         return self._D
+
+
+    def set_rhs(self, name, rhs, *args, **kwargs):
+        """
+        Checks if the right-hand-side function is linear and calls :meth:`Model.set_rhs`.
+        """
+        # Check if expression is linear
+        if jacobian(rhs, vertcat(self.x, self.u)).is_constant():
+            super().set_rhs(name, rhs, *args, **kwargs)
+
+    def set_meas(self, name, meas, *args, **kwargs):
+        """
+        Checks if the measurement function is linear and calls :meth:`Model.set_meas`.
+        """
+        # Check if expression is linear
+        if jacobian(meas, vertcat(self.x, self.u)).is_constant():
+            super().set_meas(name, meas, *args, **kwargs)
+
+    def set_alg(self, expr_name, expr, *args, **kwargs):
+        """
+        .. warning::
+
+            This method is not supported for linear models.
+        """
+        raise NotImplementedError('Algebraic variables are not supported for linear models.')
+        
+    def setup(self,A=None, B=None,C=None,D=None, meas_noise = True, process_noise = False):
+        """Setup method must be called to finalize the modelling process.
+        All required model variables must be declared.
+        The right hand side expression for ``_x`` must have been set with :py:func:`set_rhs`.
+
+        Sets default measurement function (state feedback) if :py:func:`set_meas` was not called.
+
+        .. warning::
+
+            After calling :py:func:`setup`, the model is locked and no further variables,
+            expressions etc. can be set.
+
+        :raises assertion: Definition of right hand side (rhs) is incomplete
+
+        :return: None
+        :rtype: None
+        """
+        if not isinstance(A, (np.ndarray, type(None))):
+            raise ValueError('A must be a numpy array or None')
+        if not isinstance(B, (np.ndarray, type(None))):
+            raise ValueError('B must be a numpy array or None')
+        if not isinstance(C, (np.ndarray, type(None))):
+            raise ValueError('C must be a numpy array or None')
+        if not isinstance(D, (np.ndarray, type(None))):
+            raise ValueError('D must be a numpy array or None')
+
+
+        # Three use cases:
+        # 1. C / D are given -> Create measurement function
+        # 2. set_meas has been called -> Measurement function already exists
+        # 3. Neither C / D nor set_meas -> No measurement super().setup() creates default measurement function (state feedback)        
+        y_meas = None
+        if not isinstance(C, type(None)):
+            y_meas = C @ self.x.cat
+        if not isinstance(D, type(None)):
+            y_meas = y_meas + D @ self.u.cat
+        if not isinstance(y_meas, type(None)):
+            n_y = y_meas.shape[0]
+            if isinstance(meas_noise, bool):
+                meas_noise = np.ones((n_y,1))*meas_noise
+            if meas_noise.shape != (n_y,1):
+                raise ValueError('meas_noise must be a boolean or a numpy array with shape (n_y,1).')
+            for i in range(n_y):
+                self.set_meas('y{}'.format(i), y_meas[i], meas_noise = bool(meas_noise[i]))
+
+        n_x = self.x.size
+        n_u = self.u.size
+
+        # Create x_next from A and B matrices (if available)
+        x_next = None
+        if isinstance(A, np.ndarray):
+            if A.shape != (n_x, n_x):
+                raise ValueError('A must be a square matrix with size n_x x n_x. You have A.shape={}'.format(A.shape))
+            else:
+                x_next = A @ self.x.cat 
+        if isinstance(B, np.ndarray):
+            if B.shape != (n_x, n_u):
+                raise ValueError('B must be a matrix with size n_x x n_u. You have B.shape={}'.format(B.shape))
+            else:
+                x_next = x_next + B @ self.u.cat    
+
+        # Set the rhs of the states (if x_next exists)
+        if not isinstance(x_next, type(None)):
+            if isinstance(process_noise, bool):
+                process_noise = np.ones((n_x,1))*process_noise
+            if process_noise.shape != (n_x,1):
+                raise ValueError('process_noise must be a boolean or a numpy array with shape (n_x,1).')
+            for name in self.x.keys():
+                ind = self.x.f[name]
+                self.set_rhs(name, x_next[ind], process_noise = process_noise[ind])
+
+
+        super().setup()
+
+        # Create A,B,C,D matrices (they are not necessarily given) and write them to the class.
+        A,B,C,D = self.get_linear_system_matrices()
+        self._A = A
+        self._B = B
+        self._C = C
+        self._D = D
+        
     
     def discretize(self, t_sample = 0, conv_method = 'zoh'):
         """Converts continuous time to discrete time system.
@@ -1715,14 +1635,13 @@ class LinearModel(Model):
         
         #[arr_A,arr_B,arr_C,arr_D] = self._convertSX_MX_to_array(self.A,self.B,self.C,self.D)
         
-        dis_sys = cont2discrete((self._A,self._B,self._C,self._D), t_sample, conv_method)
+        dis_sys = cont2discrete((self.sys_A,self.sys_B,self.sys_C,self.sys_D), t_sample, conv_method)
 
         self._A = dis_sys[0]
         self._B = dis_sys[1]
         self._C = dis_sys[2]
         self._D = dis_sys[3]
         
-        #[self.A,self.B,self.C,self.D] = self._convertArray_to_DM(A,B,C,D)
         #Initializing new model type
         self.model_type = 'discrete'
         
@@ -1753,22 +1672,22 @@ class LinearModel(Model):
         assert self.flags['setup'] == True, 'Model is not setup. Please run model.setup() fun to calculate steady state.'
         assert self.model_type == 'discrete', 'Please convert the system to discrete using model.continuous_2_discrete().'
         #[A,B,C,D] = self._convertSX_MX_to_array(self.A,self.B,self.C,self.D)
-        I = np.identity(np.shape(self._A)[0])
+        I = np.identity(np.shape(self.sys_A)[0])
         
         #Calculation of steady state
         if xss == None:
             assert uss != None, 'Provide either steady state states or steady state inputs.'
-            self.xss = np.linalg.inv(I-self._A)@self._B@uss
+            self.xss = np.linalg.inv(I-self.sys_A)@self.sys_B@uss
             self.uss = uss
             return self.xss
-        elif uss == None and np.shape(self._B)[0] != np.shape(self._B)[1]:
+        elif uss == None and np.shape(self.sys_B)[0] != np.shape(self.sys_B)[1]:
             assert xss != None, 'Provide either steady state states or steady state inputs.'
-            self.uss = np.linalg.pinv(self._B)@(I-self._A)@xss
+            self.uss = np.linalg.pinv(self.sys_B)@(I-self.sys_A)@xss
             self.xss = xss
             return self.uss
-        elif uss == None and np.shape(self._B)[0] == np.shape(self._B)[1]:
+        elif uss == None and np.shape(self.sys_B)[0] == np.shape(self.sys_B)[1]:
             assert xss != None, 'Provide either steady state states or steady state inputs.'
-            self.uss = np.linalg.inv(self._B)@(I-self._A)@xss
+            self.uss = np.linalg.inv(self.sys_B)@(I-self.sys_A)@xss
             self.xss = xss
             return self.uss
         
