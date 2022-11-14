@@ -1512,4 +1512,262 @@ class Model:
             
         return A,B,C,D
 
+class LinearModel(Model):
+    def __init__(self,model_type=None, symvar_type='SX'):
+        Model.__init__(self,model_type=model_type, symvar_type=symvar_type)
+        
+    def setup(self,A=None,B=None,C=None,D=None):
+        """Setup method must be called to finalize the modelling process.
+        All required model variables must be declared.
+        The right hand side expression for ``_x`` must have been set with :py:func:`set_rhs`.
+
+        Sets default measurement function (state feedback) if :py:func:`set_meas` was not called.
+
+        .. warning::
+
+            After calling :py:func:`setup`, the model is locked and no further variables,
+            expressions etc. can be set.
+
+        :raises assertion: Definition of right hand side (rhs) is incomplete
+
+        :return: None
+        :rtype: None
+        """
+
+        if np.all(C) == None and np.all(D) == None:
+            # Set all states as measurements if set_meas was not called by user.
+            if not self._y_expression:
+                for name, var in zip(self._x['name'], self._x['var']):
+                    self.set_meas(name, var, meas_noise=False)
+
+            # Write self._y_expression (measurement equations) as struct symbolic expression structures.
+            self._y_expression = self.sv.struct(self._y_expression)
+
+        # Create structure from listed symbolic variables:
+        _x =  self._convert2struct(self._x)
+        _w =  self._convert2struct(self._w)
+        _v =  self._convert2struct(self._v)
+        _u =  self._convert2struct(self._u)
+        _z =  self._convert2struct(self._z)
+        _p =  self._convert2struct(self._p)
+        _tvp =  self._convert2struct(self._tvp)
+        _aux =  self._convert2struct(self._aux)
+        _y =  self._convert2struct(self._y)
+
+        # Write self._aux_expression.
+        self._aux_expression = self.sv.struct(self._aux_expression)
+
+
+        # Create alg equations:
+        self._alg = self.sv.struct(self.alg_list)
+
+        if np.all(A) == None and np.all(B) == None and np.all(C)==None and np.all(D)==None:
+            # Create mutable struct with identical structure as _x to hold the right hand side.
+            self._rhs = self.sv.struct(_x)
+
+            # Set the expressions in self._rhs with the previously defined SX.sym variables.
+            # Check if an expression is set for every state of the system.
+            _x_names = set(self._x['name'])
+            for rhs_i in self.rhs_list:
+                self._rhs[rhs_i['var_name']] = rhs_i['expr']
+                _x_names -= set([rhs_i['var_name']])
+            assert len(_x_names) == 0, 'Definition of right hand side (rhs) is incomplete. Missing: {}. Use: set_rhs to define expressions.'.format(_x_names)
+
+            var_dict_list = [self._x, self._w, self._v, self._u, self._z, self._p, self._tvp]
+            sym_struct_list = [_x, _w, _v, _u, _z, _p, _tvp]
+
+            self._rhs = self._substitute_struct_vars(var_dict_list, sym_struct_list, self._rhs)
+            self._alg = self._substitute_struct_vars(var_dict_list, sym_struct_list, self._alg)
+            self._aux_expression = self._substitute_struct_vars(var_dict_list, sym_struct_list, self._aux_expression)
+            self._y_expression = self._substitute_struct_vars(var_dict_list, sym_struct_list, self._y_expression)
+
+            self._substitute_exported_vars(var_dict_list, sym_struct_list)
+        
+            self._A = jacobian(self._rhs,_x)
+            self._B = jacobian(self._rhs,_u)
+            self._C = jacobian(self._y_expression,_x)
+            self._D = jacobian(self._y_expression,_u)
+            
+            # Remove temporary storage for the symbolic variables. This allows to pickle the class.
+            delattr(self, 'rhs_list')
+            delattr(self, 'alg_list')
+            
+        else:
+            self._A = A
+            self._B = B
+            self._C = C
+            self._D = D
+            
+            #Setting up right hand side equation
+            self._rhs = self._A@vertcat(_x)+self._B@vertcat(_u)
+            self._y_expression = self._C@vertcat(_x)+self._D@vertcat(_u)
+        
+        self._x = _x
+        self._w = _w
+        self._v = _v
+        self._u = _u
+        self._z = _z
+        self._p = _p
+        self._tvp = _tvp
+        self._y = _y
+        self._aux = _aux
+        
+        # Declare functions for the right hand side and the aux_expressions.
+        self._rhs_fun = Function('rhs_fun',
+                                 [_x, _u, _z, _tvp, _p, _w], [self._rhs],
+                                 ["_x", "_u", "_z", "_tvp", "_p", "_w"], ["_rhs"])
+        self._alg_fun = Function('alg_fun',
+                                 [_x, _u, _z, _tvp, _p, _w], [self._alg],
+                                 ["_x", "_u", "_z", "_tvp", "_p", "_w"], ["_alg"])
+        self._aux_expression_fun = Function('aux_expression_fun',
+                                            [_x, _u, _z, _tvp, _p], [self._aux_expression],
+                                            ["_x", "_u", "_z", "_tvp", "_p"], ["_aux_expression"])
+        self._meas_fun = Function('meas_fun',
+                                  [_x, _u, _z, _tvp, _p, _v], [self._y_expression],
+                                  ["_x", "_u", "_z", "_tvp", "_p", "_v"], ["_y_expression"])
+        self.A_fun = Function('A_fun',
+                              [_x, _u, _z, _tvp, _p, _w],[self._A],
+                              ["_x", "_u", "_z", "_tvp", "_p", "_w"],["_A"])
+        self.B_fun = Function('B_fun',
+                              [_x, _u, _z, _tvp, _p, _w],[self._B],
+                              ["_x", "_u", "_z", "_tvp", "_p", "_w"],["_B"])
+        self.C_fun = Function('C_fun',
+                              [_x, _u, _z, _tvp, _p, _v],[self._C],
+                              ["_x", "_u", "_z", "_tvp", "_p", "_v"],["_C"])
+        self.D_fun = Function('D_fun',
+                              [_x, _u, _z, _tvp, _p, _v],[self._D],
+                              ["_x", "_u", "_z", "_tvp", "_p", "_v"],["_D"]) 
+        
+        all_constant = np.alltrue(
+            [isinstance(A, np.ndarray), isinstance(B, np.ndarray), isinstance(C, np.ndarray), isinstance(D, np.ndarray)])
+        
+        if all_constant == False:
+            self._A,self._B,self._C,self._D = self.get_linear_system_matrices()
+            all_constant = np.alltrue(
+            [isinstance(self._A, np.ndarray), isinstance(self._B, np.ndarray), isinstance(self._C, np.ndarray), isinstance(self._D, np.ndarray)])
+        assert all_constant == True, 'Please provide a linear model.' 
+
+        # Create and store some information about the model regarding number of variables for
+        # _x, _y, _u, _z, _tvp, _p, _aux
+        self.n_x = self._x.shape[0]
+        self.n_y = self._y.shape[0]
+        self.n_u = self._u.shape[0]
+        self.n_z = self._z.shape[0]
+        self.n_tvp = self._tvp.shape[0]
+        self.n_p = self._p.shape[0]
+        self.n_aux = self._aux_expression.shape[0]
+        self.n_w = self._w.shape[0]
+        self.n_v = self._v.shape[0]
+
+        msg = 'Must have the same number of algebraic equations (you have {}) and variables (you have {}).'
+        assert self.n_z == self._alg.shape[0], msg.format(self._alg.shape[0], self.n_z)
+
+        self.flags['setup'] = True
+        
+    @property
+    def sys_A(self):
+        assert self.flags['setup'] == True, 'Attributes are available after the model is setup.'
+        return self._A
+    
+    @property
+    def sys_B(self):
+        assert self.flags['setup'] == True, 'Attributes are available after the model is setup.'
+        return self._B
+    
+    @property
+    def sys_C(self):
+        assert self.flags['setup'] == True, 'Attributes are available after the model is setup.'
+        return self._C
+    
+    @property
+    def sys_D(self):
+        assert self.flags['setup'] == True, 'Attributes are available after the model is setup.'
+        return self._D
+    
+    def discretize(self, t_sample = 0, conv_method = 'zoh'):
+        """Converts continuous time to discrete time system.
+        
+        This method utilizes the exisiting function in scipy library called ``cont2discrete`` to convert continuous time to discrete time system.This method 
+        allows the user to specify the type of discretization. For more details about the function `click here`_ .
+         
+        .. _`click here`: https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.cont2discrete.html
+            
+        where :math:`A_{\\text{discrete}}` and :math:`B_{\\text{discrete}}` are the discrete state matrix and input matrix repectively and :math:`t_{\\text{sample}}`
+        is the sampling time. Sampling time is set using :py:func:`set_param`.
+        
+        .. warning::
+            sampling time is zero when not specified or not required
+        :param t_sample: Sampling time (default - ``0``)
+        :type t_sample: Int or float
+        
+        :param conv_method: Method of discretization - Five different methods can be applied. (default -`` zoh``)
+        :type conv_method: String
+        
+        :return: State :math:`A_{\\text{discrete}}` and input :math:`B_{\\text{discrete}}` matrices as a tuple
+        :rtype: numpy.ndarray
+
+        """
+        assert self.flags['setup'] == True, 'This method can be accessed only after the model is setup using LinearModel.setup().'
+        assert self.model_type == 'continuous', 'Given model is already discrete.'
+        warnings.warn('sampling time is {}'.format(t_sample))
+        
+        #[arr_A,arr_B,arr_C,arr_D] = self._convertSX_MX_to_array(self.A,self.B,self.C,self.D)
+        
+        dis_sys = cont2discrete((self._A,self._B,self._C,self._D), t_sample, conv_method)
+
+        self._A = dis_sys[0]
+        self._B = dis_sys[1]
+        self._C = dis_sys[2]
+        self._D = dis_sys[3]
+        
+        #[self.A,self.B,self.C,self.D] = self._convertArray_to_DM(A,B,C,D)
+        #Initializing new model type
+        self.model_type = 'discrete'
+        
+        self._rhs = self._A@vertcat(self.x) + self._B@vertcat(self.u)
+        self._y_expression = self._C@vertcat(self.x) + self._D@vertcat(self.u)
+        
+    def get_steady_state(self,xss = None,uss = None):
+        """Calculates steady states for the given input or states.
+        
+        This method calculates steady states of a discrete system for the given steady state input and vice versa.
+        The mathematical formulation can be described as 
+            
+            .. math::
+                x_{ss} = (I-A)^{-1}Bu_{ss}\\\\
+                
+               or\\\\
+                
+                u_{ss} = B^{-1}(I-A)x_{ss}
+        
+        :return: Steady state
+        :rtype: numpy.ndarray
+        
+        :return: Steady state input
+        :rtype: numpy.ndarray
+
+        """
+        #Check whether the model is linear and setup
+        assert self.flags['setup'] == True, 'Model is not setup. Please run model.setup() fun to calculate steady state.'
+        assert self.model_type == 'discrete', 'Please convert the system to discrete using model.continuous_2_discrete().'
+        #[A,B,C,D] = self._convertSX_MX_to_array(self.A,self.B,self.C,self.D)
+        I = np.identity(np.shape(self._A)[0])
+        
+        #Calculation of steady state
+        if xss == None:
+            assert uss != None, 'Provide either steady state states or steady state inputs.'
+            self.xss = np.linalg.inv(I-self._A)@self._B@uss
+            self.uss = uss
+            return self.xss
+        elif uss == None and np.shape(self._B)[0] != np.shape(self._B)[1]:
+            assert xss != None, 'Provide either steady state states or steady state inputs.'
+            self.uss = np.linalg.pinv(self._B)@(I-self._A)@xss
+            self.xss = xss
+            return self.uss
+        elif uss == None and np.shape(self._B)[0] == np.shape(self._B)[1]:
+            assert xss != None, 'Provide either steady state states or steady state inputs.'
+            self.uss = np.linalg.inv(self._B)@(I-self._A)@xss
+            self.xss = xss
+            return self.uss
+        
 
