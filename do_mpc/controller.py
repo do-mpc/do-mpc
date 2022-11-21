@@ -31,7 +31,7 @@ import do_mpc.data
 import do_mpc.optimizer
 from do_mpc.tools.indexedproperty import IndexedProperty
 from scipy.signal import cont2discrete
-from scipy.linalg import solve_discrete_are,solve_continuous_are
+from scipy.linalg import solve_discrete_are, solve_continuous_are
 from do_mpc.model import Model,LinearModel
 
 class LQR:

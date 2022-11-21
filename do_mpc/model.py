@@ -1148,7 +1148,7 @@ class Model:
         # Set all states as measurements if set_meas was not called by user.
         if not self._y_expression:
             for name, var in zip(self._x['name'], self._x['var']):
-                self.set_meas(name, var, meas_noise=False)
+                self.set_meas(name, var)
 
         # Write self._y_expression (measurement equations) as struct symbolic expression structures.
         self._y_expression = self.sv.struct(self._y_expression)
@@ -1310,16 +1310,16 @@ class Model:
 
 
         # Create new variables for linearized model
-        process_noise, meas_noise = self._transfer_variables(self, linearizedModel)
+        self._transfer_variables(self, linearizedModel)
 
         # Setup linearized model
-        linearizedModel.setup(A,B,C,D, process_noise=process_noise, meas_noise=meas_noise)
+        linearizedModel.setup(A,B,C,D)
         
         return linearizedModel
 
     
     @staticmethod
-    def _transfer_variables(old_model, new_model):
+    def _transfer_variables(old_model, new_model, transfer=['_x', '_u', '_tvp', '_p']):
         """Private and static method to transfer variables from old model to new model.
         This is used in :meth:`Model.linearize` and :meth:`Model.discretize`.
 
@@ -1329,28 +1329,22 @@ class Model:
         # Initialize array for process noise and measurement noise
         process_noise = old_model.x(False)
         meas_noise = old_model.y(False)
+
         
-        #Setting states and inputs
+        #Setting states and inputs (get rid of defaults for u, tvp, p)
         for key in old_model.x.keys():
             new_model.set_variable('_x', key, shape=old_model.x[key].shape)
-            if key in old_model.w.keys():
-                process_noise[key] = True
         for key in old_model.u.keys()[1:]:
             new_model.set_variable('_u', key, shape=old_model.u[key].shape)
         for key in old_model.tvp.keys()[1:]:
             new_model.set_variable('_tvp', key, shape=old_model.tvp[key].shape)
         for key in old_model.p.keys()[1:]:
             new_model.set_variable('_p', key, shape=old_model.p[key].shape)
-        for key in old_model.y.keys()[1:]:
-            new_model.set_meas(key, old_model._y_expression[key], meas_noise=True)
-            if key in old_model.v.keys():
-                meas_noise[key] = True
-
-        # Convert process and meas noise to arrays
-        process_noise = process_noise.cat.full().astype(bool)
-        meas_noise = meas_noise.cat.full().astype(bool)
-
-        return process_noise, meas_noise
+        for key in old_model.aux.keys()[1:]:
+            expr_fun = old_model._aux_expression_fun
+            expr = expr_fun(new_model.x, new_model.u, new_model.z, new_model.tvp, new_model.p)
+            expr_struct = old_model._aux_expression(expr)
+            new_model.set_expression(key, expr_struct[key])
 
 
     def dae_to_ode_model(self):
@@ -1516,21 +1510,21 @@ class LinearModel(Model):
         return self._D
 
 
-    def set_rhs(self, name, rhs, *args, **kwargs):
+    def set_rhs(self, name, rhs):
         """
         Checks if the right-hand-side function is linear and calls :meth:`Model.set_rhs`.
         """
         # Check if expression is linear
         if jacobian(rhs, vertcat(self.x, self.u)).is_constant():
-            super().set_rhs(name, rhs, *args, **kwargs)
+            super(LinearModel, self).set_rhs(name, rhs, process_noise=True)
 
-    def set_meas(self, name, meas, *args, **kwargs):
+    def set_meas(self, name, meas):
         """
         Checks if the measurement function is linear and calls :meth:`Model.set_meas`.
         """
         # Check if expression is linear
         if jacobian(meas, vertcat(self.x, self.u)).is_constant():
-            super().set_meas(name, meas, *args, **kwargs)
+            super(LinearModel, self).set_meas(name, meas, meas_noise=True)
 
     def set_alg(self, expr_name, expr, *args, **kwargs):
         """
@@ -1540,7 +1534,7 @@ class LinearModel(Model):
         """
         raise NotImplementedError('Algebraic variables are not supported for linear models.')
         
-    def setup(self,A=None, B=None,C=None,D=None, meas_noise = True, process_noise = False):
+    def setup(self,A=None, B=None,C=None,D=None):
         """Setup method must be called to finalize the modelling process.
         All required model variables must be declared.
         The right hand side expression for ``_x`` must have been set with :py:func:`set_rhs`.
@@ -1565,6 +1559,7 @@ class LinearModel(Model):
             raise ValueError('C must be a numpy array or None')
         if not isinstance(D, (np.ndarray, type(None))):
             raise ValueError('D must be a numpy array or None')
+    
 
 
         # Three use cases:
@@ -1578,12 +1573,8 @@ class LinearModel(Model):
             y_meas = y_meas + D @ self.u.cat
         if not isinstance(y_meas, type(None)):
             n_y = y_meas.shape[0]
-            if isinstance(meas_noise, bool):
-                meas_noise = np.ones((n_y,1))*meas_noise
-            if meas_noise.shape != (n_y,1):
-                raise ValueError('meas_noise must be a boolean or a numpy array with shape (n_y,1).')
             for i in range(n_y):
-                self.set_meas('y{}'.format(i), y_meas[i], meas_noise = bool(meas_noise[i]))
+                self.set_meas('y{}'.format(i), y_meas[i])
 
         n_x = self.x.size
         n_u = self.u.size
@@ -1603,16 +1594,12 @@ class LinearModel(Model):
 
         # Set the rhs of the states (if x_next exists)
         if not isinstance(x_next, type(None)):
-            if isinstance(process_noise, bool):
-                process_noise = np.ones((n_x,1))*process_noise
-            if process_noise.shape != (n_x,1):
-                raise ValueError('process_noise must be a boolean or a numpy array with shape (n_x,1).')
             for name in self.x.keys():
                 ind = self.x.f[name]
-                self.set_rhs(name, x_next[ind], process_noise = process_noise[ind])
+                self.set_rhs(name, x_next[ind])
 
 
-        super().setup()
+        super(LinearModel, self).setup()
 
         # Create A,B,C,D matrices (they are not necessarily given) and write them to the class.
         A,B,C,D = self.get_linear_system_matrices()
@@ -1654,10 +1641,10 @@ class LinearModel(Model):
         discreteModel = LinearModel('discrete')
 
         # Create new variables for linearized model
-        process_noise, meas_noise = self._transfer_variables(self, discreteModel)
+        self._transfer_variables(self, discreteModel)
 
         # Setup linearized model
-        discreteModel.setup(A,B, process_noise=process_noise, meas_noise=meas_noise)
+        discreteModel.setup(A,B)
         
         return discreteModel 
         

@@ -66,6 +66,10 @@ def template_model(symvar_type='SX'):
     # Auxiliary terms
     r_1 = K0_1 * exp((-E_R_1)/((T_R)))*C_a
     r_2 = K0_2 * exp((-E_R_2)/((T_R)))*C_b
+
+    # Aux expression from auxiliary terms
+    r = vertcat(r_1, r_2)
+    model.set_expression(expr_name='r', expr=r)
     
     # Differential equations
     model.set_rhs('C_a', (F/V)*(C_ain-C_a)-r_1)
