@@ -1286,7 +1286,7 @@ class Model:
         :type uss: numpy.ndarray
         
         :return: Linearized Model
-        :rtype: model.Model 
+        :rtype: LinearModel 
         
 
         """
@@ -1303,7 +1303,7 @@ class Model:
         
         if all_constant:
             # If all are constant, linear model is initialized
-            linearizedModel = LinearModel('continuous')
+            linearizedModel = LinearModel(self.model_type)
         else:
             # If not, LTV model is initialized
             raise NotImplementedError('LTV models are not yet implemented.')
@@ -1369,7 +1369,7 @@ class Model:
                 \\begin{pmatrix} \\dot{x} \\\\ \\dot{u} \\\\ \\dot{z} \\end{pmatrix} = \\begin{pmatrix} f(x,u,z) \\\\ q \\\\ g(x,u,z) \\end{pmatrix}
         
         where :math:`\\dot{x},\\dot{u},\\dot{z}` are the states of the model and q is the input to the model. Similarly, it can be extended to discrete time systems.
-        
+        The system assumes full state information is available.
         :return: Converted ODE Model
         :rtype: model.Model 
         
@@ -1383,22 +1383,16 @@ class Model:
         daeModel = Model(self.model_type)
         
         #Setting states and inputs
-        x = []
-        for i in range(np.size(self.x.keys())):
-            x.append(daeModel.set_variable('_x',self.x.keys()[i],self.x[self.x.keys()[i]].size()))
-        for j in range(np.size(self.u.keys())-1):
-            x.append(daeModel.set_variable('_x',self.u.keys()[j+1],self.u[self.u.keys()[j+1]].size()))
-        for k in range(np.size(self.z.keys())-1):
-            x.append(daeModel.set_variable('_x',self.z.keys()[k+1],self.z[self.z.keys()[k+1]].size()))
-        p = []
-        for l in range(np.size(self.p.keys())-1):
-            p.append(daeModel.set_variable('_p',self.p.keys()[l+1],self.p[self.p.keys()[l+1]].size()))
-        w = []
-        for m in range(np.size(self.w.keys())-1):
-            w.append(daeModel.set_variable('_w',self.w.keys()[m+1],self.w[self.w.keys()[m+1]].size()))
-        tvp = []
-        for n in range(np.size(self.tvp.keys())-1):
-            tvp.append(daeModel.set_variable('_tvp',self.tvp.keys()[n+1],self.tvp[self.tvp.keys()[n+1]].size()))
+        for key in range(np.size(self.x.keys())):
+            daeModel.set_variable('_x',self.x.keys()[key],self.x[self.x.keys()[key]].size())
+        for key in range(np.size(self.u.keys())-1):
+            daeModel.set_variable('_x',self.u.keys()[key+1],self.u[self.u.keys()[key+1]].size())
+        for key in range(np.size(self.z.keys())-1):
+            daeModel.set_variable('_x',self.z.keys()[key+1],self.z[self.z.keys()[key+1]].size())
+        for key in range(np.size(self.p.keys())-1):
+            daeModel.set_variable('_p',self.p.keys()[key+1],self.p[self.p.keys()[key+1]].size())
+        for key in range(np.size(self.tvp.keys())-1):
+            daeModel.set_variable('_tvp',self.tvp.keys()[key+1],self.tvp[self.tvp.keys()[key+1]].size())
         q = daeModel.set_variable('_u','q',(self.n_u,1))
         
         #Extracting variables
@@ -1407,19 +1401,23 @@ class Model:
         z_new = daeModel.x[self.z.keys()[1:]]
         tvp_new = daeModel.tvp[self.tvp.keys()[1:]]
         p_new = daeModel.p[self.p.keys()[1:]]
-        w_new = daeModel.w[self.w.keys()[1:]]
         
         #Converting rhs eq. with respect to variables of linear model of same name
-        rhs = self._rhs_fun(vertcat(*x_new),vertcat(*u_new),vertcat(*z_new),vertcat(*tvp_new),vertcat(*p_new),vertcat(*w_new))
-        alg = self._alg_fun(vertcat(*x_new),vertcat(*u_new),vertcat(*z_new),vertcat(*tvp_new),vertcat(*p_new),vertcat(*w_new))
-        z_next = -inv(jacobian(alg,vertcat(*z_new)))@jacobian(alg,vertcat(*x_new))@rhs-inv(jacobian(alg,vertcat(*z_new)))@jacobian(alg,vertcat(*u_new))@q
-        y_rhs = self._meas_fun(vertcat(*x_new),vertcat(*u_new),vertcat(*z_new),vertcat(*tvp_new),vertcat(*p_new),vertcat(*w_new))
-        
-        #Computing rhs of the model
+        rhs = self._rhs_fun(vertcat(*x_new),vertcat(*u_new),vertcat(*z_new),vertcat(*tvp_new),vertcat(*p_new),self.w)
+        rhs_new = substitute(rhs,self.w.cat,np.zeros(self.n_w).reshape(self.n_w,1))
         x_count = 0
         for i in range(np.size(self.x.keys())):
-            daeModel.set_rhs(self.x.keys()[i],rhs[x_count:x_count+self.x[self.x.keys()[i]].size()[0]])
-            x_count += self.x[self.x.keys()[i]].size()[0]
+            if daeModel.x.keys()[i]+'_noise' in self.w.keys():
+                daeModel.set_rhs(self.x.keys()[i],rhs_new[x_count:x_count+self.x[self.x.keys()[i]].size()[0]],process_noise=(True))
+                x_count += self.x[self.x.keys()[i]].size()[0]
+            else:
+                daeModel.set_rhs(self.x.keys()[i],rhs_new[x_count:x_count+self.x[self.x.keys()[i]].size()[0]])
+                x_count += self.x[self.x.keys()[i]].size()[0]
+        alg = self._alg_fun(vertcat(*x_new),vertcat(*u_new),vertcat(*z_new),vertcat(*tvp_new),vertcat(*p_new),daeModel.w)
+        rhs_mod = substitute(rhs,self.w.cat,daeModel.w.cat)
+        z_next = -inv(jacobian(alg,vertcat(*z_new)))@jacobian(alg,vertcat(*x_new))@rhs_mod-inv(jacobian(alg,vertcat(*z_new)))@jacobian(alg,vertcat(*u_new))@q
+        #y_rhs = self._meas_fun(vertcat(*x_new),vertcat(*u_new),vertcat(*z_new),vertcat(*tvp_new),vertcat(*p_new),vertcat(*w_new))
+        
         for j in range(np.size(self.u.keys())-1):
             daeModel.set_rhs(self.u.keys()[j+1],daeModel.u['q',j])
         z_count = 0
@@ -1427,15 +1425,15 @@ class Model:
             daeModel.set_rhs(self.z.keys()[k+1],z_next[z_count:z_count+self.z[self.z.keys()[k+1]].size()[0]])
             z_count += self.z[self.z.keys()[k+1]].size()[0]
             
-        y_count = 0
-        for l in range(np.size(self.y.keys())-1):
-            for m in range(np.size(self.v.keys())-1):
-                if self.y.keys()[l+1] == self.v.keys()[m+1]:
-                    daeModel.set_meas(self.y.keys()[l+1],y_rhs[y_count:y_count+self.y[self.y.keys()[l+1]].size()[0]],meas_noise = True)
-                    y_count += self.y[self.y.keys()[l+1]].size()[0]
-                else:
-                    daeModel.set_meas(self.y.keys()[l+1],y_rhs[y_count:y_count+self.y[self.y.keys()[l+1]].size()[0]],meas_noise = False)
-                    y_count += self.y[self.y.keys()[l+1]].size()[0]
+        # y_count = 0
+        # for l in range(np.size(self.y.keys())-1):
+        #     for m in range(np.size(self.v.keys())-1):
+        #         if self.y.keys()[l+1] == self.v.keys()[m+1]:
+        #             daeModel.set_meas(self.y.keys()[l+1],y_rhs[y_count:y_count+self.y[self.y.keys()[l+1]].size()[0]],meas_noise = True)
+        #             y_count += self.y[self.y.keys()[l+1]].size()[0]
+        #         else:
+        #             daeModel.set_meas(self.y.keys()[l+1],y_rhs[y_count:y_count+self.y[self.y.keys()[l+1]].size()[0]],meas_noise = False)
+        #             y_count += self.y[self.y.keys()[l+1]].size()[0]
         
         #setting up the model
         daeModel.setup()
@@ -1672,7 +1670,6 @@ class LinearModel(Model):
         #Check whether the model is linear and setup
         assert self.flags['setup'] == True, 'Model is not setup. Please run model.setup() fun to calculate steady state.'
         assert self.model_type == 'discrete', 'Please convert the system to discrete using model.continuous_2_discrete().'
-        #[A,B,C,D] = self._convertSX_MX_to_array(self.A,self.B,self.C,self.D)
         I = np.identity(np.shape(self.sys_A)[0])
         
         #Calculation of steady state
