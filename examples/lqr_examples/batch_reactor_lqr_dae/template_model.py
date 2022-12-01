@@ -27,6 +27,7 @@ import pdb
 import sys
 sys.path.append('../../')
 import do_mpc
+import do_mpc.tools.dae2odeConversion as dae
 
 def template_model(symvar_type='SX'):
     """
@@ -62,7 +63,10 @@ def template_model(symvar_type='SX'):
     # setup the model
     model.setup()
     
-    # Converting dae system to ode system
-    daemodel = model.dae_to_ode_model()
+    #DAE model converted to ODE
+    daemodel = dae.dae_to_ode_model(model)
     
-    return model , daemodel
+    #converted ODE model is linearized
+    linearmodel = daemodel.linearize()
+    
+    return model, daemodel, linearmodel

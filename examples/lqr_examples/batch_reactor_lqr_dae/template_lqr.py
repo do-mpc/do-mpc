@@ -34,20 +34,23 @@ def template_lqr(model):
     template_lqr: tuning parameters
     --------------------------------------------------------------------------
     """
-    lqr = do_mpc.controller.LQR(model)
+    t_sample = 0.5
+    model_dc = model.discretize(t_sample)
+    
+    lqr = do_mpc.controller.LQR(model_dc)
     
     # Initialize parameters
-    setup_lqr = {'n_horizon':10,
-              't_sample' : 0.5,
-              'conv_method':'zoh'}
+    setup_lqr = {
+        'n_horizon':10
+        }
     lqr.set_param(**setup_lqr)
     
     # Setting objective
-    Q = 10*np.identity(3)
+    Q = 10*np.identity(5)
     R = 5*np.identity(1)
-    Rdelu=5*np.identity(1) # Weight matrix for rated input
-    delZ = 10*np.identity(1) # Weight matrix for algebraic states
-    lqr.set_objective(Q = Q, R = R, Rdelu = Rdelu, delZ = delZ)
+    # Rdelu=5*np.identity(1) # Weight matrix for rated input
+    # delZ = 10*np.identity(1) # Weight matrix for algebraic states
+    lqr.set_objective(Q = Q, R = R)
     
     # Setup lqr
     lqr.setup()

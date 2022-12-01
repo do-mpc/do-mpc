@@ -37,9 +37,7 @@ def template_simulator(model):
     simulator = do_mpc.simulator.Simulator(model)
     
     params_simulator = {
-        'integration_tool': 'idas',
-        'abstol': 1e-10,
-        'reltol': 1e-10,
+        'integration_tool': 'cvodes',
         't_step': 0.5
         }
     simulator.set_param(**params_simulator)
