@@ -917,7 +917,7 @@ class Model:
         if meas_noise:
             var = self.sv.sym(meas_name+'_noise', expr.shape[0])
 
-            self._v['name'].append(meas_name)
+            self._v['name'].append(meas_name+'_noise')
             self._v['var'].append(var)
             expr += var
 
@@ -1311,7 +1311,15 @@ class Model:
 
         # Create new variables for linearized model
         self._transfer_variables(self, linearizedModel)
-
+        n_x = self.n_x
+        n_u = self.n_u
+        
+        # Check for trivial measurement equation
+        if C.shape == (n_x,n_x) and (C == np.eye(n_x)).all():
+            C = None
+        if D.shape == (n_x,n_u) and (D == np.zeros((n_x,n_u))).all():
+            D = None
+        
         # Setup linearized model
         linearizedModel.setup(A,B,C,D)
         
@@ -1571,8 +1579,7 @@ class LinearModel(Model):
             y_meas = y_meas + D @ self.u.cat
         if not isinstance(y_meas, type(None)):
             n_y = y_meas.shape[0]
-            for i in range(n_y):
-                self.set_meas('y{}'.format(i), y_meas[i])
+            self.set_meas('y', y_meas)
 
         n_x = self.x.size
         n_u = self.u.size
