@@ -27,7 +27,6 @@ from casadi.tools import *
 import pdb
 import sys
 sys.path.append('../../../')
-#sys.path.append('F:\\Anaconda\\Lib\\site-packages\\do-mpc')
 import do_mpc
 from do_mpc.tools.timer import Timer
 
@@ -42,7 +41,7 @@ from template_simulator import template_simulator
 
 
 """ User settings: """
-store_results = False
+store_results = True
 
 model,linearmodel = template_model()
 lqr = template_lqr(linearmodel)

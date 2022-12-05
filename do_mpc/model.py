@@ -1382,17 +1382,25 @@ class Model:
         # Constant matrices are converted to numpy arrays.
 
         A = self.A_fun(xss, uss, z, tvp, p, w)
-        if A.is_constant():
-            A = DM(A).full()
+        if A.is_constant() and isinstance(A, casadi.SX):
+            A = evalf(A).full()
+        elif evalf(A).is_constant() and isinstance(A, casadi.MX):
+            A = evalf(A).full()
         B = self.B_fun(xss, uss, z, tvp, p, w)
-        if B.is_constant():
-            B = DM(B).full()
+        if B.is_constant() and isinstance(B, casadi.SX):
+            B = evalf(B).full()
+        elif evalf(B).is_constant() and isinstance(B, casadi.MX):
+            B = evalf(B).full()
         C = self.C_fun(xss, uss, z, tvp, p, v)
-        if C.is_constant():
-            C = DM(C).full()
+        if C.is_constant() and isinstance(C, casadi.SX):
+            C = evalf(C).full()
+        elif evalf(C).is_constant() and isinstance(C, casadi.MX):
+            C = evalf(C).full()
         D = self.D_fun(xss, uss, z, tvp, p, v)
-        if D.is_constant():
-            D = DM(D).full()
+        if D.is_constant() and isinstance(D, casadi.SX):
+            D = evalf(D).full()
+        elif evalf(D).is_constant() and isinstance(D, casadi.MX):
+            D = evalf(D).full()
               
         return A,B,C,D
 
@@ -1586,18 +1594,18 @@ class LinearModel(Model):
         I = np.identity(np.shape(self.sys_A)[0])
         
         #Calculation of steady state
-        if xss == None:
-            assert uss != None, 'Provide either steady state states or steady state inputs.'
+        if np.all(xss) == None:
+            assert np.all(uss) != None and isinstance(uss,np.ndarray), 'Provide either steady state states or steady state inputs.'
             self.xss = np.linalg.inv(I-self.sys_A)@self.sys_B@uss
             self.uss = uss
             return self.xss
-        elif uss == None and np.shape(self.sys_B)[0] != np.shape(self.sys_B)[1]:
-            assert xss != None, 'Provide either steady state states or steady state inputs.'
+        elif np.all(uss) == None and np.shape(self.sys_B)[0] != np.shape(self.sys_B)[1]:
+            assert np.all(xss) != None and isinstance(xss,np.ndarray), 'Provide either steady state states or steady state inputs.'
             self.uss = np.linalg.pinv(self.sys_B)@(I-self.sys_A)@xss
             self.xss = xss
             return self.uss
-        elif uss == None and np.shape(self.sys_B)[0] == np.shape(self.sys_B)[1]:
-            assert xss != None, 'Provide either steady state states or steady state inputs.'
+        elif np.all(uss) == None and np.shape(self.sys_B)[0] == np.shape(self.sys_B)[1]:
+            assert np.all(xss) != None and isinstance(xss,np.ndarray), 'Provide either steady state states or steady state inputs.'
             self.uss = np.linalg.inv(self.sys_B)@(I-self.sys_A)@xss
             self.xss = xss
             return self.uss

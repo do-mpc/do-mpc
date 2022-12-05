@@ -28,7 +28,6 @@ import pdb
 import sys
 sys.path.append('../../')
 import do_mpc
-import do_mpc.tools.dae2odeConversion as dae
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import time
@@ -38,14 +37,16 @@ from template_lqr import template_lqr
 from template_simulator import template_simulator
 
 """ User settings: """
-store_results = False
+store_results = True
 
 """
 Get configured do-mpc modules:
 """
 
+t_sample = 0.5
 model, daemodel, linearmodel = template_model()
-lqr = template_lqr(linearmodel)
+model_dc = linearmodel.discretize(t_sample)
+lqr = template_lqr(model_dc)
 simulator = template_simulator(linearmodel)
 estimator = do_mpc.estimator.StateFeedback(linearmodel)
 
@@ -70,8 +71,8 @@ Cain_ss = 0
 Cc_ss = 2
 
 xss = np.array([[Ca_ss],[Cb_ss],[Ad_ss],[Cain_ss],[Cc_ss]])
-
-lqr.set_setpoint(xss = xss)
+uss = model_dc.get_steady_state(xss = xss)
+lqr.set_setpoint(xss = xss, uss = uss)
 
 """
 Run MPC main loop:
