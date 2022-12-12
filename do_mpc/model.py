@@ -917,7 +917,7 @@ class Model:
         if meas_noise:
             var = self.sv.sym(meas_name+'_noise', expr.shape[0])
 
-            self._v['name'].append(meas_name)
+            self._v['name'].append(meas_name+'_noise')
             self._v['var'].append(var)
             expr += var
 
@@ -1286,7 +1286,7 @@ class Model:
         :type uss: numpy.ndarray
         
         :return: Linearized Model
-        :rtype: model.Model 
+        :rtype: LinearModel 
         
 
         """
@@ -1303,7 +1303,7 @@ class Model:
         
         if all_constant:
             # If all are constant, linear model is initialized
-            linearizedModel = LinearModel('continuous')
+            linearizedModel = LinearModel(self.model_type)
         else:
             # If not, LTV model is initialized
             raise NotImplementedError('LTV models are not yet implemented.')
@@ -1311,7 +1311,15 @@ class Model:
 
         # Create new variables for linearized model
         self._transfer_variables(self, linearizedModel)
-
+        n_x = self.n_x
+        n_u = self.n_u
+        
+        # Check for trivial measurement equation
+        if C.shape == (n_x,n_x) and (C == np.eye(n_x)).all():
+            C = None
+        if D.shape == (n_x,n_u) and (D == np.zeros((n_x,n_u))).all():
+            D = None
+        
         # Setup linearized model
         linearizedModel.setup(A,B,C,D)
         
@@ -1345,102 +1353,6 @@ class Model:
             expr = expr_fun(new_model.x, new_model.u, new_model.z, new_model.tvp, new_model.p)
             expr_struct = old_model._aux_expression(expr)
             new_model.set_expression(key, expr_struct[key])
-
-
-    def dae_to_ode_model(self):
-        """Converts index-1 DAE system to ODE system.
-        
-        This method utilizes the differentiation method of converting index-1 DAE systems to ODE systems. This method
-        cannot handle higher index DAE systems. The DAE system is as follows:
-        
-            .. math::
-                \\dot{x} = f(x,u,z) \\\\
-                    0 = g(x,u,z)
-       
-        where :math:`x` is the states, :math:`u` is the input and :math:`z` is the algebraic states of the system.
-        Differentiation method is as follows:
-        
-            .. math::
-                \\dot{z} = -\\frac{\\partial g}{\\partial z}^{-1}\\frac{\\partial g}{\\partial x}f-\\frac{\\partial g}{\\partial z}^{-1}\\frac{\\partial g}{\\partial u}\\dot{u}
-        
-        Therefore the converted ODE system looks like:
-        
-            .. math::
-                \\begin{pmatrix} \\dot{x} \\\\ \\dot{u} \\\\ \\dot{z} \\end{pmatrix} = \\begin{pmatrix} f(x,u,z) \\\\ q \\\\ g(x,u,z) \\end{pmatrix}
-        
-        where :math:`\\dot{x},\\dot{u},\\dot{z}` are the states of the model and q is the input to the model. Similarly, it can be extended to discrete time systems.
-        
-        :return: Converted ODE Model
-        :rtype: model.Model 
-        
-
-
-        """
-        #Check whether model setup is done
-        assert self.flags['setup'] == True, 'Run this function after original model is setup'
-
-        #Initializing new model
-        daeModel = Model(self.model_type)
-        
-        #Setting states and inputs
-        x = []
-        for i in range(np.size(self.x.keys())):
-            x.append(daeModel.set_variable('_x',self.x.keys()[i],self.x[self.x.keys()[i]].size()))
-        for j in range(np.size(self.u.keys())-1):
-            x.append(daeModel.set_variable('_x',self.u.keys()[j+1],self.u[self.u.keys()[j+1]].size()))
-        for k in range(np.size(self.z.keys())-1):
-            x.append(daeModel.set_variable('_x',self.z.keys()[k+1],self.z[self.z.keys()[k+1]].size()))
-        p = []
-        for l in range(np.size(self.p.keys())-1):
-            p.append(daeModel.set_variable('_p',self.p.keys()[l+1],self.p[self.p.keys()[l+1]].size()))
-        w = []
-        for m in range(np.size(self.w.keys())-1):
-            w.append(daeModel.set_variable('_w',self.w.keys()[m+1],self.w[self.w.keys()[m+1]].size()))
-        tvp = []
-        for n in range(np.size(self.tvp.keys())-1):
-            tvp.append(daeModel.set_variable('_tvp',self.tvp.keys()[n+1],self.tvp[self.tvp.keys()[n+1]].size()))
-        q = daeModel.set_variable('_u','q',(self.n_u,1))
-        
-        #Extracting variables
-        x_new = daeModel.x[self.x.keys()]
-        u_new = daeModel.x[self.u.keys()[1:]]
-        z_new = daeModel.x[self.z.keys()[1:]]
-        tvp_new = daeModel.tvp[self.tvp.keys()[1:]]
-        p_new = daeModel.p[self.p.keys()[1:]]
-        w_new = daeModel.w[self.w.keys()[1:]]
-        
-        #Converting rhs eq. with respect to variables of linear model of same name
-        rhs = self._rhs_fun(vertcat(*x_new),vertcat(*u_new),vertcat(*z_new),vertcat(*tvp_new),vertcat(*p_new),vertcat(*w_new))
-        alg = self._alg_fun(vertcat(*x_new),vertcat(*u_new),vertcat(*z_new),vertcat(*tvp_new),vertcat(*p_new),vertcat(*w_new))
-        z_next = -inv(jacobian(alg,vertcat(*z_new)))@jacobian(alg,vertcat(*x_new))@rhs-inv(jacobian(alg,vertcat(*z_new)))@jacobian(alg,vertcat(*u_new))@q
-        y_rhs = self._meas_fun(vertcat(*x_new),vertcat(*u_new),vertcat(*z_new),vertcat(*tvp_new),vertcat(*p_new),vertcat(*w_new))
-        
-        #Computing rhs of the model
-        x_count = 0
-        for i in range(np.size(self.x.keys())):
-            daeModel.set_rhs(self.x.keys()[i],rhs[x_count:x_count+self.x[self.x.keys()[i]].size()[0]])
-            x_count += self.x[self.x.keys()[i]].size()[0]
-        for j in range(np.size(self.u.keys())-1):
-            daeModel.set_rhs(self.u.keys()[j+1],daeModel.u['q',j])
-        z_count = 0
-        for k in range(np.size(self.z.keys())-1):
-            daeModel.set_rhs(self.z.keys()[k+1],z_next[z_count:z_count+self.z[self.z.keys()[k+1]].size()[0]])
-            z_count += self.z[self.z.keys()[k+1]].size()[0]
-            
-        y_count = 0
-        for l in range(np.size(self.y.keys())-1):
-            for m in range(np.size(self.v.keys())-1):
-                if self.y.keys()[l+1] == self.v.keys()[m+1]:
-                    daeModel.set_meas(self.y.keys()[l+1],y_rhs[y_count:y_count+self.y[self.y.keys()[l+1]].size()[0]],meas_noise = True)
-                    y_count += self.y[self.y.keys()[l+1]].size()[0]
-                else:
-                    daeModel.set_meas(self.y.keys()[l+1],y_rhs[y_count:y_count+self.y[self.y.keys()[l+1]].size()[0]],meas_noise = False)
-                    y_count += self.y[self.y.keys()[l+1]].size()[0]
-        
-        #setting up the model
-        daeModel.setup()
-        print('The states of the new model are {}' .format(daeModel.x.keys()))
-        return daeModel
     
     def get_linear_system_matrices(self, xss=None, uss=None, z=None, tvp=None,p=None):
         """
@@ -1470,17 +1382,25 @@ class Model:
         # Constant matrices are converted to numpy arrays.
 
         A = self.A_fun(xss, uss, z, tvp, p, w)
-        if A.is_constant():
-            A = DM(A).full()
+        if A.is_constant() and isinstance(A, casadi.SX):
+            A = evalf(A).full()
+        elif evalf(A).is_constant() and isinstance(A, casadi.MX):
+            A = evalf(A).full()
         B = self.B_fun(xss, uss, z, tvp, p, w)
-        if B.is_constant():
-            B = DM(B).full()
+        if B.is_constant() and isinstance(B, casadi.SX):
+            B = evalf(B).full()
+        elif evalf(B).is_constant() and isinstance(B, casadi.MX):
+            B = evalf(B).full()
         C = self.C_fun(xss, uss, z, tvp, p, v)
-        if C.is_constant():
-            C = DM(C).full()
+        if C.is_constant() and isinstance(C, casadi.SX):
+            C = evalf(C).full()
+        elif evalf(C).is_constant() and isinstance(C, casadi.MX):
+            C = evalf(C).full()
         D = self.D_fun(xss, uss, z, tvp, p, v)
-        if D.is_constant():
-            D = DM(D).full()
+        if D.is_constant() and isinstance(D, casadi.SX):
+            D = evalf(D).full()
+        elif evalf(D).is_constant() and isinstance(D, casadi.MX):
+            D = evalf(D).full()
               
         return A,B,C,D
 
@@ -1573,8 +1493,7 @@ class LinearModel(Model):
             y_meas = y_meas + D @ self.u.cat
         if not isinstance(y_meas, type(None)):
             n_y = y_meas.shape[0]
-            for i in range(n_y):
-                self.set_meas('y{}'.format(i), y_meas[i])
+            self.set_meas('y', y_meas)
 
         n_x = self.x.size
         n_u = self.u.size
@@ -1672,22 +1591,21 @@ class LinearModel(Model):
         #Check whether the model is linear and setup
         assert self.flags['setup'] == True, 'Model is not setup. Please run model.setup() fun to calculate steady state.'
         assert self.model_type == 'discrete', 'Please convert the system to discrete using model.continuous_2_discrete().'
-        #[A,B,C,D] = self._convertSX_MX_to_array(self.A,self.B,self.C,self.D)
         I = np.identity(np.shape(self.sys_A)[0])
         
         #Calculation of steady state
-        if xss == None:
-            assert uss != None, 'Provide either steady state states or steady state inputs.'
+        if np.all(xss) == None:
+            assert np.all(uss) != None and isinstance(uss,np.ndarray), 'Provide either steady state states or steady state inputs.'
             self.xss = np.linalg.inv(I-self.sys_A)@self.sys_B@uss
             self.uss = uss
             return self.xss
-        elif uss == None and np.shape(self.sys_B)[0] != np.shape(self.sys_B)[1]:
-            assert xss != None, 'Provide either steady state states or steady state inputs.'
+        elif np.all(uss) == None and np.shape(self.sys_B)[0] != np.shape(self.sys_B)[1]:
+            assert np.all(xss) != None and isinstance(xss,np.ndarray), 'Provide either steady state states or steady state inputs.'
             self.uss = np.linalg.pinv(self.sys_B)@(I-self.sys_A)@xss
             self.xss = xss
             return self.uss
-        elif uss == None and np.shape(self.sys_B)[0] == np.shape(self.sys_B)[1]:
-            assert xss != None, 'Provide either steady state states or steady state inputs.'
+        elif np.all(uss) == None and np.shape(self.sys_B)[0] == np.shape(self.sys_B)[1]:
+            assert np.all(xss) != None and isinstance(xss,np.ndarray), 'Provide either steady state states or steady state inputs.'
             self.uss = np.linalg.inv(self.sys_B)@(I-self.sys_A)@xss
             self.xss = xss
             return self.uss

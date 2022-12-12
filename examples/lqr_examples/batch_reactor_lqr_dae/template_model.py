@@ -62,7 +62,10 @@ def template_model(symvar_type='SX'):
     # setup the model
     model.setup()
     
-    # Converting dae system to ode system
-    daemodel = model.dae_to_ode_model()
+    #DAE model converted to ODE
+    daemodel = do_mpc.tools.dae2odeConversion.dae_to_ode_model(model)
     
-    return model , daemodel
+    #converted ODE model is linearized
+    linearmodel = daemodel.linearize()
+    
+    return model, daemodel, linearmodel

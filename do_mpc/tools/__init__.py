@@ -24,6 +24,7 @@ import pickle
 
 from .structure import *
 from .indexedproperty import *
+from .dae2odeConversion import *
 
 
 def save_pickle(filename, data):

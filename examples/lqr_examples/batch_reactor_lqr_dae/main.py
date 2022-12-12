@@ -28,7 +28,6 @@ import pdb
 import sys
 sys.path.append('../../')
 import do_mpc
-
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import time
@@ -38,16 +37,18 @@ from template_lqr import template_lqr
 from template_simulator import template_simulator
 
 """ User settings: """
-store_results = False
+store_results = True
 
 """
 Get configured do-mpc modules:
 """
 
-model,daemodel = template_model()
-lqr = template_lqr(daemodel)
-simulator = template_simulator(model)
-estimator = do_mpc.estimator.StateFeedback(model)
+t_sample = 0.5
+model, daemodel, linearmodel = template_model()
+model_dc = linearmodel.discretize(t_sample)
+lqr = template_lqr(model_dc)
+simulator = template_simulator(linearmodel)
+estimator = do_mpc.estimator.StateFeedback(linearmodel)
 
 """
 Set initial state
@@ -55,34 +56,30 @@ Set initial state
 Ca0 = 1
 Cb0 = 0
 Ad0 = 0
-
+Cain0 = 0
 Cc0 = 0
-x0 = np.array([[Ca0],[Cb0],[Ad0]])
-z0 = np.array([[Cc0]])
+x0 = np.array([[Ca0],[Cb0],[Ad0],[Cain0],[Cc0]])
 
 simulator.x0 = x0
-simulator.z0 = z0
 estimator.x0 = x0
 
 # Set setpoints
 Ca_ss = 0
 Cb_ss = 2
 Ad_ss = 3
-
+Cain_ss = 0
 Cc_ss = 2
 
-xss = np.array([[Ca_ss],[Cb_ss],[Ad_ss]])
-zss = np.array([[Cc_ss]])
-
-lqr.set_setpoint(xss = xss ,uss = None, zss = zss)
+xss = np.array([[Ca_ss],[Cb_ss],[Ad_ss],[Cain_ss],[Cc_ss]])
+uss = model_dc.get_steady_state(xss = xss)
+lqr.set_setpoint(xss = xss, uss = uss)
 
 """
 Run MPC main loop:
 """
 for k in range(50):
-    u0 = lqr.make_step(x0,z0)
+    u0 = lqr.make_step(x0)
     y_next = simulator.make_step(u0)
-    z0 = simulator.sim_z_num['_z'].full()
     x0 = estimator.make_step(y_next)
     
 """

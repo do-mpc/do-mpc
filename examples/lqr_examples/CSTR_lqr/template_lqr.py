@@ -41,8 +41,6 @@ def template_lqr(model):
     
     # Initialize parameters
     setup_lqr = {'n_horizon':10,
-              't_sample' : 0.5,
-              'conv_method' : "foh",
               'mode' : 'inputRatePenalization'}
     lqr.set_param(**setup_lqr)
     

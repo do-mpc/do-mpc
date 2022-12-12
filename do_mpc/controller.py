@@ -312,77 +312,7 @@ class LQR:
                 x0_new = np.block([[x0],[self.u0]])
                 self.u0 = self.K@(x0_new-self.xss)+self.uss
                 self.u0 = self.u0+x0_new[-self.model.n_u:]
-        
-        # #Calculate u for converted ode model
-        # elif self.model.flags['dae2odemodel']==True:
-        #     assert z0 != None,'Please pass initial value for algebraic variables'
-        #     x0_new = np.block([[x0],[self.u0],[z0]])
-        #     self.u0 = self.K@(x0_new-self.xss)+self.uss
-        #     if np.shape(x0)[0]==np.shape(x0)[0]+np.shape(self.u0)[0]-1:
-        #         self.u0 = self.u0+x0_new[np.shape(x0)[0]]
-        #     else:
-        #         self.u0 = self.u0+x0_new[np.shape(x0)[0]:np.shape(x0)[0]+np.shape(self.u0)[0]-1]
         return self.u0
-    
-    # def dae_model_gain(self,A,B):
-    #     """Computes discrete gain for the model converted with the help of :py:func:`model.dae_to_ode_model`.
-        
-    #     This method computes gain for the converted ode model in which total number of states differ from the original model.
-    #     Therefore this method computes the ``Q`` and ``R`` for the converted ode model. The parameter for objective function 
-    #     is set using :py:func:`set_objective`. The cost matrices are modified as follows
-        
-    #     .. math::
-    #           Q_{mod} = \\begin{bmatrix} Q & 0 & 0 \\\\ 0 & R & 0 \\\\ 0 & 0 & \\Delta Z \\end{bmatrix}
-                
-    #     .. math::
-    #           R_{mod} = \\Delta R\\\\
-        
-    #     .. math::
-    #         P_{mod} = \\begin{bmatrix}
-    #                 P & 0 & 0\\\\ 0 & R & 0\\\\
-    #                 0 & 0 & \\Delta Z
-    #             \\end{bmatrix}
-        
-    #     Where ``Q`` and ``R`` are the cost matrices of converted ode model, :math:`\\Delta R` is the cost matrix for the
-    #     penalized input rate and :math:`\\Delta Z`  is the cost matrix for the algebraic variables. All the variables can be set using :py:func:`set_objective`.
-        
-    #     After modifying the weight matrices, discrete gain is calculated using :py:func:`discrete_gain`.
-    #     For example:
-            
-    #         ::
-                
-    #             K = lqr.dae_model_gain(A,B)
-        
-    #     :param A: State matrix
-    #     :type A: numpy.ndarray
-        
-    #     :param B: Input matrix
-    #     :type B: numpy.ndarray
-        
-    #     :return: Gain matrix - :math:`K`
-    #     :rtype: numpy.ndarray
-
-    #     """
-    #     #Verify the size of Q
-    #     assert not self.Q is None, "run this function after setting objective using set_objective()"
-    #     if np.shape(self.Q)==(self.model.n_x,self.model.n_x) and np.shape(self.R)==(self.model.n_u,self.model.n_u):
-    #         K = self.discrete_gain(A, B)
-    #     else:
-    #         #Compute new Q and R
-    #         zeros_Q_u_col = np.zeros((np.shape(self.Q)[0],np.shape(self.R)[0]+np.shape(self.delZ)[0]))
-    #         zeros_Q_z_col = np.zeros((np.shape(self.R)[0],np.shape(self.delZ)[0]))
-    #         zeros_Q_u_row = np.zeros((np.shape(self.R)[0],np.shape(self.Q)[0]))
-    #         zeros_Q_z_row = np.zeros((np.shape(self.delZ)[0],np.shape(self.Q)[0]+np.shape(self.R)[0]))
-    #         self.Q = np.block([[self.Q,zeros_Q_u_col],
-    #                            [zeros_Q_u_row, self.R, zeros_Q_z_col],
-    #                            [zeros_Q_z_row,self.delZ]])
-    #         self.R = self.Rdelu
-    #         self.P = np.block([[self.P,zeros_Q_u_col],
-    #                            [zeros_Q_u_row, self.R, zeros_Q_z_col],
-    #                            [zeros_Q_z_row,self.delZ]])
-    #         #Compute discrete gain
-    #         K = self.discrete_gain(A, B)
-    #     return K
         
     def set_objective(self, Q = None, R = None, P = None, Rdelu = None):
         """Sets the cost matrix for the Optimal Control Problem.
@@ -460,12 +390,6 @@ class LQR:
         elif (self.mode == 'inputRatePenalization') and np.all(Rdelu == None):
             raise Exception('Please set input cost matrix for input rate penalization/daemodel using set_objective()')
         
-        #Set delZ for converted ode model
-        # if self.model.flags['dae2odemodel'] == True and delZ != None and np.shape(self.Q) != (self.model.n_x,self.model.n_x):
-        #     self.delZ = delZ
-        # elif self.model.flags['dae2odemodel'] == True and delZ == None:
-        #     raise Exception('Please set cost matrix for algebraic variables using set_objective() for evaluating daemodel')
-        
         #Verify shape of Q,R,P
         #if self.model.flags['dae2odemodel']==False:    
         assert self.Q.shape == (self.model.n_x,self.model.n_x), 'Q must have shape = {}. You have {}'.format((self.model.n_x,self.model.n_x),self.Q.shape)
@@ -479,7 +403,7 @@ class LQR:
         if self.n_horizon != None:
             assert self.P.shape == self.Q.shape, 'P must have same shape as Q. You have {}'.format(P.shape)
 
-    def set_setpoint(self,xss = None,uss = None,zss = None):   
+    def set_setpoint(self,xss = None,uss = None):   
         """Sets setpoints for states and inputs.
         
         This method can be used to set setpoints at each time step. It can be called inside simulation loop to change the set point dynamically.
@@ -517,15 +441,6 @@ class LQR:
             self.uss = np.zeros((self.model.n_u,1))
         else:
             self.uss = uss
-        
-        # if self.model.flags['dae2odemodel'] == True:
-        #     if zss is None:
-        #         self.zss = np.zeros((np.shape(self.delZ)[0],1))
-        #     else:
-        #         self.zss = zss
-        #         self.xss = np.block([[self.xss],[self.uss],[self.zss]])
-        #     assert self.zss.shape == (np.shape(self.delZ)[0],1), 'xss must be of shape {}. You have {}'.format((np.shape(self.delZ)[0],1),self.zss.shape)
-        
         if self.mode == 'inputRatePenalization':
             self.xss = np.block([[self.xss],[self.uss]])
             self.uss = np.zeros((self.model.n_u,1))
@@ -542,19 +457,14 @@ class LQR:
         :raises exception: mode must be setPointTrack, inputRatePenalization, None. you have {string value}
 
         """
-       # [self.A,self.B,self.C,self.D] = self.model._convertSX_MX_to_array(self.model.A, self.model.B,self.model.C,self.model.D)
         if self.n_horizon == None:
             warnings.warn('discrete infinite horizon gain will be computed since prediction horizon is set to default value 0')
         if self.mode in ['setPointTrack',None]:
             self.K = self.discrete_gain(self.model._A,self.model._B)
         elif self.mode == 'inputRatePenalization':
             self.K = self.input_rate_penalization(self.model._A,self.model._B)
-        # elif self.model.flags['dae2odemodel'] == True:
-        #     self.K = self.dae_model_gain(self.A, self.B)
         if not self.mode in ['setPointTrack','inputRatePenalization']:
             raise Exception('mode must be setPointTrack, inputRatePenalization, None. you have {}'.format(self.method))
-        # elif self.model.flags['dae2odemodel'] == False and self.model.n_z !=0:
-        #     raise Exception('You model contains algebraic states. Please convert the dae model to ode model using model.dae_to_ode_model().')
         self.flags['setup'] = True
         
 class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
