@@ -65,7 +65,7 @@ class LQR:
     
     .. note::
         During runtime call :py:func:`make_step` with the current state :math:`x` to obtain the optimal control input :math:`u`.
-        During runtime call :py:func:`set_setpoint` with the set points of input :math:`u_{ss}`, states :math:`x_{ss}` and algebraic states :math:`z_{ss}` in order to update the respective set points.
+        During runtime call :py:func:`set_setpoint` with the set points of input :math:`u_{ss}` and states :math:`x_{ss}` in order to update the respective set points.
     """
     def __init__(self,model):
         self.model = model
@@ -264,14 +264,10 @@ class LQR:
     def make_step(self,x0):
         """Main method of the class during runtime. This method is called at each timestep
         and returns the control input for the current initial state.
-        
-        .. note::
-            
-            :math:`z0` should be passed when the original model of the system contains algebraic variables
             
         .. note::
             
-            LQR will always run in the set point tracking mode irrespective of the set point is not specified
+            LQR will always run in the set point tracking mode irrespective of the set point is not specified. The default setpoint is origin.
             
         .. note::
             
@@ -280,9 +276,6 @@ class LQR:
 
         :param x0: Current state of the system.
         :type x0: numpy.ndarray
-        
-        :param z0: Current algebraic state of the system (optional).
-        :type z0: numpy.ndarray
 
         :return: u0
         :rtype: numpy.ndarray
@@ -321,9 +314,6 @@ class LQR:
         
         .. note::
             For the problem to be solved in input rate penalization mode, ``Q``, ``R`` and ``Rdelu`` should be set.
-        
-        .. note::
-            For a problem with dae to ode converted model, ``Q``, ``R``, ``Rdelu`` and ``delZ`` should be set.
             
         For example:
             
@@ -336,9 +326,6 @@ class LQR:
                 # For ODE models with input rate penalization
                 lqr.set_objective(Q = np.identity(2), R = 5*np.identity(2), Rdelu = np.identity(2))
                 
-                # For DAE converted to ODE models
-                lqr.set_objective(Q = np.identity(2), R = 5*np.identity(2), Rdelu = np.identity(2), delZ = np.identity(1))
-                
         
         :param Q: State cost matrix
         :type Q: numpy.ndarray
@@ -349,11 +336,7 @@ class LQR:
         :param Rdelu: Input rate cost matrix
         :type Rdelu: numpy.ndarray
         
-        :param delZ: Algebraic state cost matrix
-        :type delZ: numpy.ndarray
-        
         :raises exception: Please set input cost matrix for input rate penalization/daemodel using :py:func:`set_objective`.
-        :raises exception: Please set cost matrix for algebraic variables using :py:func:`set_objective` for evaluating daemodel
         :raises exception: Q matrix must be of type class numpy.ndarray
         :raises exception: R matrix must be of type class numpy.ndarray
         :raises exception: P matrix must be of type class numpy.ndarray
@@ -391,7 +374,6 @@ class LQR:
             raise Exception('Please set input cost matrix for input rate penalization/daemodel using set_objective()')
         
         #Verify shape of Q,R,P
-        #if self.model.flags['dae2odemodel']==False:    
         assert self.Q.shape == (self.model.n_x,self.model.n_x), 'Q must have shape = {}. You have {}'.format((self.model.n_x,self.model.n_x),self.Q.shape)
         assert self.R.shape == (self.model.n_u,self.model.n_u), 'R must have shape = {}. You have {}'.format((self.model.n_u,self.model.n_u),self.R.shape)
         if isinstance(self.Q, (casadi.DM, casadi.SX, casadi.MX)):
@@ -417,18 +399,12 @@ class LQR:
                 
                 # For ODE models
                 lqr.set_setpoint(xss = np.array([[10],[15]]) ,uss = np.array([[2],[3]]))
-                
-                # For DAE to ODE converted models
-                lqr.set_setpoint(xss = np.array([[10],[15]]) ,uss = np.array([[2],[3]]), zss = np.array([[3]]))
 
         :param xss: set point for states of the system(optional)
         :type xss: numpy.ndarray
         
         :param uss: set point for input of the system(optional)
         :type uss: numpy.ndarray
-        
-        :param zss: set point for algebraic states of the system(optional)
-        :type zss: numpy.ndarray
 
         """
         assert self.flags['setup'] == True, 'LQR is not setup. Run setup() function.'

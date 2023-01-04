@@ -36,7 +36,7 @@ def template_model(symvar_type='SX'):
     """
     # Initialize the model
     model_type = 'discrete' # either 'discrete' or 'continuous'
-    model = do_mpc.model.LinearModel(model_type)
+    model = do_mpc.model.LinearModel(model_type,symvar_type)
     
     # Initialize states and inputs
     _x = model.set_variable(var_type='_x', var_name='x', shape=(4,1))
@@ -54,8 +54,8 @@ def template_model(symvar_type='SX'):
     
     x_next = A@_x + B@_u
 
-    model.set_rhs('x', x_next)
+    #model.set_rhs('x', x_next)
     
-    model.setup()
+    model.setup(A,B)
     
     return model

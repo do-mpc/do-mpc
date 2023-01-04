@@ -1279,7 +1279,7 @@ class Model:
         from the original model. This can be seen in the above model definition. Therefore, the solution of the lqr will be ``u`` and its corresponding ``x``. In order to fetch :math:`\\Delta u` 
         and :math:`\\Delta x`, setpoints has to be subtracted from the solution of lqr.
                 
-        :param xss: Steady state set point
+        :param xss: Steady state state
         :type xss: numpy.ndarray
         
         :param uss: Steady state input
@@ -1303,7 +1303,7 @@ class Model:
         
         if all_constant:
             # If all are constant, linear model is initialized
-            linearizedModel = LinearModel(self.model_type)
+            linearizedModel = LinearModel(self.model_type,self.symvar_type)
         else:
             # If not, LTV model is initialized
             raise NotImplementedError('LTV models are not yet implemented.')
@@ -1352,15 +1352,37 @@ class Model:
             expr_fun = old_model._aux_expression_fun
             expr = expr_fun(new_model.x, new_model.u, new_model.z, new_model.tvp, new_model.p)
             expr_struct = old_model._aux_expression(expr)
-            new_model.set_expression(key, expr_struct[key])
+            new_model.set_expression(key, expr_struct[key])          
+        
     
     def get_linear_system_matrices(self, xss=None, uss=None, z=None, tvp=None,p=None):
         """
         Returns the matrix quadrupel :math:`(A,B,C,D)` of the linearized system around the operating point (``xss,uss,z,tvp,p,w,v``).
         All arguments are optional in which case the matrices might still be symbolic. 
         If the matrices are not symbolic, they are returned as numpy arrays.
+        
+        :param xss: Steady state state (optional)
+        :type xss: numpy.ndarray
+        :param uss: Steady state input (optional)
+        :type uss: numpy.ndarray
+        :param z: steady state algebraic states (optional)
+        :type z: numpy.ndarray
+        :param tvp: time varying parameters set point (optional)
+        :type tvp: numpy.ndarray
+        :param p: parameters set point (optional)
+        :type p: numpy.ndarray
+        
+        :return: A - State matrix
+        :rtype: numpy.ndarray / CasADi SX
+        :return: B - Input matrix
+        :rtype: numpy.ndarray / CasADi SX
+        :return: C - Output matrix
+        :rtype: numpy.ndarray / CasADi SX
+        :return: D - Feedforward matrix
+        :rtype: numpy.ndarray / CasADi SX
         """
-
+        if self.symvar_type == 'MX':
+            raise ValueError("get_linear_system_matrices requires symvar_type SX")
         # Default values for all variables are the symbolic variables themselves.
         if isinstance(xss, type(None)):
             xss = self.x
@@ -1372,60 +1394,141 @@ class Model:
             tvp = self.tvp
         if isinstance(p, type(None)):
             p = self.p
-    
+        
         # Noise variables are always set to zero.
         w = self.w(0)
         v = self.v(0)
-        
 
         # Create A,B,C,D matrices and check if (for the given inputs) they are constant are still symbolic.
         # Constant matrices are converted to numpy arrays.
-
         A = self.A_fun(xss, uss, z, tvp, p, w)
-        if A.is_constant() and isinstance(A, casadi.SX):
-            A = evalf(A).full()
-        elif evalf(A).is_constant() and isinstance(A, casadi.MX):
-            A = evalf(A).full()
+        if A.is_constant():
+            A = DM(A).full()
         B = self.B_fun(xss, uss, z, tvp, p, w)
-        if B.is_constant() and isinstance(B, casadi.SX):
-            B = evalf(B).full()
-        elif evalf(B).is_constant() and isinstance(B, casadi.MX):
-            B = evalf(B).full()
+        if B.is_constant():
+            B = DM(B).full()
         C = self.C_fun(xss, uss, z, tvp, p, v)
-        if C.is_constant() and isinstance(C, casadi.SX):
-            C = evalf(C).full()
-        elif evalf(C).is_constant() and isinstance(C, casadi.MX):
-            C = evalf(C).full()
+        if C.is_constant():
+            C = DM(C).full()
         D = self.D_fun(xss, uss, z, tvp, p, v)
-        if D.is_constant() and isinstance(D, casadi.SX):
-            D = evalf(D).full()
-        elif evalf(D).is_constant() and isinstance(D, casadi.MX):
-            D = evalf(D).full()
-              
+        if D.is_constant():
+            D = DM(D).full()
         return A,B,C,D
 
 class LinearModel(Model):
+    """The **do-mpc** LinearModel class. This class is inherited from **do-mpc** model class. 
+    This class holds the full model description and is at the core of
+    :py:class:`do_mpc.simulator.Simulator`, :py:class:`do_mpc.controller.MPC`, :py:class:`do_mpc.controller.LQR` and :py:class:`do_mpc.estimator.Estimator`.
+    This class can be used to define the linear time invariant models in both
+    continuous and discrete time.
+    The :py:class:`LinearModel` class is created with setting the ``model_type`` (continuous or discrete).
+    
+    A ``continous`` linear model consists of an underlying ordinary differential equation (ODE)
+    
+    .. math::
+        
+        \\dot{x}(t) &= Ax(t)+Bu(t),\\\\
+            y &= Cx(t)+Du(t)
+            
+    whereas a ``discrete`` linear model consists of a difference equation:
+        
+    .. math::
+        x_{k+1} &= Ax_k+Bu_k,\\\\
+        y_k &= Cx_k+D_u_k 
+        
+    The **do-mpc** linear model can be initiated with ``SX`` variable type.
+    
+    .. note::
+
+        The option ``symvar_type`` will be inherited to all derived classes (e.g. :py:class:`do_mpc.simulator.Simulator`,
+        :py:class:`do_mpc.controller.MPC` and :py:class:`do_mpc.estimator.Estimator`).
+        All symbolic variables in these classes will be chosen respectively.
+        
+    **Configuration and setup:**
+    Configuring and setting up the :py:class:`LinearModel` involves the following steps:
+    
+    Model can be setup in two different ways. The first method is as follows:
+    
+        1. Use :py:func:`set_variable` to introduce new variables to the linear model.
+    
+        2. Optionally introduce "auxiliary" expressions as functions of the previously defined variables with :py:func:`set_expression`. The expressions can be used for monitoring or be reused as constraints, the cost function etc.
+    
+        3. Optionally introduce measurement equations with :py:func:`set_meas`. The syntax is identical to :py:func:`set_expression`. By default state-feedback is assumed.
+    
+        4. Define the right-hand-side of the `discrete` or `continuous` model as a function of the previously defined variables with :py:func:`set_rhs`. This method must be called once for each introduced state.
+    
+        5. Call :py:func:`setup` to finalize the :py:class:`LinearModel`. No further changes are possible afterwards.
+        
+    The second method is as follows:
+        
+        1. Use :py:func:`set_variable` to introduce new variables to the linear model.
+        
+        2. Optionally introduce "auxiliary" expressions as functions of the previously defined variables with :py:func:`set_expression`. The expressions can be used for monitoring or be reused as constraints, the cost function etc.
+        
+        3. Call :py:func:`setup` and pass the system dynamics matrices as arguments instead of setting up the right hand side equations and measurement equations to finalize the :py:class:`LinearModel`. No further changes are possible afterwards.
+        
+    .. note::
+
+        All introduced model variables are accessible as **Attributes** of the :py:class:`Model`.
+        Use these attributes to query to variables, e.g. to form the cost function in a seperate file for the MPC configuration.
+        
+    :param model_type: Set if the model is ``discrete`` or ``continuous``.
+    :type model_type: str
+    :param symvar_type: Set if the model is configured with CasADi ``SX`` variables (default).
+    :type symvar_type: str
+
+    :raises assertion: model_type must be string
+    :raises assertion: model_type must be either discrete or continuous
+
+    .. automethod:: __getitem__
+    """
     def __init__(self, model_type=None, symvar_type='SX'):
         super().__init__(model_type, symvar_type)
+        if symvar_type == 'MX':
+            raise ValueError("class LinearModel can be initialized only with SX variable.")
 
 
     @property
     def sys_A(self):
+        """State matrix.
+        This property provides the state matrix in the numerical array format. Accessible only after model is setup.
+        
+        :return: A - State matrix
+        :rtype: numpy.ndarray
+        """
         assert self.flags['setup'] == True, 'Attributes are available after the model is setup.'
         return self._A
     
     @property
     def sys_B(self):
+        """Input matrix.
+        This property provides the input matrix in the numerical array format. Accessible only after model is setup.
+        
+        :return: B - Input matrix
+        :rtype: numpy.ndarray
+        """
         assert self.flags['setup'] == True, 'Attributes are available after the model is setup.'
         return self._B
     
     @property
     def sys_C(self):
+        """Output matrix.
+        This property provides the output matrix in the numerical array format. Accessible only after model is setup.
+        
+        :return: C - Output matrix
+        :rtype: numpy.ndarray
+        """
         assert self.flags['setup'] == True, 'Attributes are available after the model is setup.'
         return self._C
     
     @property
     def sys_D(self):
+        """Feedforward matrix.
+        This property provides the feedforward matrix in the numerical array format. Accessible only after model is setup.
+        
+        :return: D - Feedforward matrix
+        :rtype: numpy.ndarray
+        """
         assert self.flags['setup'] == True, 'Attributes are available after the model is setup.'
         return self._D
 
@@ -1433,17 +1536,29 @@ class LinearModel(Model):
     def set_rhs(self, name, rhs):
         """
         Checks if the right-hand-side function is linear and calls :meth:`Model.set_rhs`.
+        
+        :param name: Reference to previously introduced state names (with :py:func:`LinearModel.set_variable`)
+        :type name: sting
+        :param rhs: CasADi SX function depending on ``_x``, ``_u``, ``_tvp``, ``_p``.
+        :type rhs: casADi SX
         """
         # Check if expression is linear
-        if jacobian(rhs, vertcat(self.x, self.u)).is_constant():
+        if evalf(jacobian(rhs, vertcat(self.x, self.u))).is_constant():
             super(LinearModel, self).set_rhs(name, rhs, process_noise=True)
+        else:
+            raise ValueError("Given rhs is not linear.")
 
     def set_meas(self, name, meas):
         """
         Checks if the measurement function is linear and calls :meth:`Model.set_meas`.
+        
+        :param name: Arbitrary name for the given expression. Names are used for key word indexing.
+        :type name: sting
+        :param meas: CasADi SX function depending on ``_x``, ``_u``, ``_tvp``, ``_p``.
+        :type meas: casADi SX
         """
         # Check if expression is linear
-        if jacobian(meas, vertcat(self.x, self.u)).is_constant():
+        if evalf(jacobian(meas, vertcat(self.x, self.u))).is_constant():
             super(LinearModel, self).set_meas(name, meas, meas_noise=True)
 
     def set_alg(self, expr_name, expr, *args, **kwargs):
@@ -1457,9 +1572,9 @@ class LinearModel(Model):
     def setup(self,A=None, B=None,C=None,D=None):
         """Setup method must be called to finalize the modelling process.
         All required model variables must be declared.
-        The right hand side expression for ``_x`` must have been set with :py:func:`set_rhs`.
+        The right hand side expression for ``_x`` can be set with :py:func:`set_rhs` or can be set by passing the state matrix and input matrix in :py:func:`setup`.
 
-        Sets default measurement function (state feedback) if :py:func:`set_meas` was not called.
+        Sets default measurement function (state feedback) if :py:func:`set_meas` was not called or output matrix, feedforward matrix are not passed in :py:func:`setup`.
 
         .. warning::
 
@@ -1467,6 +1582,15 @@ class LinearModel(Model):
             expressions etc. can be set.
 
         :raises assertion: Definition of right hand side (rhs) is incomplete
+        
+        :param name: A - State matrix (optional)
+        :type name: numpy.ndarray
+        :param name: B - Input matrix (optional)
+        :type name: numpy.ndarray
+        :param name: C - Output matrix (optional)
+        :type name: numpy.ndarray
+        :param name: D - Feedforward matrix (optional)
+        :type name: numpy.ndarray
 
         :return: None
         :rtype: None

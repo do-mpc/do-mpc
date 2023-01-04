@@ -33,7 +33,7 @@ def dae_to_ode_model(model):
     assert model.flags['setup'] == True, 'Run this function after original model is setup'
 
     #Initializing new model
-    daeModel = Model(model.model_type)
+    daeModel = Model(model.model_type,model.symvar_type)
     
     #Setting states and inputs
     for key in range(np.size(model.x.keys())):
