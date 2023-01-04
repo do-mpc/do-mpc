@@ -64,41 +64,45 @@ class TestOscillatingMassesDiscreteLQR(unittest.TestCase):
         """
         Get configured do-mpc modules:
         """
-        model = self.template_model.template_model(symvar_type)
-        lqr = self.template_lqr.template_lqr(model)
-        simulator = self.template_simulator.template_simulator(model)
+        if symvar_type == 'SX':
+            model = self.template_model.template_model(symvar_type)
+            lqr = self.template_lqr.template_lqr(model)
+            simulator = self.template_simulator.template_simulator(model)
         
-        """
-        Set initial state
-        """
-        x0 = np.array([[2],[1],[3],[1]])
-        simulator.x0 = x0
+            """
+            Set initial state
+            """
+            x0 = np.array([[2],[1],[3],[1]])
+            simulator.x0 = x0
         
-        """
-        Run some steps:
-        """
-        for k in range(50):
-            u0 = lqr.make_step(x0)
-            y_next = simulator.make_step(u0)
-            x0 = y_next
+            """
+            Run some steps:
+                """
+            for k in range(50):
+                u0 = lqr.make_step(x0)
+                y_next = simulator.make_step(u0)
+                x0 = y_next
             
-        """
-        Compare results to reference run:
-        """
-        ref = do_mpc.data.load_results('./results/results_oscillatingMasses_LQR.pkl')
+            """
+            Compare results to reference run:
+            """
+            ref = do_mpc.data.load_results('./results/results_oscillatingMasses_LQR.pkl')
+                
+            test = ['_x', '_u', '_time', '_z']
         
-        test = ['_x', '_u', '_time', '_z']
-        
-        for test_i in test:
-            # Check Simulator
-            check = np.allclose(simulator.data.__dict__[test_i], ref['simulator'].__dict__[test_i])
-            self.assertTrue(check)
+            for test_i in test:
+                # Check Simulator
+                check = np.allclose(simulator.data.__dict__[test_i], ref['simulator'].__dict__[test_i])
+                self.assertTrue(check)
             
-         # Store for test reasons
-        try:
-            do_mpc.data.save_results([simulator], 'test_save', overwrite=True)
-        except:
-            raise Exception()
+            # Store for test reasons
+            try:
+                do_mpc.data.save_results([simulator], 'test_save', overwrite=True)
+            except:
+                raise Exception()
+        
+        else:
+           self.assertRaises(ValueError, self.template_model.template_model, symvar_type) 
             
 if __name__ == '__main__':
     unittest.main()

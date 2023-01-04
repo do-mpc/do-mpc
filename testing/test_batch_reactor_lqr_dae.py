@@ -65,62 +65,66 @@ class TestBatchReactorLQRDAE(unittest.TestCase):
         """
         Get configured do-mpc modules:
         """
-        t_sample = 0.5
-        model,daemodel,linearmodel = self.template_model.template_model(symvar_type)
-        model_dc = linearmodel.discretize(t_sample = 0.5)
-        lqr = self.template_lqr.template_lqr(model_dc)
-        simulator = self.template_simulator.template_simulator(linearmodel)
-        
-        """
-        Set initial state
-        """
-        Ca0 = 1
-        Cb0 = 0
-        Ad0 = 0
-        Cain0 = 0
-        Cc0 = 0
-        x0 = np.array([[Ca0],[Cb0],[Ad0],[Cain0],[Cc0]])
-        
-        simulator.x0 = x0
-        
-        """
-        Set set points
-        """
-        Ca_ss = 0
-        Cb_ss = 2
-        Ad_ss = 3
-        Cain_ss = 0
-        Cc_ss = 2
-        
-        xss = np.array([[Ca_ss],[Cb_ss],[Ad_ss],[Cain_ss],[Cc_ss]])
-        uss = model_dc.get_steady_state(xss = xss)
-        lqr.set_setpoint(xss = xss, uss = uss)
-        
-        """
-        Run MPC main loop:
-        """
-        for k in range(50):
-            u0 = lqr.make_step(x0)
-            y_next = simulator.make_step(u0)
-            x0 = y_next
+        if symvar_type == 'SX':
+            t_sample = 0.5
+            model,daemodel,linearmodel = self.template_model.template_model(symvar_type)
+            model_dc = linearmodel.discretize(t_sample = 0.5)
+            lqr = self.template_lqr.template_lqr(model_dc)
+            simulator = self.template_simulator.template_simulator(linearmodel)
             
-        """
-        Compare results to reference run:
-        """
-        ref = do_mpc.data.load_results('./results/results_batch_reactor_LQR_DAE.pkl')
+            """
+            Set initial state
+            """
+            Ca0 = 1
+            Cb0 = 0
+            Ad0 = 0
+            Cain0 = 0
+            Cc0 = 0
+            x0 = np.array([[Ca0],[Cb0],[Ad0],[Cain0],[Cc0]])
+        
+            simulator.x0 = x0
+        
+            """
+            Set set points
+            """
+            Ca_ss = 0
+            Cb_ss = 2
+            Ad_ss = 3
+            Cain_ss = 0
+            Cc_ss = 2
+        
+            xss = np.array([[Ca_ss],[Cb_ss],[Ad_ss],[Cain_ss],[Cc_ss]])
+            uss = model_dc.get_steady_state(xss = xss)
+            lqr.set_setpoint(xss = xss, uss = uss)
+        
+            """
+            Run MPC main loop:
+            """
+            for k in range(50):
+                u0 = lqr.make_step(x0)
+                y_next = simulator.make_step(u0)
+                x0 = y_next
+            
+            """
+            Compare results to reference run:
+            """
+            ref = do_mpc.data.load_results('./results/results_batch_reactor_LQR_DAE.pkl')
 
-        test = ['_x', '_u', '_time', '_z']
-        
-        for test_i in test:
-            # Check Simulator
-            check = np.allclose(simulator.data.__dict__[test_i], ref['simulator'].__dict__[test_i])
-            self.assertTrue(check)
+            test = ['_x', '_u', '_time', '_z']
             
-        # Store for test reasons
-        try:
-            do_mpc.data.save_results([simulator], 'test_save', overwrite=True)
-        except:
-            raise Exception()
+            for test_i in test:
+                # Check Simulator
+                check = np.allclose(simulator.data.__dict__[test_i], ref['simulator'].__dict__[test_i])
+                self.assertTrue(check)
+                
+            # Store for test reasons
+            try:
+                do_mpc.data.save_results([simulator], 'test_save', overwrite=True)
+            except:
+                raise Exception()
+       
+        else:
+            self.assertRaises(ValueError, self.template_model.template_model, symvar_type) 
             
 if __name__ == '__main__':
     unittest.main()
