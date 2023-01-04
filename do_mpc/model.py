@@ -1430,12 +1430,12 @@ class LinearModel(Model):
         \\dot{x}(t) &= Ax(t)+Bu(t),\\\\
             y &= Cx(t)+Du(t)
             
-    whereas a ``discrete`` linear model consists of a difference equation
+    whereas a ``discrete`` linear model consists of a difference equation.
         
     .. math::
              
         x_{k+1} &= Ax_k+Bu_k,\\\\
-       y_k &= Cx_k+D_u_k
+       y_k &= Cx_k+Du_k
        
     The **do-mpc** linear model can be initiated with ``SX`` variable type.
     
