@@ -41,10 +41,8 @@ class LQR:
     according to the previously configured :py:class:`do_mpc.model.Model` instance. 
     
     Two types of LQR can be desgined:
-        \\begin{itemize}
-            \\item Finite Horizon LQR
-            \\item Infinite Horizon LQR
-        \\end{itemize}
+        1. Finite Horizon LQR
+        2. Infinite Horizon LQR
     If ``n_horizon`` is set using :py:func:`set_param` with a integer value, then finite horizon lqr can be designed. If ``n_horizon`` is set as ``None``, then infinite horizon lqr can be designed.
     
     **Configuration and setup:**

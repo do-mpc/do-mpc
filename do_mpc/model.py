@@ -1430,12 +1430,13 @@ class LinearModel(Model):
         \\dot{x}(t) &= Ax(t)+Bu(t),\\\\
             y &= Cx(t)+Du(t)
             
-    whereas a ``discrete`` linear model consists of a difference equation:
+    whereas a ``discrete`` linear model consists of a difference equation
         
     .. math::
+             
         x_{k+1} &= Ax_k+Bu_k,\\\\
-        y_k &= Cx_k+D_u_k 
-        
+       y_k &= Cx_k+D_u_k
+       
     The **do-mpc** linear model can be initiated with ``SX`` variable type.
     
     .. note::
@@ -1661,7 +1662,7 @@ class LinearModel(Model):
         .. _`click here`: https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.cont2discrete.html
             
         where :math:`A_{\\text{discrete}}` and :math:`B_{\\text{discrete}}` are the discrete state matrix and input matrix repectively and :math:`t_{\\text{sample}}`
-        is the sampling time. Sampling time is set using :py:func:`set_param`.
+        is the sampling time.
         
         .. warning::
             sampling time is zero when not specified or not required
@@ -1671,9 +1672,8 @@ class LinearModel(Model):
         :param conv_method: Method of discretization - Five different methods can be applied. (default -`` zoh``)
         :type conv_method: String
         
-        :return: State :math:`A_{\\text{discrete}}` and input :math:`B_{\\text{discrete}}` matrices as a tuple
-        :rtype: numpy.ndarray
-
+        :return: model
+        :rtype: LinearModel
         """
         assert self.flags['setup'] == True, 'This method can be accessed only after the model is setup using LinearModel.setup().'
         assert self.model_type == 'continuous', 'Given model is already discrete.'
@@ -1710,7 +1710,6 @@ class LinearModel(Model):
         
         :return: Steady state input
         :rtype: numpy.ndarray
-
         """
         #Check whether the model is linear and setup
         assert self.flags['setup'] == True, 'Model is not setup. Please run model.setup() fun to calculate steady state.'
