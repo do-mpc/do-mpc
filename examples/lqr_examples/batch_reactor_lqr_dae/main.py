@@ -37,7 +37,7 @@ from template_lqr import template_lqr
 from template_simulator import template_simulator
 
 """ User settings: """
-store_results = True
+store_results = False
 
 """
 Get configured do-mpc modules:

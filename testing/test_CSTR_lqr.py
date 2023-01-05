@@ -64,59 +64,62 @@ class TestCSTRLQR(unittest.TestCase):
         """
         Get configured do-mpc modules:
         """
-        model,linearmodel = self.template_model.template_model(symvar_type)
-        lqr = self.template_lqr.template_lqr(linearmodel)
-        simulator = self.template_simulator.template_simulator(model)
+        if symvar_type == 'SX':
+            model,linearmodel = self.template_model.template_model(symvar_type)
+            lqr = self.template_lqr.template_lqr(linearmodel)
+            simulator = self.template_simulator.template_simulator(model)
         
-        """
-        Set initial state
-        """
-        # Set the initial state of simulator:
-        C_a0 = 0
-        C_b0 = 0
-        T_R0 = 387.05
-        T_J0 = 387.05
+            """
+            Set initial state
+            """
+            # Set the initial state of simulator:
+            C_a0 = 0
+            C_b0 = 0
+            T_R0 = 387.05
+            T_J0 = 387.05
 
-        x0 = np.array([C_a0, C_b0, T_R0, T_J0]).reshape(-1,1)
-        simulator.x0 = x0
-        # Steady state values
-        F_ss = 0.002365    # [m^3/min]
-        Q_ss = 18.5583     # [kJ/min]
+            x0 = np.array([C_a0, C_b0, T_R0, T_J0]).reshape(-1,1)
+            simulator.x0 = x0
+            # Steady state values
+            F_ss = 0.002365    # [m^3/min]
+            Q_ss = 18.5583     # [kJ/min]
     
-        C_ass = 1.6329     # [kmol/m^3]
-        C_bss = 1.1101     # [kmolm^3]
-        T_Rss = 398.6581   # [K]
-        T_Jss = 397.3736   # [K]
+            C_ass = 1.6329     # [kmol/m^3]
+            C_bss = 1.1101     # [kmolm^3]
+            T_Rss = 398.6581   # [K]
+            T_Jss = 397.3736   # [K]
     
-        uss = np.array([[F_ss],[Q_ss]])
-        xss = np.array([[C_ass],[C_bss],[T_Rss],[T_Jss]])
-        lqr.set_setpoint(xss=xss,uss=uss)
+            uss = np.array([[F_ss],[Q_ss]])
+            xss = np.array([[C_ass],[C_bss],[T_Rss],[T_Jss]])
+            lqr.set_setpoint(xss=xss,uss=uss)
         
-        """
-        Run some steps:
-        """
-        for k in range(200):
-            u0 = lqr.make_step(x0)
-            y_next = simulator.make_step(u0)
-            x0 = y_next
+            """
+            Run some steps:
+            """
+            for k in range(200):
+                u0 = lqr.make_step(x0)
+                y_next = simulator.make_step(u0)
+                x0 = y_next
             
-        """
-        Compare results to reference run:
-        """
-        ref = do_mpc.data.load_results('./results/results_CSTR_LQR.pkl')
+            """
+            Compare results to reference run:
+            """
+            ref = do_mpc.data.load_results('./results/results_CSTR_LQR.pkl')
 
-        test = ['_x', '_u', '_time', '_z']
+            test = ['_x', '_u', '_time', '_z']
         
-        for test_i in test:
-            # Check Simulator
-            check = np.allclose(simulator.data.__dict__[test_i], ref['simulator'].__dict__[test_i])
-            self.assertTrue(check)
+            for test_i in test:
+                # Check Simulator
+                check = np.allclose(simulator.data.__dict__[test_i], ref['simulator'].__dict__[test_i])
+                self.assertTrue(check)
             
-         # Store for test reasons
-        try:
-            do_mpc.data.save_results([simulator], 'test_save', overwrite=True)
-        except:
-            raise Exception()
-            
+            # Store for test reasons
+            try:
+                do_mpc.data.save_results([simulator], 'test_save', overwrite=True)
+            except:
+                raise Exception()
+        
+        else:
+            self.assertRaises(ValueError, self.template_model.template_model, symvar_type)
 if __name__ == '__main__':
     unittest.main()

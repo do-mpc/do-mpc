@@ -36,7 +36,7 @@ def template_model(symvar_type='SX'):
     """
     # Initialize model
     model_type = 'continuous' # either 'discrete' or 'continuous'
-    model = do_mpc.model.Model(model_type)
+    model = do_mpc.model.Model(model_type,symvar_type)
     
     # Certain Parameters
     k1 = 25  # Constant rate [s^-1]
