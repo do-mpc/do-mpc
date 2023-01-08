@@ -195,12 +195,12 @@ class Server:
 
             print("The server "+ self.name +" was started @ ",time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
             self.running = True            
-            if self.with_db == True:
-                self.opcua_server.historize_node_data_change(self.get_all_nodes(),count=10) #opc_server.opcua_server.get_node('ns=2;s=States.X').read_raw_history()
             return True
         except RuntimeError as err:
             print("The server "+ self.name +" could not be started, returned error message :\n", err)
             return False
+        if self.with_db == True:
+               self.opcua_server.historize_node_data_change(self.get_all_nodes(),count=10) #opc_server.opcua_server.get_node('ns=2;s=States.X').read_raw_history()
         
 
         
