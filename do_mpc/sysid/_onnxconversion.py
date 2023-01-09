@@ -11,7 +11,7 @@ class ONNXConversion:
     .. note::
 
         The feature is experimental and currently only has a limited number of supported operations.
-        All supported operations can be found in the :py:class:`Operations` class.
+        All supported operations can be found in the :py:class:`ONNXOperations` class.
 
         Other known limitations are listed at the end of this page.
     
@@ -136,7 +136,7 @@ class ONNXConversion:
         
 
         # Create instance of operations class
-        self.operations = Operations()
+        self.operations = ONNXOperations()
         
 
     def __repr__(self):
@@ -292,7 +292,7 @@ class ONNXConversion:
 
 
 
-class Operations:
+class ONNXOperations:
     """ CasADi operations, which are available in the :py:class:`ONNXConversion` class.
     See `ONNX documentation <https://github.com/onnx/onnx/blob/main/docs/Operators.md>`_ for a full list of operations.
 

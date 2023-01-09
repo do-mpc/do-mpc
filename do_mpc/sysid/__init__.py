@@ -2,4 +2,4 @@
 Tools for machine learning and system identification.
 """
 
-from .onnxconversion import *
+from ._onnxconversion import ONNXConversion, ONNXOperations
