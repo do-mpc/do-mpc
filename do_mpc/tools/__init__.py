@@ -22,9 +22,11 @@
 
 import pickle
 
-from .structure import *
-from .indexedproperty import *
-from .dae2odeConversion import *
+from ._indexedproperty import IndexedProperty
+from ._structure import Structure
+from ._casstructure import *
+# from ._dae2odeconversion import *
+from ._timer import Timer
 
 
 def save_pickle(filename, data):

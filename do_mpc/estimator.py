@@ -28,9 +28,7 @@ import copy
 import warnings
 import time
 
-import do_mpc.optimizer
-import do_mpc.data
-
+import do_mpc
 
 class Estimator(do_mpc.model.IteratedVariables):
     """The Estimator base class. Used for :py:class:`StateFeedback`, :py:class:`EKF` and :py:class:`MHE`.

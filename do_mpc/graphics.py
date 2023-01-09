@@ -30,7 +30,7 @@ import pdb
 import os
 from do_mpc.tools import IndexedProperty, Structure
 
-
+__all__ = ['Graphics', 'default_plot', 'animate']
 
 class Graphics:
     """Graphics module to present the results of **do-mpc**.

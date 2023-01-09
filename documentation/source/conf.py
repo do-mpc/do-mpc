@@ -26,7 +26,7 @@ copyright = '2021, Sergio Lucia and Felix Fiedler'
 author = 'Sergio Lucia and Felix Fiedler'
 
 # The full version, including alpha/beta/rc tags
-exec(open('../../do_mpc/version.py').read())
+exec(open('../../do_mpc/_version.py').read())
 
 release = __version__
 
@@ -63,7 +63,13 @@ mathjax3_config = {
 
 # Order methods in documentation by their appearence in the sourcecode:
 autodoc_member_order = 'bysource'
-# Delete this previous line, to order by alphabet.
+# Delete this previous line, to autoclass_content = "both"  # Add __init__ doc (ie. params) to class summaries
+autodoc_inherit_docstrings = True  # If no docstring, inherit from base class
+nbsphinx_allow_errors = True  # Continue through Jupyter errors
+add_module_names = False # Remove namespaces from class/method signaturesorder by alphabet.
+autosummary_imported_members = True # https://www.sphinx-doc.org/en/master/usage/extensions/autosummary.html#confval-autosummary_ignore_module_all 
+autosummary_ignore_module_all = False
+autodoc_mock_imports = ["casadi", "casadi.tools"] # With autosummary_imported_members = True, this avoids documenting packages that are imported with from ... import *.
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -73,8 +79,6 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', '**.ipynb_checkpoints']
 
-
-nbsphinx_allow_errors = True
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for

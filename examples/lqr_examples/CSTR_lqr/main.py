@@ -28,7 +28,7 @@ import pdb
 import sys
 sys.path.append('../../../')
 import do_mpc
-from do_mpc.tools.timer import Timer
+from do_mpc.tools import Timer
 
 import matplotlib.pyplot as plt
 import pickle

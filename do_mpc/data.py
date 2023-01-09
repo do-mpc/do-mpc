@@ -26,8 +26,6 @@ from casadi.tools import *
 import pdb
 import pickle
 import do_mpc
-from do_mpc.tools.indexedproperty import IndexedProperty
-
 
 class Data:
     """**do-mpc** data container. An instance of this class is created for the active **do-mpc** classes,

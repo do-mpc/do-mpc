@@ -25,7 +25,7 @@ from casadi import *
 from casadi.tools import *
 import pdb
 import sys
-sys.path.append('../../')
+sys.path.append('../../../')
 import do_mpc
 
 def template_lqr(model):

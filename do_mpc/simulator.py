@@ -24,9 +24,7 @@ import numpy as np
 from casadi import *
 from casadi.tools import *
 import pdb
-import warnings
-from do_mpc.data import Data
-import do_mpc.model
+import do_mpc
 
 class Simulator(do_mpc.model.IteratedVariables):
     """A class for simulating systems. Discrete-time and continuous systems can be considered.
@@ -67,7 +65,7 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         assert model.flags['setup'] == True, 'Model for simulator was not setup. After the complete model creation call model.setup().'
 
-        self.data = Data(model)
+        self.data = do_mpc.data.Data(model)
 
         self.data_fields = [
             't_step'
