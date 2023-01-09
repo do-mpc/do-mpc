@@ -95,7 +95,7 @@ def template_model(symvar_type='SX'):
     xss = np.array([[C_ass],[C_bss],[T_Rss],[T_Jss]])
     
     # Linearize the non-linear model
-    linearmodel = model.linearize(xss, uss)
+    linearmodel = do_mpc.model.linearize(model, xss, uss)
     
     # returns linearized model
     return model,linearmodel

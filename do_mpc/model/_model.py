@@ -1071,7 +1071,7 @@ class Model:
     @staticmethod
     def _transfer_variables(old_model, new_model, transfer=['_x', '_u', '_tvp', '_p']):
         """Private and static method to transfer variables from old model to new model.
-        This is used in :meth:`Model.linearize` and :meth:`Model.discretize`.
+        This is used in :func:`do_mpc.model.linearize` and :meth:`LinearModel.discretize`.
 
         Extracts information about the noise (measurement and process) from the old model and
         returns an array of booleans for the measurements and states (one element for each named instance).
