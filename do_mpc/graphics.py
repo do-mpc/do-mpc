@@ -20,6 +20,10 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Visualization tools for do-mpc.
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.axes as maxes
@@ -30,7 +34,8 @@ import pdb
 import os
 from do_mpc.tools import IndexedProperty, Structure
 
-
+# Define what is included in the Sphinx documentation.
+__all__ = ['Graphics', 'default_plot', 'animate']
 
 class Graphics:
     """Graphics module to present the results of **do-mpc**.

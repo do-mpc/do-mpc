@@ -20,15 +20,67 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
-import do_mpc.tools
-import do_mpc.model
-import do_mpc.controller
-import do_mpc.estimator
-import do_mpc.optimizer
-import do_mpc.simulator
-import do_mpc.graphics
+"""
+Find below a table of all **do-mpc** modules.
+Classes and functions of each module are shown on their respective page.
 
-import do_mpc.sampling
-import do_mpc.sysid
+The core modules are used to create the **do-mpc** control loop (click on elements to open documentation page):
 
-from .version import __version__
+.. graphviz::
+    :name: control_loop
+    :caption: **do-mpc** control loop and interconnection of classes.
+    :align: center
+
+    digraph G {
+        graph [fontname = "Monaco"];
+        node [fontname = "Monaco", fontcolor="#404040", color="#bdbdbd"];
+        edge [fontname = "Monaco", color="#707070"];
+
+        Model [label="Model", href="../api/do_mpc.model.Model.html#model", target="_top", shape=box, style=filled]
+        MPC [href="../api/do_mpc.controller.MPC.html#mpc", target="_top", shape=box, style=filled]
+        Simulator [href="../api/do_mpc.simulator.Simulator.html#simulator", target="_top", shape=box, style=filled]
+        MHE [href="../api/do_mpc.estimator.MHE.html#mhe", target="_top", shape=box, style=filled]
+        Data_MPC [label="MPCData", href="../api/do_mpc.data.MPCData.html#mpcdata", target="_top", shape=box, style=filled]
+        Data_Sim [label="Data", href="../api/do_mpc.data.Data.html#data", target="_top", shape=box, style=filled]
+        Data_MHE [label="Data", href="../api/do_mpc.data.Data.html#data", target="_top", shape=box, style=filled]
+        Graphics [label="Graphics", href="../api/do_mpc.graphics.Graphics.html#graphics", target="_top", shape=box, style=filled]
+
+        Model -> MPC;
+        Model -> Simulator;
+        Model -> MHE;
+
+        Model [shape=box, style=filled]
+
+        subgraph cluster_loop {{
+            rankdir=TB;
+            rank=same;
+            MPC -> Simulator [label="inputs"];
+            Simulator -> MHE [label="meas."];
+            MHE -> MPC [label="states"];
+        }}
+
+        MPC -> Data_MPC;
+        Simulator -> Data_Sim;
+        MHE -> Data_MHE;
+
+        Data_MPC -> Graphics;
+        Data_Sim -> Graphics;
+        Data_MHE -> Graphics;
+
+
+    }
+"""
+
+from . import tools
+from . import model
+from . import optimizer
+from . import controller
+from . import estimator
+from . import simulator
+from . import graphics
+from . import sampling
+from . import data
+from . import graphics
+from . import sysid
+
+from ._version import __version__

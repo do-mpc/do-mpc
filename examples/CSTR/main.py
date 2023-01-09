@@ -26,9 +26,11 @@ from casadi import *
 from casadi.tools import *
 import pdb
 import sys
-sys.path.append('../../')
+import os
+rel_do_mpc_path = os.path.join('..','..')
+sys.path.append(rel_do_mpc_path)
 import do_mpc
-from do_mpc.tools.timer import Timer
+from do_mpc.tools import Timer
 
 import matplotlib.pyplot as plt
 import pickle
@@ -81,17 +83,9 @@ ax[2].set_ylabel('$\Delta$ T [K]')
 ax[3].set_ylabel('Q [kW]')
 ax[4].set_ylabel('Flow [l/h]')
 ax[4].set_xlabel('time [h]')
-
 # Update properties for all prediction lines:
 for line_i in graphics.pred_lines.full:
     line_i.set_linewidth(1)
-# Highlight nominal case:
-for line_i in np.sum(graphics.pred_lines['_x', :, :,0]):
-    line_i.set_linewidth(3)
-for line_i in np.sum(graphics.pred_lines['_u', :, :,0]):
-    line_i.set_linewidth(3)
-for line_i in np.sum(graphics.pred_lines['_aux', :, :,0]):
-    line_i.set_linewidth(3)
 
 label_lines = graphics.result_lines['_x', 'C_a']+graphics.result_lines['_x', 'C_b']
 ax[0].legend(label_lines, ['C_a', 'C_b'])

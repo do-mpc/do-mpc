@@ -6,6 +6,7 @@ docutils
 sphinx-copybutton
 graphviz
 casadi
+scipy
 numpy
 matplotlib
 recommonmark

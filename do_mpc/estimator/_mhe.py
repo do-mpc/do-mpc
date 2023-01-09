@@ -28,71 +28,11 @@ import copy
 import warnings
 import time
 
-import do_mpc.optimizer
-import do_mpc.data
+from ..optimizer import Optimizer
+from ._base import Estimator
 
 
-class Estimator(do_mpc.model.IteratedVariables):
-    """The Estimator base class. Used for :py:class:`StateFeedback`, :py:class:`EKF` and :py:class:`MHE`.
-    This class cannot be used independently.
-
-    .. note::
-       The methods :py:func:`Estimator.set_initial_state` and :py:func:`Estimator.reset_history`
-       are overwritten when using the :py:class:`MHE` by the methods defined in :py:class:`do_mpc.optimizer.Optimizer`.
-
-    """
-    def __init__(self, model):
-        self.model = model
-        do_mpc.model.IteratedVariables.__init__(self)
-
-        assert model.flags['setup'] == True, 'Model for estimator was not setup. After the complete model creation call model.setup().'
-
-        self.data = do_mpc.data.Data(model)
-        self.data.dtype = 'Estimator'
-
-
-    def reset_history(self):
-        """Reset the history of the estimator
-        """
-        self.data.init_storage()
-
-
-class StateFeedback(Estimator):
-    """Simple state-feedback "estimator".
-    The main method :py:func:`StateFeedback.make_step` simply returns the input.
-    Why do you even bother to use this class?
-    """
-    def __init__(self, model):
-        super().__init__(model)
-
-    def make_step(self, y0):
-        """Return the measurement ``y0``.
-        """
-        return y0
-
-class EKF(Estimator):
-    """Extended Kalman Filter. Setup this class and use :py:func:`EKF.make_step`
-    during runtime to obtain the currently estimated states given the measurements ``y0``.
-
-    .. warning::
-        Not currently implemented.
-    """
-    def __init__(self, model):
-        raise Exception('EKF is not currently supported. This is a placeholder.')
-        super().__init__(model)
-
-        # Flags are checked when calling .setup.
-        self.flags = {
-            'setup': False,
-        }
-
-    def make_step(self, y0):
-        """Main method during runtime. Pass the most recent measurement and
-        retrieve the estimated state."""
-        assert self.flags['setup'] == True, 'EKF was not setup yet. Please call EKF.setup().'
-        None
-
-class MHE(do_mpc.optimizer.Optimizer, Estimator):
+class MHE(Optimizer, Estimator):
     """Moving horizon estimator.
 
     For general information on moving horizon estimation, please read our `background article`_.
@@ -197,7 +137,7 @@ class MHE(do_mpc.optimizer.Optimizer, Estimator):
 
     def __init__(self, model, p_est_list=[]):
         Estimator.__init__(self, model)
-        do_mpc.optimizer.Optimizer.__init__(self)
+        Optimizer.__init__(self)
 
         # Initialize structure to hold the optimial solution and initial guess:
         self._opt_x_num = None

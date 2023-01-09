@@ -1,3 +1,4 @@
+
 #
 #   This file is part of do-mpc
 #
@@ -29,7 +30,8 @@ import time
 
 import do_mpc.data
 import do_mpc.optimizer
-from do_mpc.tools.indexedproperty import IndexedProperty
+from do_mpc.tools import IndexedProperty
+      
 
 class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     """Model predictive controller.

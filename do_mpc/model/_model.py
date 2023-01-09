@@ -20,200 +20,12 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+
 import numpy as np
 from casadi import *
 from casadi.tools import *
 import pdb
-import warnings
-from do_mpc.tools.casstructure import _SymVar, _struct_MX, _struct_SX
-
-
-class IteratedVariables:
-    """ Class to initiate properties and attributes for iterated variables.
-    This class is inherited to all iterating **do-mpc** classes and based on the :py:class:`Model`.
-
-    .. warning::
-
-        This base class can not be used independently.
-    """
-
-    def __init__(self):
-        assert 'model' in self.__dict__.keys(), 'Cannot initialize variables before assigning the model to the current class instance.'
-
-        # Initialize structure for intial conditions:
-        self._x0 = self.model._x(0.0)
-        self._u0 = self.model._u(0.0)
-        self._z0 = self.model._z(0.0)
-        self._t0 = np.array([0.0])
-
-
-    def _convert2struct(self, val, struct):
-        """ Convert array to structure.
-        Pass ``val`` which can be an int, float, array, structure and return
-        a numerical structure based on the second argument ``structure``.
-
-        If a structure is passed, return the structure unchanged.
-
-        Performs some sanity checks.
-        """
-
-        # convert to array
-        if isinstance(val, (float, int)):
-            val = np.array([val])
-
-        # Check dimensions
-        err_msg = 'Variable cannot be set because the supplied vector has the wrong size. You have {} and the model is setup for {}'
-        n_val = np.prod(val.shape)
-        n_var = struct.size
-        assert n_val == n_var, err_msg.format(n_val, n_var)
-
-        # Convert to structure (or return structure)
-        if isinstance(val, (np.ndarray, casadi.DM)):
-            val = struct(val)
-        elif isinstance(val, structure3.DMStruct):
-            pass
-        else:
-            types = (np.ndarray, casadi.DM, structure3.DMStruct)
-            raise Exception('x0 must be of tpye {}. You have: {}'.format(types, type(val)))
-
-        return val
-
-    @property
-    def x0(self):
-        """ Initial state and current iterate.
-        This is the numerical structure holding the information about the current states
-        in the class. The property can be indexed according to the model definition.
-
-        **Example:**
-
-        ::
-
-            model = do_mpc.model.Model('continuous')
-            model.set_variable('_x','temperature', shape=(4,1))
-
-            ...
-            mhe = do_mpc.estimator.MHE(model)
-            # or
-            mpc = do_mpc.estimator.MPC(model)
-
-            # Get or set current value of variable:
-            mpc.x0['temperature', 0] # 0th element of variable
-            mpc.x0['temperature']    # all elements of variable
-            mpc.x0['temperature', 0:2]    # 0th and 1st element
-
-        Useful CasADi symbolic structure methods:
-
-        * ``.shape``
-
-        * ``.keys()``
-
-        * ``.labels()``
-
-        """
-        return self._x0
-
-    @x0.setter
-    def x0(self, val):
-        self._x0 = self._convert2struct(val, self.model._x)
-
-    @property
-    def u0(self):
-        """ Initial input and current iterate.
-        This is the numerical structure holding the information about the current input
-        in the class. The property can be indexed according to the model definition.
-
-        **Example:**
-
-        ::
-
-            model = do_mpc.model.Model('continuous')
-            model.set_variable('_u','heating', shape=(4,1))
-
-            ...
-            mhe = do_mpc.estimator.MHE(model)
-            # or
-            mpc = do_mpc.estimator.MPC(model)
-
-            # Get or set current value of variable:
-            mpc.u0['heating', 0] # 0th element of variable
-            mpc.u0['heating']    # all elements of variable
-            mpc.u0['heating', 0:2]    # 0th and 1st element
-
-        Useful CasADi symbolic structure methods:
-
-        * ``.shape``
-
-        * ``.keys()``
-
-        * ``.labels()``
-
-        """
-        return self._u0
-
-    @u0.setter
-    def u0(self, val):
-        self._u0 = self._convert2struct(val, self.model._u)
-
-    @property
-    def z0(self):
-        """ Initial algebraic state and current iterate.
-        This is the numerical structure holding the information about the current algebraic states
-        in the class. The property can be indexed according to the model definition.
-
-        **Example:**
-
-        ::
-
-            model = do_mpc.model.Model('continuous')
-            model.set_variable('_z','temperature', shape=(4,1))
-
-            ...
-            mhe = do_mpc.estimator.MHE(model)
-            # or
-            mpc = do_mpc.estimator.MPC(model)
-
-            # Get or set current value of variable:
-            mpc.z0['temperature', 0] # 0th element of variable
-            mpc.z0['temperature']    # all elements of variable
-            mpc.z0['temperature', 0:2]    # 0th and 1st element
-
-        Useful CasADi symbolic structure methods:
-
-        * ``.shape``
-
-        * ``.keys()``
-
-        * ``.labels()``
-
-        """
-        return self._z0
-
-    @z0.setter
-    def z0(self, val):
-        self._z0 = self._convert2struct(val, self.model._z)
-
-    @property
-    def t0(self):
-        """ Current time marker of the class.
-        Use this property to set of query the time.
-
-        Set with ``int``, ``float``, ``numpy.ndarray`` or ``casadi.DM`` type.
-        """
-        return self._t0
-
-    @t0.setter
-    def t0(self,val):
-        if isinstance(val, (int,float)):
-            self._t0 = np.array([val])
-        elif isinstance(val, np.ndarray):
-            assert val.size == 1, 'Cant set time with shape {}. Must contain exactly one element.'.format(val.size)
-            self._t0 = val.flatten()
-        elif isinstance(val, casadi.DM):
-            assert val.size == 1, 'Cant set time with shape {}. Must contain exactly one element.'.format(val.size)
-            self._t0 = val.full().flatten()
-        else:
-            types = (np.ndarray, float, int, casadi.DM)
-            raise Exception('Passing object of type {} to set the current time. Must be of type {}'.format(type(val), types))
+from do_mpc.tools._casstructure import _SymVar
 
 
 class Model:
@@ -279,7 +91,6 @@ class Model:
     :raises assertion: model_type must be string
     :raises assertion: model_type must be either discrete or continuous
 
-    .. automethod:: __getitem__
     """
 
     def __init__(self, model_type=None, symvar_type='SX'):
@@ -315,7 +126,7 @@ class Model:
         self.alg_list = [entry('default', expr=[])]
 
         self.flags = {
-            'setup': False
+            'setup': False,
         }
 
     def __getstate__(self):
@@ -916,7 +727,7 @@ class Model:
         if meas_noise:
             var = self.sv.sym(meas_name+'_noise', expr.shape[0])
 
-            self._v['name'].append(meas_name)
+            self._v['name'].append(meas_name+'_noise')
             self._v['var'].append(var)
             expr += var
 
@@ -1147,7 +958,7 @@ class Model:
         # Set all states as measurements if set_meas was not called by user.
         if not self._y_expression:
             for name, var in zip(self._x['name'], self._x['var']):
-                self.set_meas(name, var, meas_noise=False)
+                self.set_meas(name, var)
 
         # Write self._y_expression (measurement equations) as struct symbolic expression structures.
         self._y_expression = self.sv.struct(self._y_expression)
@@ -1200,6 +1011,11 @@ class Model:
         self._tvp = _tvp
         self._y = _y
         self._aux = _aux
+        
+        A_lin_expr = jacobian(self._rhs,self._x)
+        B_lin_expr = jacobian(self._rhs,self._u)
+        C_lin_expr = jacobian(self._y_expression,self._x)
+        D_lin_expr = jacobian(self._y_expression,self._u)
 
         # Declare functions for the right hand side and the aux_expressions.
         self._rhs_fun = Function('rhs_fun',
@@ -1214,6 +1030,18 @@ class Model:
         self._meas_fun = Function('meas_fun',
                                   [_x, _u, _z, _tvp, _p, _v], [self._y_expression],
                                   ["_x", "_u", "_z", "_tvp", "_p", "_v"], ["_y_expression"])
+        self.A_fun = Function('A_fun',
+                              [_x, _u, _z, _tvp, _p, _w],[A_lin_expr],
+                              ["_x", "_u", "_z", "_tvp", "_p", "_w"],["A_lin_expr"])
+        self.B_fun = Function('B_fun',
+                              [_x, _u, _z, _tvp, _p, _w],[B_lin_expr],
+                              ["_x", "_u", "_z", "_tvp", "_p", "_w"],["B_lin_expr"])
+        self.C_fun = Function('C_fun',
+                              [_x, _u, _z, _tvp, _p, _v],[C_lin_expr],
+                              ["_x", "_u", "_z", "_tvp", "_p", "_v"],["C_lin_expr"])
+        self.D_fun = Function('D_fun',
+                              [_x, _u, _z, _tvp, _p, _v],[D_lin_expr],
+                              ["_x", "_u", "_z", "_tvp", "_p", "_v"],["D_lin_expr"]) 
 
         # Create and store some information about the model regarding number of variables for
         # _x, _y, _u, _z, _tvp, _p, _aux
@@ -1235,3 +1063,95 @@ class Model:
         delattr(self, 'alg_list')
 
         self.flags['setup'] = True
+
+
+
+    
+    @staticmethod
+    def _transfer_variables(old_model, new_model, transfer=['_x', '_u', '_tvp', '_p']):
+        """Private and static method to transfer variables from old model to new model.
+        This is used in :func:`do_mpc.model.linearize` and :meth:`LinearModel.discretize`.
+
+        Extracts information about the noise (measurement and process) from the old model and
+        returns an array of booleans for the measurements and states (one element for each named instance).
+        """
+        # Initialize array for process noise and measurement noise
+        process_noise = old_model.x(False)
+        meas_noise = old_model.y(False)
+
+        
+        #Setting states and inputs (get rid of defaults for u, tvp, p)
+        for key in old_model.x.keys():
+            new_model.set_variable('_x', key, shape=old_model.x[key].shape)
+        for key in old_model.u.keys()[1:]:
+            new_model.set_variable('_u', key, shape=old_model.u[key].shape)
+        for key in old_model.tvp.keys()[1:]:
+            new_model.set_variable('_tvp', key, shape=old_model.tvp[key].shape)
+        for key in old_model.p.keys()[1:]:
+            new_model.set_variable('_p', key, shape=old_model.p[key].shape)
+        for key in old_model.aux.keys()[1:]:
+            expr_fun = old_model._aux_expression_fun
+            expr = expr_fun(new_model.x, new_model.u, new_model.z, new_model.tvp, new_model.p)
+            expr_struct = old_model._aux_expression(expr)
+            new_model.set_expression(key, expr_struct[key])          
+        
+    
+    def get_linear_system_matrices(self, xss=None, uss=None, z=None, tvp=None,p=None):
+        """
+        Returns the matrix quadrupel :math:`(A,B,C,D)` of the linearized system around the operating point (``xss,uss,z,tvp,p,w,v``).
+        All arguments are optional in which case the matrices might still be symbolic. 
+        If the matrices are not symbolic, they are returned as numpy arrays.
+        
+        :param xss: Steady state state (optional)
+        :type xss: numpy.ndarray
+        :param uss: Steady state input (optional)
+        :type uss: numpy.ndarray
+        :param z: steady state algebraic states (optional)
+        :type z: numpy.ndarray
+        :param tvp: time varying parameters set point (optional)
+        :type tvp: numpy.ndarray
+        :param p: parameters set point (optional)
+        :type p: numpy.ndarray
+        
+        :return: A - State matrix
+        :rtype: numpy.ndarray / CasADi SX
+        :return: B - Input matrix
+        :rtype: numpy.ndarray / CasADi SX
+        :return: C - Output matrix
+        :rtype: numpy.ndarray / CasADi SX
+        :return: D - Feedforward matrix
+        :rtype: numpy.ndarray / CasADi SX
+        """
+        if self.symvar_type == 'MX':
+            raise ValueError("get_linear_system_matrices requires symvar_type SX")
+        # Default values for all variables are the symbolic variables themselves.
+        if isinstance(xss, type(None)):
+            xss = self.x
+        if isinstance(uss, type(None)):
+            uss = self.u
+        if isinstance(z, type(None)):
+            z = self.z
+        if isinstance(tvp, type(None)):
+            tvp = self.tvp
+        if isinstance(p, type(None)):
+            p = self.p
+        
+        # Noise variables are always set to zero.
+        w = self.w(0)
+        v = self.v(0)
+
+        # Create A,B,C,D matrices and check if (for the given inputs) they are constant are still symbolic.
+        # Constant matrices are converted to numpy arrays.
+        A = self.A_fun(xss, uss, z, tvp, p, w)
+        if A.is_constant():
+            A = DM(A).full()
+        B = self.B_fun(xss, uss, z, tvp, p, w)
+        if B.is_constant():
+            B = DM(B).full()
+        C = self.C_fun(xss, uss, z, tvp, p, v)
+        if C.is_constant():
+            C = DM(C).full()
+        D = self.D_fun(xss, uss, z, tvp, p, v)
+        if D.is_constant():
+            D = DM(D).full()
+        return A,B,C,D

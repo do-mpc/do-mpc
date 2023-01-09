@@ -20,16 +20,16 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Shared tools for optimization-based estimation (MHE) and control (MPC).
+"""
+
 import numpy as np
 from casadi import *
 from casadi.tools import *
 import pdb
-import itertools
-import time
-import warnings
-import subprocess
+import do_mpc
 
-from do_mpc.tools.indexedproperty import IndexedProperty
 
 
 class Optimizer:
@@ -229,7 +229,7 @@ class Optimizer:
         assert self.flags['prepare_nlp'], 'Cannot query attribute prior to calling prepare_nlp or setup'
         self._nlp_cons_ub = val
 
-    @IndexedProperty
+    @do_mpc.tools.IndexedProperty
     def lb_opt_x(self, ind):
         """Query and modify the lower bounds of all optimization variables :py:attr:`opt_x`.
         This is a more advanced method of setting bounds on optimization variables of the MPC/MHE problem.
@@ -258,7 +258,7 @@ class Optimizer:
         
 
 
-    @IndexedProperty
+    @do_mpc.tools.IndexedProperty
     def ub_opt_x(self, ind):
         """Query and modify the lower bounds of all optimization variables :py:attr:`opt_x`.
         This is a more advanced method of setting bounds on optimization variables of the MPC/MHE problem.
@@ -286,7 +286,7 @@ class Optimizer:
         self._ub_opt_x.master[cind] = self._ub_opt_x.master[cind]/self.opt_x_scaling.master[cind]
 
 
-    @IndexedProperty
+    @do_mpc.tools.IndexedProperty
     def bounds(self, ind):
         """Query and set bounds of the optimization variables.
         The :py:func:`bounds` method is an indexed property, meaning
@@ -375,7 +375,7 @@ class Optimizer:
             self._update_bounds()
 
 
-    @IndexedProperty
+    @do_mpc.tools.IndexedProperty
     def scaling(self, ind):
         """Query and set  scaling of the optimization variables.
         The :py:func:`Optimizer.scaling` method is an indexed property, meaning

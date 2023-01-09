@@ -20,13 +20,16 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Storage and handling of data.
+"""
+
 import numpy as np
 from casadi import *
 from casadi.tools import *
 import pdb
 import pickle
 import do_mpc
-from do_mpc.tools.indexedproperty import IndexedProperty
 
 
 class Data:
@@ -38,7 +41,6 @@ class Data:
 
     The :py:class:`Data` class has a public API but is mostly used by other **do-mpc** classes, e.g. updated in the ``.make_step`` calls.
 
-    .. automethod:: __getitem__
     """
     def __init__(self, model):
         self.dtype = 'default'
@@ -227,7 +229,6 @@ class MPCData(Data):
     """**do-mpc** data container for the :py:class:`do_mpc.controller.MPC` instance.
     This method inherits from :py:class:`Data` and extends it to query the MPC predictions.
 
-    .. automethod:: __getitem__
     """
 
     def __init__(self, model):

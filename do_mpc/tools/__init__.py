@@ -20,10 +20,18 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Various auxiliary tools for do-mpc.
+"""
+
+
 import pickle
 
-from .structure import *
-from .indexedproperty import *
+from ._indexedproperty import IndexedProperty
+from ._structure import Structure
+from ._casstructure import *
+# from ._dae2odeconversion import *
+from ._timer import Timer
 
 
 def save_pickle(filename, data):
@@ -39,16 +47,25 @@ def load_pickle(path_to_file):
 
 def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
     """
-    Call in a loop to create terminal progress bar
-    @params:
-        iteration   - Required  : current iteration (Int)
-        total       - Required  : total iterations (Int)
-        prefix      - Optional  : prefix string (Str)
-        suffix      - Optional  : suffix string (Str)
-        decimals    - Optional  : positive number of decimals in percent complete (Int)
-        length      - Optional  : character length of bar (Int)
-        fill        - Optional  : bar fill character (Str)
-        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    Print a progress bar to the console.
+
+    :param iteration: Current iteration
+    :type iteration: int
+    :param total: Total iterations
+    :type total: int
+    :param prefix: Prefix string
+    :type prefix: str
+    :param suffix: Suffix string
+    :type suffix: str
+    :param decimals: Positive number of decimals in percent complete
+    :type decimals: int
+    :param length: Character length of bar
+    :type length: int
+    :param fill: Bar fill character
+    :type fill: str
+    :param printEnd: End character (e.g. "\r")
+    :type printEnd: str
+
     """
     percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
     filledLength = int(length * iteration // total)

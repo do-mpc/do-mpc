@@ -1,6 +1,6 @@
 from setuptools import setup
 
-exec(open('do_mpc/version.py').read())
+exec(open('do_mpc/_version.py').read())
 
 setup(
     name='do_mpc',
