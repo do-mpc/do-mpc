@@ -30,6 +30,7 @@ import pdb
 import os
 from do_mpc.tools import IndexedProperty, Structure
 
+# Define what is included in the Sphinx documentation.
 __all__ = ['Graphics', 'default_plot', 'animate']
 
 class Graphics:

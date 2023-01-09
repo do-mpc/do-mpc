@@ -20,6 +20,10 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Simulate continous-time ODE/DAE or discrete-time dynamic systems.
+"""
+
 import numpy as np
 from casadi import *
 from casadi.tools import *

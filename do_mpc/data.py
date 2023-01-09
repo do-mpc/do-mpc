@@ -27,6 +27,10 @@ import pdb
 import pickle
 import do_mpc
 
+"""
+Storage and handling of data.
+"""
+
 class Data:
     """**do-mpc** data container. An instance of this class is created for the active **do-mpc** classes,
     e.g. :py:class:`do_mpc.simulator.Simulator`, :py:class:`do_mpc.estimator.MHE`.
@@ -36,7 +40,6 @@ class Data:
 
     The :py:class:`Data` class has a public API but is mostly used by other **do-mpc** classes, e.g. updated in the ``.make_step`` calls.
 
-    .. automethod:: __getitem__
     """
     def __init__(self, model):
         self.dtype = 'default'
@@ -225,7 +228,6 @@ class MPCData(Data):
     """**do-mpc** data container for the :py:class:`do_mpc.controller.MPC` instance.
     This method inherits from :py:class:`Data` and extends it to query the MPC predictions.
 
-    .. automethod:: __getitem__
     """
 
     def __init__(self, model):
