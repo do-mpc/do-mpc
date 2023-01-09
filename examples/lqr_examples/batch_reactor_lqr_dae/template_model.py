@@ -25,7 +25,9 @@ from casadi import *
 from casadi.tools import *
 import pdb
 import sys
-sys.path.append('../../../')
+import os
+rel_do_mpc_path = os.path.join('..','..','..')
+sys.path.append(rel_do_mpc_path)
 import do_mpc
 
 def template_model(symvar_type='SX'):
@@ -66,6 +68,6 @@ def template_model(symvar_type='SX'):
     daemodel = do_mpc.model.dae2odeconversion(model)
     
     #converted ODE model is linearized
-    linearmodel = do_mpc.model.linearize(model)
+    linearmodel = do_mpc.model.linearize(daemodel)
     
     return model, daemodel, linearmodel
