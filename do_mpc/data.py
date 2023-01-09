@@ -20,6 +20,10 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Storage and handling of data.
+"""
+
 import numpy as np
 from casadi import *
 from casadi.tools import *
@@ -27,9 +31,6 @@ import pdb
 import pickle
 import do_mpc
 
-"""
-Storage and handling of data.
-"""
 
 class Data:
     """**do-mpc** data container. An instance of this class is created for the active **do-mpc** classes,

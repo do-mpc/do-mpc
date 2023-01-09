@@ -20,6 +20,10 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Visualization tools for do-mpc.
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.axes as maxes
