@@ -24,6 +24,7 @@ import numpy as np
 from casadi import *
 from casadi.tools import *
 import pdb
+from ._linearmodel import LinearModel
 
 
 def linearize(model, xss=None, uss=None, tvp0 = None, p0 = None):
