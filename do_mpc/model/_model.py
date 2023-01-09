@@ -91,7 +91,6 @@ class Model:
     :raises assertion: model_type must be string
     :raises assertion: model_type must be either discrete or continuous
 
-    .. automethod:: __getitem__
     """
 
     def __init__(self, model_type=None, symvar_type='SX'):

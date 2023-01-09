@@ -4,7 +4,7 @@
 
 .. autoclass:: {{ objname }}
    :show-inheritance:
-   :special-members: __call__, __add__, __mul__, __getitem__
+   :special-members: __call__, __getitem__
 
    {% block methods %}
    {% if methods %}

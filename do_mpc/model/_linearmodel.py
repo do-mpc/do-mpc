@@ -28,6 +28,7 @@ import warnings
 from scipy.signal import cont2discrete
 from . import Model
 
+# Define what is included in the Sphinx documentation.
 __all__ = ['LinearModel']
 
 
@@ -97,7 +98,6 @@ class LinearModel(Model):
     :raises assertion: model_type must be string
     :raises assertion: model_type must be either discrete or continuous
 
-    .. automethod:: __getitem__
     """
     def __init__(self, model_type=None, symvar_type='SX'):
         super().__init__(model_type, symvar_type)
