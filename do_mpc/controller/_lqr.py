@@ -37,34 +37,51 @@ from do_mpc.model import Model,LinearModel
 
 class LQR:
     """Linear Quadratic Regulator.
-    
     Use this class to configure and run the LQR controller
     according to the previously configured :py:class:`do_mpc.model.Model` instance. 
     
     Two types of LQR can be desgined:
-        1. Finite Horizon LQR
-        2. Infinite Horizon LQR
-    If ``n_horizon`` is set using :py:func:`set_param` with a integer value, then finite horizon lqr can be designed. If ``n_horizon`` is set as ``None``, then infinite horizon lqr can be designed.
+
+        1. **Finite Horizon** LQR by choosing, e.g. ``n_horizon = 20``.
+
+        2. **Infinite Horizon** LQR by choosing ``n_horizon = None``.
+
+    The value for ``n_horizon`` is set using :py:meth:`set_param`. 
     
     **Configuration and setup:**
     
     Configuring and setting up the LQR controller involves the following steps:
     
-    1. Use :py:func:`set_param` to configure the :py:class:`LQR` instance.
+    1. Use :py:meth:`set_param` to configure the :py:class:`LQR` instance.
     
-    2. Set the objective of the control problem with :py:func:`set_objective`
+    2. Set the objective of the control problem with :py:meth:`set_objective`
     
     3. To finalize the class configuration call :py:meth:`setup`.
     
-    After configuring LQR controller, the controller can be made to operate in two modes. 
+    The :py:class:`LQR` can be used in **two different modes**:
+
+    1. **set-point tracking** mode: 
+
+        - Choose set-point (default is ``0``).
+        
+        - Set ``Q`` and ``delR`` values with :py:meth:``set_objective``.
+
+        - Reformulate objective with :py:meth:`input_rate_penalization` to penalize the input rate.
     
-    1. Set point tracking mode - can be enabled by setting the setpoint using :py:func:`set_setpoint` (default)
+    2. **regulation** mode:
+
+        - Default set-point (``0``) is used.
+
+        - Set ``Q`` and ``R`` values with :py:meth:``set_objective``.
     
-    2. Input Rate Penalization mode - can be enabled by executing :py:func:`input_rate_penalization` and also passing sufficent arguments to the :py:func:`set_objective`
+    .. warning::
+        
+        LQR cannot be made to execute in the input rate penalization mode if the model is converted from DAE to ODE system.
+        Because the converted model itself is in input rate penalization mode.
     
     .. note::
-        During runtime call :py:func:`make_step` with the current state :math:`x` to obtain the optimal control input :math:`u`.
-        During runtime call :py:func:`set_setpoint` with the set points of input :math:`u_{ss}` and states :math:`x_{ss}` in order to update the respective set points.
+        During runtime call :py:meth:`make_step` with the current state :math:`x` to obtain the optimal control input :math:`u`.
+        During runtime call :py:meth:`set_setpoint` with the set points of input :math:`u_{ss}` and states :math:`x_{ss}` in order to update the respective set points.
     """
     def __init__(self,model):
         self.model = model
@@ -96,21 +113,17 @@ class LQR:
     def discrete_gain(self,A,B):
         """Computes discrete gain. 
         
-        This method computes both finite discrete gain and infinite discrete gain depending on the availability 
-        of prediction horizon. 
-        If prediction horizon is ``integer value`` then finite gain is computed. 
-        If predition horizon is ``None`` then infinite gain is computed.
+        This method computes either the finite horizon discrete gain and infinite horizon discrete gain.
+        The gain is computed using the solution of the discrete-time algebraic Ricatti equation.
         
-        The gain computed using explicit solution for both finite time and infinite time.
-        
-        For finite horizon LQR, the problem formulation is as follows:
+        For finite horizon :py:class:`LQR`, the problem formulation is as follows:
             
             .. math::
                 \\pi(N) &= P_f\\\\
                 K(k) & = -(B'\\pi(k+1)B)^{-1}B'\\pi(k+1)A\\\\
                 \\pi(k) & = Q+A'\\pi(k+1)A-A'\\pi(k+1)B(B'\\pi(k+1)B+R)^{-1}B'\\pi(k+1)A
        
-        For infinite horizon LQR, the problem formulation is as follows:
+        For infinite horizon :py:class:`LQR`, the problem formulation is as follows:
             
             .. math::
                 K & = -(B'PB+P)^{-1}B'PA\\\\
@@ -153,9 +166,18 @@ class LQR:
             return K
     
     def input_rate_penalization(self,A,B):
-        """Computes lqr gain for the input rate penalization mode.
+        """Compute the :py:class:`LQR` gain after reformulating the problem to consider an input-rate penalization term. 
         
-        This method modifies the state matrix and input matrix according to the input rate penalization method. Due to this objective function also gets modified.
+        .. warning::
+
+            Calling :py:meth:`input_rate_penalization`  modifies the objective function
+            as well as the state and input matrix.
+        
+        .. warning::
+            
+            LQR cannot be made to execute in the input rate penalization mode if the model is converted from DAE to ODE system.
+            Because the converted model itself is in input rate penalization mode.
+
         The input rate penalization formulation is given as:
             
             .. math::
@@ -168,11 +190,13 @@ class LQR:
                 \\tilde{B} = \\begin{bmatrix} B \\\\
                              I \\end{bmatrix}
                             
-        Therefore, states of this system is as follows :math:`\\tilde{x} = [x,u]` where :math:`x` and :math:`u` are the states and input of the system repectively.
-        The above formulation is with respect to discrete time system. After formulating the objective, discrete gain is calculated
-        using :py:func:`discrete_gain`.
+        We introduce as new states of this system :math:`\\tilde{x} = [x,u]` 
+        where :math:`x` and :math:`u` are the original states and input of the system.
+        After reformulating the system with :py:meth:`input_rate_penalization`, the discrete gain is calculated
+        using :py:meth:`discrete_gain`.
         
-        As the system state matrix and input matrix is altered in order to obtain input rate penalization, cost matrices are also modified accordingly as follows:
+        As the system state matrix and input matrix are altered,
+        cost matrices are also modified accordingly:
             
             .. math::
                 \\tilde{Q} = \\begin{bmatrix}
@@ -180,7 +204,7 @@ class LQR:
                                 0 & R \\end{bmatrix},
                 \\tilde{R} = \\Delta R
                 
-            where :math:`\\Delta R` is passed as additional argument to the :py:func:`set_objective` while setting the mode of operation to ``inputRatePenalization``.
+            where :math:`\\Delta R` is passed as additional argument to the :py:meth:`set_objective` while setting the mode of operation to ``inputRatePenalization``.
         
         :return: Gain matrix :math:`K`
         :rtype: numpy.ndarray
@@ -237,7 +261,7 @@ class LQR:
 
         .. note:: The only required parameters  are ``n_horizon``. All other parameters are optional.
 
-        .. note:: :py:func:`set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
+        .. note:: :py:meth:`set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
 
         The following parameters are available:
             
@@ -264,14 +288,6 @@ class LQR:
         """Main method of the class during runtime. This method is called at each timestep
         and returns the control input for the current initial state.
             
-        .. note::
-            
-            LQR will always run in the set point tracking mode irrespective of the set point is not specified. The default setpoint is origin.
-            
-        .. note::
-            
-            LQR cannot be made to execute in the input rate penalization mode if the model is converted from DAE to ODE system.
-            Because the converted model itself is in input rate penalization mode.
 
         :param x0: Current state of the system.
         :type x0: numpy.ndarray
@@ -335,7 +351,7 @@ class LQR:
         :param Rdelu: Input rate cost matrix
         :type Rdelu: numpy.ndarray
         
-        :raises exception: Please set input cost matrix for input rate penalization/daemodel using :py:func:`set_objective`.
+        :raises exception: Please set input cost matrix for input rate penalization/daemodel using :py:meth:`set_objective`.
         :raises exception: Q matrix must be of type class numpy.ndarray
         :raises exception: R matrix must be of type class numpy.ndarray
         :raises exception: P matrix must be of type class numpy.ndarray
