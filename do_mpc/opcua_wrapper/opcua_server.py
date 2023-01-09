@@ -157,9 +157,10 @@ class Server:
             placeholder = [0 for x in range(self.data_structure['nr_x_states'])]
             datavector = localvar.add_variable(opcua.ua.NodeId("Estimates.X", idx), "Estimates.X",  placeholder)
             datavector.set_writable()
-            placeholder = [0 for x in range(self.data_structure['nr_mod_pars'])]
-            datavector = localvar.add_variable(opcua.ua.NodeId("Estimates.P", idx), "Estimates.P",  placeholder)
-            datavector.set_writable()
+            if self.data_structure['nr_mod_pars'] > 0:
+                placeholder = [0 for x in range(self.data_structure['nr_mod_pars'])]
+                datavector = localvar.add_variable(opcua.ua.NodeId("Estimates.P", idx), "Estimates.P",  placeholder)
+                datavector.set_writable()
             
         # The flags are defined by default 
         localvar = objects.add_object(opcua.ua.NodeId("UserData", idx), "UserData")

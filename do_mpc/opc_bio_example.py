@@ -49,7 +49,7 @@ model.setup()
 
 # Defining the settings for the OPCUA server
 server_opts = {"_model":model,                   # must be the model used to define the controller
-               "_name":"Poly Reactor OPCUA",     # give the server whatever name you prefer
+               "_name":"Bio Reactor OPCUA",     # give the server whatever name you prefer
                "_address":"opc.tcp://localhost:4840/freeopcua/server/",  # does not need changing
                "_port": 4840,                    # does not need changing
                "_server_type": "with_estimator", # to use with either SFB or EKF estimators or select "basic" for no estimates
@@ -239,18 +239,3 @@ simulator.stop()
 estimator.stop()
 opc_server.stop()
 
-#%%
-
-# import matplotlib.pyplot as plt
-# import matplotlib as mpl
-
-# mpl.rcParams['font.size'] = 18
-# mpl.rcParams['lines.linewidth'] = 3
-# mpl.rcParams['axes.grid'] = True
-
-# mpc_graphics = do_mpc.graphics.Graphics(mpc.data)
-# sim_graphics = do_mpc.graphics.Graphics(simulator.data)
-
-# fig, ax = plt.subplots(2,sharex=True,figsize=(16,9))
-# # fig.align_ylables()
-# mpc_graphics.plot_predictions()
