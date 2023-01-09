@@ -21,19 +21,13 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+import casadi
 import numpy as np
-from casadi import *
-from casadi.tools import *
+import warnings
 import pdb
-import itertools
-import time
 
-import do_mpc.data
-import do_mpc.optimizer
-from do_mpc.tools import IndexedProperty
-from scipy.signal import cont2discrete
-from scipy.linalg import solve_discrete_are, solve_continuous_are
-from do_mpc.model import Model,LinearModel
+from scipy.linalg import solve_discrete_are
+from ..model import LinearModel
 
 class LQR:
     """Linear Quadratic Regulator.
@@ -64,7 +58,7 @@ class LQR:
 
         - Choose set-point (default is ``0``).
         
-        - Set ``Q`` and ``delR`` values with :py:meth:``set_objective``.
+        - Set ``Q`` and ``delR`` values with :py:meth:`set_objective`.
 
         - Reformulate objective with :py:meth:`input_rate_penalization` to penalize the input rate.
     
@@ -72,16 +66,17 @@ class LQR:
 
         - Default set-point (``0``) is used.
 
-        - Set ``Q`` and ``R`` values with :py:meth:``set_objective``.
+        - Set ``Q`` and ``R`` values with :py:meth:`set_objective`.
     
     .. warning::
         
-        LQR cannot be made to execute in the input rate penalization mode if the model is converted from DAE to ODE system.
-        Because the converted model itself is in input rate penalization mode.
+        The :py:class:`LQR` cannot use the :py:meth:`input_rate_penalization` mode if the model is converted from an DAE to an ODE system.
+        In this case the converted model is already given in the input rate formulation. 
     
     .. note::
         During runtime call :py:meth:`make_step` with the current state :math:`x` to obtain the optimal control input :math:`u`.
         During runtime call :py:meth:`set_setpoint` with the set points of input :math:`u_{ss}` and states :math:`x_{ss}` in order to update the respective set points.
+    
     """
     def __init__(self,model):
         self.model = model
