@@ -10,6 +10,5 @@ casadi
 scipy
 numpy
 matplotlib
-recommonmark
-scipy
+myst-parser
 

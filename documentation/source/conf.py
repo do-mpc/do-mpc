@@ -49,7 +49,7 @@ extensions = ['sphinx.ext.autodoc',
           'sphinx.ext.autosummary',
           'sphinx.ext.viewcode',
           'sphinx_copybutton',
-          'recommonmark'
+          'myst_parser',
               ]
 
 graphviz_output_format = 'svg'
