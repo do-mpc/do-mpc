@@ -50,10 +50,6 @@ class Data:
         self.model.pop('_y_expression')
         self.model.pop('_alg')
         self.model.pop('sv')
-        self.model.pop('A_lin_expr')
-        self.model.pop('B_lin_expr')
-        self.model.pop('C_lin_expr')
-        self.model.pop('D_lin_expr')
 
 
         # TODO: n_aux not existing

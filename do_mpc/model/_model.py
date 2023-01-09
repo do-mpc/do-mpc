@@ -1013,10 +1013,10 @@ class Model:
         self._y = _y
         self._aux = _aux
         
-        self.A_lin_expr = jacobian(self._rhs,self._x)
-        self.B_lin_expr = jacobian(self._rhs,self._u)
-        self.C_lin_expr = jacobian(self._y_expression,self._x)
-        self.D_lin_expr = jacobian(self._y_expression,self._u)
+        A_lin_expr = jacobian(self._rhs,self._x)
+        B_lin_expr = jacobian(self._rhs,self._u)
+        C_lin_expr = jacobian(self._y_expression,self._x)
+        D_lin_expr = jacobian(self._y_expression,self._u)
 
         # Declare functions for the right hand side and the aux_expressions.
         self._rhs_fun = Function('rhs_fun',
@@ -1032,16 +1032,16 @@ class Model:
                                   [_x, _u, _z, _tvp, _p, _v], [self._y_expression],
                                   ["_x", "_u", "_z", "_tvp", "_p", "_v"], ["_y_expression"])
         self.A_fun = Function('A_fun',
-                              [_x, _u, _z, _tvp, _p, _w],[self.A_lin_expr],
+                              [_x, _u, _z, _tvp, _p, _w],[A_lin_expr],
                               ["_x", "_u", "_z", "_tvp", "_p", "_w"],["A_lin_expr"])
         self.B_fun = Function('B_fun',
-                              [_x, _u, _z, _tvp, _p, _w],[self.B_lin_expr],
+                              [_x, _u, _z, _tvp, _p, _w],[B_lin_expr],
                               ["_x", "_u", "_z", "_tvp", "_p", "_w"],["B_lin_expr"])
         self.C_fun = Function('C_fun',
-                              [_x, _u, _z, _tvp, _p, _v],[self.C_lin_expr],
+                              [_x, _u, _z, _tvp, _p, _v],[C_lin_expr],
                               ["_x", "_u", "_z", "_tvp", "_p", "_v"],["C_lin_expr"])
         self.D_fun = Function('D_fun',
-                              [_x, _u, _z, _tvp, _p, _v],[self.D_lin_expr],
+                              [_x, _u, _z, _tvp, _p, _v],[D_lin_expr],
                               ["_x", "_u", "_z", "_tvp", "_p", "_v"],["D_lin_expr"]) 
 
         # Create and store some information about the model regarding number of variables for
