@@ -277,7 +277,7 @@ class Graphics:
         assert isinstance(axis, maxes.Axes), 'axis argument must be matplotlib axes object.'
 
         if var_type == '_u':
-            pltkwargs.update(drawstyle='steps')
+            pltkwargs.update(drawstyle='steps-post')
 
         self.result_lines[var_type, var_name] = axis.plot(self.data['_time'] , self.data[var_type, var_name], **pltkwargs)
 
