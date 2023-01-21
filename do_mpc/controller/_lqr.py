@@ -32,7 +32,7 @@ from ..model import LinearModel
 class LQR:
     """Linear Quadratic Regulator.
     Use this class to configure and run the LQR controller
-    according to the previously configured :py:class:`do_mpc.model.Model` instance. 
+    according to the previously configured :py:class:`do_mpc.model.LinearModel` instance. 
     
     Two types of LQR can be desgined:
 
@@ -54,35 +54,34 @@ class LQR:
     
     The :py:class:`LQR` can be used in **two different modes**:
 
-    1. **set-point tracking** mode: 
+    1. **Standard** mode: 
 
-        - Choose set-point (default is ``0``).
+        - Set set-point with :py:meth:`set_setpoint` (default is ``0``).
         
-        - Set ``Q`` and ``delR`` values with :py:meth:`set_objective`.
-
-        - Reformulate objective with :py:meth:`input_rate_penalization` to penalize the input rate.
+        - Set ``Q`` and ``R`` values with :py:meth:`set_objective`.
     
-    2. **regulation** mode:
+    2. **Input Rate Penalization** mode:
 
-        - Default set-point (``0``) is used.
+        - Setpoint can also be set using :py:meth:`set_setpoint` (default is ``0``).
+        
+        - Reformulate objective with :py:meth:`set_rterm` to penalize the input rate by setting the value ``delR``.
 
         - Set ``Q`` and ``R`` values with :py:meth:`set_objective`.
     
-    .. warning::
+    .. note::
         
-        The :py:class:`LQR` cannot use the :py:meth:`input_rate_penalization` mode if the model is converted from an DAE to an ODE system.
-        In this case the converted model is already given in the input rate formulation. 
+        The function :py:meth:`set_rterm` mode is not recommended to use if the model is converted from an DAE to an ODE system.
+        Because the converted model is already in the rated input formulation. 
     
     .. note::
         During runtime call :py:meth:`make_step` with the current state :math:`x` to obtain the optimal control input :math:`u`.
         During runtime call :py:meth:`set_setpoint` with the set points of input :math:`u_{ss}` and states :math:`x_{ss}` in order to update the respective set points.
-    
     """
     def __init__(self,model):
         self.model = model
         
-        assert isinstance(model, LinearModel), 'LQR can only be used with linear models. Initialize the model with LinearModel class.'
-        assert model.flags['setup'] == True, 'Model for LQR was not setup. After the complete model creation call model.setup().'
+        assert isinstance(model, LinearModel), 'LQR can only be used with linear models. Initialize the model with type LinearModel.'
+        assert model.flags['setup'] == True, 'Model for LQR was not setup. After the complete model creation call LinearModel.setup().'
         assert model.model_type == 'discrete', 'Initialize LQR with discrete system. Discretize the system using LinearModel.discretize()'
         
         self.model_type = model.model_type
@@ -96,20 +95,17 @@ class LQR:
         self.n_horizon = None
         
         #Initialize mode of LQR
-        self.mode = 'setPointTrack'
+        self.mode = 'standard'
         
         self.flags = {'setup':False}
         
         self.u0 = np.array([[]])
         
-        self.xss = None
-        self.uss = None
-        
     def discrete_gain(self,A,B):
         """Computes discrete gain. 
         
-        This method computes either the finite horizon discrete gain and infinite horizon discrete gain.
-        The gain is computed using the solution of the discrete-time algebraic Ricatti equation.
+        This method computes either the finite horizon discrete gain or infinite horizon discrete gain.
+        The gain is computed by the solution of discrete-time algebraic Ricatti equation.
         
         For finite horizon :py:class:`LQR`, the problem formulation is as follows:
             
@@ -138,11 +134,9 @@ class LQR:
         
         :return: Gain matrix :math:`K`
         :rtype: numpy.ndarray
-
         """
         #Verifying the availability of cost matrices
         assert self.Q.size != 0 and self.R.size != 0 , 'Enter tuning parameter Q and R for the lqr problem using set_objective() function.'
-        assert self.model_type == 'discrete', 'convert the model from continous to discrete using model_type_conversion() function.'
         
         #calculating finite horizon gain
         if self.n_horizon !=None:
@@ -160,18 +154,18 @@ class LQR:
             K = -np.linalg.inv(np.transpose(B)@pi_discrete@B+self.R)@np.transpose(B)@pi_discrete@A
             return K
     
-    def input_rate_penalization(self,A,B):
-        """Compute the :py:class:`LQR` gain after reformulating the problem to consider an input-rate penalization term. 
+    def set_rterm(self,delR):
+        """Modifies the model such that rated input acts as the input. 
         
         .. warning::
 
-            Calling :py:meth:`input_rate_penalization`  modifies the objective function
+            Calling :py:meth:`set_rterm`  modifies the objective function
             as well as the state and input matrix.
         
         .. warning::
             
-            LQR cannot be made to execute in the input rate penalization mode if the model is converted from DAE to ODE system.
-            Because the converted model itself is in input rate penalization mode.
+            It is not advisible to execute :py:class:`LQR` in the ``inputRatePenalization`` mode if the model is converted from DAE to ODE system.
+            Because the converted model itself is in ``inputRatePenalization`` mode.
 
         The input rate penalization formulation is given as:
             
@@ -185,9 +179,9 @@ class LQR:
                 \\tilde{B} = \\begin{bmatrix} B \\\\
                              I \\end{bmatrix}
                             
-        We introduce as new states of this system :math:`\\tilde{x} = [x,u]` 
+        We introduce new states of this system as :math:`\\tilde{x} = [x,u]` 
         where :math:`x` and :math:`u` are the original states and input of the system.
-        After reformulating the system with :py:meth:`input_rate_penalization`, the discrete gain is calculated
+        After reformulating the system with :py:meth:`set_rterm`, the discrete gain is calculated
         using :py:meth:`discrete_gain`.
         
         As the system state matrix and input matrix are altered,
@@ -198,22 +192,19 @@ class LQR:
                                 Q & 0 \\\\
                                 0 & R \\end{bmatrix},
                 \\tilde{R} = \\Delta R
-                
-            where :math:`\\Delta R` is passed as additional argument to the :py:meth:`set_objective` while setting the mode of operation to ``inputRatePenalization``.
+        
+        :param delR: Rated input cost matrix - constant matrix with no variables
+        :type delR: numpy.ndarray
         
         :return: Gain matrix :math:`K`
         :rtype: numpy.ndarray
-        
-
         """
-        #Verifying input cost matrix for input rate penalization
-        assert self.Rdelu.size != 0 , 'set R_delu parameter using set_param() fun.'
         
         #Modifying A and B matrix for input rate penalization
-        identity_u = np.identity(np.shape(B)[1])
-        zeros_A = np.zeros((np.shape(B)[1],np.shape(A)[1]))
-        self.A_new = np.block([[A,B],[zeros_A,identity_u]])
-        self.B_new = np.block([[B],[identity_u]])
+        identity_u = np.identity(np.shape(self.model._B)[1])
+        zeros_A = np.zeros((np.shape(self.model._B)[1],np.shape(self.model._A)[1]))
+        self.A_rated = np.block([[self.model._A,self.model._B],[zeros_A,identity_u]])
+        self.B_rated = np.block([[self.model._B],[identity_u]])
         zeros_Q = np.zeros((np.shape(self.Q)[0],np.shape(self.R)[1]))
         zeros_Ru = np.zeros((np.shape(self.R)[0],np.shape(self.Q)[1]))
         
@@ -221,11 +212,11 @@ class LQR:
         self.Q = np.block([[self.Q,zeros_Q],[zeros_Ru,self.R]])
         if self.n_horizon != None:
             self.P = np.block([[self.P,zeros_Q],[zeros_Ru,self.R]])
-        self.R = self.Rdelu
+        self.R = delR
         
         #Computing gain matrix
-        K = self.discrete_gain(self.A_new, self.B_new)
-        return K
+        # K = self.discrete_gain(self.A_rated, self.B_rated)
+        # return K
  
     
     def set_param(self,**kwargs):
@@ -271,7 +262,6 @@ class LQR:
         
         :param conv_method: Method for converting continuous time to discrete time system
         :type conv_method: String
-        
         """
         for key, value in kwargs.items():
             if not (key in self.data_fields):
@@ -294,7 +284,7 @@ class LQR:
         assert self.flags['setup'] == True, 'LQR is not setup. run setup() function.'
 
         #setting setpoints
-        if self.xss is None and self.uss is None:
+        if not hasattr(self, 'xss') and not hasattr(self, 'uss'):
             self.set_setpoint()
         
         #Initializing u0
@@ -302,7 +292,7 @@ class LQR:
             self.u0 = np.zeros((self.model.n_u,1))
         
         #Calculate u in set point tracking mode
-        if self.mode == "setPointTrack":
+        if self.mode == "standard":
             if self.xss.size != 0 and self.uss.size != 0:
                 self.u0 = self.K@(x0-self.xss)+self.uss
         
@@ -317,13 +307,36 @@ class LQR:
                 self.u0 = self.u0+x0_new[-self.model.n_u:]
         return self.u0
         
-    def set_objective(self, Q = None, R = None, P = None, Rdelu = None):
+    def set_objective(self, Q = None, R = None, P = None):
         """Sets the cost matrix for the Optimal Control Problem.
         
-        This method sets the inputs, states and algebraic states cost matrices for the given problem.
+        This method sets the cost matrices of inputs and states for the given problem.
         
+        Since the controller can be operated in two modes. The objective function differes from each other and is as follows
+        **Finite Horizon**:
+            
+            For **set-point tracking** mode:
+                .. math::
+                    J = \\frac{1}{2}\\sum_{k=0} ^{N-1} (x_k - x_{ss})^T Q(x_k-x_{ss})+(u_k-u_{ss})^T R(u_k-u_{ss}) + (x_N-x_{ss})^T P(x_N-x_{ss})
+                    
+            For **Input Rate Penalization** mode:
+                .. math::
+                    J = \\frac{1}{2}\\sum_{k=0} ^{N-1} (\\tilde{x}_k - \\tilde{x}_{ss})^T \\tilde{Q}(\\tilde{x}_k-\tilde{x}_{ss})+(\\Delta u_k^T \\Delta R \\Delta u_k + (\\tilde{x}_N-\\tilde{x}_{ss})^TP(\\tilde{x}_N-\\tilde{x}_{ss})
+                    
+        **Infinite Horizon**:
+            
+            For **set-point tracking** mode:
+                .. math::
+                    J = \\frac{1}{2}\\sum_{k=0} ^{\\inf} (x_k - x_{ss})^T Q(x_k-x_{ss})+(u_k-u_{ss})^T R(u_k-u_{ss})
+                    
+            For **Input Rate Penalization** mode:
+                .. math::
+                    J = \\frac{1}{2}\\sum_{k=0} ^{\\inf} (\\tilde{x}_k - \\tilde{x}_{ss})^T \\tilde{Q}(\\tilde{x}_k-\\tilde{x}_{ss})+ \\Delta u_k^T \\Delta R \\Delta u_k
+            
+            where :math:`\\tilde{x} = [x,u]^T`
         .. note::
-            For the problem to be solved in input rate penalization mode, ``Q``, ``R`` and ``Rdelu`` should be set.
+            For the problem to be solved in ``inputRatePenalization`` mode, ``Q``, ``R`` and ``delR`` should be set.
+            ``delR`` is set using :py:meth:`set_rterm`. ``P`` term is set according to the need of the problem.
             
         For example:
             
@@ -331,22 +344,17 @@ class LQR:
                 
                 # Values used are to show how to use this function.
                 # For ODE models
-                lqr.set_objective(Q = np.identity(2), R = np.identity(2))
-                
-                # For ODE models with input rate penalization
-                lqr.set_objective(Q = np.identity(2), R = 5*np.identity(2), Rdelu = np.identity(2))
-                
+                lqr.set_objective(Q = np.identity(2), R = np.identity(2), P = np.identity(2))        
         
-        :param Q: State cost matrix
+        :param Q: State cost matrix (optional)
         :type Q: numpy.ndarray
         
-        :param R: Input cost matrix
+        :param R: Input cost matrix (optional)
         :type R: numpy.ndarray
         
-        :param Rdelu: Input rate cost matrix
-        :type Rdelu: numpy.ndarray
+        :param P: Terminal cost matrix (optional)
+        :type P: numpy.ndarray
         
-        :raises exception: Please set input cost matrix for input rate penalization/daemodel using :py:meth:`set_objective`.
         :raises exception: Q matrix must be of type class numpy.ndarray
         :raises exception: R matrix must be of type class numpy.ndarray
         :raises exception: P matrix must be of type class numpy.ndarray
@@ -354,7 +362,6 @@ class LQR:
         .. warning::
             ``Q``, ``R``, ``P`` is chosen as matrix of zeros since it is not passed explicitly.
             If ``P`` is not given explicitly, then ``Q`` is chosen as ``P`` for calculating finite discrete gain
-
         """
         
         #Verify the setup is not complete
@@ -376,12 +383,6 @@ class LQR:
             warnings.warn('P is not given explicitly. Q is chosen as P for calculating finite discrete gain')
         else:
             self.P = P
-
-        #Set delRu for input rate penalization or converted ode model
-        if (self.mode == 'inputRatePenalization') and np.all(Rdelu != None):
-            self.Rdelu = Rdelu
-        elif (self.mode == 'inputRatePenalization') and np.all(Rdelu == None):
-            raise Exception('Please set input cost matrix for input rate penalization/daemodel using set_objective()')
         
         #Verify shape of Q,R,P
         assert self.Q.shape == (self.model.n_x,self.model.n_x), 'Q must have shape = {}. You have {}'.format((self.model.n_x,self.model.n_x),self.Q.shape)
@@ -398,7 +399,8 @@ class LQR:
     def set_setpoint(self,xss = None,uss = None):   
         """Sets setpoints for states and inputs.
         
-        This method can be used to set setpoints at each time step. It can be called inside simulation loop to change the set point dynamically.
+        This method can be used to set setpoints for either states or inputs or for both (states and inputs) at each time step. 
+        It can be called inside simulation loop to change the set point dynamically.
         
         .. note::
             If setpoints is not specifically mentioned it will be set to zero (default).
@@ -418,12 +420,12 @@ class LQR:
 
         """
         assert self.flags['setup'] == True, 'LQR is not setup. Run setup() function.'
-        if xss is None:
+        if xss is None and not hasattr(self,'xss'):
             self.xss = np.zeros((self.model.n_x,1))
         else:
             self.xss = xss
         
-        if uss is None:
+        if uss is None and not hasattr(self, 'uss'):
             self.uss = np.zeros((self.model.n_u,1))
         else:
             self.uss = uss
@@ -432,23 +434,26 @@ class LQR:
             self.uss = np.zeros((self.model.n_u,1))
             assert self.xss.shape == (self.model.n_x+self.model.n_u,1), 'xss must be of shape {}. You have {}'.format((self.model.n_x+self.model.n_u,1),self.xss.shape)
         
-        if self.mode == 'setPointTrack':
+        if self.mode == 'standard':
             assert self.xss.shape == (self.model.n_x,1), 'xss must be of shape {}. You have {}'.format((self.model.n_x,1),self.xss.shape)
         assert self.uss.shape == (self.model.n_u,1), 'uss must be of shape {}. You have {}'.format((self.model.n_u,1),self.uss.shape)
     
     def setup(self):
-        """Prepares lqr for execution.
-        This method initializes and make sure that all the necessary parameters required to run the lqr are available.
+        """Prepares :py:class:`LQR` for execution.
+        This method initializes and ensures that all the parameters that are necessary to desgin the lqr are available.
         
-        :raises exception: mode must be setPointTrack, inputRatePenalization, None. you have {string value}
+        :raises exception: mode must be standard, inputRatePenalization, None. you have {string value}
 
         """
         if self.n_horizon == None:
             warnings.warn('discrete infinite horizon gain will be computed since prediction horizon is set to default value 0')
-        if self.mode in ['setPointTrack',None]:
+        if self.mode in ['standard',None]:
             self.K = self.discrete_gain(self.model._A,self.model._B)
         elif self.mode == 'inputRatePenalization':
-            self.K = self.input_rate_penalization(self.model._A,self.model._B)
-        if not self.mode in ['setPointTrack','inputRatePenalization']:
-            raise Exception('mode must be setPointTrack, inputRatePenalization, None. you have {}'.format(self.method))
+            if hasattr(self, "A_rated") and hasattr(self, "B_rated"):
+                self.K = self.discrete_gain(self.A_rated,self.B_rated)
+            else:
+                 raise AttributeError("set delR using set_rterm fun to execute in inputRatePenalization mode.")   
+        if not self.mode in ['standard','inputRatePenalization']:
+            raise Exception('mode must be standard, inputRatePenalization, None. you have {}'.format(self.method))
         self.flags['setup'] = True

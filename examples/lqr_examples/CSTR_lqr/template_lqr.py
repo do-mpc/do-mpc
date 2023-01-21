@@ -51,7 +51,8 @@ def template_lqr(model):
     R = np.array([[1e-1,0],[0,1e-5]])
     Rdelu = np.array([[1e8,0],[0,1]])
     
-    lqr.set_objective(Q=Q, R=R, Rdelu=Rdelu)
+    lqr.set_objective(Q=Q, R=R)
+    lqr.set_rterm(delR = Rdelu)
     
     # set up lqr
     lqr.setup()
