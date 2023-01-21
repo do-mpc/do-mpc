@@ -45,14 +45,12 @@ Get configured do-mpc modules:
 model = template_model()
 lqr = template_lqr(model)
 simulator = template_simulator(model)
-estimator = do_mpc.estimator.StateFeedback(model)
 
 """
 Set initial state
 """
 x0 = np.array([[2],[1],[3],[1]])
 simulator.x0 = x0
-estimator.x0 = x0
 
 """
 Run MPC main loop:
@@ -61,7 +59,7 @@ Run MPC main loop:
 for k in range(50):
     u0 = lqr.make_step(x0)
     y_next = simulator.make_step(u0)
-    x0 = estimator.make_step(y_next)
+    x0 = y_next
     
 """
 Setup graphic:
