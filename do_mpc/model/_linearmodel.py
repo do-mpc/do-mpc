@@ -333,11 +333,13 @@ class LinearModel(Model):
         I = np.identity(np.shape(self.sys_A)[0])
         
         #Calculation of steady state
-        if np.all(xss) == None:
+        if np.all(xss) == None and np.linalg.matrix_rank(self.sys_A) == self.x.shape[0]:
             assert np.all(uss) != None and isinstance(uss,np.ndarray), 'Provide either steady state states or steady state inputs.'
             self.xss = np.linalg.inv(I-self.sys_A)@self.sys_B@uss
             self.uss = uss
             return self.xss
+        elif np.all(xss) == None and np.linalg.matrix_rank(self.sys_A) != self.x.shape[0]:
+            raise ValueError("State matrix does not have full rank. Hence, either multiple steady state or no steady state values is possible.")
         elif np.all(uss) == None and np.shape(self.sys_B)[0] != np.shape(self.sys_B)[1]:
             assert np.all(xss) != None and isinstance(xss,np.ndarray), 'Provide either steady state states or steady state inputs.'
             self.uss = np.linalg.pinv(self.sys_B)@(I-self.sys_A)@xss
