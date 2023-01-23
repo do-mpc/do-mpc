@@ -257,7 +257,6 @@ class LQR(IteratedVariables):
 
             setup_lqr = {
                 'n_horizon': 20,
-                't_sample': 0.5,
             }
             lqr.set_param(**setup_mpc)
         
@@ -346,11 +345,44 @@ class LQR(IteratedVariables):
         
         return self.u0
         
-    def set_objective(self, Q = None, R = None, P = None, Rdelu = None):
+
+    def set_objective(self, Q, R, P = None):
         """Sets the cost matrix for the Optimal Control Problem.
         
         This method sets the inputs, states and algebraic states cost matrices for the given problem.
         
+        Since the controller can be operated in two modes. The objective function differes from each other and is as follows
+        
+        **Finite Horizon**:
+            
+            For **set-point tracking** mode:
+                
+                .. math::
+                    
+                    J = \\frac{1}{2}\\sum_{k=0} ^{N-1} (x_k - x_{ss})^T Q(x_k-x_{ss})+(u_k-u_{ss})^T R(u_k-u_{ss}) + (x_N-x_{ss})^T P(x_N-x_{ss})
+                    
+            For **Input Rate Penalization** mode:
+                
+                .. math::
+                    
+                    J = \\frac{1}{2}\\sum_{k=0} ^{N-1} (\\tilde{x}_k - \\tilde{x}_{ss})^T \\tilde{Q}(\\tilde{x}_k-\\tilde{x}_{ss})+(\\Delta u_k^T \\Delta R \\Delta u_k + (\\tilde{x}_N-\\tilde{x}_{ss})^TP(\\tilde{x}_N-\\tilde{x}_{ss})
+                    
+        **Infinite Horizon**:
+            
+            For **set-point tracking** mode:
+                
+                .. math::
+                    
+                    J = \\frac{1}{2}\\sum_{k=0} ^{\\inf} (x_k - x_{ss})^T Q(x_k-x_{ss})+(u_k-u_{ss})^T R(u_k-u_{ss})
+                    
+            For **Input Rate Penalization** mode:
+                
+                .. math::
+                    
+                    J = \\frac{1}{2}\\sum_{k=0} ^{\\inf} (\\tilde{x}_k - \\tilde{x}_{ss})^T \\tilde{Q}(\\tilde{x}_k-\\tilde{x}_{ss})+ \\Delta u_k^T \\Delta R \\Delta u_k
+            
+            where :math:`\\tilde{x} = [x,u]^T`
+
         .. note::
             For the problem to be solved in input rate penalization mode, ``Q``, ``R`` and ``Rdelu`` should be set.
             
@@ -390,16 +422,16 @@ class LQR(IteratedVariables):
         assert self.flags['setup'] == False, 'Objective can not be set after LQR is setup'
         
         #Set Q, R, P
-        if Q is None:
-            self.Q = np.zeros((self.model.n_x,self.model.n_x))
-            warnings.warn('Q is chosen as matrix of zeros since Q is not passed explicitly.')
-        else:
-            self.Q = Q
-        if R is None:
-            self.R = np.zeros((self.model.n_u,self.model.n_u))
-            warnings.warn('R is chosen as matrix of zeros.')
-        else:
-            self.R = R   
+        # if Q is None:
+        #     self.Q = np.zeros((self.model.n_x,self.model.n_x))
+        #     warnings.warn('Q is chosen as matrix of zeros since Q is not passed explicitly.')
+        # else:
+        self.Q = Q
+        # if R is None:
+        #     self.R = np.zeros((self.model.n_u,self.model.n_u))
+        #     warnings.warn('R is chosen as matrix of zeros.')
+        # else:
+        self.R = R   
         if P is None and self.n_horizon != None:
             self.P = Q
             warnings.warn('P is not given explicitly. Q is chosen as P for calculating finite discrete gain')

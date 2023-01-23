@@ -269,7 +269,7 @@ class LinearModel(Model):
         self._D = D
         
     
-    def discretize(self, t_sample = 0, conv_method = 'zoh'):
+    def discretize(self, t_step = 0, conv_method = 'zoh'):
         """Converts continuous time to discrete time system.
         
         This method utilizes the exisiting function in scipy library called ``cont2discrete`` to convert continuous time to discrete time system.This method 
@@ -293,9 +293,9 @@ class LinearModel(Model):
         """
         assert self.flags['setup'] == True, 'This method can be accessed only after the model is setup using LinearModel.setup().'
         assert self.model_type == 'continuous', 'Given model is already discrete.'
-        warnings.warn('sampling time is {}'.format(t_sample))
+        warnings.warn('sampling time is {}'.format(t_step))
         
-        A, B, C, D, t = cont2discrete((self.sys_A,self.sys_B,self.sys_C,self.sys_D), t_sample, conv_method)
+        A, B, C, D, t = cont2discrete((self.sys_A,self.sys_B,self.sys_C,self.sys_D), t_step, conv_method)
         
         discreteModel = LinearModel('discrete')
 
