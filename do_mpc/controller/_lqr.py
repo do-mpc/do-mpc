@@ -88,11 +88,11 @@ class LQR(IteratedVariables):
         
         self.model_type = model.model_type
 
-        self.data = do_mpc.data.Data(model)      
+        self.data = do_mpc.data.Data(model)
+        
         #Parameters necessary for setting up LQR
         self.data_fields = [
             'n_horizon',
-            'mode',
             't_step',
             ]
         #Initialize prediction horizon for the problem
@@ -102,10 +102,6 @@ class LQR(IteratedVariables):
         self.mode = 'standard'
         
         self.flags = {'setup':False}
-
-        
-        self.xss = None
-        self.uss = None
 
     def reset_history(self):
         """Reset the history of the LQR.
@@ -217,14 +213,9 @@ class LQR(IteratedVariables):
         zeros_A = np.zeros((np.shape(self.model._B)[1],np.shape(self.model._A)[1]))
         self.A_rated = np.block([[self.model._A,self.model._B],[zeros_A,identity_u]])
         self.B_rated = np.block([[self.model._B],[identity_u]])
-        zeros_Q = np.zeros((np.shape(self.Q)[0],np.shape(self.R)[1]))
-        zeros_Ru = np.zeros((np.shape(self.R)[0],np.shape(self.Q)[1]))
         
-        #Modifying Q and R matrix for input rate penalization
-        self.Q = np.block([[self.Q,zeros_Q],[zeros_Ru,self.R]])
-        if self.n_horizon != None:
-            self.P = np.block([[self.P,zeros_Q],[zeros_Ru,self.R]])
-        self.R = delR
+        self.delR = delR
+        self.mode = 'inputRatePenalization'
     
     def set_param(self,**kwargs):
         """Set the parameters of the :py:class:`LQR` class. Parameters must be passed as pairs of valid keywords and respective argument.
@@ -280,7 +271,6 @@ class LQR(IteratedVariables):
         """Main method of the class during runtime. This method is called at each timestep
         and returns the control input for the current initial state.
             
-
         :param x0: Current state of the system.
         :type x0: numpy.ndarray
 
@@ -299,24 +289,20 @@ class LQR(IteratedVariables):
             raise Exception('Invalid type {} for x0. Must be {}'.format(type(x0), (np.ndarray, casadi.DM, structure3.DMStruct)))
 
         #setting setpoints
-        if self.xss is None and self.uss is None:
+        if not hasattr(self, "xss") and not hasattr(self,"uss"):
             self.set_setpoint()
         
-        
+        u_prev = self.u0.cat.full()
         #Calculate u in set point tracking mode
-        if self.mode == "setPointTrack":
+        if self.mode == "standard":
             if self.xss.size != 0 and self.uss.size != 0:
                 u0 = self.K@(x0-self.xss)+self.uss
         
         #Calculate u in input rate penalization mode
         elif self.mode == "inputRatePenalization":
-            if np.shape(self.K)[1]==np.shape(x0)[0]:
-                u0 = self.K@(x0-self.xss)+self.uss
-                u0 = self.u0+x0[-self.model.n_u:]
-            elif np.shape(self.K)[1]!=np.shape(x0)[0] and np.shape(self.K)[1]== np.shape(np.block([[x0],[self.u0]]))[0]:
-                x0_new = np.block([[x0],[self.u0]])
-                u0 = self.K@(x0_new-self.xss)+self.uss
-                u0 = self.u0+x0_new[-self.model.n_u:]
+            x0_aug = self._retreive_augmented_states(x0, u_prev)
+            u0 = self.K@(x0_aug-self.xss)+self.uss
+            u0 = u0 + u_prev
 
 
         t0 = self._t0
@@ -328,11 +314,18 @@ class LQR(IteratedVariables):
         # Update initial
         self._t0 = self._t0 + self.t_step
         self._x0.master = x0
-        self._u0.master = u0
+        self._u0.master = DM(u0)
         
-        return self.u0
+        return u0
         
-
+    def _retreive_augmented_states(self,x,u):
+        """Private method.
+        
+        This method is used to augmented states and inputs for input rate penalization.
+        """
+        x0 = np.block([[x],[u]])
+        return x0
+        
     def set_objective(self, Q, R, P = None):
         """Sets the cost matrix for the Optimal Control Problem.
         
@@ -340,19 +333,23 @@ class LQR(IteratedVariables):
         
         Since the controller can be operated in two modes. The objective function differes from each other and is as follows
         
+        
+        
         **Finite Horizon**:
             
             For **set-point tracking** mode:
                 
                 .. math::
-                    
-                    J = \\frac{1}{2}\\sum_{k=0} ^{N-1} (x_k - x_{ss})^T Q(x_k-x_{ss})+(u_k-u_{ss})^T R(u_k-u_{ss}) + (x_N-x_{ss})^T P(x_N-x_{ss})
-                    
+                        
+                    J = \\frac{1}{2}\\sum_{k=0} ^{N-1} (x_k - x_{ss})^T Q(x_k-x_{ss})+(u_k-u_{ss})^T R(u_k-u_{ss}) \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad\\\\
+                            + (x_N-x_{ss})^T P(x_N-x_{ss})
+                            
             For **Input Rate Penalization** mode:
                 
                 .. math::
                     
-                    J = \\frac{1}{2}\\sum_{k=0} ^{N-1} (\\tilde{x}_k - \\tilde{x}_{ss})^T \\tilde{Q}(\\tilde{x}_k-\\tilde{x}_{ss})+(\\Delta u_k^T \\Delta R \\Delta u_k + (\\tilde{x}_N-\\tilde{x}_{ss})^TP(\\tilde{x}_N-\\tilde{x}_{ss})
+                    J = \\frac{1}{2}\\sum_{k=0} ^{N-1} (\\tilde{x}_k - \\tilde{x}_{ss})^T \\tilde{Q}(\\tilde{x}_k-\\tilde{x}_{ss})+\\Delta u_k^T \\Delta R \\Delta u_k 
+                        + (\\tilde{x}_N-\\tilde{x}_{ss})^TP(\\tilde{x}_N-\\tilde{x}_{ss})
                     
         **Infinite Horizon**:
             
@@ -360,13 +357,13 @@ class LQR(IteratedVariables):
                 
                 .. math::
                     
-                    J = \\frac{1}{2}\\sum_{k=0} ^{\\inf} (x_k - x_{ss})^T Q(x_k-x_{ss})+(u_k-u_{ss})^T R(u_k-u_{ss})
+                    J = \\frac{1}{2}\\sum_{k=0} ^{\\inf} (x_k - x_{ss})^T Q(x_k-x_{ss})+(u_k-u_{ss})^T R(u_k-u_{ss}) \\quad \\quad \\quad \\quad \\quad \\quad \\quad
                     
             For **Input Rate Penalization** mode:
                 
                 .. math::
                     
-                    J = \\frac{1}{2}\\sum_{k=0} ^{\\inf} (\\tilde{x}_k - \\tilde{x}_{ss})^T \\tilde{Q}(\\tilde{x}_k-\\tilde{x}_{ss})+ \\Delta u_k^T \\Delta R \\Delta u_k
+                    J = \\frac{1}{2}\\sum_{k=0} ^{\\inf} (\\tilde{x}_k - \\tilde{x}_{ss})^T \\tilde{Q}(\\tilde{x}_k-\\tilde{x}_{ss})+ \\Delta u_k^T \\Delta R \\Delta u_k \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad
             
             where :math:`\\tilde{x} = [x,u]^T`
 
@@ -404,15 +401,7 @@ class LQR(IteratedVariables):
         assert self.flags['setup'] == False, 'Objective can not be set after LQR is setup'
         
         #Set Q, R, P
-        # if Q is None:
-        #     self.Q = np.zeros((self.model.n_x,self.model.n_x))
-        #     warnings.warn('Q is chosen as matrix of zeros since Q is not passed explicitly.')
-        # else:
         self.Q = Q
-        # if R is None:
-        #     self.R = np.zeros((self.model.n_u,self.model.n_u))
-        #     warnings.warn('R is chosen as matrix of zeros.')
-        # else:
         self.R = R   
 
         if P is None and self.n_horizon != None:
@@ -490,6 +479,14 @@ class LQR(IteratedVariables):
         if self.mode in ['standard',None]:
             self.K = self.discrete_gain(self.model._A,self.model._B)
         elif self.mode == 'inputRatePenalization':
+            #Modifying Q and R matrix for input rate penalization
+            zeros_Q = np.zeros((np.shape(self.Q)[0],np.shape(self.R)[1]))
+            zeros_Ru = np.zeros((np.shape(self.R)[0],np.shape(self.Q)[1]))
+            self.Q = np.block([[self.Q,zeros_Q],[zeros_Ru,self.R]])            
+            if self.n_horizon != None:
+                self.P = np.block([[self.P,zeros_Q],[zeros_Ru,self.R]])
+            self.R = self.delR
+            
             if hasattr(self, "A_rated") and hasattr(self, "B_rated"):
                 self.K = self.discrete_gain(self.A_rated,self.B_rated)
             else:

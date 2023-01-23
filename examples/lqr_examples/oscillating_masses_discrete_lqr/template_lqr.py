@@ -41,7 +41,7 @@ def template_lqr(model):
     
     # Initialize the parameters
     setup_lqr = {
-                 'mode' : 'inputRatePenalization'}
+                 't_step':0.5}
     
     lqr.set_param(**setup_lqr)
     

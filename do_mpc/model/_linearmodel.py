@@ -281,8 +281,8 @@ class LinearModel(Model):
         
         .. warning::
             sampling time is zero when not specified or not required
-        :param t_sample: Sampling time (default - ``0``)
-        :type t_sample: Int or float
+        :param t_step: Sampling time (default - ``0``)
+        :type t_step: int or float
         
         :param conv_method: Method of discretization - Five different methods can be applied. (default -`` zoh``)
         :type conv_method: String
