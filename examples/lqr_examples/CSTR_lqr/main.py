@@ -48,7 +48,6 @@ store_results = True
 model,linearmodel = template_model()
 lqr = template_lqr(linearmodel)
 simulator = template_simulator(model)
-estimator = do_mpc.estimator.StateFeedback(model)
 
 # Set the initial state of simulator:
 C_a0 = 0

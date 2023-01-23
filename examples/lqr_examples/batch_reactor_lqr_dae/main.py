@@ -50,7 +50,6 @@ model, daemodel, linearmodel = template_model()
 model_dc = linearmodel.discretize(t_sample)
 lqr = template_lqr(model_dc)
 simulator = template_simulator(linearmodel)
-estimator = do_mpc.estimator.StateFeedback(linearmodel)
 
 """
 Set initial state
@@ -63,7 +62,6 @@ Cc0 = 0
 x0 = np.array([[Ca0],[Cb0],[Ad0],[Cain0],[Cc0]])
 
 simulator.x0 = x0
-estimator.x0 = x0
 
 # Set setpoints
 Ca_ss = 0
@@ -82,7 +80,7 @@ Run MPC main loop:
 for k in range(50):
     u0 = lqr.make_step(x0)
     y_next = simulator.make_step(u0)
-    x0 = estimator.make_step(y_next)
+    x0 = y_next
     
 """
 Setup graphic:
