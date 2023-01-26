@@ -68,7 +68,7 @@ class TestBatchReactorLQRDAE(unittest.TestCase):
         if symvar_type == 'SX':
             t_sample = 0.5
             model,daemodel,linearmodel = self.template_model.template_model(symvar_type)
-            model_dc = linearmodel.discretize(t_sample = 0.5)
+            model_dc = linearmodel.discretize(t_step = 0.5)
             lqr = self.template_lqr.template_lqr(model_dc)
             simulator = self.template_simulator.template_simulator(linearmodel)
             

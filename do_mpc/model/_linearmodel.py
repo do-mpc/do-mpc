@@ -268,8 +268,7 @@ class LinearModel(Model):
         self._C = C
         self._D = D
         
-    
-    def discretize(self, t_sample = 0, conv_method = 'zoh'):
+    def discretize(self, t_step = 0, conv_method = 'zoh'):
         """Converts continuous time to discrete time system.
         
         This method utilizes the exisiting function in scipy library called ``cont2discrete`` to convert continuous time to discrete time system.This method 
@@ -282,8 +281,8 @@ class LinearModel(Model):
         
         .. warning::
             sampling time is zero when not specified or not required
-        :param t_sample: Sampling time (default - ``0``)
-        :type t_sample: Int or float
+        :param t_step: Sampling time (default - ``0``)
+        :type t_step: int or float
         
         :param conv_method: Method of discretization - Five different methods can be applied. (default -`` zoh``)
         :type conv_method: String
@@ -293,9 +292,10 @@ class LinearModel(Model):
         """
         assert self.flags['setup'] == True, 'This method can be accessed only after the model is setup using LinearModel.setup().'
         assert self.model_type == 'continuous', 'Given model is already discrete.'
-        warnings.warn('sampling time is {}'.format(t_sample))
+
+        warnings.warn('sampling time is {}'.format(t_step))
         
-        A, B, C, D, t = cont2discrete((self.sys_A,self.sys_B,self.sys_C,self.sys_D), t_sample, conv_method)
+        A, B, C, D, t = cont2discrete((self.sys_A,self.sys_B,self.sys_C,self.sys_D), t_step, conv_method)
         
         discreteModel = LinearModel('discrete')
 
@@ -333,11 +333,14 @@ class LinearModel(Model):
         I = np.identity(np.shape(self.sys_A)[0])
         
         #Calculation of steady state
-        if np.all(xss) == None:
+
+        if np.all(xss) == None and np.linalg.matrix_rank(self.sys_A) == self.x.shape[0]:
             assert np.all(uss) != None and isinstance(uss,np.ndarray), 'Provide either steady state states or steady state inputs.'
             self.xss = np.linalg.inv(I-self.sys_A)@self.sys_B@uss
             self.uss = uss
             return self.xss
+        elif np.all(xss) == None and np.linalg.matrix_rank(self.sys_A) != self.x.shape[0]:
+            raise ValueError("State matrix does not have full rank. Hence, either multiple steady state or no steady state values is possible.")
         elif np.all(uss) == None and np.shape(self.sys_B)[0] != np.shape(self.sys_B)[1]:
             assert np.all(xss) != None and isinstance(xss,np.ndarray), 'Provide either steady state states or steady state inputs.'
             self.uss = np.linalg.pinv(self.sys_B)@(I-self.sys_A)@xss

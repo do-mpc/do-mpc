@@ -41,7 +41,7 @@ def template_lqr(model):
     
     # Initialize the parameters
     setup_lqr = {
-                 'mode' : 'inputRatePenalization'}
+                 't_step':0.5}
     
     lqr.set_param(**setup_lqr)
     
@@ -49,7 +49,9 @@ def template_lqr(model):
     Q = np.identity(4)
     R = np.identity(1)
     Rdelu = np.identity(1)
-    lqr.set_objective(Q=Q, R=R, Rdelu=Rdelu)
+
+    lqr.set_objective(Q=Q, R=R)
+    lqr.set_rterm(delR = Rdelu)
     
     # lqr setup
     lqr.setup()
