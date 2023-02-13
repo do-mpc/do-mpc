@@ -1096,31 +1096,21 @@ class Model:
             new_model.set_expression(key, expr_struct[key])          
         
     
-    def get_linear_system_matrices(self, xss=None, uss=None, z=None, tvp=None,p=None):
+    def get_linear_system_matrices(self, xss:numpy.ndarray=None, uss:numpy.ndarray=None, z:numpy.ndarray=None, tvp:numpy.ndarray=None,p:numpy.ndarray=None)->tuple:
         """
         Returns the matrix quadrupel :math:`(A,B,C,D)` of the linearized system around the operating point (``xss,uss,z,tvp,p,w,v``).
         All arguments are optional in which case the matrices might still be symbolic. 
         If the matrices are not symbolic, they are returned as numpy arrays.
         
-        :param xss: Steady state state (optional)
-        :type xss: numpy.ndarray
-        :param uss: Steady state input (optional)
-        :type uss: numpy.ndarray
-        :param z: steady state algebraic states (optional)
-        :type z: numpy.ndarray
-        :param tvp: time varying parameters set point (optional)
-        :type tvp: numpy.ndarray
-        :param p: parameters set point (optional)
-        :type p: numpy.ndarray
+        Args:
+            xss (numpy.ndarray): Steady state state (optional)
+            uss (numpy.ndarray): Steady state input (optional)
+            z (numpy.ndarray): Steady state algebraic states (optional)
+            tvp (numpy.ndarray): time varying parameters set point (optional)
+            p (numpy.ndarray): parameters set point (optional)   
         
-        :return: A - State matrix
-        :rtype: numpy.ndarray / CasADi SX
-        :return: B - Input matrix
-        :rtype: numpy.ndarray / CasADi SX
-        :return: C - Output matrix
-        :rtype: numpy.ndarray / CasADi SX
-        :return: D - Feedforward matrix
-        :rtype: numpy.ndarray / CasADi SX
+        Returns:
+            numpy.ndarray: A(State matrix), B(Input matrix), C(Output matrix), D(Feedforward matrix)
         """
         if self.symvar_type == 'MX':
             raise ValueError("get_linear_system_matrices requires symvar_type SX")

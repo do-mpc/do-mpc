@@ -26,7 +26,7 @@ from casadi.tools import *
 import numpy as np
 from . import Model
    
-def dae2odeconversion(model):
+def dae2odeconversion(model:Model)->Model:
     """Converts index-1 DAE system to ODE system.
         
     This method utilizes the differentiation method of converting index-1 DAE systems to ODE systems. This method
@@ -49,8 +49,12 @@ def dae2odeconversion(model):
             
     where :math:`\\dot{x},\\dot{u},\\dot{z}` are the states of the model and q is the input to the model. Similarly, it can be extended to discrete time systems.
     The dae to ode converted model assumes that converted algebraic states and states measurements are available.
-    :return: Converted ODE Model
-    :rtype: model.Model 
+    
+    Args:
+        model (model.Model): Index-1 DAE model
+        
+    Returns:
+        model.Model: Converted ODE Model
     """
     #Check whether model setup is done
     assert model.flags['setup'] == True, 'Run this function after original model is setup'

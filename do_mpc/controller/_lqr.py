@@ -69,16 +69,15 @@ class LQR(IteratedVariables):
 
         - Set ``Q`` and ``R`` values with :py:meth:`set_objective`.
     
-    .. note::
-        
+    Note:
         The function :py:meth:`set_rterm` mode is not recommended to use if the model is converted from an DAE to an ODE system.
         Because the converted model is already in the rated input formulation. 
     
-    .. note::
+    Note:
         During runtime call :py:meth:`make_step` with the current state :math:`x` to obtain the optimal control input :math:`u`.
         During runtime call :py:meth:`set_setpoint` with the set points of input :math:`u_{ss}` and states :math:`x_{ss}` in order to update the respective set points.
     """
-    def __init__(self,model):
+    def __init__(self,model:LinearModel)->None:
         self.model = model
         IteratedVariables.__init__(self)
         
@@ -109,7 +108,7 @@ class LQR(IteratedVariables):
         self._t0 = np.array([0])
         self.data.init_storage()
         
-    def discrete_gain(self,A,B):
+    def discrete_gain(self,A:numpy.ndarray,B:numpy.ndarray)->numpy.ndarray:
         """Computes discrete gain. 
 
         This method computes either the finite horizon discrete gain or infinite horizon discrete gain.
@@ -133,15 +132,13 @@ class LQR(IteratedVariables):
             ::
                 
                 K = lqr.discrete_gain(A,B)
-                                  
-        :param A: State matrix - constant matrix with no variables
-        :type A: numpy.ndarray
-
-        :param B: Input matrix - constant matrix with no variables
-        :type B: numpy.ndarray                 
         
-        :return: Gain matrix :math:`K`
-        :rtype: numpy.ndarray
+        Args:
+            A (numpy.ndarray): State matrix - constant matrix with no variables
+            B (numpy.ndarray): Input matrix - constant matrix with no variables
+        
+        Returns:
+            numpy.ndarray: Gain matrix :math:`K` 
         """
         #Verifying the availability of cost matrices
         assert self.Q.size != 0 and self.R.size != 0 , 'Enter tuning parameter Q and R for the lqr problem using set_objective() function.'
@@ -162,16 +159,14 @@ class LQR(IteratedVariables):
             K = -np.linalg.inv(np.transpose(B)@pi_discrete@B+self.R)@np.transpose(B)@pi_discrete@A
             return K
         
-    def set_rterm(self,delR):
+    def set_rterm(self,delR:numpy.ndarray)->None:
         """Modifies the model such that rated input acts as the input. 
         
-        .. warning::
-
+        Warning:
             Calling :py:meth:`set_rterm`  modifies the objective function
             as well as the state and input matrix.
         
-        .. warning::
-            
+        Warning:
             It is not advisible to execute :py:class:`LQR` in the ``inputRatePenalization`` mode if the model is converted from DAE to ODE system.
             Because the converted model itself is in ``inputRatePenalization`` mode.
 
@@ -201,11 +196,8 @@ class LQR(IteratedVariables):
                                 0 & R \\end{bmatrix},
                 \\tilde{R} = \\Delta R
         
-        :param delR: Rated input cost matrix - constant matrix with no variables
-        :type delR: numpy.ndarray
-        
-        :return: Gain matrix :math:`K`
-        :rtype: numpy.ndarray
+        Args:
+            delR (numpy.ndarray): Rated input cost matrix - constant matrix with no variables
         """
         
         #Modifying A and B matrix for input rate penalization
@@ -217,7 +209,7 @@ class LQR(IteratedVariables):
         self.delR = delR
         self.mode = 'inputRatePenalization'
     
-    def set_param(self,**kwargs):
+    def set_param(self,**kwargs)->None:
         """Set the parameters of the :py:class:`LQR` class. Parameters must be passed as pairs of valid keywords and respective argument.
         
         Two different kinds of LQR can be desgined. In order to design a finite horizon LQR, ``n_horizon`` and to design a infinite horizon LQR, ``n_horizon`` 
@@ -248,18 +240,10 @@ class LQR(IteratedVariables):
         .. note:: :py:meth:`set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
 
         The following parameters are available:
-            
-        :param n_horizon: Prediction horizon of the optimal control problem. Parameter must be set by user.
-        :type n_horizon: int
-
-        :param t_sample: Sampling time for converting continuous time system to discrete time system.
-        :type t_sample: float
         
-        :param mode: mode for operating LQR
-        :type mode: String
-        
-        :param conv_method: Method for converting continuous time to discrete time system
-        :type conv_method: String
+        Args:
+            n_horizon (int): Prediction horizon of the optimal control problem. Parameter must be set by user.
+            t_step (float): Time step of LQR
         """
         for key, value in kwargs.items():
             if not (key in self.data_fields):
@@ -267,15 +251,15 @@ class LQR(IteratedVariables):
             else:
                 setattr(self, key, value)
                 
-    def make_step(self,x0):
+    def make_step(self,x0:numpy.ndarray)->numpy.ndarray:
         """Main method of the class during runtime. This method is called at each timestep
         and returns the control input for the current initial state.
-            
-        :param x0: Current state of the system.
-        :type x0: numpy.ndarray
-
-        :return: u0
-        :rtype: numpy.ndarray
+         
+        Args:
+            x0 (numpy.ndarray): Current state of the system.
+        
+        Returns:
+            numpy.ndarray: u0 - current input of the system
         """
         #verify setup of lqr is done
         assert self.flags['setup'] == True, 'LQR is not setup. run setup() function.'
@@ -326,7 +310,7 @@ class LQR(IteratedVariables):
         x0 = np.block([[x],[u]])
         return x0
         
-    def set_objective(self, Q, R, P = None):
+    def set_objective(self, Q:numpy.ndarray, R:numpy.ndarray, P:numpy.ndarray = None)->None:
         """Sets the cost matrix for the Optimal Control Problem.
         
         This method sets the inputs, states and algebraic states cost matrices for the given problem.
@@ -367,34 +351,31 @@ class LQR(IteratedVariables):
             
             where :math:`\\tilde{x} = [x,u]^T`
 
-        .. note::
+        Note:
             For the problem to be solved in ``inputRatePenalization`` mode, ``Q``, ``R`` and ``delR`` should be set.
             ``delR`` is set using :py:meth:`set_rterm`. ``P`` term is set according to the need of the problem.
             
         For example:
-            
+
             ::
                 
                 # Values used are to show how to use this function.
                 # For ODE models
                 lqr.set_objective(Q = np.identity(2), R = np.identity(2), P = np.identity(2))        
         
-        :param Q: State cost matrix
-        :type Q: numpy.ndarray
-        
-        :param R: Input cost matrix
-        :type R: numpy.ndarray
-        
-        :param P: Terminal cost matrix (optional)
-        :type P: numpy.ndarray
-        
-        :raises exception: Q matrix must be of type class numpy.ndarray
-        :raises exception: R matrix must be of type class numpy.ndarray
-        :raises exception: P matrix must be of type class numpy.ndarray
-
-        .. warning::
+        Warning:
             ``Q``, ``R``, ``P`` is chosen as matrix of zeros since it is not passed explicitly.
             If ``P`` is not given explicitly, then ``Q`` is chosen as ``P`` for calculating finite discrete gain
+            
+        Raises:
+            exception: Q matrix must be of type class numpy.ndarray
+            exception: R matrix must be of type class numpy.ndarray
+            exception: P matrix must be of type class numpy.ndarray
+
+        Args:
+            Q (numpy.ndarray): State cost matrix
+            R (numpy.ndarray): Input cost matrix
+            P (numpy.ndarray): Terminal cost matrix (optional) 
         """
         
         #Verify the setup is not complete
@@ -422,13 +403,13 @@ class LQR(IteratedVariables):
         if self.n_horizon != None:
             assert self.P.shape == self.Q.shape, 'P must have same shape as Q. You have {}'.format(P.shape)
 
-    def set_setpoint(self,xss = None,uss = None):   
+    def set_setpoint(self,xss:numpy.ndarray = None,uss:numpy.ndarray = None)->None:   
         """Sets setpoints for states and inputs.
 
         This method can be used to set setpoints for either states or inputs or for both (states and inputs) at each time step. 
         It can be called inside simulation loop to change the set point dynamically.
         
-        .. note::
+        Note:
             If setpoints is not specifically mentioned it will be set to zero (default).
         
         For example:
@@ -438,12 +419,9 @@ class LQR(IteratedVariables):
                 # For ODE models
                 lqr.set_setpoint(xss = np.array([[10],[15]]) ,uss = np.array([[2],[3]]))
 
-        :param xss: set point for states of the system(optional)
-        :type xss: numpy.ndarray
-        
-        :param uss: set point for input of the system(optional)
-        :type uss: numpy.ndarray
-
+        Args:
+            xss (numpy.ndarray): set point for states of the system(optional)
+            uss (numpy.ndarray): set point for inputs of the system(optional)
         """
         assert self.flags['setup'] == True, 'LQR is not setup. Run setup() function.'
 
@@ -465,11 +443,12 @@ class LQR(IteratedVariables):
             assert self.xss.shape == (self.model.n_x,1), 'xss must be of shape {}. You have {}'.format((self.model.n_x,1),self.xss.shape)
         assert self.uss.shape == (self.model.n_u,1), 'uss must be of shape {}. You have {}'.format((self.model.n_u,1),self.uss.shape)
     
-    def setup(self):
+    def setup(self)->None:
         """Prepares :py:class:`LQR` for execution.
         This method initializes and ensures that all the parameters that are necessary to desgin the lqr are available.
         
-        :raises exception: mode must be standard, inputRatePenalization, None. you have {string value}
+        Raises:
+            exception: mode must be standard, inputRatePenalization, None. you have {string value}
 
         """
         assert self.t_step, 't_step is required in order to setup the LQR. Please set the simulation time step via set_param(**kwargs)'
