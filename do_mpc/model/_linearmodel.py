@@ -20,11 +20,13 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
 import numpy as np
 import pdb
 import warnings
 from scipy.signal import cont2discrete
 from . import Model
+from typing import Union
 import casadi as cas
 
 # Define what is included in the Sphinx documentation.
@@ -87,42 +89,36 @@ class LinearModel(Model):
          Use these attributes to query to variables, e.g. to form the cost function in a seperate file for the MPC configuration.
      
     Args:
-         model_type (str): Set if the model is ``discrete`` or ``continuous``.
-         symvar_type (str): Set if the model is configured with CasADi ``SX`` variables (default).
+         model_type : Set if the model is ``discrete`` or ``continuous``.
+         symvar_type : Set if the model is configured with CasADi ``SX`` variables (default).
          
     Raises:
          assertion: model_type must be string
          assertion: model_type must be either discrete or continuous
     """
-    def __init__(self, model_type:str=None, symvar_type:str='SX')->None:
+    def __init__(self, model_type:str=None, symvar_type:str='SX'):
         super().__init__(model_type, symvar_type)
         if symvar_type == 'MX':
             raise ValueError("class LinearModel can be initialized only with SX variable.")
 
     @property
-    def sys_A(self)->numpy.ndarray:
+    def sys_A(self)->np.ndarray:
         """State matrix.
         This property provides the state matrix in the numerical array format. Accessible only after model is setup.
-        
-        Returns:
-            numpy.ndarray: A - State matrix
         """
         assert self.flags['setup'] == True, 'Attributes are available after the model is setup.'
         return self._A
     
     @property
-    def sys_B(self)->numpy.ndarray:
+    def sys_B(self)->np.ndarray:
         """Input matrix.
         This property provides the input matrix in the numerical array format. Accessible only after model is setup.
-        
-        Returns:
-            numpy.ndarray: B - Input matrix
         """
         assert self.flags['setup'] == True, 'Attributes are available after the model is setup.'
         return self._B
     
     @property
-    def sys_C(self)->numpy.ndarray:
+    def sys_C(self)->np.ndarray:
         """Output matrix.
         This property provides the output matrix in the numerical array format. Accessible only after model is setup.
         """
@@ -130,7 +126,7 @@ class LinearModel(Model):
         return self._C
     
     @property
-    def sys_D(self)->numpy.ndarray:
+    def sys_D(self)->np.ndarray:
         """Feedforward matrix.
         This property provides the feedforward matrix in the numerical array format. Accessible only after model is setup.
         """
@@ -142,8 +138,8 @@ class LinearModel(Model):
         Checks if the right-hand-side function is linear and calls :meth:`Model.set_rhs`.
         
         Args:
-            name (str): Reference to previously introduced state names (with :py:func:`LinearModel.set_variable`)
-            rhs (CasADi SX): CasADi SX function depending on ``_x``, ``_u``, ``_tvp``, ``_p``.
+            name : Reference to previously introduced state names (with :py:func:`LinearModel.set_variable`)
+            rhs : CasADi SX function depending on ``_x``, ``_u``, ``_tvp``, ``_p``.
         """
         # Check if expression is linear
         if cas.evalf(cas.jacobian(rhs, cas.vertcat(self.x, self.u))).is_constant():
@@ -156,8 +152,8 @@ class LinearModel(Model):
         Checks if the measurement function is linear and calls :meth:`Model.set_meas`.
         
         Args:
-            name (str): Arbitrary name for the given expression. Names are used for key word indexing.
-            meas (CasADi SX): CasADi SX function depending on ``_x``, ``_u``, ``_tvp``, ``_p``.
+            name : Arbitrary name for the given expression. Names are used for key word indexing.
+            meas : CasADi SX function depending on ``_x``, ``_u``, ``_tvp``, ``_p``.
         """
         # Check if expression is linear
         if cas.evalf(cas.jacobian(meas, cas.vertcat(self.x, self.u))).is_constant():
@@ -170,15 +166,14 @@ class LinearModel(Model):
         """
         raise NotImplementedError('Algebraic variables are not supported for linear models.')
         
-    def setup(self,A:numpy.ndarray=None, B:numpy.ndarray=None,C:numpy.ndarray=None,D:numpy.ndarray=None)->None:
+    def setup(self,A:np.ndarray=None, B:np.ndarray=None,C:np.ndarray=None,D:np.ndarray=None)->None:
         """Setup method must be called to finalize the modelling process.
         All required model variables must be declared.
         The right hand side expression for ``_x`` can be set with :py:func:`set_rhs` or can be set by passing the state matrix and input matrix in :py:func:`setup`.
 
         Sets default measurement function (state feedback) if :py:func:`set_meas` was not called or output matrix, feedforward matrix are not passed in :py:func:`setup`.
 
-        .. warning::
-
+        Warnings:
             After calling :py:func:`setup`, the model is locked and no further variables,
             expressions etc. can be set.
 
@@ -186,10 +181,10 @@ class LinearModel(Model):
             assertion: Definition of right hand side (rhs) is incomplete
         
         Args:
-            A (numpy.ndarray) : State matrix (optional)
-            B (numpy.ndarray) : Input matrix (optional)
-            C (numpy.ndarray) : Output matrix (optional)
-            D (numpy.ndarray) : Feedforward matrix (optional)
+            A : State matrix (optional)
+            B : Input matrix (optional)
+            C : Output matrix (optional)
+            D : Feedforward matrix (optional)
         """
         if not isinstance(A, (np.ndarray, type(None))):
             raise ValueError('A must be a numpy array or None')
@@ -245,7 +240,7 @@ class LinearModel(Model):
         self._C = C
         self._D = D
         
-    def discretize(self, t_step:float = 0, conv_method:str = 'zoh'):
+    def discretize(self, t_step: Union[float,int] = 0, conv_method:str = 'zoh')->LinearModel:
         """Converts continuous time to discrete time system.
         
         This method utilizes the exisiting function in scipy library called ``cont2discrete`` to convert continuous time to discrete time system.This method 
@@ -256,15 +251,15 @@ class LinearModel(Model):
         where :math:`A_{\\text{discrete}}` and :math:`B_{\\text{discrete}}` are the discrete state matrix and input matrix repectively and :math:`t_{\\text{sample}}`
         is the sampling time.
         
-        .. warning::
+        Warnings:
             sampling time is zero when not specified or not required
         
         Args:
-            t_step (int or float): Sampling time (default - ``0``)
-            conv_method (str): Method of discretization - Five different methods can be applied. (default -`` zoh``)
+            t_step : Sampling time (default - ``0``)
+            conv_method : Method of discretization - Five different methods can be applied. (default -'zoh')
         
         Returns:
-            LinearModel: model
+            Discretized linear model
         """
         assert self.flags['setup'] == True, 'This method can be accessed only after the model is setup using LinearModel.setup().'
         assert self.model_type == 'continuous', 'Given model is already discrete.'
@@ -283,7 +278,7 @@ class LinearModel(Model):
         
         return discreteModel 
  
-    def get_steady_state(self,xss:numpy.ndarray = None,uss:numpy.ndarray = None)->numpy.ndarray:
+    def get_steady_state(self,xss:np.ndarray= None,uss:np.ndarray= None)->np.ndarray:
         """Calculates steady states for the given input or states.
         
         This method calculates steady states of a discrete system for the given steady state input and vice versa.
@@ -295,9 +290,12 @@ class LinearModel(Model):
                or\\\\
                 
                 u_{ss} = B^{-1}(I-A)x_{ss}
-        
+        Args:
+            xss : Steady state State values
+            uss : Steady state Input values
+                
         Returns:
-            numpy.ndarray: Steady state state or Steady state input
+            Steady state state or Steady state input
         """
         #Check whether the model is linear and setup
         assert self.flags['setup'] == True, 'Model is not setup. Please run model.setup() fun to calculate steady state.'

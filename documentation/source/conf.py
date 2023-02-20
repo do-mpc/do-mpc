@@ -50,7 +50,8 @@ extensions = ['sphinx.ext.autodoc',
           'sphinx.ext.viewcode',
           'sphinx_copybutton',
           'myst_parser',
-          'sphinx.ext.napoleon'
+          'sphinx.ext.napoleon',
+          'sphinx_autodoc_typehints'
               ]
 
 graphviz_output_format = 'svg'
@@ -61,6 +62,10 @@ mathjax3_config = {
     'extensions': ['tex2jax.js'],
     'jax': ['input/TeX', 'output/HTML-CSS'],
 }
+
+typehints_document_path = 'api/typehints'
+always_document_param_types = True
+typehints_use_rtype = False
 
 # Order methods in documentation by their appearence in the sourcecode:
 autodoc_member_order = 'bysource'

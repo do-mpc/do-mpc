@@ -26,8 +26,12 @@ import pdb
 from ._linearmodel import LinearModel
 from . import Model
 
-
-def linearize(model:Model, xss:numpy.ndarray=None, uss:numpy.ndarray=None, tvp0:numpy.ndarray = None, p0:numpy.ndarray = None)->LinearModel:
+def linearize(model:Model, 
+              xss:np.ndarray = None, 
+              uss:np.ndarray=None, 
+              tvp0:np.ndarray = None, 
+              p0:np.ndarray = None
+              )->LinearModel:
     """Linearize the non-linear model to linear model.
     
     This method uses the taylor expansion series to linearize non-linear model to linear model at the specified 
@@ -53,14 +57,14 @@ def linearize(model:Model, xss:numpy.ndarray=None, uss:numpy.ndarray=None, tvp0:
     and :math:`\\Delta x`, setpoints has to be subtracted from the solution of lqr.
     
     Args:
-        model (model.Model): dynamic systems model 
-        xss (numpy.ndarray): Steady state state
-        uss (numpy.ndarray): Steady state input
-        tvp0 (numpy.ndarray): value for tvp variable
-        p0 (numpy.ndarray): value for parameter variable   
+        model : dynamic systems model 
+        xss : Steady state state
+        uss : Steady state input
+        tvp0 : value for tvp variable
+        p0 : value for parameter variable   
     
     Returns:
-        model.LinearModel: Linearized Model    
+        Linearized Model    
     """
     #Check whether model setup is done
     assert model.flags['setup'] == True, 'Run this function after original model is setup'

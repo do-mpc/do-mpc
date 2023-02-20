@@ -29,8 +29,7 @@ class IteratedVariables:
     """ Class to initiate properties and attributes for iterated variables.
     This class is inherited to all iterating **do-mpc** classes and based on the :py:class:`Model`.
 
-    .. warning::
-
+    Warnings:
         This base class can not be used independently.
     """
 
