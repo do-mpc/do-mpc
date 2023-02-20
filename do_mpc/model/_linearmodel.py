@@ -21,12 +21,11 @@
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-from casadi import *
-from casadi.tools import *
 import pdb
 import warnings
 from scipy.signal import cont2discrete
 from . import Model
+import casadi as cas
 
 # Define what is included in the Sphinx documentation.
 __all__ = ['LinearModel']
@@ -126,9 +125,6 @@ class LinearModel(Model):
     def sys_C(self)->numpy.ndarray:
         """Output matrix.
         This property provides the output matrix in the numerical array format. Accessible only after model is setup.
-        
-        Returns:
-            numpy.ndarray: C - Output matrix
         """
         assert self.flags['setup'] == True, 'Attributes are available after the model is setup.'
         return self._C
@@ -137,14 +133,11 @@ class LinearModel(Model):
     def sys_D(self)->numpy.ndarray:
         """Feedforward matrix.
         This property provides the feedforward matrix in the numerical array format. Accessible only after model is setup.
-        
-        Returns:
-            numpy.ndarray: D - Feedforward matrix
         """
         assert self.flags['setup'] == True, 'Attributes are available after the model is setup.'
         return self._D
 
-    def set_rhs(self, name:str, rhs:casadi.MX)->None:
+    def set_rhs(self, name:str, rhs:cas.SX)->None:
         """
         Checks if the right-hand-side function is linear and calls :meth:`Model.set_rhs`.
         
@@ -153,12 +146,12 @@ class LinearModel(Model):
             rhs (CasADi SX): CasADi SX function depending on ``_x``, ``_u``, ``_tvp``, ``_p``.
         """
         # Check if expression is linear
-        if evalf(jacobian(rhs, vertcat(self.x, self.u))).is_constant():
+        if cas.evalf(cas.jacobian(rhs, cas.vertcat(self.x, self.u))).is_constant():
             super(LinearModel, self).set_rhs(name, rhs, process_noise=True)
         else:
             raise ValueError("Given rhs is not linear.")
 
-    def set_meas(self, name:str, meas:casadi.SX)->None:
+    def set_meas(self, name:str, meas:cas.SX)->None:
         """
         Checks if the measurement function is linear and calls :meth:`Model.set_meas`.
         
@@ -167,13 +160,12 @@ class LinearModel(Model):
             meas (CasADi SX): CasADi SX function depending on ``_x``, ``_u``, ``_tvp``, ``_p``.
         """
         # Check if expression is linear
-        if evalf(jacobian(meas, vertcat(self.x, self.u))).is_constant():
+        if cas.evalf(cas.jacobian(meas, cas.vertcat(self.x, self.u))).is_constant():
             super(LinearModel, self).set_meas(name, meas, meas_noise=True)
 
     def set_alg(self, expr_name, expr, *args, **kwargs):
         """
-        .. warning::
-
+        Warnings:
             This method is not supported for linear models.
         """
         raise NotImplementedError('Algebraic variables are not supported for linear models.')

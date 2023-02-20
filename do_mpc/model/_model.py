@@ -22,8 +22,7 @@
 
 
 import numpy as np
-from casadi import *
-from casadi.tools import *
+import casadi as cas
 import pdb
 from do_mpc.tools._casstructure import _SymVar
 
@@ -118,12 +117,12 @@ class Model:
         self._y =   {'name': ['default'], 'var': [self.sv.sym('default', (0,0))]}
 
         # Expressions:
-        self._aux_expression = [entry('default', expr=DM(0))]
+        self._aux_expression = [cas.entry('default', expr=cas.DM(0))]
         self._y_expression = []
 
 
         self.rhs_list = []
-        self.alg_list = [entry('default', expr=[])]
+        self.alg_list = [cas.entry('default', expr=[])]
 
         self.flags = {
             'setup': False,
@@ -540,7 +539,7 @@ class Model:
         raise Exception('Cannot set measurement noise directly.')
 
 
-    def set_variable(self, var_type, var_name, shape=(1,1)):
+    def set_variable(self, var_type:str, var_name:str, shape:Union[int,Tuple]=(1,1))->Union[cas.SX,cas.MX]:
         """Introduce new variables to the model class. Define variable type, name and shape (optional).
 
         **Example:**
@@ -611,7 +610,7 @@ class Model:
 
         return var
 
-    def set_expression(self, expr_name, expr):
+    def set_expression(self, expr_name:str, expr:Union[cas.SX,cas.MX])->Union[cas.SX,cas.MX]:
         """Introduce new expression to the model class. Expressions are not required but can be used
         to extract further information from the model.
         Expressions must be formulated with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
@@ -647,9 +646,9 @@ class Model:
         """
         assert self.flags['setup'] == False, 'Cannot call .set_expression after setup'
         assert isinstance(expr_name, str), 'expr_name must be str, you have: {}'.format(type(expr_name))
-        assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
+        assert isinstance(expr, (cas.SX, cas.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
 
-        self._aux_expression.append(entry(expr_name, expr = expr))
+        self._aux_expression.append(cas.entry(expr_name, expr = expr))
 
         # Create variable:
         var = self.sv.sym(expr_name, expr.shape)
@@ -658,7 +657,7 @@ class Model:
 
         return expr
 
-    def set_meas(self, meas_name, expr, meas_noise=True):
+    def set_meas(self, meas_name:str, expr:Union[cas.SX,cas.MX], meas_noise:bool=True)->Union[cas.SX,cas.MX]:
         """Introduce new measurable output to the model class.
 
         .. math::
@@ -720,7 +719,7 @@ class Model:
         """
         assert self.flags['setup'] == False, 'Cannot call .set_meas after setup'
         assert isinstance(meas_name, str), 'meas_name must be str, you have: {}'.format(type(meas_name))
-        assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
+        assert isinstance(expr, (cas.SX, cas.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
         assert isinstance(meas_noise, bool), 'meas_noise must be of type boolean. You have: {}'.format(type(meas_noise))
 
         # Create a new process noise variable and add it to the rhs equation.
@@ -731,7 +730,7 @@ class Model:
             self._v['var'].append(var)
             expr += var
 
-        self._y_expression.append(entry(meas_name, expr = expr))
+        self._y_expression.append(cas.entry(meas_name, expr = expr))
 
         # Create variable:
         var = self.sv.sym(meas_name, expr.shape)
@@ -740,7 +739,7 @@ class Model:
 
         return expr
 
-    def set_rhs(self, var_name, expr, process_noise=False):
+    def set_rhs(self, var_name:str, expr:Union[cas.SX,cas.MX], process_noise:bool=False)->None:
         """Formulate the right hand side (rhs) of the ODE:
 
         .. math::
@@ -792,22 +791,22 @@ class Model:
         """
         assert self.flags['setup'] == False, 'Cannot call .set_rhs after .setup.'
         assert isinstance(var_name, str), 'var_name must be str, you have: {}'.format(type(var_name))
-        assert isinstance(expr, (casadi.SX, casadi.MX, casadi.DM)), 'expr must be a casadi SX, MX or DM type, you have:{}'.format(type(expr))
+        assert isinstance(expr, (cas.SX, cas.MX, cas.DM)), 'expr must be a casadi SX, MX or DM type, you have:{}'.format(type(expr))
         assert var_name in self._x['name'], 'var_name must refer to the previously defined states ({}). You have: {}'.format(self._x['name'], var_name)
 
         # Create a new process noise variable and add it to the rhs equation.
         if process_noise:
             if self.symvar_type == 'MX':
-                var = MX.sym(var_name+'_noise', expr.shape[0])
+                var = cas.MX.sym(var_name+'_noise', expr.shape[0])
             else:
-                var = SX.sym(var_name+'_noise', expr.shape[0])
+                var = cas.SX.sym(var_name+'_noise', expr.shape[0])
 
             self._w['name'].append(var_name + '_noise')
             self._w['var'].append(var)
             expr += var
         self.rhs_list.extend([{'var_name': var_name, 'expr': expr}])
 
-    def set_alg(self, expr_name, expr):
+    def set_alg(self, expr_name:str, expr:Union[cas.SX,cas.MX])->None:
         """ Introduce new algebraic equation to model.
 
         For the continous time model, the expression must be formulated as
@@ -837,9 +836,9 @@ class Model:
         """
         assert self.flags['setup'] == False, 'Cannot call .set_alg after .setup.'
         assert isinstance(expr_name, str), 'expr_name must be str, you have: {}'.format(type(expr_name))
-        assert isinstance(expr, (casadi.SX, casadi.MX, casadi.DM)), 'expr must be a casadi SX, MX or DM type, you have:{}'.format(type(expr))
+        assert isinstance(expr, (cas.SX, cas.MX, cas.DM)), 'expr must be a casadi SX, MX or DM type, you have:{}'.format(type(expr))
 
-        self.alg_list.append(entry(expr_name, expr = expr))
+        self.alg_list.append(cas.entry(expr_name, expr = expr))
 
 
     def _convert2struct(self, var_dict):
@@ -865,7 +864,7 @@ class Model:
         :type var_dict: dict
         """
         result_struct =  self.sv.sym_struct([
-            entry(name, shape = var.shape) for var, name in zip(var_dict['var'], var_dict['name'])
+            cas.entry(name, shape = var.shape) for var, name in zip(var_dict['var'], var_dict['name'])
         ])
         return result_struct
 
@@ -893,7 +892,7 @@ class Model:
             assert var_dict['name'] == sym_struct.keys()
 
             for var, name in zip(var_dict['var'], var_dict['name']):
-                subs = substitute(subs, var, sym_struct[name])
+                subs = cas.substitute(subs, var, sym_struct[name])
 
         if self.symvar_type == 'MX':
             expr = expr(subs)
@@ -1012,34 +1011,34 @@ class Model:
         self._y = _y
         self._aux = _aux
         
-        A_lin_expr = jacobian(self._rhs,self._x)
-        B_lin_expr = jacobian(self._rhs,self._u)
-        C_lin_expr = jacobian(self._y_expression,self._x)
-        D_lin_expr = jacobian(self._y_expression,self._u)
+        A_lin_expr = cas.jacobian(self._rhs,self._x)
+        B_lin_expr = cas.jacobian(self._rhs,self._u)
+        C_lin_expr = cas.jacobian(self._y_expression,self._x)
+        D_lin_expr = cas.jacobian(self._y_expression,self._u)
 
         # Declare functions for the right hand side and the aux_expressions.
-        self._rhs_fun = Function('rhs_fun',
+        self._rhs_fun = cas.Function('rhs_fun',
                                  [_x, _u, _z, _tvp, _p, _w], [self._rhs],
                                  ["_x", "_u", "_z", "_tvp", "_p", "_w"], ["_rhs"])
-        self._alg_fun = Function('alg_fun',
+        self._alg_fun = cas.Function('alg_fun',
                                  [_x, _u, _z, _tvp, _p, _w], [self._alg],
                                  ["_x", "_u", "_z", "_tvp", "_p", "_w"], ["_alg"])
-        self._aux_expression_fun = Function('aux_expression_fun',
+        self._aux_expression_fun = cas.Function('aux_expression_fun',
                                             [_x, _u, _z, _tvp, _p], [self._aux_expression],
                                             ["_x", "_u", "_z", "_tvp", "_p"], ["_aux_expression"])
-        self._meas_fun = Function('meas_fun',
+        self._meas_fun = cas.Function('meas_fun',
                                   [_x, _u, _z, _tvp, _p, _v], [self._y_expression],
                                   ["_x", "_u", "_z", "_tvp", "_p", "_v"], ["_y_expression"])
-        self.A_fun = Function('A_fun',
+        self.A_fun = cas.Function('A_fun',
                               [_x, _u, _z, _tvp, _p, _w],[A_lin_expr],
                               ["_x", "_u", "_z", "_tvp", "_p", "_w"],["A_lin_expr"])
-        self.B_fun = Function('B_fun',
+        self.B_fun = cas.Function('B_fun',
                               [_x, _u, _z, _tvp, _p, _w],[B_lin_expr],
                               ["_x", "_u", "_z", "_tvp", "_p", "_w"],["B_lin_expr"])
-        self.C_fun = Function('C_fun',
+        self.C_fun = cas.Function('C_fun',
                               [_x, _u, _z, _tvp, _p, _v],[C_lin_expr],
                               ["_x", "_u", "_z", "_tvp", "_p", "_v"],["C_lin_expr"])
-        self.D_fun = Function('D_fun',
+        self.D_fun = cas.Function('D_fun',
                               [_x, _u, _z, _tvp, _p, _v],[D_lin_expr],
                               ["_x", "_u", "_z", "_tvp", "_p", "_v"],["D_lin_expr"]) 
 
@@ -1134,14 +1133,14 @@ class Model:
         # Constant matrices are converted to numpy arrays.
         A = self.A_fun(xss, uss, z, tvp, p, w)
         if A.is_constant():
-            A = DM(A).full()
+            A = cas.DM(A).full()
         B = self.B_fun(xss, uss, z, tvp, p, w)
         if B.is_constant():
-            B = DM(B).full()
+            B = cas.DM(B).full()
         C = self.C_fun(xss, uss, z, tvp, p, v)
         if C.is_constant():
-            C = DM(C).full()
+            C = cas.DM(C).full()
         D = self.D_fun(xss, uss, z, tvp, p, v)
         if D.is_constant():
-            D = DM(D).full()
+            D = cas.DM(D).full()
         return A,B,C,D

@@ -20,11 +20,9 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
-
-from casadi import *
-from casadi.tools import *
 import numpy as np
 from . import Model
+import casadi as cas
    
 def dae2odeconversion(model:Model)->Model:
     """Converts index-1 DAE system to ODE system.
@@ -83,8 +81,8 @@ def dae2odeconversion(model:Model)->Model:
     p_new = daeModel.p[model.p.keys()[1:]]
             
     #Converting rhs eq. with respect to variables of linear model of same name
-    rhs = model._rhs_fun(vertcat(*x_new),vertcat(*u_new),vertcat(*z_new),vertcat(*tvp_new),vertcat(*p_new),model.w)
-    rhs_new = substitute(rhs,model.w.cat,np.zeros(model.n_w).reshape(model.n_w,1))
+    rhs = model._rhs_fun(cas.vertcat(*x_new),cas.vertcat(*u_new),cas.vertcat(*z_new),cas.vertcat(*tvp_new),cas.vertcat(*p_new),model.w)
+    rhs_new = cas.substitute(rhs,model.w.cat,np.zeros(model.n_w).reshape(model.n_w,1))
     x_count = 0
     for i in range(np.size(model.x.keys())):
         if daeModel.x.keys()[i]+'_noise' in model.w.keys():
@@ -93,9 +91,9 @@ def dae2odeconversion(model:Model)->Model:
         else:
             daeModel.set_rhs(model.x.keys()[i],rhs_new[x_count:x_count+model.x[model.x.keys()[i]].size()[0]])
             x_count += model.x[model.x.keys()[i]].size()[0]
-    alg = model._alg_fun(vertcat(*x_new),vertcat(*u_new),vertcat(*z_new),vertcat(*tvp_new),vertcat(*p_new),daeModel.w)
-    rhs_mod = substitute(rhs,model.w.cat,daeModel.w.cat)
-    z_next = -inv(jacobian(alg,vertcat(*z_new)))@jacobian(alg,vertcat(*x_new))@rhs_mod-inv(jacobian(alg,vertcat(*z_new)))@jacobian(alg,vertcat(*u_new))@q
+    alg = model._alg_fun(cas.vertcat(*x_new),cas.vertcat(*u_new),cas.vertcat(*z_new),cas.vertcat(*tvp_new),cas.vertcat(*p_new),daeModel.w)
+    rhs_mod = cas.substitute(rhs,model.w.cat,daeModel.w.cat)
+    z_next = -cas.inv(cas.jacobian(alg,cas.vertcat(*z_new)))@cas.jacobian(alg,cas.vertcat(*x_new))@rhs_mod-cas.inv(cas.jacobian(alg,cas.vertcat(*z_new)))@cas.jacobian(alg,cas.vertcat(*u_new))@q
     
     for j in range(np.size(model.u.keys())-1):
         daeModel.set_rhs(model.u.keys()[j+1],daeModel.u['q',j])
