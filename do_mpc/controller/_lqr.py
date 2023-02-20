@@ -28,6 +28,7 @@ import pdb
 import do_mpc.data
 from scipy.linalg import solve_discrete_are
 from ..model import LinearModel, IteratedVariables
+from typing import Dict
 
 class LQR(IteratedVariables):
     """Linear Quadratic Regulator.
@@ -75,8 +76,11 @@ class LQR(IteratedVariables):
     Note:
         During runtime call :py:meth:`make_step` with the current state :math:`x` to obtain the optimal control input :math:`u`.
         During runtime call :py:meth:`set_setpoint` with the set points of input :math:`u_{ss}` and states :math:`x_{ss}` in order to update the respective set points.
+
+    Args:
+        model : Linear model
     """
-    def __init__(self,model:LinearModel)->None:
+    def __init__(self,model:LinearModel):
         self.model = model
         IteratedVariables.__init__(self)
         
@@ -101,13 +105,13 @@ class LQR(IteratedVariables):
         
         self.flags = {'setup':False}
 
-    def reset_history(self):
+    def reset_history(self)->None:
         """Reset the history of the LQR.
         """
         self._t0 = np.array([0])
         self.data.init_storage()
         
-    def discrete_gain(self,A:numpy.ndarray,B:numpy.ndarray)->numpy.ndarray:
+    def discrete_gain(self,A:np.ndarray,B:np.ndarray)->np.ndarray:
         """Computes discrete gain. 
 
         This method computes either the finite horizon discrete gain or infinite horizon discrete gain.
@@ -133,11 +137,11 @@ class LQR(IteratedVariables):
                 K = lqr.discrete_gain(A,B)
         
         Args:
-            A (numpy.ndarray): State matrix - constant matrix with no variables
-            B (numpy.ndarray): Input matrix - constant matrix with no variables
+            A : State matrix - constant matrix with no variables
+            B : Input matrix - constant matrix with no variables
         
         Returns:
-            numpy.ndarray: Gain matrix :math:`K` 
+            Gain matrix :math:`K` 
         """
         #Verifying the availability of cost matrices
         assert self.Q.size != 0 and self.R.size != 0 , 'Enter tuning parameter Q and R for the lqr problem using set_objective() function.'
@@ -158,7 +162,7 @@ class LQR(IteratedVariables):
             K = -np.linalg.inv(np.transpose(B)@pi_discrete@B+self.R)@np.transpose(B)@pi_discrete@A
             return K
         
-    def set_rterm(self,delR:numpy.ndarray)->None:
+    def set_rterm(self,delR:np.ndarray)->None:
         """Modifies the model such that rated input acts as the input. 
         
         Warning:
@@ -196,7 +200,7 @@ class LQR(IteratedVariables):
                 \\tilde{R} = \\Delta R
         
         Args:
-            delR (numpy.ndarray): Rated input cost matrix - constant matrix with no variables
+            delR : Rated input cost matrix - constant matrix with no variables
         """
         
         #Modifying A and B matrix for input rate penalization
@@ -234,15 +238,15 @@ class LQR(IteratedVariables):
 
         .. _`more details here`: https://codeyarns.github.io/tech/2012-04-25-unpack-operator-in-python.html
 
-        .. note:: The only required parameters  are ``n_horizon``. All other parameters are optional.
-
-        .. note:: :py:meth:`set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
+        Note:
+            The only required parameters  are ``n_horizon``. All other parameters are optional.
+            :py:meth:`set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
 
         The following parameters are available:
         
         Args:
-            n_horizon (int): Prediction horizon of the optimal control problem. Parameter must be set by user.
-            t_step (float): Time step of LQR
+            n_horizon(int) : Prediction horizon of the optimal control problem. Parameter must be set by user.
+            t_step(float) : Time step of LQR
         """
         for key, value in kwargs.items():
             if not (key in self.data_fields):
@@ -250,15 +254,15 @@ class LQR(IteratedVariables):
             else:
                 setattr(self, key, value)
                 
-    def make_step(self,x0:numpy.ndarray)->numpy.ndarray:
+    def make_step(self,x0:np.ndarray)->np.ndarray:
         """Main method of the class during runtime. This method is called at each timestep
         and returns the control input for the current initial state.
          
         Args:
-            x0 (numpy.ndarray): Current state of the system.
+            x0 : Current state of the system.
         
         Returns:
-            numpy.ndarray: u0 - current input of the system
+            u0 - current input of the system
         """
         #verify setup of lqr is done
         assert self.flags['setup'] == True, 'LQR is not setup. run setup() function.'
@@ -309,7 +313,7 @@ class LQR(IteratedVariables):
         x0 = np.block([[x],[u]])
         return x0
         
-    def set_objective(self, Q:numpy.ndarray, R:numpy.ndarray, P:numpy.ndarray = None)->None:
+    def set_objective(self, Q:np.ndarray, R:np.ndarray, P:np.ndarray = None)->None:
         """Sets the cost matrix for the Optimal Control Problem.
         
         This method sets the inputs, states and algebraic states cost matrices for the given problem.
@@ -372,9 +376,9 @@ class LQR(IteratedVariables):
             exception: P matrix must be of type class numpy.ndarray
 
         Args:
-            Q (numpy.ndarray): State cost matrix
-            R (numpy.ndarray): Input cost matrix
-            P (numpy.ndarray): Terminal cost matrix (optional) 
+            Q : State cost matrix
+            R : Input cost matrix
+            P : Terminal cost matrix (optional) 
         """
         
         #Verify the setup is not complete
@@ -402,7 +406,7 @@ class LQR(IteratedVariables):
         if self.n_horizon != None:
             assert self.P.shape == self.Q.shape, 'P must have same shape as Q. You have {}'.format(P.shape)
 
-    def set_setpoint(self,xss:numpy.ndarray = None,uss:numpy.ndarray = None)->None:   
+    def set_setpoint(self,xss :np.ndarray= None,uss:np.ndarray = None)->None:   
         """Sets setpoints for states and inputs.
 
         This method can be used to set setpoints for either states or inputs or for both (states and inputs) at each time step. 
@@ -419,8 +423,8 @@ class LQR(IteratedVariables):
                 lqr.set_setpoint(xss = np.array([[10],[15]]) ,uss = np.array([[2],[3]]))
 
         Args:
-            xss (numpy.ndarray): set point for states of the system(optional)
-            uss (numpy.ndarray): set point for inputs of the system(optional)
+            xss : set point for states of the system(optional)
+            uss : set point for inputs of the system(optional)
         """
         assert self.flags['setup'] == True, 'LQR is not setup. Run setup() function.'
 
