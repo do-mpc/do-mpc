@@ -64,6 +64,9 @@ mathjax3_config = {
 }
 
 typehints_document_path = 'api/typehints'
+#typehints_use_signature = True
+#typehints_use_signature_return = True
+#typehints_document_rtype = True
 always_document_param_types = True
 typehints_use_rtype = False
 
