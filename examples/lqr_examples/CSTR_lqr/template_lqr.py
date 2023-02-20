@@ -20,8 +20,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
-from casadi import *
-from casadi.tools import *
+import casadi as cas
 import pdb
 import sys
 import os
