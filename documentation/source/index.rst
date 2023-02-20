@@ -166,6 +166,7 @@ Table of contents
    /example_gallery/oscillating_masses_discrete
    /example_gallery/DIP
    /example_gallery/data_generator
+   /example_gallery/CSTR_lqr
 
 
 
