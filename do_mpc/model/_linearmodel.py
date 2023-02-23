@@ -27,7 +27,7 @@ import warnings
 from scipy.signal import cont2discrete
 from . import Model
 from typing import Union
-import casadi as cas
+import casadi.tools as castools
 
 # Define what is included in the Sphinx documentation.
 __all__ = ['LinearModel']
@@ -133,7 +133,7 @@ class LinearModel(Model):
         assert self.flags['setup'] == True, 'Attributes are available after the model is setup.'
         return self._D
 
-    def set_rhs(self, name:str, rhs:cas.SX)->None:
+    def set_rhs(self, name:str, rhs:castools.SX)->None:
         """
         Checks if the right-hand-side function is linear and calls :meth:`Model.set_rhs`.
         
@@ -142,12 +142,12 @@ class LinearModel(Model):
             rhs : CasADi SX function depending on ``_x``, ``_u``, ``_tvp``, ``_p``.
         """
         # Check if expression is linear
-        if cas.evalf(cas.jacobian(rhs, cas.vertcat(self.x, self.u))).is_constant():
+        if castools.evalf(castools.jacobian(rhs, castools.vertcat(self.x, self.u))).is_constant():
             super(LinearModel, self).set_rhs(name, rhs, process_noise=True)
         else:
             raise ValueError("Given rhs is not linear.")
 
-    def set_meas(self, name:str, meas:cas.SX)->None:
+    def set_meas(self, name:str, meas:castools.SX)->None:
         """
         Checks if the measurement function is linear and calls :meth:`Model.set_meas`.
         
@@ -156,7 +156,7 @@ class LinearModel(Model):
             meas : CasADi SX function depending on ``_x``, ``_u``, ``_tvp``, ``_p``.
         """
         # Check if expression is linear
-        if cas.evalf(cas.jacobian(meas, cas.vertcat(self.x, self.u))).is_constant():
+        if castools.evalf(castools.jacobian(meas, castools.vertcat(self.x, self.u))).is_constant():
             super(LinearModel, self).set_meas(name, meas, meas_noise=True)
 
     def set_alg(self, expr_name, expr, *args, **kwargs):

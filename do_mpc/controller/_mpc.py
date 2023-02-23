@@ -22,8 +22,8 @@
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-from casadi import *
-from casadi.tools import *
+#from casadi import *
+import casadi.tools as castools
 import pdb
 import itertools
 import time
@@ -614,26 +614,26 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
 
         # Check if mterm is valid:
-        if not isinstance(mterm, (casadi.DM, casadi.SX, casadi.MX)):
+        if not isinstance(mterm, (castools.DM, castools.SX, castools.MX)):
             raise Exception('mterm must be of type casadi.DM, casadi.SX or casadi.MX. You have: {}.'.format(type(mterm)))
 
         # Check if lterm is valid:
-        if not isinstance(lterm, (casadi.DM, casadi.SX, casadi.MX)):
+        if not isinstance(lterm, (castools.DM, castools.SX, castools.MX)):
             raise Exception('lterm must be of type casadi.DM, casadi.SX or casadi.MX. You have: {}.'.format(type(lterm)))
 
         if mterm is None:
-            self.mterm = DM(0)
+            self.mterm = castools.DM(0)
         else:
             self.mterm = mterm
         # TODO: This function should be evaluated with scaled variables.
-        self.mterm_fun = Function('mterm', [_x, _tvp, _p], [mterm])
+        self.mterm_fun = castools.Function('mterm', [_x, _tvp, _p], [mterm])
 
         if lterm is None:
-            self.lterm = DM(0)
+            self.lterm = castools.DM(0)
         else:
             self.lterm = lterm
 
-        self.lterm_fun = Function('lterm', [_x, _u, _z, _tvp, _p], [lterm])
+        self.lterm_fun = castools.Function('lterm', [_x, _u, _z, _tvp, _p], [lterm])
 
         # Check if lterm and mterm use invalid variables as inputs.
         # For the check we evaluate the function with dummy inputs and expect a DM output.
@@ -756,7 +756,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         """
         self.n_combinations = n_combinations
         p_template = self.model.sv.sym_struct([
-            entry('_p', repeat=n_combinations, struct=self.model._p)
+            castools.entry('_p', repeat=n_combinations, struct=self.model._p)
         ])
         return p_template(0)
 
@@ -1012,12 +1012,12 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         assert self.flags['setup'] == True, 'MPC was not setup yet. Please call MPC.setup().'
 
         # Check input type.
-        if isinstance(x0, (np.ndarray, casadi.DM)):
+        if isinstance(x0, (np.ndarray, castools.DM)):
             pass
-        elif isinstance(x0, structure3.DMStruct):
+        elif isinstance(x0, castools.structure3.DMStruct):
             x0 = x0.cat
         else:
-            raise Exception('Invalid type {} for x0. Must be {}'.format(type(x0), (np.ndarray, casadi.DM, structure3.DMStruct)))
+            raise Exception('Invalid type {} for x0. Must be {}'.format(type(x0), (np.ndarray, castools.DM, castools.structure3.DMStruct)))
 
         # Check input shape.
         n_val = np.prod(x0.shape)
@@ -1148,12 +1148,12 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         # Create struct for optimization variables:
         self._opt_x = opt_x = self.model.sv.sym_struct([
             # One additional point (in the collocation dimension) for the final point.
-            entry('_x', repeat=[self.n_horizon+1, n_max_scenarios,
+            castools.entry('_x', repeat=[self.n_horizon+1, n_max_scenarios,
                                 1+n_total_coll_points], struct=self.model._x),
-            entry('_z', repeat=[self.n_horizon, n_max_scenarios,
+            castools.entry('_z', repeat=[self.n_horizon, n_max_scenarios,
                                 max(n_total_coll_points,1)], struct=self.model._z),
-            entry('_u', repeat=[self.n_horizon, n_u_scenarios], struct=self.model._u),
-            entry('_eps', repeat=[n_eps, n_max_scenarios], struct=self._eps),
+            castools.entry('_u', repeat=[self.n_horizon, n_u_scenarios], struct=self.model._u),
+            castools.entry('_eps', repeat=[n_eps, n_max_scenarios], struct=self._eps),
         ])
         self.n_opt_x = self._opt_x.shape[0]
         # NOTE: The entry _x[k,child_scenario[k,s,b],:] starts with the collocation points from s to b at time k
@@ -1171,10 +1171,10 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         # Create struct for optimization parameters:
         self._opt_p = opt_p = self.model.sv.sym_struct([
-            entry('_x0', struct=self.model._x),
-            entry('_tvp', repeat=self.n_horizon+1, struct=self.model._tvp),
-            entry('_p', repeat=self.n_combinations, struct=self.model._p),
-            entry('_u_prev', struct=self.model._u),
+            castools.entry('_x0', struct=self.model._x),
+            castools.entry('_tvp', repeat=self.n_horizon+1, struct=self.model._tvp),
+            castools.entry('_p', repeat=self.n_combinations, struct=self.model._p),
+            castools.entry('_u_prev', struct=self.model._u),
         ])
         _w = self.model._w(0)
 
@@ -1182,7 +1182,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         # Dummy struct with symbolic variables
         self.aux_struct = self.model.sv.sym_struct([
-            entry('_aux', repeat=[self.n_horizon, n_max_scenarios], struct=self.model._aux_expression)
+            castools.entry('_aux', repeat=[self.n_horizon, n_max_scenarios], struct=self.model._aux_expression)
         ])
         # Create mutable symbolic expression from the struct defined above.
         self._opt_aux = opt_aux = self.model.sv.struct(self.aux_struct)
@@ -1193,7 +1193,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         self._ub_opt_x = opt_x(np.inf)
 
         # Initialize objective function and constraints
-        obj = DM(0)
+        obj = castools.DM(0)
         cons = []
         cons_lb = []
         cons_ub = []
@@ -1222,8 +1222,8 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                     current_scenario = b + branch_offset[k][s]
 
                     # Compute constraints and predicted next state of the discretization scheme
-                    col_xk = vertcat(*opt_x['_x', k+1, child_scenario[k][s][b], :-1])
-                    col_zk = vertcat(*opt_x['_z', k, child_scenario[k][s][b]])
+                    col_xk = castools.vertcat(*opt_x['_x', k+1, child_scenario[k][s][b], :-1])
+                    col_zk = castools.vertcat(*opt_x['_z', k, child_scenario[k][s][b]])
                     [g_ksb, xf_ksb] = ifcn(opt_x['_x', k, s, -1], col_xk,
                                            opt_x['_u', k, s_u], col_zk, opt_p['_tvp', k],
                                            opt_p['_p', current_scenario], _w)
@@ -1308,11 +1308,9 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     def _create_nlp(self):
         """Internal method. See detailed documentation in optimizer.create_nlp
         """
-
-
-        self._nlp_cons = vertcat(*self._nlp_cons)
-        self._nlp_cons_lb = vertcat(*self._nlp_cons_lb)
-        self._nlp_cons_ub = vertcat(*self._nlp_cons_ub)
+        self._nlp_cons = castools.vertcat(*self._nlp_cons)
+        self._nlp_cons_lb = castools.vertcat(*self._nlp_cons_lb)
+        self._nlp_cons_ub = castools.vertcat(*self._nlp_cons_ub)
 
         self.n_opt_lagr = self._nlp_cons.shape[0]
         # Create casadi optimization object:
@@ -1320,13 +1318,11 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             'expand': False,
             'ipopt.linear_solver': 'mumps',
         }.update(self.nlpsol_opts)
-        self.nlp = {'x': vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons, 'p': vertcat(self._opt_p)}
-        self.S = nlpsol('S', 'ipopt', self.nlp, self.nlpsol_opts)
-
+        self.nlp = {'x': castools.vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons, 'p': castools.vertcat(self._opt_p)}
+        self.S = castools.nlpsol('S', 'ipopt', self.nlp, self.nlpsol_opts)
 
         # Create function to caculate all auxiliary expressions:
-        self.opt_aux_expression_fun = Function('opt_aux_expression_fun', [self._opt_x, self._opt_p], [self._opt_aux])
-
+        self.opt_aux_expression_fun = castools.Function('opt_aux_expression_fun', [self._opt_x, self._opt_p], [self._opt_aux])
 
         # Gather meta information:
         meta_data = {key: getattr(self, key) for key in self.data_fields}

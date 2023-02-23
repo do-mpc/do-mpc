@@ -28,8 +28,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.axes as maxes
 from matplotlib.animation import FuncAnimation, FFMpegWriter, ImageMagickWriter
-from casadi import *
-from casadi.tools import *
 import pdb
 import os
 from do_mpc.tools import IndexedProperty, Structure

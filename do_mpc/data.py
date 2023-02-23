@@ -25,7 +25,7 @@ Storage and handling of data.
 """
 
 import numpy as np
-import casadi as cas
+import casadi.tools as castools
 import pdb
 import pickle
 import do_mpc
@@ -170,7 +170,7 @@ class Data:
         for key, value in kwargs.items():
             self.meta_data[key] = value
 
-    def update(self, **kwargs:Dict[np.ndarray,cas.DM])->None:
+    def update(self, **kwargs:Dict[np.ndarray,castools.DM])->None:
         """Update value(s) of the data structure with key word arguments.
         These key word arguments must exist in the data fields of the data objective.
         See self.data_fields for a complete list of data fields.
@@ -203,9 +203,9 @@ class Data:
         """
         for key, value in kwargs.items():
             assert key in self.data_fields.keys(), 'Cannot update non existing key {} in data object.'.format(key)
-            if type(value) == cas.structure3.DMStruct:
+            if type(value) == castools.structure3.DMStruct:
                 value = value.cat
-            if type(value) == cas.DM:
+            if type(value) == castools.DM:
                 # Convert to numpy
                 value = value.full()
             elif type(value) in [float, int, bool]:
@@ -306,7 +306,7 @@ class MPCData(Data):
                 i = self.prediction_queries['ind'].index(ind)
                 f_ind = self.prediction_queries['f_ind'][i]
             else:
-                f_ind = self.opt_x.f[(ind[0], slice(None), lambda v: cas.horzcat(*v),slice(None), -1)+ind[1:]]
+                f_ind = self.opt_x.f[(ind[0], slice(None), lambda v: castools.horzcat(*v),slice(None), -1)+ind[1:]]
                 f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind], dtype='int32')
                 # sort pred such that each column belongs to one scenario
                 # - By indexing structure_scenario until f_ind.shape[0] we cover the case of _x and _z at the same time
@@ -321,7 +321,7 @@ class MPCData(Data):
                 i = self.prediction_queries['ind'].index(ind)
                 f_ind = self.prediction_queries['f_ind'][i]
             else:
-                f_ind = self.opt_x.f[(ind[0], slice(None), lambda v: cas.horzcat(*v),slice(None))+ind[1:]]
+                f_ind = self.opt_x.f[(ind[0], slice(None), lambda v: castools.horzcat(*v),slice(None))+ind[1:]]
                 f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind], dtype='int32')
                 # sort pred such that each column belongs to one scenario
                 if self.meta_data['open_loop']:
@@ -352,7 +352,7 @@ class MPCData(Data):
                 i = self.prediction_queries['ind'].index(ind)
                 f_ind = self.prediction_queries['f_ind'][i]
             else:
-                f_ind = self.opt_aux.f[(ind[0], slice(None), lambda v: cas.horzcat(*v),slice(None))+ind[1:]]
+                f_ind = self.opt_aux.f[(ind[0], slice(None), lambda v: castools.horzcat(*v),slice(None))+ind[1:]]
                 f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind], dtype='int32')
                 # sort pred such that each column belongs to one scenario
                 f_ind = f_ind[range(f_ind.shape[0]),:,structure_scenario[:-1,:].T].T

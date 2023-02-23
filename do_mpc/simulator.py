@@ -25,8 +25,7 @@ Simulate continous-time ODE/DAE or discrete-time dynamic systems.
 """
 
 import numpy as np
-from casadi import *
-from casadi.tools import *
+import casadi.tools as castools
 import pdb
 import do_mpc
 
@@ -137,17 +136,17 @@ class Simulator(do_mpc.model.IteratedVariables):
         self._check_validity()
 
         self.sim_x = sim_x =  self.model.sv.sym_struct([
-            entry('_x', struct=self.model._x)
+            castools.entry('_x', struct=self.model._x)
             ])
         self.sim_z = sim_z =  self.model.sv.sym_struct([
-            entry('_z', struct=self.model._z)
+            castools.entry('_z', struct=self.model._z)
             ])
 
         self.sim_p = sim_p = self.model.sv.sym_struct([
-            entry('_u', struct=self.model._u),
-            entry('_p', struct=self.model._p),
-            entry('_tvp', struct=self.model._tvp),
-            entry('_w', struct=self.model._w)
+            castools.entry('_u', struct=self.model._u),
+            castools.entry('_p', struct=self.model._p),
+            castools.entry('_tvp', struct=self.model._tvp),
+            castools.entry('_w', struct=self.model._w)
         ])
 
         # Initiate numerical structures to store the solutions (updated at each iteration)
@@ -163,11 +162,11 @@ class Simulator(do_mpc.model.IteratedVariables):
             x_next = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
 
             # Build the DAE function
-            nlp = {'x': sim_z['_z'], 'p': vertcat(sim_x['_x'], sim_p), 'f': DM(0), 'g': alg}
-            self.discrete_dae_solver = nlpsol('dae_roots', 'ipopt', nlp)
+            nlp = {'x': sim_z['_z'], 'p': castools.vertcat(sim_x['_x'], sim_p), 'f': castools.DM(0), 'g': alg}
+            self.discrete_dae_solver = castools.nlpsol('dae_roots', 'ipopt', nlp)
 
             # Build the simulator function:
-            self.simulator = Function('simulator',[sim_x['_x'], sim_z['_z'], sim_p],[x_next])
+            self.simulator = castools.Function('simulator',[sim_x['_x'], sim_z['_z'], sim_p],[x_next])
 
 
         elif self.model.model_type == 'continuous':
@@ -192,11 +191,11 @@ class Simulator(do_mpc.model.IteratedVariables):
             }
 
             # Build the simulator
-            self.simulator = integrator('simulator', self.integration_tool, dae,  opts)
+            self.simulator = castools.integrator('simulator', self.integration_tool, dae,  opts)
 
         sim_aux = self.model._aux_expression_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'])
         # Create function to caculate all auxiliary expressions:
-        self.sim_aux_expression_fun = Function('sim_aux_expression_fun', [sim_x, sim_z, sim_p], [sim_aux])
+        self.sim_aux_expression_fun = castools.Function('sim_aux_expression_fun', [sim_x, sim_z, sim_p], [sim_aux])
 
         self.flags['setup'] = True
 
@@ -285,7 +284,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         :return: None
         :rtype: None
         """
-        assert isinstance(tvp_fun(0), structure3.DMStruct), 'tvp_fun has incorrect return type.'
+        assert isinstance(tvp_fun(0), castools.structure3.DMStruct), 'tvp_fun has incorrect return type.'
         assert self.get_tvp_template().labels() == tvp_fun(0).labels(), 'Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.'
         self.tvp_fun = tvp_fun
 
@@ -369,7 +368,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         :return: None
         :rtype: None
         """
-        assert isinstance(p_fun(0), structure3.DMStruct), 'p_fun has incorrect return type.'
+        assert isinstance(p_fun(0), castools.structure3.DMStruct), 'p_fun has incorrect return type.'
         assert self.get_p_template().labels() == p_fun(0).labels(), 'Incorrect output of p_fun. Use get_p_template to obtain the required structure.'
         self.p_fun = p_fun
         self.flags['set_p_fun'] = True
@@ -426,7 +425,7 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         if self.model.model_type == 'discrete':
             if self.model.n_z > 0: # Solve DAE only when it exists ...
-                r = self.discrete_dae_solver(x0 = sim_z_num, ubg = 0, lbg = 0, p=vertcat(sim_x_num,sim_p_num))
+                r = self.discrete_dae_solver(x0 = sim_z_num, ubg = 0, lbg = 0, p=castools.vertcat(sim_x_num,sim_p_num))
                 sim_z_num.master = r['x']
             x_new = self.simulator(sim_x_num, sim_z_num, sim_p_num)
         elif self.model.model_type == 'continuous':
@@ -475,22 +474,22 @@ class Simulator(do_mpc.model.IteratedVariables):
             u0 = self.model._u(0)
 
         assert self.flags['setup'] == True, 'Simulator is not setup. Call simulator.setup() first.'
-        assert isinstance(u0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'u0 is wrong input type. You have: {}'.format(type(u0))
+        assert isinstance(u0, (np.ndarray, castools.DM, castools.structure3.DMStruct)), 'u0 is wrong input type. You have: {}'.format(type(u0))
         assert u0.shape == self.model._u.shape, 'u0 has incorrect shape. You have: {}, expected: {}'.format(u0.shape, self.model._u.shape)
-        assert isinstance(u0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'u0 is wrong input type. You have: {}'.format(type(u0))
+        assert isinstance(u0, (np.ndarray, castools.DM, castools.structure3.DMStruct)), 'u0 is wrong input type. You have: {}'.format(type(u0))
         assert u0.shape == self.model._u.shape, 'u0 has incorrect shape. You have: {}, expected: {}'.format(u0.shape, self.model._u.shape)
 
         if w0 is None:
             w0 = self.model._w(0)
         else:
-            input_types = (np.ndarray, casadi.DM, structure3.DMStruct)
+            input_types = (np.ndarray, castools.DM, castools.structure3.DMStruct)
             assert isinstance(w0, input_types), 'w0 is wrong input type. You have: {}. Must be of type'.format(type(w0), input_types)
             assert w0.shape == self.model._w.shape, 'w0 has incorrect shape. You have: {}, expected: {}'.format(w0.shape, self.model._w.shape)
 
         if v0 is None:
             v0 = self.model._v(0)
         else:
-            input_types = (np.ndarray, casadi.DM, structure3.DMStruct)
+            input_types = (np.ndarray, castools.DM, castools.structure3.DMStruct)
             assert isinstance(v0, input_types), 'v0 is wrong input type. You have: {}. Must be of type'.format(type(v0), input_types)
             assert v0.shape == self.model._v.shape, 'v0 has incorrect shape. You have: {}, expected: {}'.format(v0.shape, self.model._v.shape)
 

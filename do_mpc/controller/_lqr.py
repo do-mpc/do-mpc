@@ -21,7 +21,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
-import casadi as cas
+import casadi.tools as castools
 import numpy as np
 import warnings
 import pdb
@@ -268,12 +268,12 @@ class LQR(IteratedVariables):
         assert self.flags['setup'] == True, 'LQR is not setup. run setup() function.'
         
         # Check input type.
-        if isinstance(x0, (np.ndarray, cas.DM)):
+        if isinstance(x0, (np.ndarray, castools.DM)):
             pass
-        elif isinstance(x0, cas.structure3.DMStruct):
+        elif isinstance(x0, castools.structure3.DMStruct):
             x0 = x0.cat
         else:
-            raise Exception('Invalid type {} for x0. Must be {}'.format(type(x0), (np.ndarray, cas.DM, cas.structure3.DMStruct)))
+            raise Exception('Invalid type {} for x0. Must be {}'.format(type(x0), (np.ndarray, castools.DM, castools.structure3.DMStruct)))
 
         #setting setpoints
         if not hasattr(self, "xss") and not hasattr(self,"uss"):
@@ -301,7 +301,7 @@ class LQR(IteratedVariables):
         # Update initial
         self._t0 = self._t0 + self.t_step
         self._x0.master = x0
-        self._u0.master = cas.DM(u0)
+        self._u0.master = castools.DM(u0)
         
         return u0
         
@@ -397,11 +397,11 @@ class LQR(IteratedVariables):
         #Verify shape of Q,R,P
         assert self.Q.shape == (self.model.n_x,self.model.n_x), 'Q must have shape = {}. You have {}'.format((self.model.n_x,self.model.n_x),self.Q.shape)
         assert self.R.shape == (self.model.n_u,self.model.n_u), 'R must have shape = {}. You have {}'.format((self.model.n_u,self.model.n_u),self.R.shape)
-        if isinstance(self.Q, (cas.DM, cas.SX, cas.MX)):
+        if isinstance(self.Q, (castools.DM, castools.SX, castools.MX)):
             raise Exception('Q matrix must be of type class numpy.ndarray')
-        if isinstance(self.R, (cas.DM, cas.SX, cas.MX)):
+        if isinstance(self.R, (castools.DM, castools.SX, castools.MX)):
             raise Exception('R matrix must be of type class numpy.ndarray')
-        if self.n_horizon != None and isinstance(self.P, (cas.DM, cas.SX, cas.MX)):
+        if self.n_horizon != None and isinstance(self.P, (castools.DM, castools.SX, castools.MX)):
             raise Exception('P matrix must be of type class numpy.ndarray')
         if self.n_horizon != None:
             assert self.P.shape == self.Q.shape, 'P must have same shape as Q. You have {}'.format(P.shape)

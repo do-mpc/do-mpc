@@ -22,7 +22,7 @@
 
 import numpy as np
 from . import Model
-import casadi as cas
+import casadi.tools as castools
    
 def dae2odeconversion(model:Model)->Model:
     """Converts index-1 DAE system to ODE system.
@@ -81,8 +81,8 @@ def dae2odeconversion(model:Model)->Model:
     p_new = daeModel.p[model.p.keys()[1:]]
             
     #Converting rhs eq. with respect to variables of linear model of same name
-    rhs = model._rhs_fun(cas.vertcat(*x_new),cas.vertcat(*u_new),cas.vertcat(*z_new),cas.vertcat(*tvp_new),cas.vertcat(*p_new),model.w)
-    rhs_new = cas.substitute(rhs,model.w.cat,np.zeros(model.n_w).reshape(model.n_w,1))
+    rhs = model._rhs_fun(castools.vertcat(*x_new),castools.vertcat(*u_new),castools.vertcat(*z_new),castools.vertcat(*tvp_new),castools.vertcat(*p_new),model.w)
+    rhs_new = castools.substitute(rhs,model.w.cat,np.zeros(model.n_w).reshape(model.n_w,1))
     x_count = 0
     for i in range(np.size(model.x.keys())):
         if daeModel.x.keys()[i]+'_noise' in model.w.keys():
@@ -91,9 +91,9 @@ def dae2odeconversion(model:Model)->Model:
         else:
             daeModel.set_rhs(model.x.keys()[i],rhs_new[x_count:x_count+model.x[model.x.keys()[i]].size()[0]])
             x_count += model.x[model.x.keys()[i]].size()[0]
-    alg = model._alg_fun(cas.vertcat(*x_new),cas.vertcat(*u_new),cas.vertcat(*z_new),cas.vertcat(*tvp_new),cas.vertcat(*p_new),daeModel.w)
-    rhs_mod = cas.substitute(rhs,model.w.cat,daeModel.w.cat)
-    z_next = -cas.inv(cas.jacobian(alg,cas.vertcat(*z_new)))@cas.jacobian(alg,cas.vertcat(*x_new))@rhs_mod-cas.inv(cas.jacobian(alg,cas.vertcat(*z_new)))@cas.jacobian(alg,cas.vertcat(*u_new))@q
+    alg = model._alg_fun(castools.vertcat(*x_new),castools.vertcat(*u_new),castools.vertcat(*z_new),castools.vertcat(*tvp_new),castools.vertcat(*p_new),daeModel.w)
+    rhs_mod = castools.substitute(rhs,model.w.cat,daeModel.w.cat)
+    z_next = -castools.inv(castools.jacobian(alg,castools.vertcat(*z_new)))@castools.jacobian(alg,castools.vertcat(*x_new))@rhs_mod-castools.inv(castools.jacobian(alg,castools.vertcat(*z_new)))@castools.jacobian(alg,castools.vertcat(*u_new))@q
     
     for j in range(np.size(model.u.keys())-1):
         daeModel.set_rhs(model.u.keys()[j+1],daeModel.u['q',j])

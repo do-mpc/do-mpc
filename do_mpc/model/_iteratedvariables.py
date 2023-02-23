@@ -21,7 +21,7 @@
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-import casadi as cas
+import casadi.tools as castools
 import pdb
 
 
@@ -64,12 +64,12 @@ class IteratedVariables:
         assert n_val == n_var, err_msg.format(n_val, n_var)
 
         # Convert to structure (or return structure)
-        if isinstance(val, (np.ndarray, cas.DM)):
+        if isinstance(val, (np.ndarray, castools.DM)):
             val = struct(val)
-        elif isinstance(val, cas.structure3.DMStruct):
+        elif isinstance(val, castools.structure3.DMStruct):
             pass
         else:
-            types = (np.ndarray, cas.DM, cas.structure3.DMStruct)
+            types = (np.ndarray, castools.DM, castools.structure3.DMStruct)
             raise Exception('x0 must be of tpye {}. You have: {}'.format(types, type(val)))
 
         return val
@@ -204,9 +204,9 @@ class IteratedVariables:
         elif isinstance(val, np.ndarray):
             assert val.size == 1, 'Cant set time with shape {}. Must contain exactly one element.'.format(val.size)
             self._t0 = val.flatten()
-        elif isinstance(val, cas.DM):
+        elif isinstance(val, castools.DM):
             assert val.size == 1, 'Cant set time with shape {}. Must contain exactly one element.'.format(val.size)
             self._t0 = val.full().flatten()
         else:
-            types = (np.ndarray, float, int, cas.DM)
+            types = (np.ndarray, float, int, castools.DM)
             raise Exception('Passing object of type {} to set the current time. Must be of type {}'.format(type(val), types))

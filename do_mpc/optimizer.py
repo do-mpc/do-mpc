@@ -23,10 +23,8 @@
 """
 Shared tools for optimization-based estimation (MHE) and control (MPC).
 """
-
 import numpy as np
-from casadi import *
-from casadi.tools import *
+import casadi.tools as castools
 import pdb
 import do_mpc
 
@@ -75,10 +73,10 @@ class Optimizer:
 
         # Lists for further non-linear constraints (optional). Constraints are formulated as cons < ub
         self.nl_cons_list = [
-            {'expr_name': 'default', 'expr': DM([]), 'ub': DM([])}
+            {'expr_name': 'default', 'expr': castools.DM([]), 'ub': castools.DM([])}
         ]
         self.slack_vars_list = [
-            {'slack_name': 'default', 'shape':0, 'ub': DM([]), 'penalty': 0}
+            {'slack_name': 'default', 'shape':0, 'ub': castools.DM([]), 'penalty': 0}
         ]
         self.slack_cost = 0
 
@@ -537,7 +535,7 @@ class Optimizer:
         """
         assert self.flags['setup'] == False, 'Cannot call .set_expression after .setup().'
         assert isinstance(expr_name, str), 'expr_name must be str, you have: {}'.format(type(expr_name))
-        assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have: {}'.format(type(expr))
+        assert isinstance(expr, (castools.SX, castools.MX)), 'expr must be a casadi SX or MX type, you have: {}'.format(type(expr))
         assert isinstance(ub, (int, float, np.ndarray)), 'ub must be float, int or numpy.ndarray, you have: {}'.format(type(ub))
         assert isinstance(soft_constraint, bool), 'soft_constraint must be boolean, you have: {}'.format(type(soft_constraint))
 
@@ -564,12 +562,12 @@ class Optimizer:
         """
         # Create struct for soft constraints:
         self._eps = _eps = self.model.sv.sym_struct([
-            entry(slack_i['slack_name'], shape=slack_i['shape']) for slack_i in self.slack_vars_list
+            castools.entry(slack_i['slack_name'], shape=slack_i['shape']) for slack_i in self.slack_vars_list
         ])
         # Create struct for _nl_cons:
         # Use the previously defined sym variables to declare shape and symbolic variable.
         self._nl_cons = self.model.sv.struct([
-            entry(expr_i['expr_name'], expr=expr_i['expr']) for expr_i in self.nl_cons_list
+            castools.entry(expr_i['expr_name'], expr=expr_i['expr']) for expr_i in self.nl_cons_list
         ])
 
         self.n_eps = _eps.shape[0]
@@ -581,14 +579,14 @@ class Optimizer:
         for slack_i in self.slack_vars_list:
             self._eps_ub[slack_i['slack_name']] = slack_i['ub']
             self._nl_cons[slack_i['slack_name']] -= self._eps[slack_i['slack_name']]
-            self.slack_cost += sum1(slack_i['penalty']*self._eps[slack_i['slack_name']])
+            self.slack_cost += castools.sum1(slack_i['penalty']*self._eps[slack_i['slack_name']])
 
         # Objective function epsilon contribution:
-        self.epsterm_fun = Function('epsterm', [_eps], [self.slack_cost])
+        self.epsterm_fun = castools.Function('epsterm', [_eps], [self.slack_cost])
 
         # Make function from these expressions:
         nl_cons_input += [_eps]
-        self._nl_cons_fun = Function('nl_cons_fun', nl_cons_input, [self._nl_cons])
+        self._nl_cons_fun = castools.Function('nl_cons_fun', nl_cons_input, [self._nl_cons])
 
         # Create bounds:
         self._nl_cons_ub = self._nl_cons(np.inf)
@@ -683,7 +681,7 @@ class Optimizer:
         :type tvp_fun: function
 
         """
-        assert isinstance(tvp_fun(0), structure3.DMStruct), 'Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.'
+        assert isinstance(tvp_fun(0), castools.structure3.DMStruct), 'Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.'
         assert self.get_tvp_template().labels() == tvp_fun(0).labels(), 'Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.'
 
         self.flags['set_tvp_fun'] = True
@@ -732,14 +730,14 @@ class Optimizer:
         if not self.flags['setup']:
             raise Exception('Optimizer not setup. Call setup first.')
 
-        if sys.platform  not in ('darwin', 'linux', 'linux2'):
+        if castools.sys.platform  not in ('darwin', 'linux', 'linux2'):
             raise Exception('Compilation not supported on this platform.')
 
         if compiler_command is None:
             compiler_command = "gcc -fPIC -shared -O1 {cname} -o {libname}".format(cname=cname, libname=libname)
 
         # Only compile if not already compiled:
-        if overwrite or not os.path.isfile(libname):
+        if overwrite or not castools.os.path.isfile(libname):
             # Create c code from solver object
             print('Generating c-code of nlp.')
             self.S.generate_dependencies(cname)
@@ -749,7 +747,7 @@ class Optimizer:
 
 
         # Overwrite solver object with loaded nlp:
-        self.S = nlpsol('solver_compiled', 'ipopt', {libname}, self.nlpsol_opts)
+        self.S = castools.nlpsol('solver_compiled', 'ipopt', {libname}, self.nlpsol_opts)
         print('Using compiled NLP solver.')
 
             
@@ -852,11 +850,11 @@ class Optimizer:
         if self.model.model_type == 'discrete':
             _i = self.model.sv.sym('i', 0)
             # discrete integrator ifcs mimics the API the collocation ifcn.
-            ifcn = Function('ifcn', [_x, _i, _u, _z, _tvp, _p, _w], [_alg, _rhs_scaled])
+            ifcn = castools.Function('ifcn', [_x, _i, _u, _z, _tvp, _p, _w], [_alg, _rhs_scaled])
             n_total_coll_points = 0
         elif self.state_discretization == 'collocation':
-            ffcn = Function('ffcn', [_x, _u, _z, _tvp, _p, _w], [_rhs_scaled])
-            afcn = Function('afcn', [_x, _u, _z, _tvp, _p, _w], [_alg])
+            ffcn = castools.Function('ffcn', [_x, _u, _z, _tvp, _p, _w], [_rhs_scaled])
+            afcn = castools.Function('afcn', [_x, _u, _z, _tvp, _p, _w], [_alg])
             # Get collocation information
             coll = self.collocation_type
             deg = self.collocation_deg
@@ -873,9 +871,9 @@ class Optimizer:
 
             # Choose collocation points
             if coll == 'legendre':    # Legendre collocation points
-                tau_root = [0] + collocation_points(deg, 'legendre')
+                tau_root = [0] + castools.collocation_points(deg, 'legendre')
             elif coll == 'radau':     # Radau collocation points
-                tau_root = [0] + collocation_points(deg, 'radau')
+                tau_root = [0] + castools.collocation_points(deg, 'radau')
             else:
                 raise Exception('Unknown collocation scheme')
 
@@ -906,11 +904,11 @@ class Optimizer:
                 for r in range(deg + 1):
                     if r != j:
                         L *= (tau - tau_root[r]) / (tau_root[j] - tau_root[r])
-                lfcn = Function('lfcn', [tau], [L])
+                lfcn = castools.Function('lfcn', [tau], [L])
                 D[j] = lfcn(1.0)
                 # Evaluate the time derivative of the polynomial at all collocation
                 # points to get the coefficients of the continuity equation
-                tfcn = Function('tfcn', [tau], [tangent(L, tau)])
+                tfcn = castools.Function('tfcn', [tau], [castools.tangent(L, tau)])
                 for r in range(deg + 1):
                     C[j, r] = tfcn(tau_root[r])
 
@@ -1004,14 +1002,14 @@ class Optimizer:
                 ubgk.append(np.zeros(n_x))
 
             # Concatenate constraints
-            gk = vertcat(*gk)
+            gk = castools.vertcat(*gk)
             lbgk = np.concatenate(lbgk)
             ubgk = np.concatenate(ubgk)
 
             assert(gk.shape[0] == ik.shape[0] + zk.shape[0])
 
             # Create the integrator function
-            ifcn = Function("ifcn", [xk0, ik, uk, zk, tv_pk, pk, wk], [gk, xkf])
+            ifcn = castools.Function("ifcn", [xk0, ik, uk, zk, tv_pk, pk, wk], [gk, xkf])
 
             # Return the integration function and the number of collocation points
         return ifcn, n_total_coll_points

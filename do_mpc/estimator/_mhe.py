@@ -21,8 +21,8 @@
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-from casadi import *
-from casadi.tools import *
+#import casadi as cas
+import casadi.tools as castools
 import pdb
 import copy
 import warnings
@@ -183,16 +183,16 @@ class MHE(Optimizer, Estimator):
         # Create seperate structs for the estimated and the set parameters (the union of both are all parameters of the model.)
         _p = model._p
         self._p_est  = self.model.sv.sym_struct(
-            [entry('default', shape=(0,1))]+
-            [entry(p_i, shape=_p[p_i].shape) for p_i in _p.keys() if p_i in p_est_list]
+            [castools.entry('default', shape=(0,1))]+
+            [castools.entry(p_i, shape=_p[p_i].shape) for p_i in _p.keys() if p_i in p_est_list]
         )
         self._p_set  = self.model.sv.sym_struct(
-            [entry(p_i, shape=_p[p_i].shape) for p_i in _p.keys() if p_i not in p_est_list]
+            [castools.entry(p_i, shape=_p[p_i].shape) for p_i in _p.keys() if p_i not in p_est_list]
         )
 
 
         # Enable to "unite" _p_est and _p_set to _p
-        p_cat = vertcat(_p)
+        p_cat = castools.vertcat(_p)
         _p_subs = []
         for name in _p.keys():
             if name in self._p_est.keys():
@@ -203,10 +203,10 @@ class MHE(Optimizer, Estimator):
 
 
         # In the expression p_cat substitute all variables from _p with the elements from _p_est and _p_set:
-        p_cat = substitute(p_cat, _p, vertcat(*_p_subs))
+        p_cat = castools.substitute(p_cat, _p, castools.vertcat(*_p_subs))
 
         # Function to obtain full set of parameters from the seperate structs (while obeying the order):
-        self._p_cat_fun = Function('p_cat_fun', [self._p_est, self._p_set], [p_cat])
+        self._p_cat_fun = castools.Function('p_cat_fun', [self._p_est, self._p_set], [p_cat])
 
 
         self.n_p_est = self._p_est.shape[0]
@@ -655,21 +655,21 @@ class MHE(Optimizer, Estimator):
         # Replace model symbolic variables self.model._p with the new variables self._p_est and self._p_set:
         _p = self._p_cat_fun(self._p_est, self._p_set)
 
-        arrival_cost = substitute(arrival_cost, self.model._p, _p.reshape((-1,1)))
+        arrival_cost = castools.substitute(arrival_cost, self.model._p, _p.reshape((-1,1)))
         #stage_cost = substitute(stage_cost, self.model._p, _p)
 
         #arrival_cost = substitute(arrival_cost, self._p_est, vertcat(*[self.model._p[name] for name in self._p_est.keys()]))
         #arrival_cost = substitute(arrival_cost, self._p_set, vertcat(*[self.model._p[name] for name in self._p_set.keys()]))
 
-        stage_cost = substitute(stage_cost, self._p_est, vertcat(*[self.model._p[name] for name in self._p_est.keys()]).reshape((-1,1)))
-        stage_cost = substitute(stage_cost, self._p_set, vertcat(*[self.model._p[name] for name in self._p_set.keys()]).reshape((-1,1)))
+        stage_cost = castools.substitute(stage_cost, self._p_est, castools.vertcat(*[self.model._p[name] for name in self._p_est.keys()]).reshape((-1,1)))
+        stage_cost = castools.substitute(stage_cost, self._p_set, castools.vertcat(*[self.model._p[name] for name in self._p_set.keys()]).reshape((-1,1)))
 
 
         stage_cost_input = self._w, self._v, self.model._tvp, self.model._p
-        self.stage_cost_fun = Function('stage_cost_fun', [*stage_cost_input], [stage_cost])
+        self.stage_cost_fun = castools.Function('stage_cost_fun', [*stage_cost_input], [stage_cost])
 
         arrival_cost_input = self._x, self._x_prev, self._p_est, self._p_est_prev, self._p_set
-        self.arrival_cost_fun = Function('arrival_cost_fun', [*arrival_cost_input], [arrival_cost])
+        self.arrival_cost_fun = castools.Function('arrival_cost_fun', [*arrival_cost_input], [arrival_cost])
 
         # Check if stage_cost_fun and arrival_cost_fun use invalid variables as inputs.
         # For the check we evaluate the function with dummy inputs and expect a DM output.
@@ -748,11 +748,10 @@ class MHE(Optimizer, Estimator):
         :param P_w: Tuning matrix :math:`P_w` of dimension :math:`k \\times k` :math:`(w \\in \\mathbb{R}^{k})`
         :type P_w: numpy.ndarray, casadi.SX, casadi.DM
         """
-
-        input_types = (np.ndarray, casadi.SX, casadi.MX, casadi.DM)
+        input_types = (np.ndarray, castools.SX, castools.MX, castools.DM)
         err_msg = '{name} must be of type {type_set}, you have {type_is}'
         assert isinstance(P_x, input_types), err_msg.format(name='P_x', type_set = input_types, type_is = type(P_x))
-        input_types = (np.ndarray, casadi.SX, casadi.MX, casadi.DM, type(None))
+        input_types = (np.ndarray, castools.SX, castools.MX, castools.DM, type(None))
         assert isinstance(P_v, input_types), err_msg.format(name='P_v', type_set = input_types, type_is = type(P_v))
         assert isinstance(P_p, input_types), err_msg.format(name='P_p', type_set = input_types, type_is = type(P_p))
         assert isinstance(P_w, input_types), err_msg.format(name='P_w', type_set = input_types, type_is = type(P_w))
@@ -767,7 +766,7 @@ class MHE(Optimizer, Estimator):
 
 
         # Calculate stage cost:
-        stage_cost = DM(0)
+        stage_cost = castools.DM(0)
 
         if P_v is None:
             assert n_v == 0, 'Must pass weighting factor P_v, since you have measurement noise on some measurements (configured in model).'
@@ -880,7 +879,7 @@ class MHE(Optimizer, Estimator):
         :rtype: struct_symSX
         """
         y_template = self.model.sv.sym_struct([
-            entry('y_meas', repeat=self.n_horizon, struct=self._y_meas)
+            castools.entry('y_meas', repeat=self.n_horizon, struct=self._y_meas)
         ])
         return y_template(0)
 
@@ -1014,12 +1013,12 @@ class MHE(Optimizer, Estimator):
         assert self.flags['setup'] == True, 'optimizer was not setup yet. Please call optimizer.setup().'
 
         # Check input type.
-        if isinstance(y0, (np.ndarray, casadi.DM)):
+        if isinstance(y0, (np.ndarray, castools.DM)):
             pass
-        elif isinstance(y0, structure3.DMStruct):
+        elif isinstance(y0, castools.structure3.DMStruct):
             y0 = y0.cat
         else:
-            raise Exception('Invalid type {} for y0. Must be {}'.format(type(y0), (np.ndarray, casadi.DM, structure3.DMStruct)))
+            raise Exception('Invalid type {} for y0. Must be {}'.format(type(y0), (np.ndarray, castools.DM, castools.structure3.DMStruct)))
 
         # Check input shape.
         n_val = np.prod(y0.shape)
@@ -1155,13 +1154,13 @@ class MHE(Optimizer, Estimator):
 
         # Create struct for optimization variables:
         self._opt_x = opt_x = self.model.sv.sym_struct([
-            entry('_x', repeat=[self.n_horizon+1, 1+n_total_coll_points], struct=self.model._x),
-            entry('_z', repeat=[self.n_horizon,   max(n_total_coll_points,1)], struct=self.model._z),
-            entry('_u', repeat=[self.n_horizon], struct=self.model._u),
-            entry('_w', repeat=[self.n_horizon], struct=self.model._w),
-            entry('_v', repeat=[self.n_horizon], struct=self.model._v),
-            entry('_eps', repeat=[n_eps], struct=self._eps),
-            entry('_p_est', struct=self._p_est),
+            castools.entry('_x', repeat=[self.n_horizon+1, 1+n_total_coll_points], struct=self.model._x),
+            castools.entry('_z', repeat=[self.n_horizon,   max(n_total_coll_points,1)], struct=self.model._z),
+            castools.entry('_u', repeat=[self.n_horizon], struct=self.model._u),
+            castools.entry('_w', repeat=[self.n_horizon], struct=self.model._w),
+            castools.entry('_v', repeat=[self.n_horizon], struct=self.model._v),
+            castools.entry('_eps', repeat=[n_eps], struct=self._eps),
+            castools.entry('_p_est', struct=self._p_est),
         ])
 
         self.n_opt_x = opt_x.shape[0]
@@ -1182,17 +1181,17 @@ class MHE(Optimizer, Estimator):
 
         # Create struct for optimization parameters:
         self._opt_p = opt_p = self.model.sv.sym_struct([
-            entry('_x_prev', struct=self.model._x),
-            entry('_p_est_prev', struct=self._p_est_prev),
-            entry('_p_set', struct=self._p_set),
-            entry('_tvp', repeat=self.n_horizon, struct=self.model._tvp),
-            entry('_y_meas', repeat=self.n_horizon, struct=self.model._y),
+            castools.entry('_x_prev', struct=self.model._x),
+            castools.entry('_p_est_prev', struct=self._p_est_prev),
+            castools.entry('_p_set', struct=self._p_set),
+            castools.entry('_tvp', repeat=self.n_horizon, struct=self.model._tvp),
+            castools.entry('_y_meas', repeat=self.n_horizon, struct=self.model._y),
         ])
         self.n_opt_p = opt_p.shape[0]
 
         # Dummy struct with symbolic variables
         self.aux_struct = self.model.sv.sym_struct([
-            entry('_aux', repeat=[self.n_horizon], struct=self.model._aux_expression)
+            castools.entry('_aux', repeat=[self.n_horizon], struct=self.model._aux_expression)
         ])
         # Create mutable symbolic expression from the struct defined above.
         self._opt_aux = opt_aux = self.model.sv.struct(self.aux_struct)
@@ -1203,7 +1202,7 @@ class MHE(Optimizer, Estimator):
         self._ub_opt_x = opt_x(np.inf)
 
         # Initialize objective function and constraints
-        obj = DM(0)
+        obj = castools.DM(0)
         cons = []
         cons_lb = []
         cons_ub = []
@@ -1225,8 +1224,8 @@ class MHE(Optimizer, Estimator):
         # For all control intervals
         for k in range(self.n_horizon):
             # Compute constraints and predicted next state of the discretization scheme
-            col_xk = vertcat(*opt_x['_x', k+1, :-1])
-            col_zk = vertcat(*opt_x['_z', k])
+            col_xk = castools.vertcat(*opt_x['_x', k+1, :-1])
+            col_zk = castools.vertcat(*opt_x['_z', k])
             [g_ksb, xf_ksb] = ifcn(opt_x['_x', k, -1], col_xk,
                                    opt_x['_u', k], col_zk, opt_p['_tvp', k],
                                    _p, opt_x['_w', k])
@@ -1308,16 +1307,13 @@ class MHE(Optimizer, Estimator):
     def _create_nlp(self):
         """Internal method. See detailed documentation in optimizer.create_nlp
         """
-
-
-        self._nlp_cons = vertcat(*self._nlp_cons)
-        self._nlp_cons_lb = vertcat(*self._nlp_cons_lb)
-        self._nlp_cons_ub = vertcat(*self._nlp_cons_ub)
-
+        self._nlp_cons = castools.vertcat(*self._nlp_cons)
+        self._nlp_cons_lb = castools.vertcat(*self._nlp_cons_lb)
+        self._nlp_cons_ub = castools.vertcat(*self._nlp_cons_ub)
 
         # Validity check:
-        _test_obj_fun = Function('f', [self._opt_x, self._opt_p], [self._nlp_obj])
-        _test_cons_fun = Function('f', [self._opt_x, self._opt_p], [self._nlp_cons])
+        _test_obj_fun = castools.Function('f', [self._opt_x, self._opt_p], [self._nlp_obj])
+        _test_cons_fun = castools.Function('f', [self._opt_x, self._opt_p], [self._nlp_cons])
         try:
             _test_obj_fun(self.opt_x_num,self.opt_p_num)
         except:
@@ -1336,13 +1332,11 @@ class MHE(Optimizer, Estimator):
             'expand': False,
             'ipopt.linear_solver': 'mumps',
         }.update(self.nlpsol_opts)
-        self.nlp = {'x': vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons, 'p': vertcat(self._opt_p)}
-        self.S = nlpsol('S', 'ipopt', self.nlp, self.nlpsol_opts)
-
-
+        self.nlp = {'x': castools.vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons, 'p': castools.vertcat(self._opt_p)}
+        self.S = castools.nlpsol('S', 'ipopt', self.nlp, self.nlpsol_opts)
 
         # Create function to caculate all auxiliary expressions:
-        self.opt_aux_expression_fun = Function('opt_aux_expression_fun', [self._opt_x, self._opt_p], [self._opt_aux])
+        self.opt_aux_expression_fun = castools.Function('opt_aux_expression_fun', [self._opt_x, self._opt_p], [self._opt_aux])
 
         # Gather meta information:
         meta_data = {key: getattr(self, key) for key in self.data_fields}

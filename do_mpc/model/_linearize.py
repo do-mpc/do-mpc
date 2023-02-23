@@ -21,7 +21,6 @@
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-import casadi as cas
 import pdb
 from ._linearmodel import LinearModel
 from . import Model
