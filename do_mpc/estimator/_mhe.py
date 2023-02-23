@@ -30,7 +30,8 @@ import time
 
 from ..optimizer import Optimizer
 from ._base import Estimator
-
+import do_mpc
+from typing import Union
 
 class MHE(Optimizer, Estimator):
     """Moving horizon estimator.
@@ -48,10 +49,9 @@ class MHE(Optimizer, Estimator):
     and those that are internal e.g. system parameters and can be estimated.
     Passing an empty list (default) value, means that no parameters are estimated.
 
-    .. note::
+    Note:
         Parameters are influencing the model equation at all timesteps but are constant over the entire horizon.
         Parameters could also be introduced as states without dynamic but this would increase the total number of optimization variables.
-
 
     **Configuration and setup:**
 
@@ -70,7 +70,6 @@ class MHE(Optimizer, Estimator):
     8. Use :py:meth:`get_tvp_template` and :py:meth:`set_tvp_fun` to create a method to obtain new time-varying parameters at each iteration.
 
     9. To finalize the class configuration there are two routes. The default approach is to call :py:meth:`setup`. For deep customization use the combination of :py:meth:`prepare_nlp` and :py:meth:`create_nlp`. See graph below for an illustration of the process.
-
 
     .. graphviz::
         :name: route_to_setup
@@ -118,24 +117,19 @@ class MHE(Optimizer, Estimator):
             nlp_obj -> process;
         }
 
-    .. warning::
-
+    Warnings:
         Before running the estimator, make sure to supply a valid initial guess for all estimated variables (states, algebraic states, inputs and parameters).
         Simply set the intial values of :py:attr:`x0`, :py:attr:`z0`, :py:attr:`u0` and :py:attr:`p_est0` and then call :py:func:`set_initial_guess`.
-
         To take full control over the initial guess, modify the values of :py:attr:`opt_x_num`.
 
     During runtime use :py:func:`make_step` with the most recent measurement to obtain the estimated states.
 
-    :param model: A configured and setup :py:class:`do_mpc.model.Model`
-    :type model: :py:class:`do_mpc.model.Model`
-
-    :param p_est_list: List with names of parameters (``_p``) defined in ``model``
-    :type p_est_list: list
-
+    Args:
+        model: A configured and setup :py:class:`do_mpc.model.Model`
+        p_est_list: List with names of parameters (``_p``) defined in ``model``
     """
 
-    def __init__(self, model, p_est_list=[]):
+    def __init__(self, model:do_mpc.model, p_est_list:list=[]):
         Estimator.__init__(self, model)
         Optimizer.__init__(self)
 
@@ -277,7 +271,6 @@ class MHE(Optimizer, Estimator):
         * ``.keys()``
 
         * ``.labels()``
-
         """
         return self._p_est0
 
@@ -315,17 +308,14 @@ class MHE(Optimizer, Estimator):
 
         The attribute can be used **to manually set a custom initial guess or for debugging purposes**.
 
-        .. note::
-
+        Note:
             The attribute ``opt_x_num`` carries the scaled values of all variables. See ``opt_x_num_unscaled``
             for the unscaled values (these are not used as the initial guess).
 
-        .. warning::
-
+        Warnings:
             Do not tweak or overwrite this attribute unless you known what you are doing.
 
-        .. note::
-
+        Note:
             The attribute is populated when calling :py:func:`setup`
         """
         return self._opt_x_num
@@ -373,14 +363,11 @@ class MHE(Optimizer, Estimator):
         The names refer to those given in the :py:class:`do_mpc.model.Model` configuration.
         Further indices are possible, if the variables are itself vectors or matrices.
 
-        .. warning::
-
+        Warnings:
             Do not tweak or overwrite this attribute unless you known what you are doing.
 
-        .. note::
-
+        Note:
             The attribute is populated when calling :py:func:`setup`
-
         """
         return self._opt_p_num
 
@@ -413,18 +400,14 @@ class MHE(Optimizer, Estimator):
 
         The attribute can be used to alter the objective function or constraints of the NLP.
 
-        .. note::
-
+        Note:
             The attribute ``opt_x`` carries the scaled values of all variables.
 
-        .. warning::
-
+        Warnings:
             Do not tweak or overwrite this attribute unless you known what you are doing.
 
-        .. note::
-
+        Note:
             The attribute is populated when calling :py:func:`setup` or :py:func:`prepare_nlp`
-
         """
         return self._opt_x
 
@@ -457,14 +440,11 @@ class MHE(Optimizer, Estimator):
         The names refer to those given in the :py:class:`do_mpc.model.Model` configuration.
         Further indices are possible, if the variables are itself vectors or matrices.
 
-        .. warning::
-
+        Warnings:
             Do not tweak or overwrite this attribute unless you known what you are doing.
 
-        .. note::
-
+        Note:
             The attribute is populated when calling :py:func:`setup` or :py:func:`create_nlp`.
-
         """
         return self._opt_p
 
@@ -494,69 +474,45 @@ class MHE(Optimizer, Estimator):
 
         .. _`more details here`: https://codeyarns.github.io/tech/2012-04-25-unpack-operator-in-python.html
 
-        .. note:: The only required parameters  are ``n_horizon`` and ``t_step``. All other parameters are optional.
+        Note: 
+            The only required parameters  are ``n_horizon`` and ``t_step``. All other parameters are optional.
 
-        .. note:: 
-            
+        Note:
             :py:func:`set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
             This only works prior to calling :py:func:`setup`. 
 
         The following parameters are available:
 
-        :param n_horizon: Prediction horizon of the optimal control problem. Parameter must be set by user.
-        :type n_horizon: int
+        Args:
+            n_horizon(int): Prediction horizon of the optimal control problem. Parameter must be set by user.
+            t_step(float): Timestep of the mhe.
+            meas_from_data(bool): Default option to retrieve past measurements for the MHE optimization problem. The :py:func:`set_y_fun` is called during setup.
+            state_discretization(str): Choose the state discretization for continuous models. Currently only ``'collocation'`` is available. Defaults to ``'collocation'``. Has no effect if model is created in ``discrete`` type.
+            collocation_type(str): Choose the collocation type for continuous models with collocation as state discretization. Currently only ``'radau'`` is available. Defaults to ``'radau'``.
+            collocation_deg(int): Choose the collocation degree for continuous models with collocation as state discretization. Defaults to ``2``.
+            collocation_ni(int): For orthogonal collocation, choose the number of finite elements for the states within a time-step (and during constant control input). Defaults to ``1``. Can be used to avoid high-order polynomials.
+            nl_cons_check_colloc_points(bool): For orthogonal collocation choose wether the bounds set with :py:func:`set_nl_cons` are evaluated once per finite Element or for each collocation point. Defaults to ``False`` (once per collocation point).
+            cons_check_colloc_points(bool): For orthogonal collocation choose whether the linear bounds set with :py:attr:`bounds` are evaluated once per finite Element or for each collocation point. Defaults to ``True`` (for all collocation points).
+            nl_cons_single_slack(bool): If ``True``, soft-constraints set with :py:func:`set_nl_cons` introduce only a single slack variable for the entire horizon. Defaults to ``False``.
+            store_full_solution(bool): Choose whether to store the full solution of the optimization problem. This is required for animating the predictions in post processing. However, it drastically increases the required storage. Defaults to False.
+            store_lagr_multiplier(bool): Choose whether to store the lagrange multipliers of the optimization problem. Increases the required storage. Defaults to ``True``.
+            store_solver_stats(list): Choose which solver statistics to store. Must be a list of valid statistics. Defaults to ``['success','t_wall_S']``.
+            nlpsol_opts(dict): Dictionary with options for the CasADi solver call ``nlpsol`` with plugin ``ipopt``. All options are listed `here <http://casadi.sourceforge.net/api/internal/d4/d89/group__nlpsol.html>`_.
+        
 
-        :param t_step: Timestep of the mhe.
-        :type t_step: float
-
-        :param meas_from_data: Default option to retrieve past measurements for the MHE optimization problem. The :py:func:`set_y_fun` is called during setup.
-        :type meas_from_data: bool
-
-        :param state_discretization: Choose the state discretization for continuous models. Currently only ``'collocation'`` is available. Defaults to ``'collocation'``. Has no effect if model is created in ``discrete`` type.
-        :type state_discretization: str
-
-        :param collocation_type: Choose the collocation type for continuous models with collocation as state discretization. Currently only ``'radau'`` is available. Defaults to ``'radau'``.
-        :type collocation_type: str
-
-        :param collocation_deg: Choose the collocation degree for continuous models with collocation as state discretization. Defaults to ``2``.
-        :type collocation_deg: int
-
-        :param collocation_ni: For orthogonal collocation, choose the number of finite elements for the states within a time-step (and during constant control input). Defaults to ``1``. Can be used to avoid high-order polynomials.
-        :type collocation_ni: int
-
-        :param nl_cons_check_colloc_points: For orthogonal collocation choose wether the bounds set with :py:func:`set_nl_cons` are evaluated once per finite Element or for each collocation point. Defaults to ``False`` (once per collocation point).
-        :type nl_cons_check_colloc_points: bool
-
-        :param cons_check_colloc_points: For orthogonal collocation choose whether the linear bounds set with :py:attr:`bounds` are evaluated once per finite Element or for each collocation point. Defaults to ``True`` (for all collocation points).
-        :type cons_check_colloc_points: bool
-
-        :param nl_cons_single_slack: If ``True``, soft-constraints set with :py:func:`set_nl_cons` introduce only a single slack variable for the entire horizon. Defaults to ``False``.
-        :type nl_cons_single_slack: bool
-
-        :param store_full_solution: Choose whether to store the full solution of the optimization problem. This is required for animating the predictions in post processing. However, it drastically increases the required storage. Defaults to False.
-        :type store_full_solution: bool
-
-        :param store_lagr_multiplier: Choose whether to store the lagrange multipliers of the optimization problem. Increases the required storage. Defaults to ``True``.
-        :type store_lagr_multiplier: bool
-
-        :param store_solver_stats: Choose which solver statistics to store. Must be a list of valid statistics. Defaults to ``['success','t_wall_S']``.
-        :type store_solver_stats: list
-
-        :param nlpsol_opts: Dictionary with options for the CasADi solver call ``nlpsol`` with plugin ``ipopt``. All options are listed `here <http://casadi.sourceforge.net/api/internal/d4/d89/group__nlpsol.html>`_.
-        :type store_solver_stats: dict
-
-        .. note:: We highly suggest to change the linear solver for IPOPT from `mumps` to `MA27`. In many cases this will drastically boost the speed of **do-mpc**. Change the linear solver with:
+        Note: 
+            We highly suggest to change the linear solver for IPOPT from `mumps` to `MA27`. In many cases this will drastically boost the speed of **do-mpc**. Change the linear solver with:
 
             ::
 
                 optimizer.set_param(nlpsol_opts = {'ipopt.linear_solver': 'MA27'})
-        .. note:: To suppress the output of IPOPT, please use:
+        Note: 
+            To suppress the output of IPOPT, please use:
 
             ::
 
                 suppress_ipopt = {'ipopt.print_level':0, 'ipopt.sb': 'yes', 'print_time':0}
                 optimizer.set_param(nlpsol_opts = suppress_ipopt)
-
         """
         assert self.flags['setup'] == False, 'Setting parameters after setup is prohibited.'
 
@@ -567,7 +523,7 @@ class MHE(Optimizer, Estimator):
                 setattr(self, key, value)
 
 
-    def set_objective(self, stage_cost, arrival_cost):
+    def set_objective(self, stage_cost:Union[castools.SX,castools.MX], arrival_cost:Union[castools.SX,castools.MX])->None:
         """Set the stage cost :math:`l(\cdot)` and arrival cost :math:`m(\cdot)` function for the MHE problem:
 
         .. math::
@@ -603,7 +559,7 @@ class MHE(Optimizer, Estimator):
 
         To formulate the objective function and pass the stage cost and arrival cost independently.
 
-        .. note::
+        Note:
             The retrieved attributes are symbolic structures, which can be queried with the given variable names,
             e.g.:
 
@@ -634,19 +590,13 @@ class MHE(Optimizer, Estimator):
 
             mhe.set_objective(stage_cost, arrival_cost)
 
-        .. note::
-
+        Note:
             Use :py:func:`set_default_objective` as a high-level wrapper for this method,
             if you want to use the default MHE objective function.
 
-        :param stage_cost: Stage cost that is added to the MHE objective at each age.
-        :type stage_cost: CasADi expression
-
-        :param arrival_cost: Arrival cost that is added to the MHE objective at the initial state.
-        :type arrival_cost: CasADi expression
-
-        :return: None
-        :rtype: None
+        Args:
+            stage_cost: Stage cost that is added to the MHE objective at each age.
+            arrival_cost: Arrival cost that is added to the MHE objective at the initial state.
         """
         assert stage_cost.shape == (1,1), 'stage_cost must have shape=(1,1). You have {}'.format(stage_cost.shape)
         assert arrival_cost.shape == (1,1), 'arrival_cost must have shape=(1,1). You have {}'.format(arrival_cost.shape)
@@ -686,7 +636,11 @@ class MHE(Optimizer, Estimator):
 
         self.flags['set_objective'] = True
 
-    def set_default_objective(self, P_x, P_v=None, P_p=None, P_w=None):
+    def set_default_objective(self, 
+                              P_x:Union[np.ndarray,castools.SX,castools.MX], 
+                              P_v:Union[np.ndarray,castools.SX,castools.MX]=None, 
+                              P_p:Union[np.ndarray,castools.SX,castools.MX]=None, 
+                              P_w:Union[np.ndarray,castools.SX,castools.MX]=None):
         """ Configure the suggested default MHE formulation.
 
         Use this method to pass tuning matrices for the MHE optimization problem:
@@ -715,8 +669,7 @@ class MHE(Optimizer, Estimator):
         Pass the weighting matrices :math:`P_x`, :math:`P_p` and :math:`P_v` and :math:`P_w`.
         The matrices must be of appropriate dimension and array-like.
 
-        .. note::
-
+        Note:
             It is possible to pass parameters or time-varying parameters defined in the
             :py:class:`do_mpc.model.Model` as weighting.
             You'll probably choose time-varying parameters (``_tvp``) for ``P_v`` and ``P_w``
@@ -734,19 +687,15 @@ class MHE(Optimizer, Estimator):
 
         The respective terms are not present in the MHE formulation in that case.
 
-        .. note::
-
+        Note:
             Use :py:func:`set_objective` as a low-level alternative for this method,
             if you want to use a custom objective function.
 
-        :param P_x: Tuning matrix :math:`P_x` of dimension :math:`n \\times n` :math:`(x \\in \\mathbb{R}^{n})`
-        :type P_x: numpy.ndarray, casadi.SX, casadi.DM
-        :param P_v: Tuning matrix :math:`P_v` of dimension :math:`m \\times m` :math:`(v \\in \\mathbb{R}^{m})`
-        :type P_v: numpy.ndarray, casadi.SX, casadi.DM
-        :param P_p: Tuning matrix :math:`P_p` of dimension :math:`l \\times l` :math:`(p_{\\text{est}} \\in \\mathbb{R}^{l})`)
-        :type P_p: numpy.ndarray, casadi.SX, casadi.DM
-        :param P_w: Tuning matrix :math:`P_w` of dimension :math:`k \\times k` :math:`(w \\in \\mathbb{R}^{k})`
-        :type P_w: numpy.ndarray, casadi.SX, casadi.DM
+        Args:
+            P_x: Tuning matrix :math:`P_x` of dimension :math:`n \\times n` :math:`(x \\in \\mathbb{R}^{n})`
+            P_v: Tuning matrix :math:`P_v` of dimension :math:`m \\times m` :math:`(v \\in \\mathbb{R}^{m})`
+            P_p: Tuning matrix :math:`P_p` of dimension :math:`l \\times l` :math:`(p_{\\text{est}} \\in \\mathbb{R}^{l})`)
+            P_w: Tuning matrix :math:`P_w` of dimension :math:`k \\times k` :math:`(w \\in \\mathbb{R}^{k})`
         """
         input_types = (np.ndarray, castools.SX, castools.MX, castools.DM)
         err_msg = '{name} must be of type {type_set}, you have {type_is}'
@@ -762,8 +711,6 @@ class MHE(Optimizer, Estimator):
         n_v = self.model.n_v
         n_p = self.n_p_est
         assert P_x.shape == (n_x, n_x), 'P_x has wrong shape:{}, must be {}'.format(P_x.shape, (n_x,n_x))
-
-
 
         # Calculate stage cost:
         stage_cost = castools.DM(0)
@@ -783,7 +730,6 @@ class MHE(Optimizer, Estimator):
             w = self._w.cat
             stage_cost += w.T@P_w@w
 
-
         # Calculate arrival cost:
         x_0 = self._x
         x_prev = self._x_prev
@@ -801,27 +747,22 @@ class MHE(Optimizer, Estimator):
             dp = p_0.cat - p_prev.cat
             arrival_cost += dp.T@P_p@dp
 
-
-
         # Set MHE objective:
         self.set_objective(stage_cost, arrival_cost)
 
-
-
-
-    def get_p_template(self):
+    def get_p_template(self)->castools.structure3.SXStruct:
         """Obtain output template for :py:func:`set_p_fun`.
         This is used to set the (not estimated) parameters.
         Use this structure as the return of a user defined parameter function (``p_fun``)
         that is called at each MHE step. Pass this function to the MHE by calling :py:func:`set_p_fun`.
 
-        .. note::
+        Note:
             The combination of :py:func:`get_p_template` and :py:func:`set_p_fun` is
             identical to the :py:class:`do_mpc.simulator.Simulator` methods, if the MHE
             is not estimating any parameters.
 
-        :return: p_template
-        :rtype: struct_symSX
+        Returns:
+            p_template
         """
         return self._p_set(0)
 
@@ -830,14 +771,14 @@ class MHE(Optimizer, Estimator):
         The ``p_fun`` is called at each MHE time step and returns the (fixed) parameters.
         The function must return a numerical CasADi structure, which can be retrieved with :py:func:`get_p_template`.
 
-        :param p_fun: Parameter function.
-        :type p_fun: function
+        Args:
+            p_fun(function): Parameter function.
         """
         assert self.get_p_template().labels() == p_fun(0).labels(), 'Incorrect output of p_fun. Use get_p_template to obtain the required structure.'
         self.p_fun = p_fun
         self.flags['set_p_fun'] = True
 
-    def get_y_template(self):
+    def get_y_template(self)->castools.structure3.SXStruct:
         """Obtain output template for :py:func:`set_y_fun`.
 
         Use this structure as the return of a user defined parameter function (``y_fun``)
@@ -853,7 +794,7 @@ class MHE(Optimizer, Estimator):
 
         where ``k`` runs from ``0`` to ``N_horizon`` and ``meas_name`` refers to the user-defined names in :py:class:`do_mpc.model.Model`.
 
-        .. note::
+        Note:
             The structure is ordered, sucht that ``k=0`` is the "oldest measurement" and ``k=N_horizon`` is the newest measurement.
 
         By default, the following measurement function is choosen:
@@ -875,8 +816,8 @@ class MHE(Optimizer, Estimator):
 
         Which simply reads the last results from the ``MHE.data`` object.
 
-        :return: y_template
-        :rtype: struct_symSX
+        Returns:
+            y_template
         """
         y_template = self.model.sv.sym_struct([
             castools.entry('y_meas', repeat=self.n_horizon, struct=self._y_meas)
@@ -887,8 +828,8 @@ class MHE(Optimizer, Estimator):
         """Set the measurement function. The function must return a CasADi structure which can be obtained
         from :py:func:`get_y_template`. See the respective doc string for details.
 
-        :param y_fun: measurement function.
-        :type y_fun: function
+        Args:
+            y_fun(function): measurement function.
         """
         assert self.get_y_template().labels() == y_fun(0).labels(), 'Incorrect output of y_fun. Use get_y_template to obtain the required structure.'
         self.y_fun = y_fun
@@ -956,16 +897,15 @@ class MHE(Optimizer, Estimator):
             # No measurement function.
             raise Exception('You have not suppplied a measurement function. Use .set_y_fun or set parameter meas_from_data to True for default function.')
 
-
     def set_initial_guess(self):
         """Initial guess for optimization variables.
         Uses the current class attributes :py:obj:`x0`, :py:obj:`z0` and :py:obj:`u0`, :py:obj:`p_est0` to create an initial guess for the MHE.
         The initial guess is simply the initial values for all :math:`k=0,\dots,N` instances of :math:`x_k`, :math:`u_k` and :math:`z_k`, :math:`p_{\\text{est,k}}`.
 
-        .. warning::
+        Warnings:
             If no initial values for :py:attr:`x0`, :py:attr:`z0` and :py:attr:`u0` were supplied during setup, these default to zero.
 
-        .. note::
+        Note:
             The initial guess is fully customizable by directly setting values on the class attribute:
             :py:attr:`opt_x_num`.
         """
@@ -982,32 +922,29 @@ class MHE(Optimizer, Estimator):
         """The setup method finalizes the MHE creation.
         The optimization problem is created based on the configuration of the module.
 
-        .. note::
-
+        Note:
             After this call, the :py:func:`solve` and :py:func:`make_step` method is applicable.
         """
-
         self.prepare_nlp()
         self.create_nlp()
 
 
-    def make_step(self, y0):
+    def make_step(self, y0:np.ndarray)->np.ndarray:
         """Main method of the class during runtime. This method is called at each timestep
         and returns the current state estimate for the current measurement ``y0``.
 
         The method prepares the MHE by setting the current parameters, calls :py:func:`solve`
         and updates the :py:class:`do_mpc.data.Data` object.
 
-        .. warning::
-
+        Warnings:
             Moving horizon estimation will only work reliably once **a full sequence of measurements**
             corresponding to the set horizon ist available.
 
-        :param y0: Current measurement.
-        :type y0: numpy.ndarray
+        Args:
+            y0: Current measurement.
 
-        :return: x0, estimated state of the system.
-        :rtype: numpy.ndarray
+        Returns:
+            x0, estimated state of the system.
         """
         # Check setup.
         assert self.flags['setup'] == True, 'optimizer was not setup yet. Please call optimizer.setup().'
@@ -1031,7 +968,6 @@ class MHE(Optimizer, Estimator):
             self.flags['set_initial_guess'] = True
 
         self.data.update(_y = y0)
-
 
         p_est0 = self._p_est0
         x0 = self._x0
@@ -1095,11 +1031,9 @@ class MHE(Optimizer, Estimator):
     def _update_bounds(self):
         """Private method to update the bounds of the optimization variables based on the current values defined with :py:attr:`scaling`.
 
-        .. note::
-
+        Note:
             Bounds are automatically scaled as they invoke the :py:attr:lb_opt_x` and :py:attr:`ub_opt_x` methods. Scaling is done automatically in these methods.
         """
-        
         if self.cons_check_colloc_points:   # Constraints for all collocation points.
             # Bounds for the states on all discretize values along the horizon
             self.lb_opt_x['_x'] = self._x_lb.cat
@@ -1132,7 +1066,6 @@ class MHE(Optimizer, Estimator):
     def _prepare_nlp(self):
         """Internal method. See detailed documentation in optimizer.prepare_nlp
         """
-
         nl_cons_input = self.model['x', 'u', 'z', 'tvp']
         nl_cons_input += [self._p_est, self._p_set]
         self._setup_nl_cons(nl_cons_input)
@@ -1140,7 +1073,6 @@ class MHE(Optimizer, Estimator):
 
         # Concatenate _p_est_scaling und _p_set_scaling to p_scaling (and make it a struct again)
         self._p_scaling = self.model._p(self._p_cat_fun(self._p_est_scaling, self._p_set_scaling))
-
 
         # Obtain an integrator (collocation, discrete-time) and the amount of intermediate (collocation) points
         ifcn, n_total_coll_points = self._setup_discretization()
@@ -1150,7 +1082,6 @@ class MHE(Optimizer, Estimator):
             n_eps = 1
         else:
             n_eps = self.n_horizon
-
 
         # Create struct for optimization variables:
         self._opt_x = opt_x = self.model.sv.sym_struct([
@@ -1177,7 +1108,6 @@ class MHE(Optimizer, Estimator):
         opt_x_scaling['_p_est'] = self._p_est_scaling
         # opt_x are unphysical (scaled) variables. opt_x_unscaled are physical (unscaled) variables.
         self.opt_x_unscaled = opt_x_unscaled = opt_x(opt_x.cat * opt_x_scaling)
-
 
         # Create struct for optimization parameters:
         self._opt_p = opt_p = self.model.sv.sym_struct([
@@ -1272,7 +1202,6 @@ class MHE(Optimizer, Estimator):
             cons_lb.append(self._nl_cons_lb)
             cons_ub.append(self._nl_cons_ub)
 
-
             obj += self.stage_cost_fun(
                 opt_x_unscaled['_w', k], opt_x_unscaled['_v', k], opt_p['_tvp', k], _p
             )
@@ -1285,9 +1214,7 @@ class MHE(Optimizer, Estimator):
             opt_aux['_aux', k] = self.model._aux_expression_fun(
                 opt_x_unscaled['_x', k, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1], opt_p['_tvp', k], _p)
 
-
         self._update_bounds()
-
 
         # Write all created elements to self:
         self._nlp_obj = obj
@@ -1302,7 +1229,6 @@ class MHE(Optimizer, Estimator):
         self.opt_aux_num = self._opt_aux(0)
 
         self.flags['prepare_nlp'] = True
-
 
     def _create_nlp(self):
         """Internal method. See detailed documentation in optimizer.create_nlp
@@ -1324,7 +1250,6 @@ class MHE(Optimizer, Estimator):
         except:
             err_msg = 'The MHE optimization problem constraint function contains unknown symbolic variables.'
             raise Exception(err_msg)
-
 
         self.n_opt_lagr = self._nlp_cons.shape[0]
         # Create casadi optimization object:

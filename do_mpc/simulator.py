@@ -28,6 +28,7 @@ import numpy as np
 import casadi.tools as castools
 import pdb
 import do_mpc
+from typing import Union
 
 class Simulator(do_mpc.model.IteratedVariables):
     """A class for simulating systems. Discrete-time and continuous systems can be considered.
@@ -52,16 +53,12 @@ class Simulator(do_mpc.model.IteratedVariables):
     During runtime, call the simulator :py:func:`make_step` method with current input (``u``).
     This computes the next state of the system and the respective measurement.
     Optionally, pass (sampled) random variables for the process ``w`` and measurement noise ``v`` (if they were defined in :py:class`do_mpc.model.Model`)
-
     """
-    def __init__(self, model):
+    def __init__(self, model:do_mpc.model)->None:
         """ Initialize the simulator class. The model gives the basic model description and is used to build the simulator. If the model is discrete-time, the simulator is a function, if the model is continuous, the simulator is an integrator.
 
-        :param model: Simulation model
-        :type var_type: model class
-
-        :return: None
-        :rtype: None
+        Args:
+            model: Simulation model
         """
         self.model = model
         do_mpc.model.IteratedVariables.__init__(self)
@@ -123,14 +120,12 @@ class Simulator(do_mpc.model.IteratedVariables):
         assert self.t_step, 't_step is required in order to setup the simulator. Please set the simulation time step via set_param(**kwargs)'
 
 
-    def setup(self):
+    def setup(self)->None:
         """Sets up the simulator and finalizes the simulator configuration.
         Only after the setup, the :py:func:`make_step` method becomes available.
 
-        :raises assertion: t_step must be set
-
-        :return: None
-        :rtype: None
+        Raises:
+            assertion: t_step must be set
         """
 
         self._check_validity()
@@ -200,20 +195,14 @@ class Simulator(do_mpc.model.IteratedVariables):
         self.flags['setup'] = True
 
 
-    def set_param(self, **kwargs):
+    def set_param(self, **kwargs)->None:
         """Set the parameters for the simulator. Setting the simulation time step t_step is necessary for setting up the simulator via setup_simulator.
 
-        :param integration_tool: Sets which integration tool is used, defaults to ``cvodes`` (only continuous)
-        :type integration_tool: string
-        :param abstol: gives the maximum allowed absolute tolerance for the integration, defaults to ``1e-10`` (only continuous)
-        :type abstol: float
-        :param reltol: gives the maximum allowed relative tolerance for the integration, defaults to ``1e-10`` (only continuous)
-        :type abstol: float
-        :param t_step: Sets the time step for the simulation
-        :type t_step: float
-
-        :return: None
-        :rtype: None
+        Args:
+            integration_tool(str): Sets which integration tool is used, defaults to ``cvodes`` (only continuous)
+            abstol(float): gives the maximum allowed absolute tolerance for the integration, defaults to ``1e-10`` (only continuous)
+            reltol(float): gives the maximum allowed relative tolerance for the integration, defaults to ``1e-10`` (only continuous)
+            t_step(float): Sets the time step for the simulation
         """
         assert self.flags['setup'] == False, 'Cannot call set_param after simulator was setup.'
 
@@ -223,18 +212,18 @@ class Simulator(do_mpc.model.IteratedVariables):
             setattr(self, key, value)
 
 
-    def get_tvp_template(self):
+    def get_tvp_template(self)->Union[castools.structure3.SXStruct,castools.structure3.MXStruct]:
         """Obtain the output template for :py:func:`set_tvp_fun`.
         Use this method in conjunction with :py:func:`set_tvp_fun`
         to define the function for retrieving the time-varying parameters at each sampling time.
 
-        :return: numerical CasADi structure
-        :rtype: struct_SX
+        Returns:
+            numerical CasADi structure
         """
         return self.model._tvp(0)
 
 
-    def set_tvp_fun(self,tvp_fun):
+    def set_tvp_fun(self,tvp_fun)->None:
         """Method to set the function which returns the values of the time-varying parameters.
         This function must return a CasADi structure which can be obtained with :py:func:`get_tvp_template`.
 
@@ -267,22 +256,19 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         which results in constant parameters.
 
-        .. note::
-
+        Note:
             From the perspective of the simulator there is no difference between
             time-varying parameters and regular parameters. The difference is important only
             for the MPC controller and MHE estimator. These methods consider a finite sequence
             of future / past information, e.g. the weather, which can change over time.
             Parameters, on the other hand, are constant over the entire horizon.
 
-        :param tvp_fun: Function which gives the values of the time-varying parameters
-        :type tvp_fun: function
+        Args:
+            tvp_fun(function): Function which gives the values of the time-varying parameters
 
-        :raises assertion: tvp_fun has incorrect return type.
-        :raises assertion: Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.
-
-        :return: None
-        :rtype: None
+        Raises:
+            assertion: tvp_fun has incorrect return type.
+            assertion: Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.
         """
         assert isinstance(tvp_fun(0), castools.structure3.DMStruct), 'tvp_fun has incorrect return type.'
         assert self.get_tvp_template().labels() == tvp_fun(0).labels(), 'Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.'
@@ -291,20 +277,20 @@ class Simulator(do_mpc.model.IteratedVariables):
         self.flags['set_tvp_fun'] = True
 
 
-    def get_p_template(self):
+    def get_p_template(self)->Union[castools.structure3.SXStruct,castools.structure3.MXStruct]:
         """Obtain output template for :py:func:`set_p_fun`.
         Use this method in conjunction with :py:func:`set_p_fun`
         to define the function for retrieving the parameters at each sampling time.
 
         See :py:func:`set_p_fun` for more details.
 
-        :return: numerical CasADi structure
-        :rtype: struct_SX
+        Returns:
+            numerical CasADi structure
         """
         return self.model._p(0)
 
 
-    def set_p_fun(self,p_fun):
+    def set_p_fun(self,p_fun)->None:
         """Method to set the function which gives the values of the parameters.
         This function must return a CasADi structure which can be obtained with :py:func:`get_p_template`.
 
@@ -358,15 +344,11 @@ class Simulator(do_mpc.model.IteratedVariables):
                 p_template['Theta_3'] += 1e-6*np.random.randn()
                 return p_template
 
+        Args:
+            p_fun(function): A function which gives the values of the parameters
 
-
-        :param p_fun: A function which gives the values of the parameters
-        :type p_fun: python function
-
-        :raises assert: p must have the right structure
-
-        :return: None
-        :rtype: None
+        Raises:
+            assert: p must have the right structure
         """
         assert isinstance(p_fun(0), castools.structure3.DMStruct), 'p_fun has incorrect return type.'
         assert self.get_p_template().labels() == p_fun(0).labels(), 'Incorrect output of p_fun. Use get_p_template to obtain the required structure.'
@@ -381,19 +363,17 @@ class Simulator(do_mpc.model.IteratedVariables):
         The simulator uses "warmstarting" to solve the continous/discrete DAE system by using the previously computed
         algebraic states as an initial guess. Thus, this method is typically only invoked once.
 
-        .. warning::
+        Warnings:
             If no initial values for :py:attr:`z0` were supplied during setup, they default to zero.
-
         """
         assert self.flags['setup'] == True, 'Simulator was not setup yet. Please call Simulator.setup().'
 
         self.sim_z_num['_z'] = self._z0.cat
 
-    def simulate(self):
+    def simulate(self)->np.ndarray:
         """Call the CasADi simulator.
 
-        .. warning::
-
+        Warnings:
             :py:func:`simulate` can be used as part of the public API but is typically
             called from within :py:func:`make_step` which wraps this method and sets the
             required values to the ``sim_x_num`` and ``sim_p_num`` structures automatically.
@@ -413,8 +393,8 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         The function returns the new state of the system.
 
-        :return: x_new
-        :rtype: numpy array
+        Returns:
+            x_new
         """
         assert self.flags['setup'] == True, 'Simulator is not setup. Call simulator.setup() first.'
 
@@ -440,7 +420,7 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         return x_new
 
-    def make_step(self, u0=None, v0=None, w0=None):
+    def make_step(self, u0:np.ndarray=None, v0:np.ndarray=None, w0:np.ndarray=None)->np.ndarray:
         """Main method of the simulator class during control runtime. This method is called at each timestep
         and computes the next state or the current control input :py:obj:`u0`. The method returns the resulting measurement,
         as defined in :py:class:`do_mpc.model.Model.set_meas`.
@@ -456,17 +436,13 @@ class Simulator(do_mpc.model.IteratedVariables):
         The method prepares the simulator by setting the current parameters, calls :py:func:`simulator.simulate`
         and updates the :py:class:`do_mpc.data` object.
 
-        :param u0: Current input to the system. Optional parameter for autonomous systems.
-        :type u0: numpy.ndarray
-
-        :param v0: Additive measurement noise
-        :type v0: numpy.ndarray (optional)
-
-        :param w0: Additive process noise
-        :type w0: numpy.ndarray (optional)
-
-        :return: y_next
-        :rtype: numpy.ndarray
+        Args:
+            u0: Current input to the system. Optional parameter for autonomous systems.
+            v0: Additive measurement noise
+            w0: Additive process noise
+        
+        Returns:
+            y_next
         """
         # Generate dummy input if system is autnomous
         if u0 is None:
