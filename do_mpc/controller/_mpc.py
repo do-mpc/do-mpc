@@ -27,12 +27,10 @@ import casadi.tools as castools
 import pdb
 import itertools
 import time
-
-import do_mpc.data
-import do_mpc.optimizer
+import warnings
 from do_mpc.tools import IndexedProperty
-from typing import Union
-      
+from typing import Union,Callable
+import do_mpc
 
 class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     """Model predictive controller.
@@ -429,7 +427,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         var_struct = getattr(self, query)
 
         err_msg = 'Calling .bounds with {} is not valid. Possible keys are {}.'
-        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), err_msg.format(ind, var_struct.keys())
 
         return var_struct[var_name]
 
@@ -457,7 +455,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         var_struct = getattr(self, query)
 
         err_msg = 'Calling .bounds with {} is not valid. Possible keys are {}.'
-        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), err_msg.format(ind, var_struct.keys())
 
         # Set value on struct:
         var_struct[var_name] = val
@@ -804,20 +802,14 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             kwargs: Arbitrary number of keyword arguments.
         """
         # If uncertainty values are passed as dictionary, extract values and keys:
-        if kwargs:
-            assert isinstance(kwargs, dict), 'Pass keyword arguments, where each keyword refers to a user-defined parameter name.'
-            names = [i for i in kwargs.keys()]
-            valid_names = self.model.p.keys()
-            err_msg = 'You passed keywords {}. Valid keywords are: {} (refering to user-defined parameter names).'
-            assert set(names).issubset(set(valid_names)), err_msg.format(names, valid_names)
-            values = kwargs.values()
-        else:
-            assert isinstance(uncertainty_values, (list, None)), 'uncertainty values must be of type list, you have: {}'.format(type(uncertainty_values))
-            err_msg = 'Received a list of {} elements. You have defined {} parameters in your model.'
-            assert len(uncertainty_values) == self.model.n_p, err_msg.format(len(uncertainty_values), self.model.n_p)
-            values = uncertainty_values
-
-
+        if not kwargs:
+            return None
+        assert isinstance(kwargs, dict), 'Pass keyword arguments, where each keyword refers to a user-defined parameter name.'
+        names = [i for i in kwargs.keys()]
+        valid_names = self.model.p.keys()
+        err_msg = 'You passed keywords {}. Valid keywords are: {} (refering to user-defined parameter names).'
+        assert set(names).issubset(set(valid_names)), err_msg.format(names, valid_names)
+        values = kwargs.values()
         p_scenario = list(itertools.product(*values))
         n_combinations = len(p_scenario)
         p_template = self.get_p_template(n_combinations)

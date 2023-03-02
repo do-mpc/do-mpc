@@ -27,7 +27,9 @@ import numpy as np
 import casadi.tools as castools
 import pdb
 import do_mpc
-from typing import Union
+from typing import Union,Callable
+import os
+import subprocess
 
 class Optimizer:
     """The base clase for the optimization based state estimation (MHE) and predictive controller (MPC).
@@ -340,7 +342,7 @@ class Optimizer:
         var_struct = getattr(self, query)
 
         err_msg = 'Calling .bounds with {} is not valid. Possible keys are {}.'
-        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), err_msg.format(ind, var_struct.keys())
 
         # Set value on struct:
         var_struct[var_name] = val
@@ -407,7 +409,7 @@ class Optimizer:
         var_struct = getattr(self, query)
 
         err_msg = 'Calling .scaling with {} is not valid. Possible keys are {}.'
-        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), err_msg.format(ind, var_struct.keys())
 
         return var_struct[var_name]
 
@@ -431,7 +433,7 @@ class Optimizer:
         var_struct = getattr(self, query)
 
         err_msg = 'Calling .scaling with {} is not valid. Possible keys are {}.'
-        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), err_msg.format(ind, var_struct.keys())
 
         var_struct[var_name] = val
 
@@ -710,7 +712,7 @@ class Optimizer:
             compiler_command = "gcc -fPIC -shared -O1 {cname} -o {libname}".format(cname=cname, libname=libname)
 
         # Only compile if not already compiled:
-        if overwrite or not castools.os.path.isfile(libname):
+        if overwrite or not os.path.isfile(libname):
             # Create c code from solver object
             print('Generating c-code of nlp.')
             self.S.generate_dependencies(cname)
