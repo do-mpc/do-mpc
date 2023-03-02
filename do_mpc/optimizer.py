@@ -437,7 +437,7 @@ class Optimizer:
 
         var_struct[var_name] = val
 
-    def reset_history(self):
+    def reset_history(self)->None:
         """Reset the history of the optimizer.
         All data from the :py:class:`do_mpc.data.Data` instance is removed.
         """
@@ -539,7 +539,7 @@ class Optimizer:
 
         return expr
 
-    def _setup_nl_cons(self, nl_cons_input:Union[castools.SX,castools.MX]):
+    def _setup_nl_cons(self, nl_cons_input:Union[castools.SX,castools.MX])->None:
         """Private method that is called from :py:func:`do_mpc.controller.MPC.setup` or :py:func:`do_mpc.estimator.MHE.setup`.
         Afterwards no further non-linear constraints can be added with the :py:func:`Optimizer.set_nl_cons` method.
 
@@ -584,7 +584,7 @@ class Optimizer:
             self._nl_cons_ub[nl_cons_i['expr_name']] = nl_cons_i['ub']
 
 
-    def get_tvp_template(self)->None:
+    def get_tvp_template(self)->Union[castools.structure3.SXStruct,castools.structure3.MXStruct]:
         """Obtain output template for :py:func:`set_tvp_fun`.
 
         The method returns a structured object with ``n_horizon+1`` elements,
@@ -618,6 +618,9 @@ class Optimizer:
                     tvp_temp_2
 
             optimizer.set_tvp_fun(tvp_fun)
+
+        Returns:
+            Casadi SX or MX structure
         """
 
         tvp_template = self.model.sv.sym_struct([
@@ -625,7 +628,7 @@ class Optimizer:
         ])
         return tvp_template(0)
 
-    def set_tvp_fun(self, tvp_fun):
+    def set_tvp_fun(self, tvp_fun:Callable[[float],Union[castools.structure3.SXStruct,castools.structure3.MXStruct]])->None:
         """ Set function which returns time-varying parameters.
 
         The ``tvp_fun`` is called at each optimization step to get the current prediction of the time-varying parameters.
@@ -671,7 +674,7 @@ class Optimizer:
 
         self.tvp_fun = tvp_fun
 
-    def compile_nlp(self, overwrite:bool = False, cname:str = 'nlp.c', libname:str='nlp.so', compiler_command:str=None):
+    def compile_nlp(self, overwrite:bool = False, cname:str = 'nlp.c', libname:str='nlp.so', compiler_command:str=None)->None:
         """Compile the NLP. This may accelerate the optimization.
         As compilation is time consuming, the default option is to NOT overwrite (``overwrite=False``) an existing compilation.
         If an existing compilation with the name ``libname`` is found, it is used. **This can be dangerous, if the NLP has changed**
@@ -1031,7 +1034,7 @@ class Optimizer:
         }
         return n_branches, n_scenarios, child_scenario, parent_scenario, branch_offset
 
-    def prepare_nlp(self):
+    def prepare_nlp(self)->None:
         """Prepare the optimization problem.
         Typically, this method is called internally from :py:meth:`setup`.
 
@@ -1051,7 +1054,7 @@ class Optimizer:
         # MPC and MHE have similar methods. The documentation is valid for both of them.
         self._prepare_nlp()
 
-    def create_nlp(self):
+    def create_nlp(self)->None:
         """Create the optimization problem.
         Typically, this method is called internally from :py:meth:`setup`.
 

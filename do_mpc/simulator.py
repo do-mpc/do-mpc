@@ -28,7 +28,7 @@ import numpy as np
 import casadi.tools as castools
 import pdb
 import do_mpc
-from typing import Union
+from typing import Union,Callable
 
 class Simulator(do_mpc.model.IteratedVariables):
     """A class for simulating systems. Discrete-time and continuous systems can be considered.
@@ -54,7 +54,7 @@ class Simulator(do_mpc.model.IteratedVariables):
     This computes the next state of the system and the respective measurement.
     Optionally, pass (sampled) random variables for the process ``w`` and measurement noise ``v`` (if they were defined in :py:class`do_mpc.model.Model`)
     """
-    def __init__(self, model:do_mpc.model)->None:
+    def __init__(self, model:do_mpc.model):
         """ Initialize the simulator class. The model gives the basic model description and is used to build the simulator. If the model is discrete-time, the simulator is a function, if the model is continuous, the simulator is an integrator.
 
         Args:
@@ -92,7 +92,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         }
 
 
-    def reset_history(self):
+    def reset_history(self)->None:
         """Reset the history of the simulator.
         """
         self._t0 = np.array([0])
@@ -223,7 +223,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         return self.model._tvp(0)
 
 
-    def set_tvp_fun(self,tvp_fun)->None:
+    def set_tvp_fun(self,tvp_fun:Callable[[float],Union[castools.structure3.SXStruct,castools.structure3.MXStruct]])->None:
         """Method to set the function which returns the values of the time-varying parameters.
         This function must return a CasADi structure which can be obtained with :py:func:`get_tvp_template`.
 
@@ -264,7 +264,7 @@ class Simulator(do_mpc.model.IteratedVariables):
             Parameters, on the other hand, are constant over the entire horizon.
 
         Args:
-            tvp_fun(function): Function which gives the values of the time-varying parameters
+            tvp_fun: Function which gives the values of the time-varying parameters
 
         Raises:
             assertion: tvp_fun has incorrect return type.
@@ -290,7 +290,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         return self.model._p(0)
 
 
-    def set_p_fun(self,p_fun)->None:
+    def set_p_fun(self,p_fun:Callable[[float],Union[castools.structure3.SXStruct,castools.structure3.MXStruct]])->None:
         """Method to set the function which gives the values of the parameters.
         This function must return a CasADi structure which can be obtained with :py:func:`get_p_template`.
 
@@ -345,7 +345,7 @@ class Simulator(do_mpc.model.IteratedVariables):
                 return p_template
 
         Args:
-            p_fun(function): A function which gives the values of the parameters
+            p_fun: A function which gives the values of the parameters
 
         Raises:
             assert: p must have the right structure
@@ -356,7 +356,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         self.flags['set_p_fun'] = True
 
 
-    def set_initial_guess(self):
+    def set_initial_guess(self)->None:
         """Initial guess for DAE variables.
         Use the current class attribute :py:attr:`z0` to create the initial guess for the DAE algebraic equations.
 

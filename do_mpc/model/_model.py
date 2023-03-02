@@ -623,7 +623,7 @@ class Model:
             model.set_expression('x1x2', x_1*x_2)
 
         This new expression ``x1x2`` is then available in all **do-mpc** modules utilizing
-        this model instance. It can be set, e.g. as the cost function in :py:class:`do-mpc.controller.MPC`
+        this model instance. It can be set, e.g. as the cost function in :py:class:`do_mpc.controller.MPC`
         or simply used in a graphical representation of the simulated / controlled system.
 
         Args:

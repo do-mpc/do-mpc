@@ -109,6 +109,9 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             nlp_obj -> process;
         }
 
+    Args:
+        model: Model
+
     Warnings:
         Before running the controller, make sure to supply a valid initial guess for all optimized variables (states, algebraic states and inputs).
         Simply set the initial values of :py:attr:`x0`, :py:attr:`z0` and :py:attr:`u0` and then call :py:func:`set_initial_guess`.
@@ -118,7 +121,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     During runtime call :py:func:`make_step` with the current state :math:`x` to obtain the optimal control input :math:`u`.
 
     """
-    def __init__(self, model):
+    def __init__(self, model:Union[do_mpc.model.Model,do_mpc.model.LinearModel]):
 
         self.model = model
 
@@ -412,7 +415,8 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         assert isinstance(ind, tuple), 'Power index must include bound_type, var_name (as a tuple).'
         assert len(ind)>=2, 'Power index must include bound_type, var_type, var_name (as a tuple).'
         bound_type = ind[0]
-        var_name   = ind[1:]
+        var_type   = ind[1]
+        var_name   = ind[2:]
 
         err_msg = 'Invalid power index {} for bound_type. Must be from (lower, upper).'
         assert bound_type in ('lower', 'upper'), err_msg.format(bound_type)
@@ -460,7 +464,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         # Set value on struct:
         var_struct[var_name] = val
 
-    def set_param(self, **kwargs):
+    def set_param(self, **kwargs)->None:
         """Set the parameters of the :py:class:`MPC` class. Parameters must be passed as pairs of valid keywords and respective argument.
         For example:
 
@@ -600,7 +604,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         self.flags['set_objective'] = True
 
-    def set_rterm(self, **kwargs):
+    def set_rterm(self, **kwargs)->None:
         """Set the penality factor for the inputs. Call this function with keyword argument refering to the input names in
         :py:class:`model` and the penalty factor as the respective value.
 
@@ -692,7 +696,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             MPC.set_p_fun(p_fun)
 
         Note the nominal case is now:
-        alpha = 1
+        alpha = 1,
         beta = 1
         which is determined by the order in the arrays above (first element is nominal).
 
@@ -705,7 +709,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         ])
         return p_template(0)
 
-    def set_p_fun(self, p_fun)->None:
+    def set_p_fun(self, p_fun:Callable[[float],Union[castools.structure3.SXStruct,castools.structure3.MXStruct]])->None:
         """Set function which returns parameters.
         The ``p_fun`` is called at each optimization step to get the current values of the (uncertain) parameters.
 
@@ -876,7 +880,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             def p_fun(t): return _p
             self.set_p_fun(p_fun)
 
-    def setup(self):
+    def setup(self)->None:
         """Setup the MPC class.
         Internally, this method will create the MPC optimization problem under consideration
         of the supplied dynamic model and the given :py:class:`MPC` class instance configuration.
@@ -899,7 +903,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         self.prepare_nlp()
         self.create_nlp()
 
-    def set_initial_guess(self):
+    def set_initial_guess(self)->None:
         """Initial guess for optimization variables.
         Uses the current class attributes :py:attr:`x0`, :py:attr:`z0` and :py:attr:`u0` to create the initial guess.
         The initial guess is simply the initial values for all :math:`k=0,\dots,N` instances of :math:`x_k`, :math:`u_k` and :math:`z_k`.
@@ -1040,7 +1044,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         self.lb_opt_x['_eps'] = self._eps_lb.cat
         self.ub_opt_x['_eps'] = self._eps_ub.cat
 
-    def _prepare_nlp(self):
+    def _prepare_nlp(self)->None:
         """Internal method. See detailed documentation with optimizer.prepare_nlp
         """
         nl_cons_input = self.model['x', 'u', 'z', 'tvp', 'p']
@@ -1224,7 +1228,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         self.flags['prepare_nlp'] = True
 
-    def _create_nlp(self):
+    def _create_nlp(self)->None:
         """Internal method. See detailed documentation in optimizer.create_nlp
         """
         self._nlp_cons = castools.vertcat(*self._nlp_cons)

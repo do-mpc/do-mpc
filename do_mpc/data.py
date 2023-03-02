@@ -44,7 +44,7 @@ class Data:
     Args:
         model: model object from the :py:class:`do_mpc.model` 
     """
-    def __init__(self, model:do_mpc.model):
+    def __init__(self, model:Union[do_mpc.model.Model,do_mpc.model.LinearModel]):
         self.dtype = 'default'
         assert model.flags['setup'] == True, 'Model was not setup. After the complete model creation call model.setup().'
         # As discussed here: https://groups.google.com/forum/#!topic/casadi-users/dqAb4tnA2ik
@@ -91,7 +91,7 @@ class Data:
 
         The method allows for power indexing the results for the fields
         ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``, ``_aux``, ``_y``
-        where further indices refer to the configured variables in the :py:class:`do_mpc.model.Model` instance.
+        where further indices refer to the configured variables in the :py:class:`do_mpc.model.Model` and :py:class:`do_mpc.model.LinearModel` instance.
 
         **Example:**
 
@@ -155,7 +155,7 @@ class Data:
             out = getattr(self, data_field)
         return out
 
-    def init_storage(self):
+    def init_storage(self)->None:
         """Create new (empty) arrays for all variables.
         The variables of interest are listed in the ``data_fields`` dictionary,
         with their respective dimension. This dictionary may be updated.
@@ -164,7 +164,7 @@ class Data:
         for field_i, dim_i in self.data_fields.items():
             setattr(self, field_i, np.empty((0, dim_i)))
 
-    def set_meta(self, **kwargs):
+    def set_meta(self, **kwargs)->None:
         """Set meta data for the current instance of the data object.
         """
         for key, value in kwargs.items():
@@ -230,9 +230,12 @@ class Data:
 class MPCData(Data):
     """**do-mpc** data container for the :py:class:`do_mpc.controller.MPC` instance.
     This method inherits from :py:class:`Data` and extends it to query the MPC predictions.
+
+    Args:
+        model: model from :py:class:`do_mpc.model`
     """
 
-    def __init__(self, model:do_mpc.model):
+    def __init__(self, model:Union[do_mpc.model.Model,do_mpc.model.LinearModel]):
         super().__init__(model)
         # Accelerate prediction calls by saving indices of previous queries.
         self.prediction_queries = {'ind':[], 'f_ind':[]}
@@ -365,7 +368,11 @@ class MPCData(Data):
 
 
 
-def save_results(save_list:list, result_name:str='results', result_path:str='./results/', overwrite:bool=False)->None:
+def save_results(save_list:list, 
+                 result_name:str='results', 
+                 result_path:str='./results/', 
+                 overwrite:bool=False
+                 )->None:
     """Exports the data objects from the **do-mpc** modules in ``save_list`` as a pickled file. Supply any, all or a selection of (as a list):
 
     * :py:class:`do_mpc.controller.MPC`
@@ -422,7 +429,7 @@ def save_results(save_list:list, result_name:str='results', result_path:str='./r
     with open(result_path+result_name+'.pkl', 'wb') as f:
         pickle.dump(results, f)
 
-def load_results(file_name:str):
+def load_results(file_name:str)->Dict:
     """ Simple wrapper to open and unpickle a file.
     If used for **do-mpc** results, this will return a dictionary with the stored **do-mpc** modules:
 
@@ -434,6 +441,9 @@ def load_results(file_name:str):
 
     Args:
         file_name : File name (including path) for the file to be opened and unpickled.
+
+    Returns:
+        Returns the results stored in .pkl file.
     """
 
     with open(file_name, 'rb') as f:

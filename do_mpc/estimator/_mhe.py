@@ -31,7 +31,7 @@ import time
 from ..optimizer import Optimizer
 from ._base import Estimator
 import do_mpc
-from typing import Union
+from typing import Union,Callable
 
 class MHE(Optimizer, Estimator):
     """Moving horizon estimator.
@@ -125,11 +125,11 @@ class MHE(Optimizer, Estimator):
     During runtime use :py:func:`make_step` with the most recent measurement to obtain the estimated states.
 
     Args:
-        model: A configured and setup :py:class:`do_mpc.model.Model`
+        model: A configured and setup :py:class:`do_mpc.model`
         p_est_list: List with names of parameters (``_p``) defined in ``model``
     """
 
-    def __init__(self, model:do_mpc.model, p_est_list:list=[]):
+    def __init__(self, model:Union[do_mpc.model.Model,do_mpc.model.LinearModel], p_est_list:list=[]):
         Estimator.__init__(self, model)
         Optimizer.__init__(self)
 
@@ -452,7 +452,7 @@ class MHE(Optimizer, Estimator):
     def opt_p(self, val):
         self._opt_p = val
 
-    def set_param(self, **kwargs):
+    def set_param(self, **kwargs)->None:
         """Method to set the parameters of the :py:class:`MHE` class. Parameters must be passed as pairs of valid keywords and respective argument.
         For example:
 
@@ -640,7 +640,8 @@ class MHE(Optimizer, Estimator):
                               P_x:Union[np.ndarray,castools.SX,castools.MX], 
                               P_v:Union[np.ndarray,castools.SX,castools.MX]=None, 
                               P_p:Union[np.ndarray,castools.SX,castools.MX]=None, 
-                              P_w:Union[np.ndarray,castools.SX,castools.MX]=None):
+                              P_w:Union[np.ndarray,castools.SX,castools.MX]=None
+                              )->None:
         """ Configure the suggested default MHE formulation.
 
         Use this method to pass tuning matrices for the MHE optimization problem:
@@ -750,7 +751,7 @@ class MHE(Optimizer, Estimator):
         # Set MHE objective:
         self.set_objective(stage_cost, arrival_cost)
 
-    def get_p_template(self)->castools.structure3.SXStruct:
+    def get_p_template(self)->Union[castools.structure3.SXStruct,castools.structure3.MXStruct]:
         """Obtain output template for :py:func:`set_p_fun`.
         This is used to set the (not estimated) parameters.
         Use this structure as the return of a user defined parameter function (``p_fun``)
@@ -766,19 +767,19 @@ class MHE(Optimizer, Estimator):
         """
         return self._p_set(0)
 
-    def set_p_fun(self, p_fun):
+    def set_p_fun(self, p_fun:Callable[[float],Union[castools.structure3.SXStruct,castools.structure3.MXStruct]])->None:
         """Set function which returns parameters..
         The ``p_fun`` is called at each MHE time step and returns the (fixed) parameters.
         The function must return a numerical CasADi structure, which can be retrieved with :py:func:`get_p_template`.
 
         Args:
-            p_fun(function): Parameter function.
+            p_fun: Parameter function.
         """
         assert self.get_p_template().labels() == p_fun(0).labels(), 'Incorrect output of p_fun. Use get_p_template to obtain the required structure.'
         self.p_fun = p_fun
         self.flags['set_p_fun'] = True
 
-    def get_y_template(self)->castools.structure3.SXStruct:
+    def get_y_template(self)->Union[castools.structure3.SXStruct,castools.structure3.MXStruct]:
         """Obtain output template for :py:func:`set_y_fun`.
 
         Use this structure as the return of a user defined parameter function (``y_fun``)
@@ -792,7 +793,7 @@ class MHE(Optimizer, Estimator):
             # Slicing is possible, e.g.:
             y_template['y_meas', :, 'meas_name']
 
-        where ``k`` runs from ``0`` to ``N_horizon`` and ``meas_name`` refers to the user-defined names in :py:class:`do_mpc.model.Model`.
+        where ``k`` runs from ``0`` to ``N_horizon`` and ``meas_name`` refers to the user-defined names in :py:class:`do_mpc.model`.
 
         Note:
             The structure is ordered, sucht that ``k=0`` is the "oldest measurement" and ``k=N_horizon`` is the newest measurement.
@@ -824,19 +825,19 @@ class MHE(Optimizer, Estimator):
         ])
         return y_template(0)
 
-    def set_y_fun(self, y_fun):
+    def set_y_fun(self, y_fun:Callable[[float],Union[castools.structure3.SXStruct,castools.structure3.MXStruct]])->None:
         """Set the measurement function. The function must return a CasADi structure which can be obtained
         from :py:func:`get_y_template`. See the respective doc string for details.
 
         Args:
-            y_fun(function): measurement function.
+            y_fun: measurement function.
         """
         assert self.get_y_template().labels() == y_fun(0).labels(), 'Incorrect output of y_fun. Use get_y_template to obtain the required structure.'
         self.y_fun = y_fun
         self.flags['set_y_fun'] = True
 
 
-    def _check_validity(self):
+    def _check_validity(self)->None:
         """Private method to be called in :py:func:`setup`. Checks if the configuration is valid and
         if the optimization problem can be constructed.
         Furthermore, default values are set if they were not configured by the user (if possible).
@@ -897,7 +898,7 @@ class MHE(Optimizer, Estimator):
             # No measurement function.
             raise Exception('You have not suppplied a measurement function. Use .set_y_fun or set parameter meas_from_data to True for default function.')
 
-    def set_initial_guess(self):
+    def set_initial_guess(self)->None:
         """Initial guess for optimization variables.
         Uses the current class attributes :py:obj:`x0`, :py:obj:`z0` and :py:obj:`u0`, :py:obj:`p_est0` to create an initial guess for the MHE.
         The initial guess is simply the initial values for all :math:`k=0,\dots,N` instances of :math:`x_k`, :math:`u_k` and :math:`z_k`, :math:`p_{\\text{est,k}}`.
@@ -918,7 +919,7 @@ class MHE(Optimizer, Estimator):
 
         self.flags['set_initial_guess'] = True
 
-    def setup(self):
+    def setup(self)->None:
         """The setup method finalizes the MHE creation.
         The optimization problem is created based on the configuration of the module.
 
@@ -1230,7 +1231,7 @@ class MHE(Optimizer, Estimator):
 
         self.flags['prepare_nlp'] = True
 
-    def _create_nlp(self):
+    def _create_nlp(self)->None:
         """Internal method. See detailed documentation in optimizer.create_nlp
         """
         self._nlp_cons = castools.vertcat(*self._nlp_cons)

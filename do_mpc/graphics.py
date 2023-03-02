@@ -32,7 +32,7 @@ import pdb
 import os
 from do_mpc.tools import IndexedProperty, Structure
 import do_mpc
-from typing import Union
+from typing import Union,Tuple
 
 # Define what is included in the Sphinx documentation.
 __all__ = ['Graphics', 'default_plot', 'animate']
@@ -105,7 +105,7 @@ class Graphics:
     Args:
         data: Data object from the **do-mpc** modules (simulator, estimator, controller)
     """
-    def __init__(self, data):
+    def __init__(self, data:Union[do_mpc.data.Data,do_mpc.data.MPCData]):
         self.line_list = []
         self.ax_list  = []
         self.color = plt.rcParams['axes.prop_cycle'].by_key()['color']
@@ -205,7 +205,7 @@ class Graphics:
         # Note this property is a wrapper to showcase the documentation.
         return self._pred_lines
 
-    def reset_axes(self):
+    def reset_axes(self)->None:
         """Relimits and scales all axes.
         This method calls
 
@@ -220,14 +220,14 @@ class Graphics:
             ax_i.relim()
             ax_i.autoscale()
 
-    def reset_prop_cycle(self):
+    def reset_prop_cycle(self)->None:
         """Resets the property cycle for all axes which were passed with :py:func:`Graphics.add_line`.
         The matplotlib color cycler is restarted.
         """
         for ax_i in self.ax_list:
             ax_i.set_prop_cycle(None)
 
-    def clear(self, lines=None):
+    def clear(self, lines:list=None)->None:
         """Clears all data from lines.
 
         """
@@ -239,7 +239,7 @@ class Graphics:
             for line_i in lines:
                 line_i.set_data([],[])
 
-    def add_line(self, var_type:str, var_name:str, axis:maxes.Axes, **pltkwargs):
+    def add_line(self, var_type:str, var_name:str, axis:maxes.Axes, **pltkwargs)->None:
         """``add_line`` is called during setting up the :py:class:`Graphics` class. This is typically the last step of configuring **do-mpc**.
         Each call of :py:func:`Graphics.add_line` adds a line to the passed axis according to the variable type
         (``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``, ``_aux``)
@@ -352,7 +352,7 @@ def default_plot(data,
                  dae_states_list:list=None, 
                  inputs_list:list=None, 
                  aux_list:list=None, 
-                 **kwargs):
+                 **kwargs)->Tuple[plt.figure,plt.axes,Graphics]:
     """Pass a :py:class:`do_mpc.data.Data` object and create a default **do-mpc** plot.
     By default all states, inputs and auxiliary expressions are plotted on individual axes.
     Pass lists of states, inputs and aux names (string) to plot only a subset of these
@@ -369,9 +369,9 @@ def default_plot(data,
         kwargs: Further arguments are passed to the call of ``plt.subplots(n_plot, 1, sharex=True, **kwargs)``.
 
     Returns:
-        * fig *(Matplotlib figure)*
-        * ax *(Matplotlib axes)*
-        * configured :py:class:`Graphics` object (Graphics)
+        fig 
+        ax
+        configured :py:class:`Graphics` object
     """
     err_message = '{} contains invalid keys. Must be a subset of {}. You have {}.'
     if states_list is None:
@@ -454,7 +454,7 @@ def animate(graphics:Graphics,
             overwrite:bool=False, 
             format:str='gif', 
             fps:int=5, 
-            writer=None)->None:
+            writer:Union[FFMpegWriter,ImageMagickWriter]=None)->None:
     """Animation helper function.
 
     Call this function with a configured :py:class:`Graphics` instance and the respective figure.
@@ -471,7 +471,7 @@ def animate(graphics:Graphics,
         overwrite: Check if export_name already exists in the supplied directory and overwrite or alter export_name.
         format: Choose between gif or mp4.
         fps: Frames per second for the resulting animation.
-        writer(writer class): If supplied, the ``fps`` and ``format`` argument are discarded. Use this to configure your own writer.
+        writer: If supplied, the ``fps`` and ``format`` argument are discarded. Use this to configure your own writer.
     """
     if n_steps==None:
         n_steps = graphics.data['_time'].shape[0]
