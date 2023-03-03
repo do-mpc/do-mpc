@@ -31,6 +31,9 @@ Created on Tue Feb  7 12:23:15 2023
 import time
 import numpy as np
 import pandas as pd
+from dataclasses import dataclass
+from typing import List
+
 import do_mpc
 try:
     import asyncua.sync as opcua
@@ -228,25 +231,111 @@ class RTClient:
         
         return wr_result
 
-    # def readData(self, tag):
-    #     """ Reads values from a tag on the OPCUA server. It is used to read MPC data (states, parameters and inputs) and is called by methods
-    #         from any of the real-time MPC modules. Asserts if the string has the right format and throws an error is the read operation has failed.
+    def readData(self, tag: NamespaceEntry):
+        """ Reads values from a tag on the OPCUA server. It is used to read MPC data (states, parameters and inputs) and is called by methods
+            from any of the real-time MPC modules. Asserts if the string has the right format and throws an error is the read operation has failed.
             
-    #         :param tag: a name representing a valid tag on the server to which the client is connected.
-    #         :type tag: string
+            :param tag: a name representing a valid tag on the server to which the client is connected.
+            :type tag: string
             
-    #         :return dataVal: The data list read from the server
-    #         :rtype dataVal: list
-    #         """
-    #     assert "ns=2;s=" in tag, "The data source you have provided is invalid. Refer to the OPCUA server namespace and define a correct source."
-       
-    #     try:
-    #         dataVal = self.opcua_client.get_node(tag).get_value()
-    #     except ConnectionRefusedError:
-    #         print("A read operation by:", self.type, "failed @ time: ", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
-    #     return dataVal
+            :return dataVal: The data list read from the server
+            :rtype dataVal: list
+            """
+        
+        if not self.namespace.has_entry(tag):
+            raise Exception('blabla')
+        
+        query = tag.get_node_id(self.namespace.namespace.index)
+           
+        try:
+            dataVal = self.opcua_client.get_node(query).get_value()
+        except ConnectionRefusedError:
+            print("A read operation by:", self.type, "failed @ time: ", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
+        return dataVal
+    
+
+class RealtimeController:
+    def __init__(self, controller, client_opts):
+        self.write_nodes = []
+        self.read_nodes = []
+
+        read_node_list = generate_write_nodes_list()
+
+        self.client = Client(client_opts, read_node_list)
+
+    def generate_write_nodes_list(self):
+        entry_list = []
+
+        for key in self.controller.model.u.keys.keys():
+            entry_list.append(
+                NamespaceEntry(
+                    objectnode ='controller',
+                    variable = key,
+                    dim = 3 #TODO fix this
+                )
+            )
+
+        return entry_list
+    
+    def read_from_(object):
+        #TODO: fix this
+        
+
+@dataclass
+class NamespaceEntry:
+    objectnode: str
+    variable: str
+    dim: int
+
+    def get_node_id(self, namespace_index):
+        return f'ns={namespace_index};s={self.variable}'
+
+@dataclass   
+class Namespace:
+    namespace_name: str
+    entry_list: List[NamespaceEntry]
+    _namespace_index: int = None
+
+    def add_entries(self, entries: List[NamespaceEntry]):
+        pass
 
 
+    def has_entry(self, entry: NamespaceEntry):
+        return (entry in self.entry_list)
+
+
+    @property
+    def namespace_index(self):
+        if self._namespace_index == None:
+            raise Exception('Namespace is not registered at server.')
+
+        return self._namespace_index
+    
+    @namespace_index.setter
+    def namespace_index(self, val):
+        if not isinstance(val, int):
+            raise ValueError('argument must be an integer')
+        
+        self._namespace_index = val
+    
+
+@dataclass
+class ServerOpts:
+    name: str
+
+@dataclass 
+class ClientOpts:
+    name: str
+
+
+e1 = NamespaceEntry(
+    'plant', 'state.x', 2
+)
+e2 = NamespaceEntry(
+    'plant', 'state.x', 2
+)
+
+ns = Namespace('controller', [e1,])
 
 #%% Server setup
 
@@ -301,6 +390,7 @@ client_opts_4 = {"_name":"Bio Reactor OPCUA Client_4",      # give the server wh
                "_address":"opc.tcp://localhost:4840/freeopcua/server/",  # does not need changing
                "_port": 4840}   
 
+#%%
 
 Server = RTServer(server_opts)
 Server_2 = RTServer(server_opts_2)
@@ -321,4 +411,5 @@ Server.namespace_from_client(Client_1)
 Server.start()
 
 #%%
-# Server.stop()
+Server.stop()
+# %%
