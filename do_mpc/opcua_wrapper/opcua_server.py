@@ -22,7 +22,8 @@
 
 
 import time
-
+import numpy as np
+import pandas as pd
 try:
     import opcua
 except ImportError:
@@ -193,17 +194,17 @@ class Server:
     def start(self):
         try:
             self.opcua_server.start()
-
-            print("The server "+ self.name +" was started @ ",time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
+            if self.with_db == True:
+                for it in self.get_all_nodes():
+                    try:
+                        self.opcua_server.historize_node_data_change(it,count=1e6)
+                    except:
+                        print("SQL database error, the following node can not be historized:\n", it) 
             self.running = True            
             return True
         except RuntimeError as err:
             print("The server "+ self.name +" could not be started, returned error message :\n", err)
             return False
-        if self.with_db == True:
-               self.opcua_server.historize_node_data_change(self.get_all_nodes(),count=10) #opc_server.opcua_server.get_node('ns=2;s=States.X').read_raw_history()
-        
-
         
     # Stop server
     def stop(self):
@@ -216,3 +217,20 @@ class Server:
         except RuntimeError as err:
             print("The server could not be stopped, returned error message :\n", err)
             return False
+        
+    
+    def extract_data(self, node, data_structure):
+        data = self.opcua_server.get_node(node).read_raw_history()
+        val = np.array([np.asarray(val.Value.Value).flatten() for val in data]).reshape(-1, data_structure)
+        timestamp = np.array([val.SourceTimestamp for val in data]).reshape(-1,1)
+        labels = ['{}_{}'.format(node.split(";")[-1], ind) for ind in range(len(val[1]))]
+        df = pd.DataFrame(val, columns=labels)
+        df['Timestamp'] = timestamp
+        return df
+    
+    def get_data(self):
+        df_states = self.extract_data('ns=2;s=Measurements', self.data_structure['nr_meas'])
+        df_outputs = self.extract_data('ns=2;s=OptimalOutputs', self.data_structure['nr_controls'])
+        return df_states, df_outputs
+    
+    

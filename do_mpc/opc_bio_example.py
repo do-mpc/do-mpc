@@ -181,7 +181,7 @@ est_opts['_opc_opts'] = client_opts
 est_opts['_cycle_time'] = 4
 est_opts['_user_controlled'] = False
 est_opts['_opc_opts']['_client_type'] = 'estimator'
-est_opts['_opc_opts']['_output_feedback'] = False
+est_opts['_opc_opts']['_output_feedback'] = True
 
 estimator = opcua_wrapper.RealtimeEstimator('state-feedback',model,est_opts)
 
@@ -232,10 +232,13 @@ trigger_estimator.stop()
 # opc_server.output()
 # opc_server.export_xml_by_ns('C:/Users/User/Desktop/test.xml')
 
+# opc_server.opcua_server.get_node('ns=2;s=States.X').read_raw_history()
+# user.disconnect()
+# mpc.stop()
+# simulator.stop()
+# estimator.stop()
+# opc_server.stop()
 
-user.disconnect()
-mpc.stop()
-simulator.stop()
-estimator.stop()
-opc_server.stop()
+#%%
 
+df_x, df_u = opc_server.get_data()

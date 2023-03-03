@@ -157,8 +157,8 @@ template_mpc: tuning parameters
 
 
 setup_mpc = {
-    'n_horizon': 2,
-    'n_robust': 1,
+    'n_horizon': 20,
+    'n_robust': 0,
     'open_loop': 0,
     't_step': 50.0/3600.0,
     'state_discretization': 'collocation',

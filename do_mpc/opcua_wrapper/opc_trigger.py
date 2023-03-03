@@ -24,7 +24,7 @@
 import time
 from threading import Timer
 
-class RealtimeTrigger(object):
+class RealtimeTrigger:
     """
     This class is employed in timing the execution of your real-time ::do-mpc modules. One RealtimeTrigger is required 
     for every module, i.e. one for the simulator, one for the controller and one for the estimator, if the latter is present.
