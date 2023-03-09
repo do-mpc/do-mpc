@@ -257,39 +257,52 @@ class RTClient:
 class RTController:
 
     def __init__(self, controller, clientOpts):
-
         self.mpc = controller
         self.def_namespace = namespace_from_model.detailed(self.mpc.model)
         self.client = RTClient(clientOpts, self.def_namespace)
-        user_write_list = []
         self.def_tagout = []
-        # self.def_write_node = self.def_tagout.get_node_id(self.def_namespace._)
-    
-    def connect(self):
+        self.def_tagin = []
+        self.tagout = []
+        self.tagin = []
 
+    def connect(self):
         try:
             self.client.connect()
             self.enabled = True
+            print("The real-time controller connected to the server")
+            
         except RuntimeError:
             self.enabled = False
             print("The real-time controller could not connect to the server. Please check the server setup.")
-        try:
-            for key in self.mpc.model.keys():
-                self.def_tagout.append(NamespaceEntry('u', key, 1).get_node_id(self.def_namespace._namespace_index))
-        except:
-            return print('Controller connected to server. Default write-node could not be set science no namespace_id is known.')
 
-        return print('Controller connected to server. Default write-nodes set as {}'.format(self.def_tagout)) 
+        if isinstance(self.def_namespace._namespace_index, int):
+            for dclass in self.def_namespace.entry_list:
+                if dclass.objectnode == 'u':
+                    self.def_tagout.append(dclass.get_node_id(self.def_namespace._namespace_index))
+                elif dclass.objectnode == 'x' or dclass.objectnode == 'y':
+                    self.def_tagin.append(dclass.get_node_id(self.def_namespace._namespace_index))
+            print('Default write-nodes set as {}. Default read-nodes set as {}'.format(self.def_tagout, self.def_tagin)) 
+        return self.enabled
         
     def diconnect(self):
-
         try:
             self.client.disconnect()
             self.enabled = False
         except RuntimeError:
             print("The real-time controller could not be stopped due to server issues. Please stop the client manually and delete the object!")
         return self.enabled
-    
+
+    def set_write_node(self, ns_entry):
+        self.tagout.append(ns_entry)
+
+    def set_read_node(self, ns_entry):
+        self.tagin.append(ns_entry)
+
+    def get_ns_from_client(self,client):
+        pass
+
+    # def generic_writing_class(self):
+
     # def user_write_nodes(self, ns):
     #     user_write_list.append(ns)
         
@@ -561,12 +574,13 @@ Server = RTServer(server_opts)
 # Server.namespace_from_client(Client2)
 rt_mpc = RTController(mpc, client_opts_1)
 Server.namespace_from_client(rt_mpc.client)
-Server.get_all_nodes()
-# rt_mpc.connect()
+# Server.get_all_nodes()
+
 #%%
 # Server.get_all_nodes()
 Server.start()
 rt_mpc.connect()
+rt_mpc.def_tagout
 #%%
 Server.stop()
 # %%
