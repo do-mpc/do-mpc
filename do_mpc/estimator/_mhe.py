@@ -322,7 +322,7 @@ class MHE(Optimizer, Estimator):
 
         .. warning::
 
-            Do not tweak or overwrite this attribute unless you known what you are doing.
+            Do not tweak or overwrite this attribute unless you know what you are doing.
 
         .. note::
 
@@ -375,7 +375,7 @@ class MHE(Optimizer, Estimator):
 
         .. warning::
 
-            Do not tweak or overwrite this attribute unless you known what you are doing.
+            Do not tweak or overwrite this attribute unless you know what you are doing.
 
         .. note::
 
@@ -419,7 +419,7 @@ class MHE(Optimizer, Estimator):
 
         .. warning::
 
-            Do not tweak or overwrite this attribute unless you known what you are doing.
+            Do not tweak or overwrite this attribute unless you know what you are doing.
 
         .. note::
 
@@ -459,7 +459,7 @@ class MHE(Optimizer, Estimator):
 
         .. warning::
 
-            Do not tweak or overwrite this attribute unless you known what you are doing.
+            Do not tweak or overwrite this attribute unless you know what you are doing.
 
         .. note::
 

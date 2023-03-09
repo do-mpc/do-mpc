@@ -244,7 +244,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         .. warning::
 
-            Do not tweak or overwrite this attribute unless you known what you are doing.
+            Do not tweak or overwrite this attribute unless you know what you are doing.
 
         .. note::
 
@@ -293,7 +293,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         .. warning::
 
-            Do not tweak or overwrite this attribute unless you known what you are doing.
+            Do not tweak or overwrite this attribute unless you know what you are doing.
 
         .. note::
 
@@ -383,7 +383,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         .. warning::
 
-            Do not tweak or overwrite this attribute unless you known what you are doing.
+            Do not tweak or overwrite this attribute unless you know what you are doing.
 
         .. note::
 
@@ -402,7 +402,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         """Query and set the terminal bounds for the states.
         The :py:func:`terminal_bounds` method is an indexed property, meaning
         getting and setting this property requires an index and calls this function.
-        The power index (elements are seperated by comas) must contain atleast the following elements:
+        The power index (elements are seperated by commas) must contain at least the following elements:
 
         ======      =================   ==========================================================
         order       index name          valid options
@@ -1119,7 +1119,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
 
     def _prepare_nlp(self):
-        """Internal method. See detailed documentation with optimizer.prepare_nlp
+        """Internal method. See detailed documentation of optimizer.prepare_nlp
         """
         nl_cons_input = self.model['x', 'u', 'z', 'tvp', 'p']
         self._setup_nl_cons(nl_cons_input)
