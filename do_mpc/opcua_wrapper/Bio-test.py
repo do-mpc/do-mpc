@@ -1,3 +1,5 @@
+
+#%%
 import numpy as np
 import sys
 from casadi import *
@@ -87,3 +89,4 @@ S_in_values = np.array([200.0, 220.0, 180.0])
 mpc.set_uncertainty_values(Y_x = Y_x_values, S_in = S_in_values)
 
 mpc.setup()
+#%%

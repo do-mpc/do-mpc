@@ -80,6 +80,7 @@ class RTServer:
         
         # Create the obtained namespaces on the server, if they do not already exist
         for key_0 in self.namespace:
+            object_dict = {}
             if key_0._namespace_index == None:
                 idx = self.opcua_server.register_namespace(key_0.namespace_name)
             else:
@@ -88,21 +89,27 @@ class RTServer:
             
 
             for key_1 in key_0.entry_list:
-                # TODO: if condition such that every object is only registered once
-                try:
-                    objects = self.opcua_server.nodes.objects.add_object(idx, key_1.objectnode)
-                    placeholder = [0] * key_1.dim
-                    datavector = objects.add_variable(opcua.ua.NodeId(key_1.variable, idx), key_1.variable, placeholder)
-                    datavector.set_writable()
+                if  key_1.dim > 0:
+                    if key_1.objectnode not in object_dict.keys():
+                        object = self.opcua_server.nodes.objects.add_object(idx, key_1.objectnode)
+                        placeholder = [0] * key_1.dim
+                        variable_name_ = key_1.objectnode + '[' + key_1.variable + ']'
+                        datavector = object.add_variable(opcua.ua.NodeId(variable_name_, idx), variable_name_, placeholder)
+                        datavector.set_writable()
+                        object_dict[key_1.objectnode] = object
+                        key_1.variable = variable_name_
 
-                except:
-                    placeholder = [0] * key_1.dim
-                    datavector = objects.add_variable(opcua.ua.NodeId(key_1.variable, idx), key_1.variable, placeholder)
-                    datavector.set_writable()
+                    else:
+                        placeholder = [0] * key_1.dim
+                        variable_name_ = key_1.objectnode + '[' + key_1.variable + ']'
+                        datavector = object_dict[key_1.objectnode].add_variable(opcua.ua.NodeId(variable_name_, idx), variable_name_, placeholder)
+                        datavector.set_writable()
+                        key_1.variable = variable_name_
+                        
+                else:
+                    continue
 
-
-                datavector.set_writable()
-
+            key_0._namespace_index = idx
             client.add_namespace_url(key_0, idx, self.name)
             
         self.opcua_server.get_namespace_array()
@@ -247,97 +254,46 @@ class RTClient:
 #     def read_from_(object):
 #         #TODO: fix this
 
-# class RTController:
+class RTController:
 
-#     def __init__(self, Controller, ClientOpts):
-#         self.mpc = Controller
-#         self.client = RTClient(ClientOpts)
+    def __init__(self, controller, clientOpts):
 
-#         self.mpc.model
-
-#     def init_server(self):
-
-#         tag = "ns=2;s="+self.opc_client.namespace['ControllerData']['u_opt']
-#         dataVal = np.array(vertcat(self.u0)).flatten().tolist()
-#         try:
-#             self.opc_client.writeData(dataVal, tag)
-#         except RuntimeError:
-#             self.enabled = False
-#             print("The real-time controller could not connect to the server. Please correct the server setup.")
-        
-#         # One optimizer iteration is called before starting the cyclical operation
-        
-#         self.asynchronous_step()
-        
-#         return self.enabled
+        self.mpc = controller
+        self.def_namespace = namespace_from_model.detailed(self.mpc.model)
+        self.client = RTClient(clientOpts, self.def_namespace)
+        user_write_list = []
+        self.def_tagout = []
+        # self.def_write_node = self.def_tagout.get_node_id(self.def_namespace._)
     
-#     def start(self):
-#         """Alternative method to start the client from the console. The client is usually automatically connected upon instantiation.
-        
-#         :return result: The result of the connection attempt to the OPC-UA server.
-#         :rtype result: boolean
-#         """
-#         try:
-#             self.opc_client.connect()
-#             self.enabled = True
-#         except RuntimeError:
-#             self.enabled = False
-#             print("The real-time controller could not connect to the server. Please check the server setup.")
-#         return self.enabled
-        
-#     def stop(self):
-#         """ Stops the execution of the real-time estimator by disconnecting the OPC-UA client from the server. 
-#         Throws an error if the operation cannot be performed.
-        
-#         :return result: The result of the disconnect operation
-#         :rtype: boolean
-#         """
-#         try:
-#             self.opc_client.disconnect()
-#             self.enabled = False
-#         except RuntimeError:
-#             print("The real-time controller could not be stopped due to server issues. Please stop the client manually and delete the object!")
-#         return self.enabled
-    
-#     def check_status(self):
-#         """This function is called before every optimization step to ensure that the server data
-#         is sane and a call to the optimizer can be made in good faith, i.e. the plant state
-#         contains meaningful data and that no flags have been raised.
-        
-#         :param no params: this function onyl needs internal data
-        
-#         :return: check_result is the result of all the check done by the controller before executing the step
-#         :rtype: boolean
-#         """
-#         check_result = self.is_ready
-#         # Step 1: check that the server is running and the client is connected
-#         check_result = self.opc_client.connected and check_result
-#         if check_result == False: 
-#             print("The controller check failed because: controller not connected to server.")
-#             return False
-        
-#         # Step 2: check whether the user has requested to run the optimizer
-#         if self.user_controlled:
-#             check_result = check_result and self.opc_client.checkSwitches(pos=0)
-#             if check_result == False: 
-#                 print("The controller check failed because: controller not manually enabled on the server.")
-#                 return False
-        
-#         # Step 3: check whether the controller should run and no controller flags have been raised
-#         # flags = [0-controller, 1-simulator, 2-estimator, 3-monitoring, 4-extra]
-#         check_result = check_result and not self.opc_client.checkFlags(pos=0)
-#         if check_result == False: 
-#             print("The controller check failed because: controller has raised a failure flag.")
-#             return False
-        
-#         # Step 4: check that the plant/simulator is running and no simulator flags have been raised
-#         check_result = check_result and  not (self.opc_client.checkFlags(pos=1) or self.opc_client.checkFlags(pos=2))
-#         self.is_ready = check_result
-#         if check_result == False: 
-#             print("The controller check failed because: either the simulator or estimator have reported crap data. Unsafe to run the controller!")
-#         return check_result
-    
+    def connect(self):
 
+        try:
+            self.client.connect()
+            self.enabled = True
+        except RuntimeError:
+            self.enabled = False
+            print("The real-time controller could not connect to the server. Please check the server setup.")
+        try:
+            for key in self.mpc.model.keys():
+                self.def_tagout.append(NamespaceEntry('u', key, 1).get_node_id(self.def_namespace._namespace_index))
+        except:
+            return print('Controller connected to server. Default write-node could not be set science no namespace_id is known.')
+
+        return print('Controller connected to server. Default write-nodes set as {}'.format(self.def_tagout)) 
+        
+    def diconnect(self):
+
+        try:
+            self.client.disconnect()
+            self.enabled = False
+        except RuntimeError:
+            print("The real-time controller could not be stopped due to server issues. Please stop the client manually and delete the object!")
+        return self.enabled
+    
+    # def user_write_nodes(self, ns):
+    #     user_write_list.append(ns)
+        
+ 
         
 #     def asynchronous_step(self):
 #         """This function implements the server calls and simulator step with a predefined frequency
@@ -424,27 +380,38 @@ class Namespace:
             raise ValueError('argument must be an integer')
         
         self._namespace_index = val
-    
+class namespace_from_model:    
 
-def namespace_from_model(model, model_name, object_name):
-    node_list = []
-    model_dict = {'aux':model.n_aux,
-                       'p':model.n_p,
-                        'tvp':model.n_tvp, 
-                        'u':model.n_u, 
-                        'v':model.n_v, 
-                        'w':model.n_w, 
-                        'x':model.n_x, 
-                        'y':model.n_y, 
-                        'z':model.n_z}
-        
-    for key in model_dict:
-        node = NamespaceEntry(object_name, key, model_dict[key])
-        node_list.append(node)
-        
-    return Namespace(model_name, node_list)
+    def summarized(model, model_name, object_name):
+        node_list = []
+        model_dict = {'aux':model.n_aux,
+                        'p':model.n_p,
+                            'tvp':model.n_tvp, 
+                            'u':model.n_u, 
+                            'v':model.n_v, 
+                            'w':model.n_w, 
+                            'x':model.n_x, 
+                            'y':model.n_y, 
+                            'z':model.n_z}
+            
+        for key in model_dict:
+            node = NamespaceEntry(object_name, key, model_dict[key])
+            node_list.append(node)
+            
+        return Namespace(model_name, node_list)
 
-        
+    def detailed(model, model_name='do_mpc_model'):
+        node_list = []
+        variable_list = ['aux', 'p', 'tvp', 'u', 'v', 'w', 'x', 'y', 'z']
+
+        for var in variable_list:
+            for key in model[var].keys():
+                if key != 'default':
+                    node_list.append(NamespaceEntry(var, key, 1))
+                else:
+                    continue
+
+        return Namespace(model_name, node_list)
 
 @dataclass
 class ServerOpts:
@@ -494,16 +461,112 @@ client_opts_2 = ClientOpts("Bio Reactor OPCUA Client_2","opc.tcp://localhost:484
 
 
 #%%
-Client1 = RTClient(client_opts_1,ns)
-Client2 = RTClient(client_opts_2,ns2)
-Server = RTServer(server_opts)
-Server.namespace_from_client(Client1)
-Server.namespace_from_client(Client2)
 
+
+
+import sys
+from casadi import *
+
+# Add do_mpc to path. This is not necessary if it was installed via pip
+sys.path.append('../../../')
+
+# Import do_mpc package:
+import do_mpc
+
+model_type = 'continuous' # either 'discrete' or 'continuous'
+model = do_mpc.model.Model(model_type)
+
+# States struct (optimization variables):
+X_s = model.set_variable('_x',  'X_s')
+S_s = model.set_variable('_x',  'S_s')
+P_s = model.set_variable('_x',  'P_s')
+V_s = model.set_variable('_x',  'V_s')
+
+# Input struct (optimization variables):
+inp = model.set_variable('_u',  'inp')
+
+# Certain parameters
+mu_m  = 0.02
+K_m   = 0.05
+K_i   = 5.0
+v_par = 0.004
+Y_p   = 1.2
+
+# Uncertain parameters:
+Y_x  = model.set_variable('_p',  'Y_x')
+S_in = model.set_variable('_p', 'S_in')
+
+# Auxiliary term
+mu_S = mu_m*S_s/(K_m+S_s+(S_s**2/K_i))
+
+# Differential equations
+model.set_rhs('X_s', mu_S*X_s - inp/V_s*X_s)
+model.set_rhs('S_s', -mu_S*X_s/Y_x - v_par*X_s/Y_p + inp/V_s*(S_in-S_s))
+model.set_rhs('P_s', v_par*X_s - inp/V_s*P_s)
+model.set_rhs('V_s', inp)
+
+# Build the model
+model.setup()
+
+mpc = do_mpc.controller.MPC(model)
+
+setup_mpc = {
+    'n_horizon': 20,
+    'n_robust': 1,
+    'open_loop': 0,
+    't_step': 1.0,
+    'state_discretization': 'collocation',
+    'collocation_type': 'radau',
+    'collocation_deg': 2,
+    'collocation_ni': 2,
+    'store_full_solution': True,
+    # Use MA27 linear solver in ipopt for faster calculations:
+    #'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
+}
+
+mpc.set_param(**setup_mpc)
+
+mterm = -model.x['P_s'] # terminal cost
+lterm = -model.x['P_s'] # stage cost
+
+mpc.set_objective(mterm=mterm, lterm=lterm)
+mpc.set_rterm(inp=1.0) # penalty on input changes
+
+# lower bounds of the states
+mpc.bounds['lower', '_x', 'X_s'] = 0.0
+mpc.bounds['lower', '_x', 'S_s'] = -0.01
+mpc.bounds['lower', '_x', 'P_s'] = 0.0
+mpc.bounds['lower', '_x', 'V_s'] = 0.0
+
+# upper bounds of the states
+mpc.bounds['upper', '_x','X_s'] = 3.7
+mpc.bounds['upper', '_x','P_s'] = 3.0
+
+# upper and lower bounds of the control input
+mpc.bounds['lower','_u','inp'] = 0.0
+mpc.bounds['upper','_u','inp'] = 0.2
+
+Y_x_values = np.array([0.5, 0.4, 0.3])
+S_in_values = np.array([200.0, 220.0, 180.0])
+
+mpc.set_uncertainty_values(Y_x = Y_x_values, S_in = S_in_values)
+
+mpc.setup()
+
+#%%
+# Client1 = RTClient(client_opts_1,ns)
+# Client2 = RTClient(client_opts_2,ns2)
+Server = RTServer(server_opts)
+# Server.namespace_from_client(Client1)
+# Server.namespace_from_client(Client2)
+rt_mpc = RTController(mpc, client_opts_1)
+Server.namespace_from_client(rt_mpc.client)
+Server.get_all_nodes()
+# rt_mpc.connect()
 #%%
 # Server.get_all_nodes()
 Server.start()
-
+rt_mpc.connect()
 #%%
 Server.stop()
 # %%
