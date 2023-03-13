@@ -110,7 +110,7 @@ class RTServer:
                     continue
 
             key_0._namespace_index = idx
-            client.add_namespace_url(key_0, idx, self.name)
+            client.add_namespace_url(idx)
             
         self.opcua_server.get_namespace_array()
         print(f"The following namespaces are registered: {self.opcua_server.get_namespace_array()[2:]}")
@@ -182,7 +182,7 @@ class RTClient:
         # Register namspaces from another client
         self.namespace_list += client.return_namespace()
     
-    def add_namespace_url(self, key, url, server_name):
+    def add_namespace_url(self, url):
         # Method used by server to mark namespaces with the corresponding url
         for item in self.namespace_list:
             item._namespace_index = url
@@ -260,10 +260,9 @@ class RTController:
         self.mpc = controller
         self.def_namespace = namespace_from_model.detailed(self.mpc.model)
         self.client = RTClient(clientOpts, self.def_namespace)
-        self.def_tagout = []
-        self.def_tagin = []
         self.tagout = []
         self.tagin = []
+
 
     def connect(self):
         try:
@@ -275,31 +274,81 @@ class RTController:
             self.enabled = False
             print("The real-time controller could not connect to the server. Please check the server setup.")
 
-        if isinstance(self.def_namespace._namespace_index, int):
-            for dclass in self.def_namespace.entry_list:
-                if dclass.objectnode == 'u':
-                    self.def_tagout.append(dclass.get_node_id(self.def_namespace._namespace_index))
-                elif dclass.objectnode == 'x' or dclass.objectnode == 'y':
-                    self.def_tagin.append(dclass.get_node_id(self.def_namespace._namespace_index))
-            print('Default write-nodes set as {}. Default read-nodes set as {}'.format(self.def_tagout, self.def_tagin)) 
         return self.enabled
-        
+
+
     def diconnect(self):
         try:
             self.client.disconnect()
             self.enabled = False
+
         except RuntimeError:
             print("The real-time controller could not be stopped due to server issues. Please stop the client manually and delete the object!")
+        
         return self.enabled
+    
 
-    def set_write_node(self, ns_entry):
-        self.tagout.append(ns_entry)
+    def set_default_write_ns(self):
+        self.def_tagout = []
 
-    def set_read_node(self, ns_entry):
-        self.tagin.append(ns_entry)
+        if isinstance(self.def_namespace._namespace_index, int):
+            for dclass in self.def_namespace.entry_list:
+                if dclass.objectnode == 'u':
+                    self.def_tagout.append(dclass.get_node_id(self.def_namespace._namespace_index))
 
-    def get_ns_from_client(self,client):
-        pass
+            print('Default write-nodes set as {}.'.format(self.def_tagout))
+
+        else:
+            print('Namespace index is unknown. Please register this client on the target server first using: RTServer.namespace_from_client(Client)')
+
+
+    def set_default_read_ns(self):
+        self.def_tagin = []
+
+        if isinstance(self.def_namespace._namespace_index, int):
+            for dclass in self.def_namespace.entry_list:
+                if dclass.objectnode == 'x' or dclass.objectnode == 'y':
+                    self.def_tagin.append(dclass.get_node_id(self.def_namespace._namespace_index))
+
+            print('Default read-nodes set as {}.'.format(self.def_tagin))
+
+        else:
+            print('Namespace index is unknown. Please register this client on the target server first using: RTServer.namespace_from_client(Client)')
+        
+
+    def set_write_node(self, ns_entry_id):
+        self.tagout.append(ns_entry_id)
+
+    def set_read_node(self, ns_entry_id):
+        self.tagin.append(ns_entry_id)
+
+    def get_ns_from_client(self,client_):
+        self.client.register_namespace_from_client(client_)
+
+    def add_namespace_url(self, url):
+        self.client.add_namespace_url(url)
+
+    def writeData(self, val=None, tag=None):
+        if self.enabled == True:
+            if tag == None:
+                for count, id in enumerate(self.def_tagout):
+                    
+                    if val == None:
+                        val = vertcat(mpc.x0)
+
+                    self.client.writeData([val[count]], id)
+            else:
+                self.Client.writeData(val, tag) 
+
+        else: 
+            print('Client is not connected to server!')
+        
+
+    def readData(self, tag):
+        self.Client.readData(tag)
+
+    def return_namespace(self):
+        return self.client.return_namespace()
 
     # def generic_writing_class(self):
 
@@ -568,14 +617,15 @@ mpc.setup()
 
 #%%
 # Client1 = RTClient(client_opts_1,ns)
-# Client2 = RTClient(client_opts_2,ns2)
+Client2 = RTClient(client_opts_2,ns2)
 Server = RTServer(server_opts)
 # Server.namespace_from_client(Client1)
 # Server.namespace_from_client(Client2)
 rt_mpc = RTController(mpc, client_opts_1)
-Server.namespace_from_client(rt_mpc.client)
+Server.namespace_from_client(rt_mpc)
 # Server.get_all_nodes()
-
+rt_mpc.set_default_write_ns()
+rt_mpc.set_default_read_ns()
 #%%
 # Server.get_all_nodes()
 Server.start()
