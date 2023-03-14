@@ -61,7 +61,8 @@ class StateFeedback(Estimator):
         super().__init__(model)
 
     def make_step(self, y0:np.ndarray)->np.ndarray:
-        """
+        """Returns the measurement.
+        
         Args:
             y0: measurment
 
