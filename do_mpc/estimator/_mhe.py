@@ -27,11 +27,12 @@ import pdb
 import copy
 import warnings
 import time
-
 from ..optimizer import Optimizer
 from ._base import Estimator
 import do_mpc
-from typing import Union,Callable
+from typing import Union,Callable,Dict,List
+from dataclasses import asdict
+from ._estimatorsettings import MHESettings
 
 class MHE(Optimizer, Estimator):
     """Moving horizon estimator.
@@ -138,41 +139,8 @@ class MHE(Optimizer, Estimator):
         # Initialize structure to hold the parameters for the optimization problem:
         self._opt_p_num = None
 
-        # Parameters that can be set for the MHE:
-        self.data_fields = [
-            'n_horizon',
-            't_step',
-            'meas_from_data',
-            'state_discretization',
-            'collocation_type',
-            'collocation_deg',
-            'collocation_ni',
-            'nl_cons_check_colloc_points',
-            'nl_cons_single_slack',
-            'cons_check_colloc_points',
-            'store_full_solution',
-            'store_lagr_multiplier',
-            'store_solver_stats',
-            'nlpsol_opts'
-        ]
-
-        # Default Parameters:
-        self.meas_from_data = False
-        self.state_discretization = 'collocation'
-        self.collocation_type = 'radau'
-        self.collocation_deg = 2
-        self.collocation_ni = 1
-        self.nl_cons_check_colloc_points = False
-        self.nl_cons_single_slack = False
-        self.cons_check_colloc_points = True
-        self.store_full_solution = False
-        self.store_lagr_multiplier = True
-        self.store_solver_stats = [
-            'success',
-            't_wall_total',
-        ]
-        self.nlpsol_opts = {} # Will update default options with this dict.
-
+        # initialize settings class
+        self.settings = do_mpc.estimator._estimatorsettings.MHESettings()
 
         # Create seperate structs for the estimated and the set parameters (the union of both are all parameters of the model.)
         _p = model._p
@@ -454,6 +422,21 @@ class MHE(Optimizer, Estimator):
 
     def set_param(self, **kwargs)->None:
         """Method to set the parameters of the :py:class:`MHE` class. Parameters must be passed as pairs of valid keywords and respective argument.
+        
+        Warnings:
+            This method will be depreciated in a future version. Please set parameters via :py:class:`do_mpc.estimator.MHESettings`.
+        
+        Note:
+            A comprehensive list of all available parameters can be found in :py:class:`do_mpc.estimator.MHESettings`.
+        
+        For example:
+        
+        ::
+
+            mhe.settings.n_horizon = 20
+        
+        The old interface, as shown in the example below, can still be accessed until further notice.
+
         For example:
 
         ::
@@ -481,31 +464,15 @@ class MHE(Optimizer, Estimator):
             :py:func:`set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
             This only works prior to calling :py:func:`setup`. 
 
-        The following parameters are available:
-
-        Args:
-            n_horizon(int): Prediction horizon of the optimal control problem. Parameter must be set by user.
-            t_step(float): Timestep of the mhe.
-            meas_from_data(bool): Default option to retrieve past measurements for the MHE optimization problem. The :py:func:`set_y_fun` is called during setup.
-            state_discretization(str): Choose the state discretization for continuous models. Currently only ``'collocation'`` is available. Defaults to ``'collocation'``. Has no effect if model is created in ``discrete`` type.
-            collocation_type(str): Choose the collocation type for continuous models with collocation as state discretization. Currently only ``'radau'`` is available. Defaults to ``'radau'``.
-            collocation_deg(int): Choose the collocation degree for continuous models with collocation as state discretization. Defaults to ``2``.
-            collocation_ni(int): For orthogonal collocation, choose the number of finite elements for the states within a time-step (and during constant control input). Defaults to ``1``. Can be used to avoid high-order polynomials.
-            nl_cons_check_colloc_points(bool): For orthogonal collocation choose wether the bounds set with :py:func:`set_nl_cons` are evaluated once per finite Element or for each collocation point. Defaults to ``False`` (once per collocation point).
-            cons_check_colloc_points(bool): For orthogonal collocation choose whether the linear bounds set with :py:attr:`bounds` are evaluated once per finite Element or for each collocation point. Defaults to ``True`` (for all collocation points).
-            nl_cons_single_slack(bool): If ``True``, soft-constraints set with :py:func:`set_nl_cons` introduce only a single slack variable for the entire horizon. Defaults to ``False``.
-            store_full_solution(bool): Choose whether to store the full solution of the optimization problem. This is required for animating the predictions in post processing. However, it drastically increases the required storage. Defaults to False.
-            store_lagr_multiplier(bool): Choose whether to store the lagrange multipliers of the optimization problem. Increases the required storage. Defaults to ``True``.
-            store_solver_stats(list): Choose which solver statistics to store. Must be a list of valid statistics. Defaults to ``['success','t_wall_S']``.
-            nlpsol_opts(dict): Dictionary with options for the CasADi solver call ``nlpsol`` with plugin ``ipopt``. All options are listed `here <http://casadi.sourceforge.net/api/internal/d4/d89/group__nlpsol.html>`_.
-        
-
         Note: 
             We highly suggest to change the linear solver for IPOPT from `mumps` to `MA27`. In many cases this will drastically boost the speed of **do-mpc**. Change the linear solver with:
 
             ::
 
                 optimizer.set_param(nlpsol_opts = {'ipopt.linear_solver': 'MA27'})
+
+            Any available linear solver can be set using :py:meth:`do_mpc.estimator.MHESettings.set_linear_solver`.
+            For more details, please check the :py:class:`do_mpc.estimator.MHESettings`.
         Note: 
             To suppress the output of IPOPT, please use:
 
@@ -513,14 +480,17 @@ class MHE(Optimizer, Estimator):
 
                 suppress_ipopt = {'ipopt.print_level':0, 'ipopt.sb': 'yes', 'print_time':0}
                 optimizer.set_param(nlpsol_opts = suppress_ipopt)
+
+            The output of IPOPT can be suppressed :py:meth:`do_mpc.estimator.MHESettings.supress_ipopt_output`.
+            For more details, please check the :py:class:`do_mpc.estimator.MHESettings`.
         """
         assert self.flags['setup'] == False, 'Setting parameters after setup is prohibited.'
 
         for key, value in kwargs.items():
-            if not (key in self.data_fields):
-                print('Warning: Key {} does not exist for optimizer.'.format(key))
+            if hasattr(self.settings, key):
+                    setattr(self.settings, key, value)
             else:
-                setattr(self, key, value)
+                print('Warning: Key {} does not exist for MPC.'.format(key))
 
 
     def set_objective(self, stage_cost:Union[castools.SX,castools.MX], arrival_cost:Union[castools.SX,castools.MX])->None:
@@ -821,7 +791,7 @@ class MHE(Optimizer, Estimator):
             y_template
         """
         y_template = self.model.sv.sym_struct([
-            castools.entry('y_meas', repeat=self.n_horizon, struct=self._y_meas)
+            castools.entry('y_meas', repeat=self.settings.n_horizon, struct=self._y_meas)
         ])
         return y_template(0)
 
@@ -876,16 +846,16 @@ class MHE(Optimizer, Estimator):
             def p_fun(t): return _p
             self.set_p_fun(p_fun)
 
-        if self.flags['set_y_fun'] == False and self.meas_from_data:
+        if self.flags['set_y_fun'] == False and self.settings.meas_from_data:
             # Case that measurement function is automatically created.
             y_template = self.get_y_template()
 
             def y_fun(t_now):
-                n_steps = min(self.data._y.shape[0], self.n_horizon)
+                n_steps = min(self.data._y.shape[0], self.settings.n_horizon)
                 for k in range(-n_steps,0):
                     y_template['y_meas',k] = self.data._y[k]
                 try:
-                    for k in range(self.n_horizon-n_steps):
+                    for k in range(self.settings.n_horizon-n_steps):
                         y_template['y_meas',k] = self.data._y[-n_steps]
                 except:
                     None
@@ -926,6 +896,7 @@ class MHE(Optimizer, Estimator):
         Note:
             After this call, the :py:func:`solve` and :py:func:`make_step` method is applicable.
         """
+        self.settings.check_for_mandatory_settings()
         self.prepare_nlp()
         self.create_nlp()
 
@@ -1007,21 +978,21 @@ class MHE(Optimizer, Estimator):
 
         # Store additional information
         self.data.update(opt_p_num = self.opt_p_num)
-        if self.store_full_solution == True:
+        if self.settings.store_full_solution == True:
             opt_x_num_unscaled = self.opt_x_num_unscaled
             opt_aux_num = self.opt_aux_num
             self.data.update(_opt_x_num = opt_x_num_unscaled)
             self.data.update(_opt_aux_num = opt_aux_num)
-        if self.store_lagr_multiplier == True:
+        if self.settings.store_lagr_multiplier == True:
             lam_g_num = self.lam_g_num
             self.data.update(_lam_g_num = lam_g_num)
-        if len(self.store_solver_stats) > 0:
+        if len(self.settings.store_solver_stats) > 0:
             solver_stats = self.solver_stats
-            store_solver_stats = self.store_solver_stats
+            store_solver_stats = self.settings.store_solver_stats
             self.data.update(**{stat_i: value for stat_i, value in solver_stats.items() if stat_i in store_solver_stats})
 
         # Update initial
-        self._t0 = self._t0 + self.t_step
+        self._t0 = self._t0 + self.settings.t_step
         self._x0.master = x_next
         self._p_est0.master = p_est_next
         self._u0.master = u0
@@ -1035,7 +1006,7 @@ class MHE(Optimizer, Estimator):
         Note:
             Bounds are automatically scaled as they invoke the :py:attr:lb_opt_x` and :py:attr:`ub_opt_x` methods. Scaling is done automatically in these methods.
         """
-        if self.cons_check_colloc_points:   # Constraints for all collocation points.
+        if self.settings.cons_check_colloc_points:   # Constraints for all collocation points.
             # Bounds for the states on all discretize values along the horizon
             self.lb_opt_x['_x'] = self._x_lb.cat
             self.ub_opt_x['_x'] = self._x_ub.cat
@@ -1045,8 +1016,8 @@ class MHE(Optimizer, Estimator):
             self.ub_opt_x['_z'] = self._z_ub.cat
         else:   # Constraints only at the beginning of the finite Element
             # Bounds for the states on all discretize values along the horizon
-            self.lb_opt_x['_x', 1:self.n_horizon, -1] = self._x_lb.cat
-            self.ub_opt_x['_x', 1:self.n_horizon, -1] = self._x_ub.cat
+            self.lb_opt_x['_x', 1:self.settings.n_horizon, -1] = self._x_lb.cat
+            self.ub_opt_x['_x', 1:self.settings.n_horizon, -1] = self._x_ub.cat
 
             # Bounds for the algebraic states along the horizon
             self.lb_opt_x['_z', :, 0] = self._z_lb.cat
@@ -1079,18 +1050,18 @@ class MHE(Optimizer, Estimator):
         ifcn, n_total_coll_points = self._setup_discretization()
 
         # How many slack variables (for soft constraints) are introduced over the horizon.
-        if self.nl_cons_single_slack:
+        if self.settings.nl_cons_single_slack:
             n_eps = 1
         else:
-            n_eps = self.n_horizon
+            n_eps = self.settings.n_horizon
 
         # Create struct for optimization variables:
         self._opt_x = opt_x = self.model.sv.sym_struct([
-            castools.entry('_x', repeat=[self.n_horizon+1, 1+n_total_coll_points], struct=self.model._x),
-            castools.entry('_z', repeat=[self.n_horizon,   max(n_total_coll_points,1)], struct=self.model._z),
-            castools.entry('_u', repeat=[self.n_horizon], struct=self.model._u),
-            castools.entry('_w', repeat=[self.n_horizon], struct=self.model._w),
-            castools.entry('_v', repeat=[self.n_horizon], struct=self.model._v),
+            castools.entry('_x', repeat=[self.settings.n_horizon+1, 1+n_total_coll_points], struct=self.model._x),
+            castools.entry('_z', repeat=[self.settings.n_horizon,   max(n_total_coll_points,1)], struct=self.model._z),
+            castools.entry('_u', repeat=[self.settings.n_horizon], struct=self.model._u),
+            castools.entry('_w', repeat=[self.settings.n_horizon], struct=self.model._w),
+            castools.entry('_v', repeat=[self.settings.n_horizon], struct=self.model._v),
             castools.entry('_eps', repeat=[n_eps], struct=self._eps),
             castools.entry('_p_est', struct=self._p_est),
         ])
@@ -1115,14 +1086,14 @@ class MHE(Optimizer, Estimator):
             castools.entry('_x_prev', struct=self.model._x),
             castools.entry('_p_est_prev', struct=self._p_est_prev),
             castools.entry('_p_set', struct=self._p_set),
-            castools.entry('_tvp', repeat=self.n_horizon, struct=self.model._tvp),
-            castools.entry('_y_meas', repeat=self.n_horizon, struct=self.model._y),
+            castools.entry('_tvp', repeat=self.settings.n_horizon, struct=self.model._tvp),
+            castools.entry('_y_meas', repeat=self.settings.n_horizon, struct=self.model._y),
         ])
         self.n_opt_p = opt_p.shape[0]
 
         # Dummy struct with symbolic variables
         self.aux_struct = self.model.sv.sym_struct([
-            castools.entry('_aux', repeat=[self.n_horizon], struct=self.model._aux_expression)
+            castools.entry('_aux', repeat=[self.settings.n_horizon], struct=self.model._aux_expression)
         ])
         # Create mutable symbolic expression from the struct defined above.
         self._opt_aux = opt_aux = self.model.sv.struct(self.aux_struct)
@@ -1153,7 +1124,7 @@ class MHE(Optimizer, Estimator):
         _p = self._p_cat_fun(opt_x['_p_est'], opt_p['_p_set']/self._p_set_scaling)
 
         # For all control intervals
-        for k in range(self.n_horizon):
+        for k in range(self.settings.n_horizon):
             # Compute constraints and predicted next state of the discretization scheme
             col_xk = castools.vertcat(*opt_x['_x', k+1, :-1])
             col_zk = castools.vertcat(*opt_x['_z', k])
@@ -1181,7 +1152,7 @@ class MHE(Optimizer, Estimator):
             cons_ub.append(np.zeros((self.model.n_y, 1)))
 
             k_eps = min(k, n_eps-1)
-            if self.nl_cons_check_colloc_points:
+            if self.settings.nl_cons_check_colloc_points:
                 # Ensure nonlinear constraints on all collocation points
                 for i in range(n_total_coll_points):
                     nl_cons_k = self._nl_cons_fun(
@@ -1257,15 +1228,15 @@ class MHE(Optimizer, Estimator):
         nlpsol_opts = {
             'expand': False,
             'ipopt.linear_solver': 'mumps',
-        }.update(self.nlpsol_opts)
+        }.update(self.settings.nlpsol_opts)
         self.nlp = {'x': castools.vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons, 'p': castools.vertcat(self._opt_p)}
-        self.S = castools.nlpsol('S', 'ipopt', self.nlp, self.nlpsol_opts)
+        self.S = castools.nlpsol('S', 'ipopt', self.nlp, self.settings.nlpsol_opts)
 
         # Create function to caculate all auxiliary expressions:
         self.opt_aux_expression_fun = castools.Function('opt_aux_expression_fun', [self._opt_x, self._opt_p], [self._opt_aux])
 
         # Gather meta information:
-        meta_data = {key: getattr(self, key) for key in self.data_fields}
+        meta_data = {key: getattr(self.settings, key) for key in asdict(self.settings).keys()}
         self.data.set_meta(**meta_data)
 
         self._prepare_data()
