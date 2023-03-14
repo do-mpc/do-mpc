@@ -28,7 +28,7 @@ import pdb
 import do_mpc.data
 from scipy.linalg import solve_discrete_are
 from ..model import LinearModel, IteratedVariables
-from typing import Dict
+from ._controllersettings import LQRSettings
 
 class LQR(IteratedVariables):
     """Linear Quadratic Regulator.
@@ -92,13 +92,8 @@ class LQR(IteratedVariables):
 
         self.data = do_mpc.data.Data(model)
         
-        #Parameters necessary for setting up LQR
-        self.data_fields = [
-            'n_horizon',
-            't_step',
-            ]
-        #Initialize prediction horizon for the problem
-        self.n_horizon = None
+        # initialize settings class
+        self.settings = LQRSettings()
         
         #Initialize mode of LQR
         self.mode = 'standard'
@@ -147,17 +142,17 @@ class LQR(IteratedVariables):
         assert self.Q.size != 0 and self.R.size != 0 , 'Enter tuning parameter Q and R for the lqr problem using set_objective() function.'
         
         #calculating finite horizon gain
-        if self.n_horizon !=None:
+        if self.settings.n_horizon !=None:
             assert self.P.size != 0, 'Terminal cost is required to calculate gain. Enter the required value using set_objective() function.'
             temp_p = self.P
-            for k in range(self.n_horizon):
+            for k in range(self.settings.n_horizon):
                  K = -np.linalg.inv(np.transpose(B)@temp_p@B+self.R)@np.transpose(B)@temp_p@A
                  temp_pi = self.Q+np.transpose(A)@temp_p@A-np.transpose(A)@temp_p@B@np.linalg.inv(np.transpose(B)@temp_p@B+self.R)@np.transpose(B)@temp_p@A
                  temp_p = temp_pi
             return K
         
         #Calculating infinite horizon gain
-        elif self.n_horizon == None:
+        elif self.settings.n_horizon == None:
             pi_discrete = solve_discrete_are(A,B, self.Q, self.R)
             K = -np.linalg.inv(np.transpose(B)@pi_discrete@B+self.R)@np.transpose(B)@pi_discrete@A
             return K
@@ -217,6 +212,20 @@ class LQR(IteratedVariables):
         
         Two different kinds of LQR can be desgined. In order to design a finite horizon LQR, ``n_horizon`` and to design a infinite horizon LQR, ``n_horizon`` 
         should be set to ``None``(default value).
+
+        Warnings:
+            This method will be depreciated in a future version. Please set parameters via :py:class:`do_mpc.controller.LQRSettings`.
+
+        Note:
+            A comprehensive list of all available parameters can be found in :py:class:`do_mpc.controller.LQRSettings`. 
+
+        For example:
+        
+        ::
+
+            lqr.settings.n_horizon = 20
+        
+        The old interface, as shown in the example below, can still be accessed until further notice.
         
         For example:
 
@@ -241,18 +250,12 @@ class LQR(IteratedVariables):
         Note:
             The only required parameters  are ``n_horizon``. All other parameters are optional.
             :py:meth:`set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
-
-        The following parameters are available:
-        
-        Args:
-            n_horizon(int) : Prediction horizon of the optimal control problem. Parameter must be set by user.
-            t_step(float) : Time step of LQR
         """
         for key, value in kwargs.items():
-            if not (key in self.data_fields):
-                print('Warning: Key {} does not exist for LQR.'.format(key))
+            if hasattr(self.settings, key):
+                    setattr(self.settings, key, value)
             else:
-                setattr(self, key, value)
+                print('Warning: Key {} does not exist for MPC.'.format(key))
                 
     def make_step(self,x0:np.ndarray)->np.ndarray:
         """Main method of the class during runtime. This method is called at each timestep
@@ -299,7 +302,7 @@ class LQR(IteratedVariables):
         self.data.update(_time = t0)
 
         # Update initial
-        self._t0 = self._t0 + self.t_step
+        self._t0 = self._t0 + self.settings.t_step
         self._x0.master = x0
         self._u0.master = castools.DM(u0)
         
@@ -388,7 +391,7 @@ class LQR(IteratedVariables):
         self.Q = Q
         self.R = R   
 
-        if P is None and self.n_horizon != None:
+        if P is None and self.settings.n_horizon != None:
             self.P = Q
             warnings.warn('P is not given explicitly. Q is chosen as P for calculating finite discrete gain')
         else:
@@ -401,9 +404,9 @@ class LQR(IteratedVariables):
             raise Exception('Q matrix must be of type class numpy.ndarray')
         if isinstance(self.R, (castools.DM, castools.SX, castools.MX)):
             raise Exception('R matrix must be of type class numpy.ndarray')
-        if self.n_horizon != None and isinstance(self.P, (castools.DM, castools.SX, castools.MX)):
+        if self.settings.n_horizon != None and isinstance(self.P, (castools.DM, castools.SX, castools.MX)):
             raise Exception('P matrix must be of type class numpy.ndarray')
-        if self.n_horizon != None:
+        if self.settings.n_horizon != None:
             assert self.P.shape == self.Q.shape, 'P must have same shape as Q. You have {}'.format(P.shape)
 
     def set_setpoint(self,xss :np.ndarray= None,uss:np.ndarray = None)->None:   
@@ -454,9 +457,10 @@ class LQR(IteratedVariables):
             exception: mode must be standard, inputRatePenalization, None. you have {string value}
 
         """
-        assert self.t_step, 't_step is required in order to setup the LQR. Please set the simulation time step via set_param(**kwargs)'
+        self.settings.check_for_mandatory_settings()
+        #assert self.settings.t_step, 't_step is required in order to setup the LQR. Please set the simulation time step via set_param(**kwargs)'
 
-        if self.n_horizon == None:
+        if self.settings.n_horizon == None:
             warnings.warn('discrete infinite horizon gain will be computed since prediction horizon is set to default value 0')
         if self.mode in ['standard',None]:
             self.K = self.discrete_gain(self.model._A,self.model._B)
@@ -465,7 +469,7 @@ class LQR(IteratedVariables):
             zeros_Q = np.zeros((np.shape(self.Q)[0],np.shape(self.R)[1]))
             zeros_Ru = np.zeros((np.shape(self.R)[0],np.shape(self.Q)[1]))
             self.Q = np.block([[self.Q,zeros_Q],[zeros_Ru,self.R]])            
-            if self.n_horizon != None:
+            if self.settings.n_horizon != None:
                 self.P = np.block([[self.P,zeros_Q],[zeros_Ru,self.R]])
             self.R = self.delR
             

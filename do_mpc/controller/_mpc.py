@@ -22,15 +22,16 @@
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-#from casadi import *
 import casadi.tools as castools
 import pdb
 import itertools
 import time
 import warnings
 from do_mpc.tools import IndexedProperty
-from typing import Union,Callable
+from typing import Union,Callable,Dict,List
+from dataclasses import asdict
 import do_mpc
+from ._controllersettings import MPCSettings
 
 class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     """Model predictive controller.
@@ -145,44 +146,8 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         # Initialize structure to hold the parameters for the optimization problem:
         self._opt_p_num = None
 
-        # Parameters that can be set for the optimizer:
-        self.data_fields = [
-            'n_horizon',
-            'n_robust',
-            'open_loop',
-            't_step',
-            'use_terminal_bounds',
-            'state_discretization',
-            'collocation_type',
-            'collocation_deg',
-            'collocation_ni',
-            'nl_cons_check_colloc_points',
-            'nl_cons_single_slack',
-            'cons_check_colloc_points',
-            'store_full_solution',
-            'store_lagr_multiplier',
-            'store_solver_stats',
-            'nlpsol_opts'
-        ]
-
-        # Default Parameters (param. details in set_param method):
-        self.n_robust = 0
-        self.open_loop = False
-        self.use_terminal_bounds = True
-        self.state_discretization = 'collocation'
-        self.collocation_type = 'radau'
-        self.collocation_deg = 2
-        self.collocation_ni = 1
-        self.nl_cons_check_colloc_points = False
-        self.nl_cons_single_slack = False
-        self.cons_check_colloc_points = True
-        self.store_full_solution = False
-        self.store_lagr_multiplier = True
-        self.store_solver_stats = [
-            'success',
-            't_wall_total',
-        ]
-        self.nlpsol_opts = {} # Will update default options with this dict.
+        # initialize MPC settings class
+        self.settings = do_mpc.controller._controllersettings.MPCSettings()
 
         # Flags are checked when calling .setup.
         self.flags.update({
@@ -415,17 +380,16 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         assert isinstance(ind, tuple), 'Power index must include bound_type, var_name (as a tuple).'
         assert len(ind)>=2, 'Power index must include bound_type, var_type, var_name (as a tuple).'
         bound_type = ind[0]
-        var_type   = ind[1]
-        var_name   = ind[2:]
+        var_name   = ind[1:]
 
         err_msg = 'Invalid power index {} for bound_type. Must be from (lower, upper).'
         assert bound_type in ('lower', 'upper'), err_msg.format(bound_type)
 
         if bound_type == 'lower':
-            query = '{var_type}_{bound_type}'.format(var_type=var_type, bound_type='lb')
+            query = '{var_type}_{bound_type}'.format(var_type="_x", bound_type='lb')
         elif bound_type == 'upper':
-            query = '{var_type}_{bound_type}'.format(var_type=var_type, bound_type='ub')
-        # query results string e.g. _x_lb, _x_ub, _u_lb, u_ub ....
+            query = '{var_type}_{bound_type}'.format(var_type="_x", bound_type='ub')
+        # query results string e.g. _x_lb, _x_ub
 
         # Get the desired struct:
         var_struct = getattr(self, query)
@@ -440,15 +404,12 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         """See Docstring for bounds getter method"""
 
         assert isinstance(ind, tuple), 'Power index must include bound_type, var_type, var_name (as a tuple).'
-        assert len(ind)>=3, 'Power index must include bound_type, var_type, var_name (as a tuple).'
+        assert len(ind)>=2, 'Power index must include bound_type, var_type, var_name (as a tuple).'
         bound_type = ind[0]
-        var_type   = ind[1]
-        var_name   = ind[2:]
+        var_name   = ind[1:]
 
         err_msg = 'Invalid power index {} for bound_type. Must be from (lower, upper).'
         assert bound_type in ('lower', 'upper'), err_msg.format(bound_type)
-        err_msg = 'Invalid power index {} for var_type. Must be from (_x, _u, _z, _p_est).'
-        assert var_type in ('_x', '_u', '_z', '_p_est'), err_msg.format(var_type)
 
         if bound_type == 'lower':
             query = '_x_terminal_lb'
@@ -466,8 +427,21 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
     def set_param(self, **kwargs)->None:
         """Set the parameters of the :py:class:`MPC` class. Parameters must be passed as pairs of valid keywords and respective argument.
-        For example:
+        
+        Warnings:
+            This method will be depreciated in a future version. Please set parameters via :py:class:`do_mpc.controller.MPCSettings`.
 
+        Note:
+            A comprehensive list of all available parameters can be found in :py:class:`do_mpc.controller.MPCSettings` 
+        
+        For example:
+        
+        ::
+
+            mpc.settings.n_horizon = 20
+        
+        The old interface, as shown in the example below, can still be accessed until further notice.
+        
         ::
 
             mpc.set_param(n_horizon = 20)
@@ -482,7 +456,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             }
             mpc.set_param(**setup_mpc)
 
-        This makes use of thy python "unpack" operator. See `more details here`_.
+        This method makes use of the python "unpack" operator. See `more details here`_.
 
         .. _`more details here`: https://codeyarns.github.io/tech/2012-04-25-unpack-operator-in-python.html
 
@@ -493,32 +467,15 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             :py:func:`set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
             This only works prior to calling :py:func:`setup`. 
 
-        The following parameters are available:
-
-        Args:
-            n_horizon(int): Prediction horizon of the optimal control problem. Parameter must be set by user.
-            n_robust(int): Robust horizon for robust scenario-tree MPC, defaults to ``0``. Optimization problem grows exponentially with ``n_robust`` (optional).
-            open_loop(bool): Setting for scenario-tree MPC: If the parameter is ``False``, for each timestep **AND** scenario an individual control input is computed. If set to ``True``, the same control input is used for each scenario. Defaults to False(optional).
-            t_step(float): Timestep of the mpc.
-            use_terminal_bounds(bool): Choose if terminal bounds for the states are used. Defaults to ``True``. Set terminal bounds with :py:attr:`terminal_bounds`.
-            state_discretization(str): Choose the state discretization for continuous models. Currently only ``'collocation'`` is available. Defaults to ``'collocation'``. Has no effect if model is created in ``discrete`` type.
-            collocation_type(str): Choose the collocation type for continuous models with collocation as state discretization. Currently only ``'radau'`` is available. Defaults to ``'radau'``.
-            collocation_deg(int): Choose the collocation degree for continuous models with collocation as state discretization. Defaults to ``2``.
-            collocation_ni(int): For orthogonal collocation choose the number of finite elements for the states within a time-step (and during constant control input). Defaults to ``1``. Can be used to avoid high-order polynomials.
-            nl_cons_check_colloc_points(bool): For orthogonal collocation choose whether the nonlinear bounds set with :py:func:`set_nl_cons` are evaluated once per finite Element or for each collocation point. Defaults to ``False`` (once per collocation point).
-            nl_cons_single_slack(bool): If ``True``, soft-constraints set with :py:func:`set_nl_cons` introduce only a single slack variable for the entire horizon. Defaults to ``False``.
-            cons_check_colloc_points(bool): For orthogonal collocation choose whether the linear bounds set with :py:attr:`bounds` are evaluated once per finite Element or for each collocation point. Defaults to ``True`` (for all collocation points).
-            store_full_solution(bool): Choose whether to store the full solution of the optimization problem. This is required for animating the predictions in post processing. However, it drastically increases the required storage. Defaults to False.
-            store_lagr_multiplier(bool): Choose whether to store the lagrange multipliers of the optimization problem. Increases the required storage. Defaults to ``True``.
-            store_solver_stats(list): Choose which solver statistics to store. Must be a list of valid statistics. Defaults to ``['success','t_wall_total']``.
-            nlpsol_opts(dict): Dictionary with options for the CasADi solver call ``nlpsol`` with plugin ``ipopt``. All options are listed `here <http://casadi.sourceforge.net/api/internal/d4/d89/group__nlpsol.html>`_.
-
         Note: 
             We highly suggest to change the linear solver for IPOPT from `mumps` to `MA27`. In many cases this will drastically boost the speed of **do-mpc**. Change the linear solver with:
 
             ::
 
                 MPC.set_param(nlpsol_opts = {'ipopt.linear_solver': 'MA27'})
+            
+            Any available linear solver can be set using :py:meth:`do_mpc.controller.MPCSettings.set_linear_solver`.
+            For more details, please check the :py:class:`do_mpc.controller.MPCSettings`.
         
         Note: 
             To suppress the output of IPOPT, please use:
@@ -527,14 +484,17 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
                 suppress_ipopt = {'ipopt.print_level':0, 'ipopt.sb': 'yes', 'print_time':0}
                 MPC.set_param(nlpsol_opts = suppress_ipopt)
+            
+            The output of IPOPT can be suppressed :py:meth:`do_mpc.controller.MPCSettings.supress_ipopt_output`.
+            For more details, please check the :py:class:`do_mpc.controller.MPCSettings`.
         """
         assert self.flags['setup'] == False, 'Setting parameters after setup is prohibited.'
 
         for key, value in kwargs.items():
-            if not (key in self.data_fields):
-                print('Warning: Key {} does not exist for MPC.'.format(key))
+            if hasattr(self.settings, key):
+                    setattr(self.settings, key, value)
             else:
-                setattr(self, key, value)
+                print('Warning: Key {} does not exist for MPC.'.format(key))
 
     def set_objective(self, mterm:Union[castools.SX,castools.MX]=None, lterm:Union[castools.SX,castools.MX]=None)->None:
         """Sets the objective of the optimal control problem (OCP). We introduce the following cost function:
@@ -862,9 +822,9 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                 raise Exception('Your bounds are inconsistent. For {} you have lower bound > upper bound.'.format(bound_fail))
 
         # Are terminal bounds for the states set? If not use default values (unless MPC is setup to not use terminal bounds)
-        if np.all(self._x_terminal_ub.cat == np.inf) and self.use_terminal_bounds:
+        if np.all(self._x_terminal_ub.cat == np.inf) and self.settings.use_terminal_bounds:
             self._x_terminal_ub = self._x_ub
-        if np.all(self._x_terminal_lb.cat == -np.inf) and self.use_terminal_bounds:
+        if np.all(self._x_terminal_lb.cat == -np.inf) and self.settings.use_terminal_bounds:
             self._x_terminal_lb = self._x_lb
 
         # Set dummy functions for tvp and p in case these parameters are unused.
@@ -900,6 +860,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         .. _`background article`: ../theory_mpc.html#robust-multi-stage-nmpc
         """
+        self.settings.check_for_mandatory_settings()
         self.prepare_nlp()
         self.create_nlp()
 
@@ -986,21 +947,21 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         # Store additional information
         self.data.update(opt_p_num = self.opt_p_num)
-        if self.store_full_solution == True:
+        if self.settings.store_full_solution == True:
             opt_x_num_unscaled = self.opt_x_num_unscaled
             opt_aux_num = self.opt_aux_num
             self.data.update(_opt_x_num = opt_x_num_unscaled)
             self.data.update(_opt_aux_num = opt_aux_num)
-        if self.store_lagr_multiplier == True:
+        if self.settings.store_lagr_multiplier == True:
             lam_g_num = self.lam_g_num
             self.data.update(_lam_g_num = lam_g_num)
-        if len(self.store_solver_stats) > 0:
+        if len(self.settings.store_solver_stats) > 0:
             solver_stats = self.solver_stats
-            store_solver_stats = self.store_solver_stats
+            store_solver_stats = self.settings.store_solver_stats
             self.data.update(**{stat_i: value for stat_i, value in solver_stats.items() if stat_i in store_solver_stats})
 
         # Update initial
-        self._t0 = self._t0 + self.t_step
+        self._t0 = self._t0 + self.settings.t_step
         self._x0.master = x0
         self._u0.master = u0
         self._z0.master = z0
@@ -1011,30 +972,30 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     def _update_bounds(self):
         """Private method to update the bounds of the optimization variables based on the current values defined with :py:attr:`scaling`.
         """
-        if self.cons_check_colloc_points:   # Constraints for all collocation points.
+        if self.settings.cons_check_colloc_points:   # Constraints for all collocation points.
             # Dont bound the initial state
-            self.lb_opt_x['_x', 1:self.n_horizon] = self._x_lb.cat
-            self.ub_opt_x['_x', 1:self.n_horizon] = self._x_ub.cat
+            self.lb_opt_x['_x', 1:self.settings.n_horizon] = self._x_lb.cat
+            self.ub_opt_x['_x', 1:self.settings.n_horizon] = self._x_ub.cat
 
             # Bounds for the algebraic variables:
             self.lb_opt_x['_z'] = self._z_lb.cat
             self.ub_opt_x['_z'] = self._z_ub.cat
 
             # Terminal bounds
-            self.lb_opt_x['_x', self.n_horizon, :, -1] = self._x_terminal_lb.cat
-            self.ub_opt_x['_x', self.n_horizon, :, -1] = self._x_terminal_ub.cat
+            self.lb_opt_x['_x', self.settings.n_horizon, :, -1] = self._x_terminal_lb.cat
+            self.ub_opt_x['_x', self.settings.n_horizon, :, -1] = self._x_terminal_ub.cat
         else:   # Constraints only at the beginning of the finite Element
             # Dont bound the initial state
-            self.lb_opt_x['_x', 1:self.n_horizon, :, -1] = self._x_lb.cat
-            self.ub_opt_x['_x', 1:self.n_horizon, :, -1] = self._x_ub.cat
+            self.lb_opt_x['_x', 1:self.settings.n_horizon, :, -1] = self._x_lb.cat
+            self.ub_opt_x['_x', 1:self.settings.n_horizon, :, -1] = self._x_ub.cat
 
             # Bounds for the algebraic variables:
             self.lb_opt_x['_z', :, :, 0] = self._z_lb.cat
             self.ub_opt_x['_z', :, : ,0] = self._z_ub.cat
 
             # Terminal bounds
-            self.lb_opt_x['_x', self.n_horizon, :, -1] = self._x_terminal_lb.cat
-            self.ub_opt_x['_x', self.n_horizon, :, -1] = self._x_terminal_ub.cat
+            self.lb_opt_x['_x', self.settings.n_horizon, :, -1] = self._x_terminal_lb.cat
+            self.ub_opt_x['_x', self.settings.n_horizon, :, -1] = self._x_terminal_ub.cat
 
         # Bounds for the inputs along the horizon
         self.lb_opt_x['_u'] = self._u_lb.cat
@@ -1056,29 +1017,29 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         n_branches, n_scenarios, child_scenario, parent_scenario, branch_offset = self._setup_scenario_tree()
 
         # How many scenarios arise from the scenario tree (robust multi-stage MPC)
-        n_max_scenarios = self.n_combinations ** self.n_robust
+        n_max_scenarios = self.n_combinations ** self.settings.n_robust
 
         # If open_loop option is active, all scenarios (at a given stage) have the same input.
-        if self.open_loop:
+        if self.settings.open_loop:
             n_u_scenarios = 1
         else:
             # Else: Each scenario has its own input.
             n_u_scenarios = n_max_scenarios
 
         # How many slack variables (for soft constraints) are introduced over the horizon.
-        if self.nl_cons_single_slack:
+        if self.settings.nl_cons_single_slack:
             n_eps = 1
         else:
-            n_eps = self.n_horizon
+            n_eps = self.settings.n_horizon
 
         # Create struct for optimization variables:
         self._opt_x = opt_x = self.model.sv.sym_struct([
             # One additional point (in the collocation dimension) for the final point.
-            castools.entry('_x', repeat=[self.n_horizon+1, n_max_scenarios,
+            castools.entry('_x', repeat=[self.settings.n_horizon+1, n_max_scenarios,
                                 1+n_total_coll_points], struct=self.model._x),
-            castools.entry('_z', repeat=[self.n_horizon, n_max_scenarios,
+            castools.entry('_z', repeat=[self.settings.n_horizon, n_max_scenarios,
                                 max(n_total_coll_points,1)], struct=self.model._z),
-            castools.entry('_u', repeat=[self.n_horizon, n_u_scenarios], struct=self.model._u),
+            castools.entry('_u', repeat=[self.settings.n_horizon, n_u_scenarios], struct=self.model._u),
             castools.entry('_eps', repeat=[n_eps, n_max_scenarios], struct=self._eps),
         ])
         self.n_opt_x = self._opt_x.shape[0]
@@ -1097,7 +1058,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         # Create struct for optimization parameters:
         self._opt_p = opt_p = self.model.sv.sym_struct([
             castools.entry('_x0', struct=self.model._x),
-            castools.entry('_tvp', repeat=self.n_horizon+1, struct=self.model._tvp),
+            castools.entry('_tvp', repeat=self.settings.n_horizon+1, struct=self.model._tvp),
             castools.entry('_p', repeat=self.n_combinations, struct=self.model._p),
             castools.entry('_u_prev', struct=self.model._u),
         ])
@@ -1107,7 +1068,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         # Dummy struct with symbolic variables
         self.aux_struct = self.model.sv.sym_struct([
-            castools.entry('_aux', repeat=[self.n_horizon, n_max_scenarios], struct=self.model._aux_expression)
+            castools.entry('_aux', repeat=[self.settings.n_horizon, n_max_scenarios], struct=self.model._aux_expression)
         ])
         # Create mutable symbolic expression from the struct defined above.
         self._opt_aux = opt_aux = self.model.sv.struct(self.aux_struct)
@@ -1131,17 +1092,17 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         # NOTE: Weigthing factors for the tree assumed equal. They could be set from outside
         # Weighting factor for every scenario
-        omega = [1. / n_scenarios[k + 1] for k in range(self.n_horizon)]
-        omega_delta_u = [1. / n_scenarios[k + 1] for k in range(self.n_horizon)]
+        omega = [1. / n_scenarios[k + 1] for k in range(self.settings.n_horizon)]
+        omega_delta_u = [1. / n_scenarios[k + 1] for k in range(self.settings.n_horizon)]
 
         # For all control intervals
-        for k in range(self.n_horizon):
+        for k in range(self.settings.n_horizon):
             # For all scenarios (grows exponentially with n_robust)
             for s in range(n_scenarios[k]):
                 # For all childen nodes of each node at stage k, discretize the model equations
 
                 # Scenario index for u is always 0 if self.open_loop = True
-                s_u = 0 if self.open_loop else s
+                s_u = 0 if self.settings.open_loop else s
                 for b in range(n_branches[k]):
                     # Obtain the index of the parameter values that should be used for this scenario
                     current_scenario = b + branch_offset[k][s]
@@ -1164,7 +1125,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                     cons_ub.append(np.zeros((self.model.n_x, 1)))
 
                     k_eps = min(k, n_eps-1)
-                    if self.nl_cons_check_colloc_points:
+                    if self.settings.nl_cons_check_colloc_points:
                         # Ensure nonlinear constraints on all collocation points
                         for i in range(n_total_coll_points):
                             nl_cons_k = self._nl_cons_fun(
@@ -1192,7 +1153,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                     obj += self.epsterm_fun(opt_x_unscaled['_eps', k_eps, s])
 
                     # In the last step add the terminal cost too
-                    if k == self.n_horizon - 1:
+                    if k == self.settings.n_horizon - 1:
                         obj += omega[k] * self.mterm_fun(opt_x_unscaled['_x', k + 1, s, -1], opt_p['_tvp', k+1],
                                                          opt_p['_p', current_scenario])
 
@@ -1240,15 +1201,15 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         nlpsol_opts = {
             'expand': False,
             'ipopt.linear_solver': 'mumps',
-        }.update(self.nlpsol_opts)
+        }.update(self.settings.nlpsol_opts)
         self.nlp = {'x': castools.vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons, 'p': castools.vertcat(self._opt_p)}
-        self.S = castools.nlpsol('S', 'ipopt', self.nlp, self.nlpsol_opts)
+        self.S = castools.nlpsol('S', 'ipopt', self.nlp, self.settings.nlpsol_opts)
 
         # Create function to caculate all auxiliary expressions:
         self.opt_aux_expression_fun = castools.Function('opt_aux_expression_fun', [self._opt_x, self._opt_p], [self._opt_aux])
 
         # Gather meta information:
-        meta_data = {key: getattr(self, key) for key in self.data_fields}
+        meta_data = {key: getattr(self.settings, key) for key in asdict(self.settings).keys()}
         meta_data.update({'structure_scenario': self.scenario_tree['structure_scenario']})
         self.data.set_meta(**meta_data)
 

@@ -452,7 +452,7 @@ class Optimizer:
         self.data.data_fields.update({'opt_p_num': self.n_opt_p})
         self.data.opt_p = self.opt_p
 
-        if self.store_full_solution == True:
+        if self.settings.store_full_solution == True:
             # Create data_field for the optimal solution.
             self.data.data_fields.update({'_opt_x_num': self.n_opt_x})
             self.data.data_fields.update({'_opt_aux_num': self.n_opt_aux})
@@ -460,10 +460,10 @@ class Optimizer:
             # aux_struct is the struct_symSX variant of opt_aux (which is struct_SX). struct_SX cannot be unpickled (bug).
             # See: https://groups.google.com/forum/#!topic/casadi-users/dqAb4tnA2ik
             self.data.opt_aux = self.aux_struct
-        if self.store_lagr_multiplier == True:
+        if self.settings.store_lagr_multiplier == True:
             # Create data_field for the lagrange multipliers
             self.data.data_fields.update({'_lam_g_num': self.n_opt_lagr})
-        if len(self.store_solver_stats) > 0:
+        if len(self.settings.store_solver_stats) > 0:
             # These are valid arguments for solver stats:
             solver_stats = ['iter_count', 'iterations', 'n_call_S', 'n_call_callback_fun',
                             'n_call_nlp_f', 'n_call_nlp_g', 'n_call_nlp_grad', 'n_call_nlp_grad_f',
@@ -473,7 +473,7 @@ class Optimizer:
                             't_wall_callback_fun', 't_wall_nlp_f', 't_wall_nlp_g', 't_wall_nlp_grad', 't_wall_nlp_grad_f',
                             't_wall_nlp_hess_l', 't_wall_nlp_jac_g']
             # Create data_field(s) for the recorded (valid) stats.
-            for stat_i in self.store_solver_stats:
+            for stat_i in self.settings.store_solver_stats:
                 assert stat_i in solver_stats, 'The requested {} is not a valid solver stat and cannot be recorded. Please supply one of the following (or none): {}'.format(stat_i, solver_stats)
                 self.data.data_fields.update({stat_i: 1})
 
@@ -624,7 +624,7 @@ class Optimizer:
         """
 
         tvp_template = self.model.sv.sym_struct([
-            castools.entry('_tvp', repeat=self.n_horizon+1, struct=self.model._tvp)
+            castools.entry('_tvp', repeat=self.settings.n_horizon+1, struct=self.model._tvp)
         ])
         return tvp_template(0)
 
@@ -665,7 +665,7 @@ class Optimizer:
             It is not required to call the method if no time-varying parameters are defined.
 
         Args:
-            tvp_fun(function): Function that returns the predicted tvp values at each timestep. Must have single input (float) and return a ``structure3.DMStruct`` (obtained with :py:func:`get_tvp_template`).
+            tvp_fun: Function that returns the predicted tvp values at each timestep. Must have single input (float) and return a ``structure3.DMStruct`` (obtained with :py:func:`get_tvp_template`).
         """
         assert isinstance(tvp_fun(0), castools.structure3.DMStruct), 'Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.'
         assert self.get_tvp_template().labels() == tvp_fun(0).labels(), 'Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.'
@@ -724,7 +724,7 @@ class Optimizer:
             subprocess.Popen(compiler_command, shell=True).wait()
 
         # Overwrite solver object with loaded nlp:
-        self.S = castools.nlpsol('solver_compiled', 'ipopt', {libname}, self.nlpsol_opts)
+        self.S = castools.nlpsol('solver_compiled', 'ipopt', {libname}, self.settings.nlpsol_opts)
         print('Using compiled NLP solver.')
 
     def solve(self)->None:
@@ -821,15 +821,15 @@ class Optimizer:
             # discrete integrator ifcs mimics the API the collocation ifcn.
             ifcn = castools.Function('ifcn', [_x, _i, _u, _z, _tvp, _p, _w], [_alg, _rhs_scaled])
             n_total_coll_points = 0
-        elif self.state_discretization == 'collocation':
+        elif self.settings.state_discretization == 'collocation':
             ffcn = castools.Function('ffcn', [_x, _u, _z, _tvp, _p, _w], [_rhs_scaled])
             afcn = castools.Function('afcn', [_x, _u, _z, _tvp, _p, _w], [_alg])
             # Get collocation information
-            coll = self.collocation_type
-            deg = self.collocation_deg
-            ni = self.collocation_ni
-            nk = self.n_horizon
-            t_step = self.t_step
+            coll = self.settings.collocation_type
+            deg = self.settings.collocation_deg
+            ni = self.settings.collocation_ni
+            nk = self.settings.n_horizon
+            t_step = self.settings.t_step
             n_x = self.model.n_x
             n_u = self.model.n_u
             n_p = self.model.n_p
@@ -992,8 +992,8 @@ class Optimizer:
         There is no point in calling this method as part of the public API.
         """
         n_p = self.model.n_p
-        nk = self.n_horizon
-        n_robust = self.n_robust
+        nk = self.settings.n_horizon
+        n_robust = self.settings.n_robust
         # Build auxiliary variables that code the structure of the tree
         # Number of branches
         n_branches = [self.n_combinations if k < n_robust else 1 for k in range(nk)]
