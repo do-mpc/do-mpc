@@ -73,7 +73,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             graph [fontname = "helvetica"];
             rankdir=LR;
 
-            subgraph cluster_main {
+            subgraph cluster_main {
                 node [fontname = "helvetica", shape=box, fontcolor="#404040", color="#707070"];
                 edge [fontname = "helvetica", color="#707070"];
 
@@ -443,7 +443,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         var_struct = getattr(self, query)
 
         err_msg = 'Calling .bounds with {} is not valid. Possible keys are {}.'
-        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), err_msg.format(ind, var_struct.keys())
 
         return var_struct[var_name]
 
@@ -471,7 +471,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         var_struct = getattr(self, query)
 
         err_msg = 'Calling .bounds with {} is not valid. Possible keys are {}.'
-        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), err_msg.format(ind, var_struct.keys())
 
         # Set value on struct:
         var_struct[var_name] = val
