@@ -30,7 +30,7 @@ import time
 from ..optimizer import Optimizer
 from ._base import Estimator
 import do_mpc
-from typing import Union,Callable,Dict,List
+from typing import Union,Callable
 from dataclasses import asdict
 from ._estimatorsettings import MHESettings
 
@@ -140,7 +140,7 @@ class MHE(Optimizer, Estimator):
         self._opt_p_num = None
 
         # initialize settings class
-        self.settings = do_mpc.estimator._estimatorsettings.MHESettings()
+        self.settings = MHESettings()
 
         # Create seperate structs for the estimated and the set parameters (the union of both are all parameters of the model.)
         _p = model._p
@@ -896,7 +896,6 @@ class MHE(Optimizer, Estimator):
         Note:
             After this call, the :py:func:`solve` and :py:func:`make_step` method is applicable.
         """
-        self.settings.check_for_mandatory_settings()
         self.prepare_nlp()
         self.create_nlp()
 
@@ -1038,6 +1037,7 @@ class MHE(Optimizer, Estimator):
     def _prepare_nlp(self):
         """Internal method. See detailed documentation in optimizer.prepare_nlp
         """
+        self.settings.check_for_mandatory_settings()
         nl_cons_input = self.model['x', 'u', 'z', 'tvp']
         nl_cons_input += [self._p_est, self._p_set]
         self._setup_nl_cons(nl_cons_input)

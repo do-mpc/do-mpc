@@ -458,7 +458,6 @@ class LQR(IteratedVariables):
 
         """
         self.settings.check_for_mandatory_settings()
-        #assert self.settings.t_step, 't_step is required in order to setup the LQR. Please set the simulation time step via set_param(**kwargs)'
 
         if self.settings.n_horizon == None:
             warnings.warn('discrete infinite horizon gain will be computed since prediction horizon is set to default value 0')

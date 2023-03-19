@@ -28,7 +28,7 @@ import itertools
 import time
 import warnings
 from do_mpc.tools import IndexedProperty
-from typing import Union,Callable,Dict,List
+from typing import Union,Callable
 from dataclasses import asdict
 import do_mpc
 from ._controllersettings import MPCSettings
@@ -147,7 +147,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         self._opt_p_num = None
 
         # initialize MPC settings class
-        self.settings = do_mpc.controller._controllersettings.MPCSettings()
+        self.settings = MPCSettings()
 
         # Flags are checked when calling .setup.
         self.flags.update({
@@ -860,7 +860,6 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         .. _`background article`: ../theory_mpc.html#robust-multi-stage-nmpc
         """
-        self.settings.check_for_mandatory_settings()
         self.prepare_nlp()
         self.create_nlp()
 
@@ -1008,6 +1007,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     def _prepare_nlp(self)->None:
         """Internal method. See detailed documentation with optimizer.prepare_nlp
         """
+        self.settings.check_for_mandatory_settings()
         nl_cons_input = self.model['x', 'u', 'z', 'tvp', 'p']
         self._setup_nl_cons(nl_cons_input)
         self._check_validity()
