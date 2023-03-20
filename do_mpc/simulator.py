@@ -20,13 +20,14 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+
 import numpy as np
 from casadi import *
 from casadi.tools import *
-import pdb
-import warnings
-from do_mpc.data import Data
+
 import do_mpc.model
+from do_mpc.data import Data
+
 
 class Simulator(do_mpc.model.IteratedVariables):
     """A class for simulating systems. Discrete-time and continuous systems can be considered.
@@ -430,12 +431,16 @@ class Simulator(do_mpc.model.IteratedVariables):
         elif self.model.model_type == 'continuous':
             r = self.simulator(x0 = sim_x_num, z0 = sim_z_num, p = sim_p_num)
             x_new = r['xf']
-            z_now = r['zf']
-            sim_z_num.master = z_now
+            z_new = r['zf']
+            sim_z_num.master = z_new
+        else:
+            raise ValueError(f'Model type {self.model.model_type} is not supported.')
+        # There may be made an error here. sim_p_num fits to values in time step
+        # k + 1 (new). However, the values are actually the p values for step
+        # k (now). 
+        aux_new = self.sim_aux_expression_fun(x_new, sim_z_num, sim_p_num)
 
-        aux_now = self.sim_aux_expression_fun(sim_x_num, sim_z_num, sim_p_num)
-
-        self.sim_aux_num.master = aux_now
+        self.sim_aux_num.master = aux_new
 
         return x_new
 
@@ -491,6 +496,8 @@ class Simulator(do_mpc.model.IteratedVariables):
         p0 = self.p_fun(self._t0)
         t0 = self._t0
         x0 = self._x0
+        z0 = self.sim_z_num['_z']
+        aux0 = self.sim_aux_num
         self.sim_x_num['_x'] = x0
         self.sim_p_num['_u'] = u0
         self.sim_p_num['_p'] = p0
@@ -499,11 +506,9 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         x_next = self.simulate()
 
-        z0 = self.sim_z_num['_z']
-        aux0 = self.sim_aux_num
-
         # Call measurement function
-        y_next = self.model._meas_fun(x_next, u0, z0, tvp0, p0, v0)
+        z_next = self.sim_z_num['_z']
+        y_next = self.model._meas_fun(x_next, u0, z_next, tvp0, p0, v0)
 
         self.data.update(_x = x0)
         self.data.update(_u = u0)
