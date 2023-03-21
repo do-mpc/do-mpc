@@ -92,7 +92,7 @@ class RTServer:
                 if  key_1.dim > 0:
                     if key_1.objectnode not in object_dict.keys():
                         object = self.opcua_server.nodes.objects.add_object(idx, key_1.objectnode)
-                        placeholder = [0] * key_1.dim
+                        placeholder = [0.0] * key_1.dim
                         variable_name_ = key_1.objectnode + '[' + key_1.variable + ']'
                         datavector = object.add_variable(opcua.ua.NodeId(variable_name_, idx), variable_name_, placeholder)
                         datavector.set_writable()
@@ -100,7 +100,7 @@ class RTServer:
                         key_1.variable = variable_name_
 
                     else:
-                        placeholder = [0] * key_1.dim
+                        placeholder = [0.0] * key_1.dim
                         variable_name_ = key_1.objectnode + '[' + key_1.variable + ']'
                         datavector = object_dict[key_1.objectnode].add_variable(opcua.ua.NodeId(variable_name_, idx), variable_name_, placeholder)
                         datavector.set_writable()
@@ -256,12 +256,14 @@ class RTClient:
 
 class RTController:
 
-    def __init__(self, controller, clientOpts):
+    def __init__(self, controller, clientOpts, m_name):
         self.mpc = controller
-        self.def_namespace = namespace_from_model.detailed(self.mpc.model)
+        self.def_namespace = namespace_from_model.detailed(self.mpc.model, model_name=m_name)
         self.client = RTClient(clientOpts, self.def_namespace)
         self.tagout = []
         self.tagin = []
+        self.def_tagin = []
+        self.def_tagout = []
 
 
     def connect(self):
@@ -289,7 +291,7 @@ class RTController:
     
 
     def set_default_write_ns(self):
-        self.def_tagout = []
+
 
         if isinstance(self.def_namespace._namespace_index, int):
             for dclass in self.def_namespace.entry_list:
@@ -303,11 +305,11 @@ class RTController:
 
 
     def set_default_read_ns(self):
-        self.def_tagin = []
+
 
         if isinstance(self.def_namespace._namespace_index, int):
             for dclass in self.def_namespace.entry_list:
-                if dclass.objectnode == 'x' or dclass.objectnode == 'y':
+                if dclass.objectnode == 'x':
                     self.def_tagin.append(dclass.get_node_id(self.def_namespace._namespace_index))
 
             print('Default read-nodes set as {}.'.format(self.def_tagin))
@@ -329,26 +331,47 @@ class RTController:
         self.client.add_namespace_url(url)
 
     def writeData(self, val=None, tag=None):
-        if self.enabled == True:
-            if tag == None:
-                for count, id in enumerate(self.def_tagout):
-                    
-                    if val == None:
-                        val = vertcat(mpc.x0)
-
-                    self.client.writeData([val[count]], id)
-            else:
-                self.Client.writeData(val, tag) 
-
-        else: 
-            print('Client is not connected to server!')
-        
+        self.client.writeData(val, tag)         
 
     def readData(self, tag):
-        self.Client.readData(tag)
-
+        data = self.client.readData(tag)
+        return data
+    
     def return_namespace(self):
         return self.client.return_namespace()
+
+    def readfrom(self, simulator):
+        self.client.register_namespace_from_client(simulator)
+        new_ns = self.return_namespace()[-1]
+        #states auslesen und als read_ns speichern
+        if isinstance(new_ns._namespace_index, int):
+            for dclass in new_ns.entry_list:
+                if dclass.objectnode == 'x':
+                    self.tagin.append(dclass.get_node_id(new_ns._namespace_index))
+
+            print('Write-nodes set as {}.'.format(self.tagin))
+
+        else:
+            print('Namespace index is unknown. Please register this client on the target server first using: RTServer.namespace_from_client(Client)')
+
+    def async_step(self):
+        if self.def_tagin == []:
+            x0 = np.array([self.readData(i) for i in self.tagin]).reshape(-1,1)
+        else:
+            self.states = np.array([self.readData(i) for i in self.def_tagin])
+
+        u0 = self.mpc.make_step(x0)
+        # print(u0)
+        # tag out: all in tagin,
+        # tag out: all in def_tagout if tagout is leer 
+        # read tag in
+        # mpc.make step
+        # write tag out
+
+    def x0_server(self):
+        if self.def_tagin == []:
+            for count, item in enumerate(self.tagin):
+                self.writeData([float(np.array(vertcat(mpc.x0)).flatten()[count])],item)
 
     # def generic_writing_class(self):
 
@@ -411,6 +434,8 @@ class NamespaceEntry:
 
     def get_node_id(self, namespace_index):
         return f'ns={namespace_index};s={self.variable}'
+    
+
 
 @dataclass   
 class Namespace:
@@ -442,6 +467,9 @@ class Namespace:
             raise ValueError('argument must be an integer')
         
         self._namespace_index = val
+
+    #TODO: def __getitem__(self, index):
+        # für besseres indexing
 class namespace_from_model:    
 
     def summarized(model, model_name, object_name):
@@ -615,22 +643,38 @@ mpc.set_uncertainty_values(Y_x = Y_x_values, S_in = S_in_values)
 
 mpc.setup()
 
-#%%
+# Initial state
+X_s_0 = 1.0 # Concentration biomass [mol/l]
+S_s_0 = 0.5 # Concentration substrate [mol/l]
+P_s_0 = 0.0 # Concentration product [mol/l]
+V_s_0 = 120.0 # Volume inside tank [m^3]
+x0 = np.array([X_s_0, S_s_0, P_s_0, V_s_0])
+
+mpc.x0 = x0
 # Client1 = RTClient(client_opts_1,ns)
+#%%
+Client1 = RTClient(client_opts_1,ns)
 Client2 = RTClient(client_opts_2,ns2)
 Server = RTServer(server_opts)
 # Server.namespace_from_client(Client1)
 # Server.namespace_from_client(Client2)
-rt_mpc = RTController(mpc, client_opts_1)
+rt_mpc = RTController(mpc, client_opts_1, 'model1')
+rt_mpc2 = RTController(mpc, client_opts_2, 'model2')
 Server.namespace_from_client(rt_mpc)
+Server.namespace_from_client(rt_mpc2)
 # Server.get_all_nodes()
 rt_mpc.set_default_write_ns()
-rt_mpc.set_default_read_ns()
+# rt_mpc.set_default_read_ns()
+rt_mpc.readfrom(rt_mpc2)
 #%%
 # Server.get_all_nodes()
 Server.start()
 rt_mpc.connect()
+# rt_mpc.async_step()
 rt_mpc.def_tagout
+rt_mpc.tagin
+rt_mpc.x0_server()
+
 #%%
-Server.stop()
+# Server.stop()
 # %%
