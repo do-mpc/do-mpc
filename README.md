@@ -1,6 +1,6 @@
 <img align="left" width="30%" hspace="2%" src="https://raw.githubusercontent.com/do-mpc/do-mpc/master/documentation/source/static/dompc_var_02_rtd_blue.png">
 
-# Davids Model predictive control python toolbox
+# Model predictive control python toolbox
 
 [![Documentation Status](https://readthedocs.org/projects/do-mpc/badge/?version=latest)](https://www.do-mpc.com)
 [![Build Status](https://app.travis-ci.com/do-mpc/do-mpc.svg?branch=master)](https://app.travis-ci.com/do-mpc/do-mpc)
