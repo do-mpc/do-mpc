@@ -33,7 +33,7 @@ import numpy as np
 import pandas as pd
 from dataclasses import dataclass, asdict
 from typing import List
-
+from threading import Timer, Thread
 import do_mpc
 try:
     import asyncua.sync as opcua
@@ -256,7 +256,7 @@ class RTClient:
 
 class RTController:
 
-    def __init__(self, controller, clientOpts, m_name):
+    def __init__(self, controller, clientOpts, m_name, cycle_time=10):
         self.mpc = controller
         self.def_namespace = namespace_from_model.detailed(self.mpc.model, model_name=m_name)
         self.client = RTClient(clientOpts, self.def_namespace)
@@ -264,8 +264,9 @@ class RTController:
         self.tagin = []
         self.def_tagin = []
         self.def_tagout = []
-
-
+        self.cycle_time = cycle_time
+        self.is_running = False
+        self.new_init = True
     def connect(self):
         try:
             self.client.connect()
@@ -291,8 +292,6 @@ class RTController:
     
 
     def set_default_write_ns(self):
-
-
         if isinstance(self.def_namespace._namespace_index, int):
             for dclass in self.def_namespace.entry_list:
                 if dclass.objectnode == 'u':
@@ -305,8 +304,6 @@ class RTController:
 
 
     def set_default_read_ns(self):
-
-
         if isinstance(self.def_namespace._namespace_index, int):
             for dclass in self.def_namespace.entry_list:
                 if dclass.objectnode == 'x':
@@ -340,6 +337,7 @@ class RTController:
     def return_namespace(self):
         return self.client.return_namespace()
 
+
     def readfrom(self, simulator):
         self.client.register_namespace_from_client(simulator)
         new_ns = self.return_namespace()[-1]
@@ -354,76 +352,53 @@ class RTController:
         else:
             print('Namespace index is unknown. Please register this client on the target server first using: RTServer.namespace_from_client(Client)')
 
-    def async_step(self):
+    def make_step(self):
         if self.def_tagin == []:
             x0 = np.array([self.readData(i) for i in self.tagin]).reshape(-1,1)
         else:
             self.states = np.array([self.readData(i) for i in self.def_tagin])
 
-        u0 = self.mpc.make_step(x0)
-        # print(u0)
-        # tag out: all in tagin,
-        # tag out: all in def_tagout if tagout is leer 
-        # read tag in
-        # mpc.make step
-        # write tag out
+        self.u0 = self.mpc.make_step(x0)
+        
+        if self.tagout == []:
+            for count, item in enumerate(self.def_tagout):
+                self.writeData([self.u0.flatten()[count]], item)
+        else:
+            for count, item in enumerate(self.tagout):
+                self.writeData(self.u0.flatten()[count].tolist(), item)
+
+
+    def async_run(self):
+        self.is_running = False    
+        self.async_step_start()
+        self.make_step()
+
+
+    def async_step_start(self):
+        if self.new_init == True:
+            self.new_thread = Thread(target=self.make_step)
+            self.new_thread.start()
+            self.new_init = False
+
+        if not self.is_running:
+            self.cycle = time.time() + self.cycle_time
+            self.thread = Timer(self.cycle - time.time(), self.async_run)
+            self.thread.start()
+            self.is_running = True
+
+
+    def async_step_stop(self ):
+        self.thread.cancel()
+        self.is_running = False
+        self.new_init = True
+
 
     def x0_server(self):
         if self.def_tagin == []:
             for count, item in enumerate(self.tagin):
                 self.writeData([float(np.array(vertcat(mpc.x0)).flatten()[count])],item)
 
-    # def generic_writing_class(self):
 
-    # def user_write_nodes(self, ns):
-    #     user_write_list.append(ns)
-        
- 
-        
-#     def asynchronous_step(self):
-#         """This function implements the server calls and simulator step with a predefined frequency
-#         :param no params: because the cycle is stored by the object
-        
-#         :return: time_left, the remaining time on the clock when the optimizer has finished the routine
-#         :rtype: float
-#         """
-#         if self.output_feedback == False:
-#             tag_in  = "ns=2;s="+self.opc_client.namespace['PlantData']['x']
-#         else:
-#             tag_in  = "ns=2;s="+self.opc_client.namespace['EstimatorData']['xhat']
-        
-#         tag_out = "ns=2;s="+self.opc_client.namespace['ControllerData']['u_opt']
-#         # tag_out_pred = "ns=2;s="+self.opc_client.namespace['ControllerData']['x_pred']
-#         # Read the latest plant state from server and execute optimization step
-#         xk = np.array(self.opc_client.readData(tag_in))
-        
-#         # The NLP must be reinitialized with the most current data from the plant readings
-#         self.x0 = np.array(self.opc_client.readData(tag_in))   
-#         self.set_initial_guess()
-
-#         # Check the current status before running the optimizer step 
-#         if self.check_status():
-#             # The controller can be executed
-#             uk = self.make_step(xk)
-#             x_pred = self.opt_x_num_unscaled
-#             # The iteration count is incremented regardless of the outcome
-#             self.iter_count = self.iter_count + 1
-            
-#             if self.solver_stats['return_status'] == 'Solve_Succeeded':
-#                 # The optimal inputs are written back to the server
-#                 self.opc_client.writeData(uk.tolist(), tag_out)
-#                 # self.opc_client.writeData(np.array(vertcat(x_pred)).tolist(), tag_out_pred)
-#             else:
-#                 print("The controller failed at time ", time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
-#                 print("The optimal inputs have not been updated on the server.")
-#             # The controller must wait for a predefined time
-#             time_left = self.cycle_time-self.solver_stats['t_wall_total']
-            
-#         else: 
-#             time_left = self.cycle_time
-#             print("The controller is still waiting to be manually activated. When you're ready set the status bit to 1.")
-        
-#         return time_left
 #%%        
 
 @dataclass
@@ -651,6 +626,7 @@ V_s_0 = 120.0 # Volume inside tank [m^3]
 x0 = np.array([X_s_0, S_s_0, P_s_0, V_s_0])
 
 mpc.x0 = x0
+mpc.set_initial_guess()
 # Client1 = RTClient(client_opts_1,ns)
 #%%
 Client1 = RTClient(client_opts_1,ns)
@@ -658,7 +634,7 @@ Client2 = RTClient(client_opts_2,ns2)
 Server = RTServer(server_opts)
 # Server.namespace_from_client(Client1)
 # Server.namespace_from_client(Client2)
-rt_mpc = RTController(mpc, client_opts_1, 'model1')
+rt_mpc = RTController(mpc, client_opts_1, 'model1', 20)
 rt_mpc2 = RTController(mpc, client_opts_2, 'model2')
 Server.namespace_from_client(rt_mpc)
 Server.namespace_from_client(rt_mpc2)
@@ -670,11 +646,11 @@ rt_mpc.readfrom(rt_mpc2)
 # Server.get_all_nodes()
 Server.start()
 rt_mpc.connect()
-# rt_mpc.async_step()
-rt_mpc.def_tagout
-rt_mpc.tagin
-rt_mpc.x0_server()
 
+# rt_mpc.x0_server()
+rt_mpc.x0_server()
+# rt_mpc.make_step()
+rt_mpc.async_step_start()
 #%%
 # Server.stop()
 # %%
