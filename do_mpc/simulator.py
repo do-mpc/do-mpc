@@ -497,7 +497,8 @@ class Simulator(do_mpc.model.IteratedVariables):
         t0 = self._t0
         x0 = self._x0
         z0 = self.sim_z_num['_z']
-        aux0 = self.sim_aux_num
+        # .master is chosen so that a copy is created of the variables.
+        aux0 = self.sim_aux_num.master
         self.sim_x_num['_x'] = x0
         self.sim_p_num['_u'] = u0
         self.sim_p_num['_p'] = p0
