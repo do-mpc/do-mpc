@@ -27,6 +27,8 @@ from casadi.tools import *
 
 import do_mpc.model
 from do_mpc.data import Data
+from do_mpc.tools.algebraic_variable_initializer import \
+    init_algebraic_variables
 
 
 class Simulator(do_mpc.model.IteratedVariables):
@@ -71,8 +73,10 @@ class Simulator(do_mpc.model.IteratedVariables):
         self.data = Data(model)
 
         self.data_fields = [
-            't_step'
+            't_step',
+            'init_algebraic_variables'
         ]
+        self.init_algebraic_variables = True
 
         if self.model.model_type == 'continuous':
 
@@ -438,7 +442,7 @@ class Simulator(do_mpc.model.IteratedVariables):
             raise ValueError(f'Model type {self.model.model_type} is not supported.')
         # There may be made an error here. sim_p_num fits to values in time step
         # k + 1 (new). However, the values are actually the p values for step
-        # k (now). 
+        # k (now).
         aux_new = self.sim_aux_expression_fun(x_new, sim_z_num, sim_p_num)
 
         self.sim_aux_num.master = aux_new
@@ -497,16 +501,20 @@ class Simulator(do_mpc.model.IteratedVariables):
         p0 = self.p_fun(self._t0)
         t0 = self._t0
         x0 = self._x0
+        model_has_algebraic_variables = not self.model._alg.master.is_empty()
+        if (self.flags['first_step'] and self.init_algebraic_variables and
+                model_has_algebraic_variables):
+            init_algebraic_variables(self.model, self)
+            self.set_initial_guess()
         z0 = self.sim_z_num['_z']
         self.sim_x_num['_x'] = x0
         self.sim_p_num['_u'] = u0
         self.sim_p_num['_p'] = p0
         self.sim_p_num['_tvp'] = tvp0
         self.sim_p_num['_w'] = w0
-        
+
         if self.flags['first_step']:
             aux0 = self.sim_aux_expression_fun(x0, z0, self.sim_p_num)
-            self.flags['first_step'] = False 
         else:
             # .master is chosen so that a copy is created of the variables.
             aux0 = self.sim_aux_num.master
@@ -530,5 +538,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         self._z0.master = z0
         self._u0.master = u0
         self._t0 = self._t0 + self.t_step
+
+        self.flags['first_step'] = False
 
         return y_next.full()
