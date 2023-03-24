@@ -92,6 +92,7 @@ class Simulator(do_mpc.model.IteratedVariables):
             'set_tvp_fun': False,
             'set_p_fun': False,
             'setup': False,
+            'first_step': True,
         }
 
 
@@ -497,13 +498,18 @@ class Simulator(do_mpc.model.IteratedVariables):
         t0 = self._t0
         x0 = self._x0
         z0 = self.sim_z_num['_z']
-        # .master is chosen so that a copy is created of the variables.
-        aux0 = self.sim_aux_num.master
         self.sim_x_num['_x'] = x0
         self.sim_p_num['_u'] = u0
         self.sim_p_num['_p'] = p0
         self.sim_p_num['_tvp'] = tvp0
         self.sim_p_num['_w'] = w0
+        
+        if self.flags['first_step']:
+            aux0 = self.sim_aux_expression_fun(x0, z0, self.sim_p_num)
+            self.flags['first_step'] = False 
+        else:
+            # .master is chosen so that a copy is created of the variables.
+            aux0 = self.sim_aux_num.master
 
         x_next = self.simulate()
 
