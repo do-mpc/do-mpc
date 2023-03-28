@@ -20,16 +20,16 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Shared tools for optimization-based estimation (MHE) and control (MPC).
+"""
+
 import numpy as np
 from casadi import *
 from casadi.tools import *
 import pdb
-import itertools
-import time
-import warnings
+import do_mpc
 
-
-from do_mpc.tools.indexedproperty import IndexedProperty
 
 
 class Optimizer:
@@ -229,7 +229,7 @@ class Optimizer:
         assert self.flags['prepare_nlp'], 'Cannot query attribute prior to calling prepare_nlp or setup'
         self._nlp_cons_ub = val
 
-    @IndexedProperty
+    @do_mpc.tools.IndexedProperty
     def lb_opt_x(self, ind):
         """Query and modify the lower bounds of all optimization variables :py:attr:`opt_x`.
         This is a more advanced method of setting bounds on optimization variables of the MPC/MHE problem.
@@ -258,7 +258,7 @@ class Optimizer:
         
 
 
-    @IndexedProperty
+    @do_mpc.tools.IndexedProperty
     def ub_opt_x(self, ind):
         """Query and modify the lower bounds of all optimization variables :py:attr:`opt_x`.
         This is a more advanced method of setting bounds on optimization variables of the MPC/MHE problem.
@@ -286,7 +286,7 @@ class Optimizer:
         self._ub_opt_x.master[cind] = self._ub_opt_x.master[cind]/self.opt_x_scaling.master[cind]
 
 
-    @IndexedProperty
+    @do_mpc.tools.IndexedProperty
     def bounds(self, ind):
         """Query and set bounds of the optimization variables.
         The :py:func:`bounds` method is an indexed property, meaning
@@ -365,7 +365,7 @@ class Optimizer:
         var_struct = getattr(self, query)
 
         err_msg = 'Calling .bounds with {} is not valid. Possible keys are {}.'
-        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), err_msg.format(ind, var_struct.keys())
 
         # Set value on struct:
         var_struct[var_name] = val
@@ -375,7 +375,7 @@ class Optimizer:
             self._update_bounds()
 
 
-    @IndexedProperty
+    @do_mpc.tools.IndexedProperty
     def scaling(self, ind):
         """Query and set  scaling of the optimization variables.
         The :py:func:`Optimizer.scaling` method is an indexed property, meaning
@@ -434,7 +434,7 @@ class Optimizer:
         var_struct = getattr(self, query)
 
         err_msg = 'Calling .scaling with {} is not valid. Possible keys are {}.'
-        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), err_msg.format(ind, var_struct.keys())
 
         return var_struct[var_name]
 
@@ -458,7 +458,7 @@ class Optimizer:
         var_struct = getattr(self, query)
 
         err_msg = 'Calling .scaling with {} is not valid. Possible keys are {}.'
-        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), err_msg.format(ind, var_struct.keys())
 
         var_struct[var_name] = val
 
@@ -690,6 +690,70 @@ class Optimizer:
 
         self.tvp_fun = tvp_fun
 
+    def compile_nlp(self, overwrite = False, cname = 'nlp.c', libname='nlp.so', compiler_command=None):
+        """Compile the NLP. This may accelerate the optimization.
+        As compilation is time consuming, the default option is to NOT overwrite (``overwrite=False``) an existing compilation.
+        If an existing compilation with the name ``libname`` is found, it is used. **This can be dangerous, if the NLP has changed**
+        (user tweaked the cost function, the model etc.).
+
+        .. warning:: 
+
+            This feature is experimental and currently only supported on Linux and MacOS.
+
+
+        **What happens here?**
+        
+        1. The NLP is written to a C-file (``cname``)
+        
+        
+        2. The C-File (``cname``) is compiled. The custom compiler uses:
+
+        ::
+
+            gcc -fPIC -shared -O1 {cname} -o {libname}
+
+        3. The compiled library is linked to the NLP. This overwrites the original NLP. Options from the previous NLP (e.g. linear solver) are kept.
+
+        ::
+
+            self.S = nlpsol('solver_compiled', 'ipopt', f'{libname}', self.nlpsol_opts)      
+
+
+        :param overwrite: If True, the existing compiled NLP will be overwritten.
+        :type overwrite: bool
+        :param cname: Name of the C file that will be exported.
+        :type cname: str
+        :param libname: Name of the shared library that will be created after compilation.
+        :type libname: str
+        :param compiler_command: Command to use for compiling. If None, the default compiler command will be used. Please make sure to use matching strings for ``libname`` when supplying your custom compiler command.
+        :type compiler_command: str
+
+        """
+        if not self.flags['setup']:
+            raise Exception('Optimizer not setup. Call setup first.')
+
+        if sys.platform  not in ('darwin', 'linux', 'linux2'):
+            raise Exception('Compilation not supported on this platform.')
+
+        if compiler_command is None:
+            compiler_command = "gcc -fPIC -shared -O1 {cname} -o {libname}".format(cname=cname, libname=libname)
+
+        # Only compile if not already compiled:
+        if overwrite or not os.path.isfile(libname):
+            # Create c code from solver object
+            print('Generating c-code of nlp.')
+            self.S.generate_dependencies(cname)
+            # Compile c code
+            print('Compiling c-code of nlp.')
+            subprocess.Popen(compiler_command, shell=True).wait()
+
+
+        # Overwrite solver object with loaded nlp:
+        self.S = nlpsol('solver_compiled', 'ipopt', {libname}, self.nlpsol_opts)
+        print('Using compiled NLP solver.')
+
+            
+
     def solve(self):
         """Solves the optmization problem.
 
@@ -749,7 +813,7 @@ class Optimizer:
                 self.opt_x_num,
                 self.opt_p_num
             )
-        
+
         # For warmstarting purposes: Flag that initial run has been completed.
         self.flags['initial_run'] = True
 

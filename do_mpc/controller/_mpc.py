@@ -1,3 +1,4 @@
+
 #
 #   This file is part of do-mpc
 #
@@ -29,7 +30,8 @@ import time
 
 import do_mpc.data
 import do_mpc.optimizer
-from do_mpc.tools.indexedproperty import IndexedProperty
+from do_mpc.tools import IndexedProperty
+      
 
 class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     """Model predictive controller.
@@ -71,7 +73,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             graph [fontname = "helvetica"];
             rankdir=LR;
 
-            subgraph cluster_main {
+            subgraph cluster_main {
                 node [fontname = "helvetica", shape=box, fontcolor="#404040", color="#707070"];
                 edge [fontname = "helvetica", color="#707070"];
 
@@ -242,7 +244,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         .. warning::
 
-            Do not tweak or overwrite this attribute unless you known what you are doing.
+            Do not tweak or overwrite this attribute unless you know what you are doing.
 
         .. note::
 
@@ -291,7 +293,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         .. warning::
 
-            Do not tweak or overwrite this attribute unless you known what you are doing.
+            Do not tweak or overwrite this attribute unless you know what you are doing.
 
         .. note::
 
@@ -381,7 +383,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         .. warning::
 
-            Do not tweak or overwrite this attribute unless you known what you are doing.
+            Do not tweak or overwrite this attribute unless you know what you are doing.
 
         .. note::
 
@@ -400,7 +402,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         """Query and set the terminal bounds for the states.
         The :py:func:`terminal_bounds` method is an indexed property, meaning
         getting and setting this property requires an index and calls this function.
-        The power index (elements are seperated by comas) must contain atleast the following elements:
+        The power index (elements are seperated by commas) must contain at least the following elements:
 
         ======      =================   ==========================================================
         order       index name          valid options
@@ -441,7 +443,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         var_struct = getattr(self, query)
 
         err_msg = 'Calling .bounds with {} is not valid. Possible keys are {}.'
-        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), err_msg.format(ind, var_struct.keys())
 
         return var_struct[var_name]
 
@@ -469,7 +471,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         var_struct = getattr(self, query)
 
         err_msg = 'Calling .bounds with {} is not valid. Possible keys are {}.'
-        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), msg.format(ind, var_struct.keys())
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), err_msg.format(ind, var_struct.keys())
 
         # Set value on struct:
         var_struct[var_name] = val
@@ -500,7 +502,10 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         .. note:: The only required parameters  are ``n_horizon`` and ``t_step``. All other parameters are optional.
 
-        .. note:: :py:func:`set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
+        .. note:: 
+            
+            :py:func:`set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
+            This only works prior to calling :py:func:`setup`. 
 
         The following parameters are available:
 
@@ -1114,7 +1119,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
 
     def _prepare_nlp(self):
-        """Internal method. See detailed documentation with optimizer.prepare_nlp
+        """Internal method. See detailed documentation of optimizer.prepare_nlp
         """
         nl_cons_input = self.model['x', 'u', 'z', 'tvp', 'p']
         self._setup_nl_cons(nl_cons_input)
@@ -1315,8 +1320,8 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             'expand': False,
             'ipopt.linear_solver': 'mumps',
         }.update(self.nlpsol_opts)
-        nlp = {'x': vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons, 'p': vertcat(self._opt_p)}
-        self.S = nlpsol('S', 'ipopt', nlp, self.nlpsol_opts)
+        self.nlp = {'x': vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons, 'p': vertcat(self._opt_p)}
+        self.S = nlpsol('S', 'ipopt', self.nlp, self.nlpsol_opts)
 
 
         # Create function to caculate all auxiliary expressions:

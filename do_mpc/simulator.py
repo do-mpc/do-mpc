@@ -20,13 +20,15 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Simulate continous-time ODE/DAE or discrete-time dynamic systems.
+"""
+
 import numpy as np
 from casadi import *
 from casadi.tools import *
 import pdb
-import warnings
-from do_mpc.data import Data
-import do_mpc.model
+import do_mpc
 
 class Simulator(do_mpc.model.IteratedVariables):
     """A class for simulating systems. Discrete-time and continuous systems can be considered.
@@ -67,7 +69,7 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         assert model.flags['setup'] == True, 'Model for simulator was not setup. After the complete model creation call model.setup().'
 
-        self.data = Data(model)
+        self.data = do_mpc.data.Data(model)
 
         self.data_fields = [
             't_step'
@@ -384,7 +386,7 @@ class Simulator(do_mpc.model.IteratedVariables):
             If no initial values for :py:attr:`z0` were supplied during setup, they default to zero.
 
         """
-        assert self.flags['setup'] == True, 'MPC was not setup yet. Please call MPC.setup().'
+        assert self.flags['setup'] == True, 'Simulator was not setup yet. Please call Simulator.setup().'
 
         self.sim_z_num['_z'] = self._z0.cat
 
@@ -439,7 +441,7 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         return x_new
 
-    def make_step(self, u0, v0=None, w0=None):
+    def make_step(self, u0=None, v0=None, w0=None):
         """Main method of the simulator class during control runtime. This method is called at each timestep
         and computes the next state or the current control input :py:obj:`u0`. The method returns the resulting measurement,
         as defined in :py:class:`do_mpc.model.Model.set_meas`.
@@ -455,7 +457,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         The method prepares the simulator by setting the current parameters, calls :py:func:`simulator.simulate`
         and updates the :py:class:`do_mpc.data` object.
 
-        :param u0: Current input to the system.
+        :param u0: Current input to the system. Optional parameter for autonomous systems.
         :type u0: numpy.ndarray
 
         :param v0: Additive measurement noise
@@ -467,6 +469,11 @@ class Simulator(do_mpc.model.IteratedVariables):
         :return: y_next
         :rtype: numpy.ndarray
         """
+        # Generate dummy input if system is autnomous
+        if u0 is None:
+            assert self.model.n_u == 0, 'No input u0 provided. Please provide an input u0.'
+            u0 = self.model._u(0)
+
         assert self.flags['setup'] == True, 'Simulator is not setup. Call simulator.setup() first.'
         assert isinstance(u0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'u0 is wrong input type. You have: {}'.format(type(u0))
         assert u0.shape == self.model._u.shape, 'u0 has incorrect shape. You have: {}, expected: {}'.format(u0.shape, self.model._u.shape)

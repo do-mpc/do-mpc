@@ -27,7 +27,9 @@ from casadi.tools import *
 import pdb
 import sys
 import time
-sys.path.append('../../')
+import os
+rel_do_mpc_path = os.path.join('..','..')
+sys.path.append(rel_do_mpc_path)
 import do_mpc
 
 from template_model import template_model

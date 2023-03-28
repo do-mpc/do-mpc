@@ -1,4 +1,5 @@
-from do_mpc.tools.indexedproperty import IndexedProperty
+from do_mpc.tools import IndexedProperty
+import pdb
 
 def _tuplify(f):
     """Decorator ensures input is list.
@@ -148,6 +149,10 @@ class Structure:
         _iter_master, _iter_index  = self._select(ind, self.master, self.powerindex)
         return _iter_master
 
+    def _getkeys(self, ind):
+        _keys, _  = self._select(ind, self.powerindex, self.powerindex)
+        return _keys
+
     @_tuplify
     def _select(self, ind, _iter_master, _iter_index):
         """Private method to support the __getitem__ call.
@@ -185,3 +190,23 @@ class Structure:
                 _iter_index = _tmp_index
 
         return _iter_master, _iter_index
+
+
+
+def test_structure():
+    s = Structure()
+    for k in range(3):
+        s['_x', 'C_a', k] = [1,2,3,4]
+        s['_x', 'C_b', k] = [1,2,3,4]
+        s['_u', 'C_c', k] = [1,2,3,4]
+
+
+    s['_x',:]
+
+
+    return s
+
+
+
+if __name__ == '__main__':
+    s = test_structure()
