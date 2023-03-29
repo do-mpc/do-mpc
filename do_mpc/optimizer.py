@@ -749,7 +749,7 @@ class Optimizer:
 
 
         # Overwrite solver object with loaded nlp:
-        self.S = nlpsol('solver_compiled', 'ipopt', {libname}, self.nlpsol_opts)
+        self.S = nlpsol('solver_compiled', 'ipopt', libname, self.nlpsol_opts)
         print('Using compiled NLP solver.')
 
             
