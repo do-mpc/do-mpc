@@ -73,7 +73,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             graph [fontname = "helvetica"];
             rankdir=LR;
 
-            subgraph cluster_main {
+            subgraph cluster_main {
                 node [fontname = "helvetica", shape=box, fontcolor="#404040", color="#707070"];
                 edge [fontname = "helvetica", color="#707070"];
 
@@ -355,7 +355,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         """Query and set the terminal bounds for the states.
         The :py:func:`terminal_bounds` method is an indexed property, meaning
         getting and setting this property requires an index and calls this function.
-        The power index (elements are seperated by comas) must contain atleast the following elements:
+        The power index (elements are seperated by commas) must contain at least the following elements:
 
         ======      =================   ==========================================================
         order       index name          valid options

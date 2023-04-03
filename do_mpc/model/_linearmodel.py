@@ -158,6 +158,8 @@ class LinearModel(Model):
         # Check if expression is linear
         if castools.evalf(castools.jacobian(meas, castools.vertcat(self.x, self.u))).is_constant():
             super(LinearModel, self).set_meas(name, meas, meas_noise=True)
+        else:
+            raise ValueError("Measurement function is not linear.")
 
     def set_alg(self, expr_name, expr, *args, **kwargs):
         """
@@ -264,7 +266,6 @@ class LinearModel(Model):
         assert self.flags['setup'] == True, 'This method can be accessed only after the model is setup using LinearModel.setup().'
         assert self.model_type == 'continuous', 'Given model is already discrete.'
 
-        warnings.warn('sampling time is {}'.format(t_step))
         
         A, B, C, D, t = cont2discrete((self.sys_A,self.sys_B,self.sys_C,self.sys_D), t_step, conv_method)
         
@@ -274,7 +275,7 @@ class LinearModel(Model):
         self._transfer_variables(self, discreteModel)
 
         # Setup linearized model
-        discreteModel.setup(A,B)
+        discreteModel.setup(A,B,C)
         
         return discreteModel 
  

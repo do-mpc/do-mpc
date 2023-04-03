@@ -781,7 +781,7 @@ class Optimizer:
                 self.opt_x_num,
                 self.opt_p_num
             )
-        
+
         # For warmstarting purposes: Flag that initial run has been completed.
         self.flags['initial_run'] = True
 
