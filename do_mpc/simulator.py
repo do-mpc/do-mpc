@@ -76,7 +76,7 @@ class Simulator(do_mpc.model.IteratedVariables):
             't_step',
             'init_algebraic_variables'
         ]
-        self.init_algebraic_variables = True
+        self.init_algebraic_variables = False
 
         if self.model.model_type == 'continuous':
 
