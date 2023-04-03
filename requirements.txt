@@ -5,6 +5,7 @@ nbsphinx
 pygments
 docutils
 sphinx-copybutton
+sphinx-autodoc-typehints
 graphviz
 casadi
 scipy
