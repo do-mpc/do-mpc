@@ -110,7 +110,7 @@ class RTServer:
                     continue
 
             key_0._namespace_index = idx
-            client.add_namespace_url(idx)
+            client.client.add_namespace_url(idx)
             
         self.opcua_server.get_namespace_array()
         print(f"The following namespaces are registered: {self.opcua_server.get_namespace_array()[2:]}")
@@ -180,7 +180,7 @@ class RTClient:
     
     def register_namespace_from_client(self, client):
         # Register namspaces from another client
-        self.namespace_list += client.return_namespace()
+        self.namespace_list.append(client.return_namespace()[0])
     
     def add_namespace_url(self, url):
         # Method used by server to mark namespaces with the corresponding url
@@ -228,77 +228,56 @@ class RTClient:
         return dataVal
     
 
-# class RealtimeController:
-#     def __init__(self, controller, client_opts):
-#         self.write_nodes = []
-#         self.read_nodes = []
 
-#         read_node_list = generate_write_nodes_list()
 
-#         self.client = Client(client_opts, read_node_list)
+#%%        
 
-#     def generate_write_nodes_list(self):
-#         entry_list = []
+class RTBase:
 
-#         for key in self.controller.model.u.keys.keys():
-#             entry_list.append(
-#                 NamespaceEntry(
-#                     objectnode ='controller',
-#                     variable = key,
-#                     dim = 3 #TODO fix this
-#                 )
-#             )
-
-#         return entry_list
-    
-#     def read_from_(object):
-#         #TODO: fix this
-
-class RTController:
-
-    def __init__(self, controller, clientOpts, m_name, cycle_time=10):
-        self.mpc = controller
-        self.def_namespace = namespace_from_model.detailed(self.mpc.model, model_name=m_name)
+    def __init__(self, do_mpc_object, clientOpts, m_name):
+        self.do_mpc_object = do_mpc_object
+        self.def_namespace = namespace_from_model.detailed(self.do_mpc_object.model, model_name=m_name)
+        self.cycle_time = do_mpc_object.t_step
         self.client = RTClient(clientOpts, self.def_namespace)
         self.tagout = []
         self.tagin = []
-        self.def_tagin = []
-        self.def_tagout = []
-        self.cycle_time = cycle_time
+        self.init_server_tags = []
         self.is_running = False
         self.new_init = True
+
+
     def connect(self):
         try:
             self.client.connect()
-            self.enabled = True
             print("The real-time controller connected to the server")
-            
+
+            if self.writevariable == 'x':
+                self.write_current(np.array(vertcat(self.do_mpc_object.x0)))
+
         except RuntimeError:
             self.enabled = False
             print("The real-time controller could not connect to the server. Please check the server setup.")
 
-        return self.enabled
-
-
     def diconnect(self):
         try:
             self.client.disconnect()
-            self.enabled = False
 
         except RuntimeError:
             print("The real-time controller could not be stopped due to server issues. Please stop the client manually and delete the object!")
         
-        return self.enabled
-    
+    def set_read_write(self, read='x', write='u'):
+        self.readvariable = read
+        self.writevariable = write
 
     def set_default_write_ns(self):
         if isinstance(self.def_namespace._namespace_index, int):
             for dclass in self.def_namespace.entry_list:
-                if dclass.objectnode == 'u':
-                    self.def_tagout.append(dclass.get_node_id(self.def_namespace._namespace_index))
+                if dclass.objectnode == self.writevariable:
+                    self.tagout.append(dclass.get_node_id(self.def_namespace._namespace_index))
+                elif dclass.objectnode == 'x':
+                    self.init_server_tags.append(dclass.get_node_id(self.def_namespace._namespace_index))
 
-            print('Default write-nodes set as {}.'.format(self.def_tagout))
-
+            print('Default write-nodes set as {}.'.format(self.tagout))
         else:
             print('Namespace index is unknown. Please register this client on the target server first using: RTServer.namespace_from_client(Client)')
 
@@ -306,66 +285,44 @@ class RTController:
     def set_default_read_ns(self):
         if isinstance(self.def_namespace._namespace_index, int):
             for dclass in self.def_namespace.entry_list:
-                if dclass.objectnode == 'x':
-                    self.def_tagin.append(dclass.get_node_id(self.def_namespace._namespace_index))
+                if dclass.objectnode == self.readvariable:
+                    self.tagin.append(dclass.get_node_id(self.def_namespace._namespace_index))
 
-            print('Default read-nodes set as {}.'.format(self.def_tagin))
+            print('Default read-nodes set as {}.'.format(self.tagin))
 
         else:
             print('Namespace index is unknown. Please register this client on the target server first using: RTServer.namespace_from_client(Client)')
-        
-
-    def set_write_node(self, ns_entry_id):
-        self.tagout.append(ns_entry_id)
-
-    def set_read_node(self, ns_entry_id):
-        self.tagin.append(ns_entry_id)
-
-    def get_ns_from_client(self,client_):
-        self.client.register_namespace_from_client(client_)
-
-    def add_namespace_url(self, url):
-        self.client.add_namespace_url(url)
-
-    def writeData(self, val=None, tag=None):
-        self.client.writeData(val, tag)         
-
-    def readData(self, tag):
-        data = self.client.readData(tag)
-        return data
     
     def return_namespace(self):
         return self.client.return_namespace()
 
 
-    def readfrom(self, simulator):
-        self.client.register_namespace_from_client(simulator)
+    def readfrom(self, controller):
+        self.client.register_namespace_from_client(controller)
         new_ns = self.return_namespace()[-1]
-        #states auslesen und als read_ns speichern
+
         if isinstance(new_ns._namespace_index, int):
             for dclass in new_ns.entry_list:
-                if dclass.objectnode == 'x':
+                if dclass.objectnode == self.readvariable:
                     self.tagin.append(dclass.get_node_id(new_ns._namespace_index))
 
-            print('Write-nodes set as {}.'.format(self.tagin))
+            print('Read-nodes set as {}.'.format(self.tagin))
 
         else:
-            print('Namespace index is unknown. Please register this client on the target server first using: RTServer.namespace_from_client(Client)')
+            print('Namespace index is unknown to target server. Please register this client on the target server first using: RTServer.namespace_from_client(Client)')
 
     def make_step(self):
-        if self.def_tagin == []:
-            x0 = np.array([self.readData(i) for i in self.tagin]).reshape(-1,1)
-        else:
-            self.states = np.array([self.readData(i) for i in self.def_tagin])
 
-        self.u0 = self.mpc.make_step(x0)
-        
-        if self.tagout == []:
-            for count, item in enumerate(self.def_tagout):
-                self.writeData([self.u0.flatten()[count]], item)
-        else:
-            for count, item in enumerate(self.tagout):
-                self.writeData(self.u0.flatten()[count].tolist(), item)
+        self.input = np.array([self.client.readData(i) for i in self.tagin]).reshape(-1,1)
+
+        self.output = self.do_mpc_object.make_step(self.input)
+
+        self.write_current(self.output)
+
+
+    def write_current(self, data):        
+        for count, item in enumerate(self.tagout):
+            self.client.writeData([data.flatten()[count]], item)
 
 
     def async_run(self):
@@ -393,14 +350,8 @@ class RTController:
         self.new_init = True
 
 
-    def x0_server(self):
-        if self.def_tagin == []:
-            for count, item in enumerate(self.tagin):
-                self.writeData([float(np.array(vertcat(mpc.x0)).flatten()[count])],item)
 
-
-#%%        
-
+#%%
 @dataclass
 class NamespaceEntry:
     objectnode: str
@@ -628,29 +579,76 @@ x0 = np.array([X_s_0, S_s_0, P_s_0, V_s_0])
 mpc.x0 = x0
 mpc.set_initial_guess()
 # Client1 = RTClient(client_opts_1,ns)
+
+
+simulator = do_mpc.simulator.Simulator(model)
+
+params_simulator = {
+    'integration_tool': 'cvodes',
+    'abstol': 1e-10,
+    'reltol': 1e-10,
+    't_step': 1.0
+}
+
+simulator.set_param(**params_simulator)
+
+p_num = simulator.get_p_template()
+
+p_num['Y_x'] = 0.4
+p_num['S_in'] = 200.0
+
+# function definition
+def p_fun(t_now):
+    return p_num
+
+# Set the user-defined function above as the function for the realization of the uncertain parameters
+simulator.set_p_fun(p_fun)
+
+simulator.setup()
+simulator.x0 = x0
 #%%
-Client1 = RTClient(client_opts_1,ns)
-Client2 = RTClient(client_opts_2,ns2)
+# Client1 = RTClient(client_opts_1,ns)
+# Client2 = RTClient(client_opts_2,ns2)
 Server = RTServer(server_opts)
 # Server.namespace_from_client(Client1)
 # Server.namespace_from_client(Client2)
-rt_mpc = RTController(mpc, client_opts_1, 'model1', 20)
-rt_mpc2 = RTController(mpc, client_opts_2, 'model2')
+rt_mpc = RTBase(mpc, client_opts_1, 'model1')
+rt_sim = RTBase(simulator, client_opts_2, 'model2')
+rt_mpc.set_read_write(read='x', write='u')
+rt_sim.set_read_write(read='u', write='x')
+
 Server.namespace_from_client(rt_mpc)
-Server.namespace_from_client(rt_mpc2)
+Server.namespace_from_client(rt_sim)
+#%%
 # Server.get_all_nodes()
 rt_mpc.set_default_write_ns()
+rt_sim.set_default_write_ns()
+#%%
 # rt_mpc.set_default_read_ns()
-rt_mpc.readfrom(rt_mpc2)
+rt_mpc.readfrom(rt_sim)
+rt_sim.readfrom(rt_mpc)
 #%%
 # Server.get_all_nodes()
 Server.start()
 rt_mpc.connect()
+rt_sim.connect()
 
 # rt_mpc.x0_server()
-rt_mpc.x0_server()
+# rt_sim.x0_server()
 # rt_mpc.make_step()
+# rt_sim.init_server()
+#%%
 rt_mpc.async_step_start()
+rt_sim.async_step_start()
+#%%
+
 #%%
 # Server.stop()
+# %%
+
+for i in range(200):
+    print({'u':rt_mpc.client.readData('ns=2;s=u[inp]'),
+    'x':rt_mpc.client.readData('ns=3;s=x[X_s]')})
+    time.sleep(5)
+
 # %%
