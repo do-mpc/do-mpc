@@ -35,6 +35,7 @@ from dataclasses import dataclass, asdict
 from typing import List
 from threading import Timer, Thread
 import do_mpc
+from casadi import *
 try:
     import asyncua.sync as opcua
 except ImportError:
@@ -76,7 +77,7 @@ class RTServer:
         
     def namespace_from_client(self, client):
         # Obtain all namespaces saved by the client
-        self.namespace += client.return_namespace()
+        self.namespace += client.client.return_namespace()
         
         # Create the obtained namespaces on the server, if they do not already exist
         for key_0 in self.namespace:
@@ -180,7 +181,7 @@ class RTClient:
     
     def register_namespace_from_client(self, client):
         # Register namspaces from another client
-        self.namespace_list.append(client.return_namespace()[0])
+        self.namespace_list.append(client.client.return_namespace()[0])
     
     def add_namespace_url(self, url):
         # Method used by server to mark namespaces with the corresponding url
@@ -250,10 +251,8 @@ class RTBase:
         try:
             self.client.connect()
             print("The real-time controller connected to the server")
-
             if self.writevariable == 'x':
                 self.write_current(np.array(vertcat(self.do_mpc_object.x0)))
-
         except RuntimeError:
             self.enabled = False
             print("The real-time controller could not connect to the server. Please check the server setup.")
@@ -261,10 +260,9 @@ class RTBase:
     def diconnect(self):
         try:
             self.client.disconnect()
-
         except RuntimeError:
             print("The real-time controller could not be stopped due to server issues. Please stop the client manually and delete the object!")
-        
+
     def set_read_write(self, read='x', write='u'):
         self.readvariable = read
         self.writevariable = write
@@ -274,13 +272,10 @@ class RTBase:
             for dclass in self.def_namespace.entry_list:
                 if dclass.objectnode == self.writevariable:
                     self.tagout.append(dclass.get_node_id(self.def_namespace._namespace_index))
-                elif dclass.objectnode == 'x':
-                    self.init_server_tags.append(dclass.get_node_id(self.def_namespace._namespace_index))
 
             print('Default write-nodes set as {}.'.format(self.tagout))
         else:
             print('Namespace index is unknown. Please register this client on the target server first using: RTServer.namespace_from_client(Client)')
-
 
     def set_default_read_ns(self):
         if isinstance(self.def_namespace._namespace_index, int):
@@ -289,34 +284,26 @@ class RTBase:
                     self.tagin.append(dclass.get_node_id(self.def_namespace._namespace_index))
 
             print('Default read-nodes set as {}.'.format(self.tagin))
-
         else:
             print('Namespace index is unknown. Please register this client on the target server first using: RTServer.namespace_from_client(Client)')
-    
-    def return_namespace(self):
-        return self.client.return_namespace()
 
 
     def readfrom(self, controller):
         self.client.register_namespace_from_client(controller)
-        new_ns = self.return_namespace()[-1]
-
+        new_ns = self.client.return_namespace()[-1]
         if isinstance(new_ns._namespace_index, int):
             for dclass in new_ns.entry_list:
                 if dclass.objectnode == self.readvariable:
                     self.tagin.append(dclass.get_node_id(new_ns._namespace_index))
 
             print('Read-nodes set as {}.'.format(self.tagin))
-
         else:
             print('Namespace index is unknown to target server. Please register this client on the target server first using: RTServer.namespace_from_client(Client)')
 
+
     def make_step(self):
-
         self.input = np.array([self.client.readData(i) for i in self.tagin]).reshape(-1,1)
-
         self.output = self.do_mpc_object.make_step(self.input)
-
         self.write_current(self.output)
 
 
@@ -379,7 +366,6 @@ class Namespace:
     def return_ns_dict(self):
         return asdict(self)
 
-
     @property
     def namespace_index(self):
         if self._namespace_index == None:
@@ -396,6 +382,8 @@ class Namespace:
 
     #TODO: def __getitem__(self, index):
         # für besseres indexing
+
+
 class namespace_from_model:    
 
     def summarized(model, model_name, object_name):
@@ -429,6 +417,7 @@ class namespace_from_model:
 
         return Namespace(model_name, node_list)
 
+
 @dataclass
 class ServerOpts:
     name: str
@@ -443,212 +432,3 @@ class ClientOpts:
     port: int
 
 
-
-e1 = NamespaceEntry(
-    'plant', 'state1.x', 2
-)
-e2 = NamespaceEntry(
-    'pizza', 'state2.x', 2
-)
-e3 = NamespaceEntry(
-    'plant', 'state3.x', 2
-)
-
-ns = Namespace('controller', [e1,e2])
-ns2 = Namespace('estimator',[e3])
-#%% Server setup
-
-
-# Defining the settings for the OPCUA server
-server_opts = ServerOpts("Bio Reactor OPCUA",      # give the server whatever name you prefer
-               "opc.tcp://localhost:4840/freeopcua/server/",  # does not need changing
-               4840,                    # does not need changing
-               False)                 # set to True if you plan to use the SQL database during/after the runtime 
-
-server_opts_2 = ServerOpts("Bio Reactor OPCUA",      # give the server whatever name you prefer
-               "opc.tcp://localhost:4840/freeopcua/server/",  # does not need changing
-               4841,                    # does not need changing
-               False)   
-
-
-
-client_opts_1 = ClientOpts("Bio Reactor OPCUA Client_1","opc.tcp://localhost:4840/freeopcua/server/",4840)
-client_opts_2 = ClientOpts("Bio Reactor OPCUA Client_2","opc.tcp://localhost:4840/freeopcua/server/",4840)
-
-
-#%%
-
-
-
-import sys
-from casadi import *
-
-# Add do_mpc to path. This is not necessary if it was installed via pip
-sys.path.append('../../../')
-
-# Import do_mpc package:
-import do_mpc
-
-model_type = 'continuous' # either 'discrete' or 'continuous'
-model = do_mpc.model.Model(model_type)
-
-# States struct (optimization variables):
-X_s = model.set_variable('_x',  'X_s')
-S_s = model.set_variable('_x',  'S_s')
-P_s = model.set_variable('_x',  'P_s')
-V_s = model.set_variable('_x',  'V_s')
-
-# Input struct (optimization variables):
-inp = model.set_variable('_u',  'inp')
-
-# Certain parameters
-mu_m  = 0.02
-K_m   = 0.05
-K_i   = 5.0
-v_par = 0.004
-Y_p   = 1.2
-
-# Uncertain parameters:
-Y_x  = model.set_variable('_p',  'Y_x')
-S_in = model.set_variable('_p', 'S_in')
-
-# Auxiliary term
-mu_S = mu_m*S_s/(K_m+S_s+(S_s**2/K_i))
-
-# Differential equations
-model.set_rhs('X_s', mu_S*X_s - inp/V_s*X_s)
-model.set_rhs('S_s', -mu_S*X_s/Y_x - v_par*X_s/Y_p + inp/V_s*(S_in-S_s))
-model.set_rhs('P_s', v_par*X_s - inp/V_s*P_s)
-model.set_rhs('V_s', inp)
-
-# Build the model
-model.setup()
-
-mpc = do_mpc.controller.MPC(model)
-
-setup_mpc = {
-    'n_horizon': 20,
-    'n_robust': 1,
-    'open_loop': 0,
-    't_step': 1.0,
-    'state_discretization': 'collocation',
-    'collocation_type': 'radau',
-    'collocation_deg': 2,
-    'collocation_ni': 2,
-    'store_full_solution': True,
-    # Use MA27 linear solver in ipopt for faster calculations:
-    #'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
-}
-
-mpc.set_param(**setup_mpc)
-
-mterm = -model.x['P_s'] # terminal cost
-lterm = -model.x['P_s'] # stage cost
-
-mpc.set_objective(mterm=mterm, lterm=lterm)
-mpc.set_rterm(inp=1.0) # penalty on input changes
-
-# lower bounds of the states
-mpc.bounds['lower', '_x', 'X_s'] = 0.0
-mpc.bounds['lower', '_x', 'S_s'] = -0.01
-mpc.bounds['lower', '_x', 'P_s'] = 0.0
-mpc.bounds['lower', '_x', 'V_s'] = 0.0
-
-# upper bounds of the states
-mpc.bounds['upper', '_x','X_s'] = 3.7
-mpc.bounds['upper', '_x','P_s'] = 3.0
-
-# upper and lower bounds of the control input
-mpc.bounds['lower','_u','inp'] = 0.0
-mpc.bounds['upper','_u','inp'] = 0.2
-
-Y_x_values = np.array([0.5, 0.4, 0.3])
-S_in_values = np.array([200.0, 220.0, 180.0])
-
-mpc.set_uncertainty_values(Y_x = Y_x_values, S_in = S_in_values)
-
-mpc.setup()
-
-# Initial state
-X_s_0 = 1.0 # Concentration biomass [mol/l]
-S_s_0 = 0.5 # Concentration substrate [mol/l]
-P_s_0 = 0.0 # Concentration product [mol/l]
-V_s_0 = 120.0 # Volume inside tank [m^3]
-x0 = np.array([X_s_0, S_s_0, P_s_0, V_s_0])
-
-mpc.x0 = x0
-mpc.set_initial_guess()
-# Client1 = RTClient(client_opts_1,ns)
-
-
-simulator = do_mpc.simulator.Simulator(model)
-
-params_simulator = {
-    'integration_tool': 'cvodes',
-    'abstol': 1e-10,
-    'reltol': 1e-10,
-    't_step': 1.0
-}
-
-simulator.set_param(**params_simulator)
-
-p_num = simulator.get_p_template()
-
-p_num['Y_x'] = 0.4
-p_num['S_in'] = 200.0
-
-# function definition
-def p_fun(t_now):
-    return p_num
-
-# Set the user-defined function above as the function for the realization of the uncertain parameters
-simulator.set_p_fun(p_fun)
-
-simulator.setup()
-simulator.x0 = x0
-#%%
-# Client1 = RTClient(client_opts_1,ns)
-# Client2 = RTClient(client_opts_2,ns2)
-Server = RTServer(server_opts)
-# Server.namespace_from_client(Client1)
-# Server.namespace_from_client(Client2)
-rt_mpc = RTBase(mpc, client_opts_1, 'model1')
-rt_sim = RTBase(simulator, client_opts_2, 'model2')
-rt_mpc.set_read_write(read='x', write='u')
-rt_sim.set_read_write(read='u', write='x')
-
-Server.namespace_from_client(rt_mpc)
-Server.namespace_from_client(rt_sim)
-#%%
-# Server.get_all_nodes()
-rt_mpc.set_default_write_ns()
-rt_sim.set_default_write_ns()
-#%%
-# rt_mpc.set_default_read_ns()
-rt_mpc.readfrom(rt_sim)
-rt_sim.readfrom(rt_mpc)
-#%%
-# Server.get_all_nodes()
-Server.start()
-rt_mpc.connect()
-rt_sim.connect()
-
-# rt_mpc.x0_server()
-# rt_sim.x0_server()
-# rt_mpc.make_step()
-# rt_sim.init_server()
-#%%
-rt_mpc.async_step_start()
-rt_sim.async_step_start()
-#%%
-
-#%%
-# Server.stop()
-# %%
-
-for i in range(200):
-    print({'u':rt_mpc.client.readData('ns=2;s=u[inp]'),
-    'x':rt_mpc.client.readData('ns=3;s=x[X_s]')})
-    time.sleep(5)
-
-# %%
