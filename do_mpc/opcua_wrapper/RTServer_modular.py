@@ -32,7 +32,7 @@ import time
 import numpy as np
 import pandas as pd
 from dataclasses import dataclass, asdict
-from typing import List
+from typing import List, Optional
 from threading import Timer, Thread
 import do_mpc
 from casadi import *
@@ -49,12 +49,9 @@ class RTServer:
     def __init__(self, opts):
        
         # The basic OPCUA server definition contains a name, address and a port numer
-        # The user can decide if they want to activate the SQL database option (_with_db=TRUE)
         self.name    = opts.name
         self.address = opts.address
         self.port    = opts.port
-        self.with_db = opts.db
-        self.namespace = []
 
         # Try to create the server
         try:
@@ -65,78 +62,49 @@ class RTServer:
             print("Server could not be created. Check your opcua module installation!")
             return False
 
-            
-        
-        # Mark the server as created & not yet running
-        self.created = True
-        self.running = False
-        
-        # Initiate SQL database
-        if self.with_db == True:
-            self.opcua_server.aio_obj.iserver.history_manager.set_storage(HistorySQLite('node_history.sql'))
         
     def namespace_from_client(self, client):
-        # Obtain all namespaces saved by the client
-        self.namespace += client.client.return_namespace()
-        
-        # Create the obtained namespaces on the server, if they do not already exist
-        for key_0 in self.namespace:
-            object_dict = {}
-            if key_0._namespace_index == None:
-                idx = self.opcua_server.register_namespace(key_0.namespace_name)
-            else:
-                print(f"The namespace {key_0.namespace_name} was already registered on this server.")
-                continue
-            
+        # Obtain client namespace
+        client_namespace = client.client.return_namespace()
+        self.object_dict = {}  
+        # Create the obtained namespace on the server, if it doesent already exist
+        if client_namespace._namespace_index == None:
+            idx = self.opcua_server.register_namespace(client_namespace.namespace_name)
+        else:
+            print(f"The namespace {client_namespace.namespace_name} was already registered on this server.")
+        # Populate namespace with object nodes and variables
+        for namespace_entry in client_namespace.entry_list: # Iterate through all namespace entries
+            if  namespace_entry.dim > 0: # Check if the variable even exists inside the do-mpc model
+                if namespace_entry.objectnode not in self.object_dict.keys(): # Check if the object node specified inside the namespace_entry dataclass was alreade created
+                    object = self.opcua_server.nodes.objects.add_object(idx, namespace_entry.objectnode) # Create the object node
+                    self.object_dict[namespace_entry.objectnode] = object # Add object node to object_node dict, used to make sure no object node is created twice
+                    self.add_variable_to_node(namespace_entry, idx)
 
-            for key_1 in key_0.entry_list:
-                if  key_1.dim > 0:
-                    if key_1.objectnode not in object_dict.keys():
-                        object = self.opcua_server.nodes.objects.add_object(idx, key_1.objectnode)
-                        placeholder = [0.0] * key_1.dim
-                        variable_name_ = key_1.objectnode + '[' + key_1.variable + ']'
-                        datavector = object.add_variable(opcua.ua.NodeId(variable_name_, idx), variable_name_, placeholder)
-                        datavector.set_writable()
-                        object_dict[key_1.objectnode] = object
-                        key_1.variable = variable_name_
-
-                    else:
-                        placeholder = [0.0] * key_1.dim
-                        variable_name_ = key_1.objectnode + '[' + key_1.variable + ']'
-                        datavector = object_dict[key_1.objectnode].add_variable(opcua.ua.NodeId(variable_name_, idx), variable_name_, placeholder)
-                        datavector.set_writable()
-                        key_1.variable = variable_name_
-                        
                 else:
-                    continue
+                    self.add_variable_to_node(namespace_entry, idx)
+                    
+            else:
+                continue
 
-            key_0._namespace_index = idx
+            client_namespace._namespace_index = idx
             client.client.add_namespace_url(idx)
             
         self.opcua_server.get_namespace_array()
         print(f"The following namespaces are registered: {self.opcua_server.get_namespace_array()[2:]}")
-    
 
-    # Get a list with all node ID's for the SQL database    
-    def get_all_nodes(self):        
-        node_list = []
-        for ns_entry in self.namespace:
-            for ns_object in ns_entry.entry_list:
-                id = ns_object.get_node_id(ns_entry._namespace_index)
-                node_list.append(self.opcua_server.get_node(id))
-        return node_list
-    
+
+    def add_variable_to_node(self, NamespaceEntry, Namespace_url):
+        placeholder = [0.0] * NamespaceEntry.dim
+        variable_name = NamespaceEntry.objectnode + '[' + NamespaceEntry.variable + ']'
+        datavector = self.object_dict[NamespaceEntry.objectnode].add_variable(opcua.ua.NodeId(variable_name, Namespace_url), variable_name, placeholder)
+        datavector.set_writable()
+        NamespaceEntry.variable = variable_name
+
     
     # Start server
     def start(self):
         try:
             self.opcua_server.start()
-            if self.with_db == True:
-                for it in self.get_all_nodes():
-                    try:
-                        self.opcua_server.aio_obj.historize_node_data_change(it,count=1e6)
-                    except:
-                        print("SQL database error, the following node can not be historized:\n", it) 
             self.running = True            
             return True
         except RuntimeError as err:
@@ -158,14 +126,14 @@ class RTServer:
 #%%
 class RTClient:
 
-    def __init__(self, opts, write_namespace):       
+    def __init__(self, opts, namespace):       
         # Information for connection to server
         self.server_address = opts.address
         self.port           = opts.port
         self.name           = opts.name
         
         # Information relevant for the client specific namespace
-        self.namespace_list = [write_namespace]
+        self.namespace = namespace
 
         # Create Client and check if server is responding
         try:
@@ -177,17 +145,15 @@ class RTClient:
 
     def return_namespace(self):        
         # Returns all registered namespaces
-            return self.namespace_list
+            return self.namespace
     
-    def register_namespace_from_client(self, client):
-        # Register namspaces from another client
-        self.namespace_list.append(client.client.return_namespace()[0])
+    # def register_namespace_from_client(self, client):
+    #     # Register namspaces from another client
+    #     self.namespace_list.append(client.client.return_namespace()[0])
     
     def add_namespace_url(self, url):
-        # Method used by server to mark namespaces with the corresponding url
-        for item in self.namespace_list:
-            item._namespace_index = url
-
+        # Method used by server to mark namespace with the corresponding url
+        self.namespace._namespace_index = url
 
 
 
@@ -235,70 +201,47 @@ class RTClient:
 
 class RTBase:
 
-    def __init__(self, do_mpc_object, clientOpts, m_name):
+    def __init__(self, do_mpc_object, clientOpts, namespace=None):#:Optional[Namespace]=None):
         self.do_mpc_object = do_mpc_object
-        self.def_namespace = namespace_from_model.detailed(self.do_mpc_object.model, model_name=m_name)
+
+        if namespace == None:
+            self.get_default_namespace(clientOpts.name)
+        else:
+            self.def_namespace = namespace
+
         self.cycle_time = do_mpc_object.t_step
         self.client = RTClient(clientOpts, self.def_namespace)
         self.tagout = []
         self.tagin = []
-        self.init_server_tags = []
+        # self.init_server_tags = []
         self.is_running = False
         self.new_init = True
+
+    def get_default_namespace(self, namespace_name):
+        self.def_namespace = namespace_from_model(self.do_mpc_object.model, namespace_name)
 
 
     def connect(self):
         try:
             self.client.connect()
             print("The real-time controller connected to the server")
-            if self.writevariable == 'x':
-                self.write_current(np.array(vertcat(self.do_mpc_object.x0)))
         except RuntimeError:
             self.enabled = False
             print("The real-time controller could not connect to the server. Please check the server setup.")
 
-    def diconnect(self):
+    def disconnect(self):
         try:
             self.client.disconnect()
         except RuntimeError:
             print("The real-time controller could not be stopped due to server issues. Please stop the client manually and delete the object!")
 
-    def set_read_write(self, read='x', write='u'):
-        self.readvariable = read
-        self.writevariable = write
 
-    def set_default_write_ns(self):
-        if isinstance(self.def_namespace._namespace_index, int):
-            for dclass in self.def_namespace.entry_list:
-                if dclass.objectnode == self.writevariable:
-                    self.tagout.append(dclass.get_node_id(self.def_namespace._namespace_index))
-
-            print('Default write-nodes set as {}.'.format(self.tagout))
-        else:
-            print('Namespace index is unknown. Please register this client on the target server first using: RTServer.namespace_from_client(Client)')
-
-    def set_default_read_ns(self):
-        if isinstance(self.def_namespace._namespace_index, int):
-            for dclass in self.def_namespace.entry_list:
-                if dclass.objectnode == self.readvariable:
-                    self.tagin.append(dclass.get_node_id(self.def_namespace._namespace_index))
-
-            print('Default read-nodes set as {}.'.format(self.tagin))
-        else:
-            print('Namespace index is unknown. Please register this client on the target server first using: RTServer.namespace_from_client(Client)')
+    def set_write_tags(self,tagout:List[str]):
+        self.tagout = tagout
 
 
-    def readfrom(self, controller):
-        self.client.register_namespace_from_client(controller)
-        new_ns = self.client.return_namespace()[-1]
-        if isinstance(new_ns._namespace_index, int):
-            for dclass in new_ns.entry_list:
-                if dclass.objectnode == self.readvariable:
-                    self.tagin.append(dclass.get_node_id(new_ns._namespace_index))
-
-            print('Read-nodes set as {}.'.format(self.tagin))
-        else:
-            print('Namespace index is unknown to target server. Please register this client on the target server first using: RTServer.namespace_from_client(Client)')
+    def set_read_tags(self, tagin:List[str]):
+        self.tagin = tagin
 
 
     def make_step(self):
@@ -331,11 +274,13 @@ class RTBase:
             self.is_running = True
 
 
-    def async_step_stop(self ):
+    def async_step_stop(self):
         self.thread.cancel()
         self.is_running = False
         self.new_init = True
 
+    def init_server(self):
+        self.write_current(np.array(vertcat(self.do_mpc_object.x0)))
 
 
 #%%
@@ -346,6 +291,8 @@ class NamespaceEntry:
     dim: int
 
     def get_node_id(self, namespace_index):
+        if namespace_index == None:
+            raise Exception('Namespace_index not defined')
         return f'ns={namespace_index};s={self.variable}'
     
 
@@ -356,66 +303,23 @@ class Namespace:
     entry_list: List[NamespaceEntry]
     _namespace_index: int = None
 
-    def add_entries(self, entries: List[NamespaceEntry]):
-        pass
+    def __getitem__(self, nodename: str):
+        return [entry.get_node_id(self._namespace_index) for entry in self.entry_list if entry.objectnode == nodename]
 
 
-    def has_entry(self, entry: NamespaceEntry):
-        return (entry in self.entry_list)
-    
-    def return_ns_dict(self):
-        return asdict(self)
+def namespace_from_model(model, model_name):
+    node_list = []
+    variable_list = ['aux', 'p', 'tvp', 'u', 'v', 'w', 'x', 'y', 'z']
 
-    @property
-    def namespace_index(self):
-        if self._namespace_index == None:
-            raise Exception('Namespace is not registered at server.')
+    for var in variable_list:
+        for key in model[var].labels():
+            key = key.strip('[]').split(',')
+            if key[0] != 'default':
+                node_list.append(NamespaceEntry(var, key[0], 1 + int(key[-1])))
+            else:
+                continue
 
-        return self._namespace_index
-    
-    @namespace_index.setter
-    def namespace_index(self, val):
-        if not isinstance(val, int):
-            raise ValueError('argument must be an integer')
-        
-        self._namespace_index = val
-
-    #TODO: def __getitem__(self, index):
-        # für besseres indexing
-
-
-class namespace_from_model:    
-
-    def summarized(model, model_name, object_name):
-        node_list = []
-        model_dict = {'aux':model.n_aux,
-                        'p':model.n_p,
-                            'tvp':model.n_tvp, 
-                            'u':model.n_u, 
-                            'v':model.n_v, 
-                            'w':model.n_w, 
-                            'x':model.n_x, 
-                            'y':model.n_y, 
-                            'z':model.n_z}
-            
-        for key in model_dict:
-            node = NamespaceEntry(object_name, key, model_dict[key])
-            node_list.append(node)
-            
-        return Namespace(model_name, node_list)
-
-    def detailed(model, model_name='do_mpc_model'):
-        node_list = []
-        variable_list = ['aux', 'p', 'tvp', 'u', 'v', 'w', 'x', 'y', 'z']
-
-        for var in variable_list:
-            for key in model[var].keys():
-                if key != 'default':
-                    node_list.append(NamespaceEntry(var, key, 1))
-                else:
-                    continue
-
-        return Namespace(model_name, node_list)
+    return Namespace(model_name, node_list)
 
 
 @dataclass
@@ -423,7 +327,7 @@ class ServerOpts:
     name: str
     address: str
     port: int
-    db: bool
+
 
 @dataclass
 class ClientOpts:

@@ -1,10 +1,12 @@
 #%%
 import sys
 from casadi import *
+import importlib
 import time
 import do_mpc
 import numpy as np
 from RTServer_modular import RTServer, RTBase, NamespaceEntry, Namespace, ServerOpts, ClientOpts
+# importlib.reload(RTServer_modular)
 
 def bio_model():
     model_type = 'continuous' # either 'discrete' or 'continuous'
@@ -185,33 +187,19 @@ x0 = np.array([X_s_0, S_s_0, P_s_0, V_s_0])
 controller.x0 = x0
 controller.set_initial_guess()
 simulator.x0 = x0
-#%%
 
-e1 = NamespaceEntry(
-    'plant', 'state1.x', 2
-)
-e2 = NamespaceEntry(
-    'pizza', 'state2.x', 2
-)
-e3 = NamespaceEntry(
-    'plant', 'state3.x', 2
-)
 
-ns = Namespace('controller', [e1,e2])
-ns2 = Namespace('estimator',[e3])
 #%% Server setup
 
 
 # Defining the settings for the OPCUA server
 server_opts = ServerOpts("Bio Reactor OPCUA",   
                "opc.tcp://localhost:4840/freeopcua/server/",  
-               4840,                   
-               False)                 
+               4840)                 
 
 server_opts_2 = ServerOpts("Bio Reactor OPCUA",      
                "opc.tcp://localhost:4840/freeopcua/server/",  
-               4841,                    
-               False)   
+               4841)   
 
 
 
@@ -219,28 +207,29 @@ client_opts_1 = ClientOpts("Bio Reactor OPCUA Client_1","opc.tcp://localhost:484
 client_opts_2 = ClientOpts("Bio Reactor OPCUA Client_2","opc.tcp://localhost:4840/freeopcua/server/",4840)
 
 Server = RTServer(server_opts)
-rt_mpc = RTBase(controller, client_opts_1, 'model1')
-rt_sim = RTBase(simulator, client_opts_2, 'model2')
-rt_mpc.set_read_write(read='x', write='u')
-rt_sim.set_read_write(read='u', write='x')
+rt_mpc = RTBase(controller, client_opts_1)
+rt_sim = RTBase(simulator, client_opts_2)
 
 Server.namespace_from_client(rt_mpc)
 Server.namespace_from_client(rt_sim)
+
+rt_mpc.set_write_tags(rt_mpc.def_namespace['u'])
+rt_sim.set_write_tags(rt_sim.def_namespace['x'])
+rt_mpc.set_read_tags(rt_sim.def_namespace['x'])
+rt_sim.set_read_tags(rt_mpc.def_namespace['u'])
 #%%
 # Server.get_all_nodes()
-rt_mpc.set_default_write_ns()
-rt_sim.set_default_write_ns()
+
 #%%
 # rt_mpc.set_default_read_ns()
-rt_mpc.readfrom(rt_sim)
-rt_sim.readfrom(rt_mpc)
+
 #%%
 # Server.get_all_nodes()
 Server.start()
 rt_mpc.connect()
 rt_sim.connect()
 
-
+rt_sim.init_server()
 #%%
 rt_mpc.async_step_start()
 rt_sim.async_step_start()
@@ -250,11 +239,15 @@ rt_sim.async_step_start()
 # Server.stop()
 # %%
 
-for i in range(200):
+for i in range(2):
     print({'u':rt_mpc.client.readData('ns=2;s=u[inp]'),
     'x':rt_mpc.client.readData('ns=3;s=x[X_s]')})
-    time.sleep(5)
+    time.sleep(3)
 
+rt_mpc.async_step_stop()
+rt_sim.async_step_stop()
+rt_mpc.disconnect()
+rt_sim.disconnect()
 # %%
 
 ''' 
@@ -263,4 +256,9 @@ Diskussionspunkte mit Felix:
 -gucken was felix an der set_read_write() class auszusetzen hat bzw. woher weiß base was sie ist?
 -Fehlermeldungen
 -felix nach seiner meinung zur Leikonsache fragen
+-wie soll die manuelle ns eingabe ablaufen und welchen zweck soll sie haben?
+-wie sieht der do-mpc output für n-dim aus? np.array([?])
+
+TODO:
+
 '''
