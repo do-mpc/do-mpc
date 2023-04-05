@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Feb  7 12:23:15 2023
-
-@author: User
-"""
 
 #
 #   This file is part of do-mpc
@@ -11,7 +5,7 @@ Created on Tue Feb  7 12:23:15 2023
 #   do-mpc: An environment for the easy, modular and efficient implementation of
 #        robust nonlinear model predictive control
 #
-#   Copyright (c) 2014-2020 Sergio Lucia, Felix Riedl, Alexandru Tatulea-Codrean
+#   Copyright (c) 2014-2019 Sergio Lucia, Alexandru Tatulea-Codrean
 #                        TU Dortmund. All rights reserved
 #
 #   do-mpc is free software: you can redistribute it and/or modify
@@ -27,22 +21,21 @@ Created on Tue Feb  7 12:23:15 2023
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
-#%%
+
 import time
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass, asdict
-from typing import List, Optional
+from dataclasses import dataclass
+from typing import List
 from threading import Timer, Thread
-import do_mpc
 from casadi import *
+
 try:
     import asyncua.sync as opcua
 except ImportError:
     raise ImportError("The asyncua library is not installed. Please install it and try again.")
         
-from asyncua.server.history_sql import HistorySQLite
-#%%
+
 
 class RTServer:
 
@@ -73,31 +66,40 @@ class RTServer:
         else:
             print(f"The namespace {client_namespace.namespace_name} was already registered on this server.")
         # Populate namespace with object nodes and variables
-        for namespace_entry in client_namespace.entry_list: # Iterate through all namespace entries
-            if  namespace_entry.dim > 0: # Check if the variable even exists inside the do-mpc model
-                if namespace_entry.objectnode not in self.object_dict.keys(): # Check if the object node specified inside the namespace_entry dataclass was alreade created
-                    object = self.opcua_server.nodes.objects.add_object(idx, namespace_entry.objectnode) # Create the object node
-                    self.object_dict[namespace_entry.objectnode] = object # Add object node to object_node dict, used to make sure no object node is created twice
-                    self.add_variable_to_node(namespace_entry, idx)
+        # Iterate through all namespace entries
+        for namespace_entry in client_namespace.entry_list: 
+            # Check if the variable even exists inside the do-mpc model
+            if  namespace_entry.dim > 0: 
+                # Check if the object node specified inside the namespace_entry dataclass was alreade created
+                if namespace_entry.objectnode not in self.object_dict.keys(): 
+                    # Create the object node
+                    object = self.opcua_server.nodes.objects.add_object(idx, namespace_entry.objectnode)
+                    # Add object node to object_node dict, used to make sure no object node is created twice
+                    self.object_dict[namespace_entry.objectnode] = object
+                    # Add variable to object node
+                    self.add_variable_to_node(namespace_entry, idx) 
 
                 else:
                     self.add_variable_to_node(namespace_entry, idx)
-                    
+
+            # Pass iteration if variable doesent exists
             else:
                 continue
-
-            client_namespace._namespace_index = idx
-            client.client.add_namespace_url(idx)
-            
-        self.opcua_server.get_namespace_array()
+        
+        # Write namespace index into client namespace so the client knows where to find the variables
+        client.client.add_namespace_url(idx)     
         print(f"The following namespaces are registered: {self.opcua_server.get_namespace_array()[2:]}")
 
 
     def add_variable_to_node(self, NamespaceEntry, Namespace_url):
+        # Create a placholder list containing floats for each variable
         placeholder = [0.0] * NamespaceEntry.dim
+        # Create descriptive variable names: Object_node[Variavle]
         variable_name = NamespaceEntry.objectnode + '[' + NamespaceEntry.variable + ']'
+        # Add variable to object node
         datavector = self.object_dict[NamespaceEntry.objectnode].add_variable(opcua.ua.NodeId(variable_name, Namespace_url), variable_name, placeholder)
         datavector.set_writable()
+        # Write descreptive wariable name to client namespace
         NamespaceEntry.variable = variable_name
 
     
@@ -105,25 +107,23 @@ class RTServer:
     def start(self):
         try:
             self.opcua_server.start()
-            self.running = True            
-            return True
+
         except RuntimeError as err:
             print("The server "+ self.name +" could not be started, returned error message :\n", err)
-            return False
+
     
         
     # Stop server
     def stop(self):
         try:
             self.opcua_server.stop()
-
             print("The server  "+ self.name +" was stopped successfully @ ",time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))
-            self.running = False
-            return True
+
         except RuntimeError as err:
             print("The server could not be stopped, returned error message :\n", err)
-            return False
-#%%
+
+
+
 class RTClient:
 
     def __init__(self, opts, namespace):       
@@ -139,38 +139,32 @@ class RTClient:
         try:
             self.opcua_client = opcua.Client(self.server_address)
             print("A client named -", self.name, "- was created")
+
         except RuntimeError:
-            # TODO: catch the correct error and parse message
             print("The connection to the server could not be established\n", self.server_address, "is not responding")
 
+
     def return_namespace(self):        
-        # Returns all registered namespaces
             return self.namespace
     
-    # def register_namespace_from_client(self, client):
-    #     # Register namspaces from another client
-    #     self.namespace_list.append(client.client.return_namespace()[0])
-    
+
+    # Method used by server to mark namespace with the corresponding url
     def add_namespace_url(self, url):
-        # Method used by server to mark namespace with the corresponding url
         self.namespace._namespace_index = url
 
-
-
+    # This function implements (re)connection to the designated server
     def connect(self):
-        # This function implements (re)connection to the designated server
         try:
             self.opcua_client.connect()
             print("The -", self.name, "- has just connected to ",self.server_address)
-            self.connected = True
+
         except RuntimeError:
-            # TODO: catch the correct error and parse message
             print("The connection to the server could not be established\n", self.server_address,
                   " is not responding")
 
+
     def disconnect(self):
         self.opcua_client.disconnect()
-        self.connected = False
         print("A client of type", self.name,"disconnected from server",self.server_address)
         
 
@@ -186,6 +180,7 @@ class RTClient:
         
         return wr_result
 
+
     def readData(self, tag):
            
         try:
@@ -195,13 +190,9 @@ class RTClient:
         return dataVal
     
 
-
-
-#%%        
-
 class RTBase:
 
-    def __init__(self, do_mpc_object, clientOpts, namespace=None):#:Optional[Namespace]=None):
+    def __init__(self, do_mpc_object, clientOpts, namespace=None):
         self.do_mpc_object = do_mpc_object
 
         if namespace == None:
@@ -213,9 +204,9 @@ class RTBase:
         self.client = RTClient(clientOpts, self.def_namespace)
         self.tagout = []
         self.tagin = []
-        # self.init_server_tags = []
         self.is_running = False
         self.new_init = True
+
 
     def get_default_namespace(self, namespace_name):
         self.def_namespace = namespace_from_model(self.do_mpc_object.model, namespace_name)
@@ -224,10 +215,9 @@ class RTBase:
     def connect(self):
         try:
             self.client.connect()
-            print("The real-time controller connected to the server")
         except RuntimeError:
             self.enabled = False
-            print("The real-time controller could not connect to the server. Please check the server setup.")
+
 
     def disconnect(self):
         try:
@@ -283,7 +273,6 @@ class RTBase:
         self.write_current(np.array(vertcat(self.do_mpc_object.x0)))
 
 
-#%%
 @dataclass
 class NamespaceEntry:
     objectnode: str
