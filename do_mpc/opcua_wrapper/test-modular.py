@@ -13,7 +13,7 @@ def bio_model():
     model = do_mpc.model.Model(model_type)
 
     # States struct (optimization variables):
-    X_s = model.set_variable('_x',  'X_s')
+    X_s = model.set_variable('_x',  'X_s', )
     S_s = model.set_variable('_x',  'S_s')
     P_s = model.set_variable('_x',  'P_s')
     V_s = model.set_variable('_x',  'V_s')
@@ -196,12 +196,6 @@ simulator.x0 = x0
 server_opts = ServerOpts("Bio Reactor OPCUA",   
                "opc.tcp://localhost:4840/freeopcua/server/",  
                4840)                 
-
-server_opts_2 = ServerOpts("Bio Reactor OPCUA",      
-               "opc.tcp://localhost:4840/freeopcua/server/",  
-               4841)   
-
-
 
 client_opts_1 = ClientOpts("Bio Reactor OPCUA Client_1","opc.tcp://localhost:4840/freeopcua/server/",4840)
 client_opts_2 = ClientOpts("Bio Reactor OPCUA Client_2","opc.tcp://localhost:4840/freeopcua/server/",4840)
