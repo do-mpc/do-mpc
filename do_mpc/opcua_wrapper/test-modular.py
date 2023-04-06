@@ -223,7 +223,8 @@ Server.start()
 rt_mpc.connect()
 rt_sim.connect()
 
-rt_sim.init_server()
+rt_sim.write_to_tags(simulator.x0)
+rt_mpc.write_to_tags(controller.u0)
 #%%
 rt_mpc.async_step_start()
 rt_sim.async_step_start()
@@ -234,8 +235,8 @@ rt_sim.async_step_start()
 # %%
 
 for i in range(2):
-    print({'u':rt_mpc.client.readData('ns=2;s=u[inp]'),
-    'x':rt_mpc.client.readData('ns=3;s=x[X_s]')})
+    print({'u':rt_sim.read_from_tags(),
+    'x':rt_mpc.read_from_tags()})
     time.sleep(3)
 
 rt_mpc.async_step_stop()
