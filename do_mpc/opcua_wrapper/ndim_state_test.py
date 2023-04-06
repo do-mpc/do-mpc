@@ -141,6 +141,8 @@ def template_mpc(model):
     mpc.bounds['lower','_u','phi_m_set'] = -5
     mpc.bounds['upper','_u','phi_m_set'] = 5
 
+    suppress_ipopt = {'ipopt.print_level':0, 'ipopt.sb': 'yes', 'print_time':0}
+    mpc.set_param(nlpsol_opts = suppress_ipopt)
     mpc.setup()
 
     return mpc
@@ -224,7 +226,9 @@ Server.start()
 rt_mpc.connect()
 rt_sim.connect()
 
-rt_sim.init_server()
+
+rt_sim.write_to_tags(simulator.x0)
+rt_mpc.write_to_tags(controller.u0)
 #%%
 rt_mpc.async_step_start()
 rt_sim.async_step_start()
@@ -233,13 +237,19 @@ rt_sim.async_step_start()
 #%%
 # Server.stop()
 # %%
-
-# for i in range(2):
-#     print({'u':rt_mpc.client.readData('ns=2;s=u[inp]'),
-#     'x':rt_mpc.client.readData('ns=3;s=x[X_s]')})
-#     time.sleep(3)
+state_list = []
+input_list= []
+for i in range(7*60):
+    print({'u':rt_sim.read_from_tags(),
+    'x':rt_mpc.read_from_tags()})
+    state_list.append(rt_mpc.read_from_tags())
+    input_list.append(rt_sim.read_from_tags())
+    time.sleep(3)
 
 rt_mpc.async_step_stop()
 rt_sim.async_step_stop()
 rt_mpc.disconnect()
 rt_sim.disconnect()
+time.sleep(3)
+Server.stop()
+#%%

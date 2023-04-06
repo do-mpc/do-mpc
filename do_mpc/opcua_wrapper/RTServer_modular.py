@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from typing import List
 from threading import Timer, Thread
 from casadi import *
+import casadi.tools as ctools
 
 try:
     import asyncua.sync as opcua
@@ -57,49 +58,25 @@ class RTServer:
 
         
     def namespace_from_client(self, client):
-        # Obtain client namespace
-        client_namespace = client.client.return_namespace()
-        self.object_dict = {}  
-        # Create the obtained namespace on the server, if it doesent already exist
-        if client_namespace._namespace_index == None:
-            idx = self.opcua_server.register_namespace(client_namespace.namespace_name)
-        else:
-            print(f"The namespace {client_namespace.namespace_name} was already registered on this server.")
-        # Populate namespace with object nodes and variables
-        # Iterate through all namespace entries
+        client_namespace = client.client.namespace
+        self.object_node_dict = {}
+        idx = self.opcua_server.register_namespace(client_namespace.namespace_name)
+
         for namespace_entry in client_namespace.entry_list: 
-            # Check if the variable even exists inside the do-mpc model
-            if  namespace_entry.dim > 0: 
-                # Check if the object node specified inside the namespace_entry dataclass was alreade created
-                if namespace_entry.objectnode not in self.object_dict.keys(): 
-                    # Create the object node
-                    object = self.opcua_server.nodes.objects.add_object(idx, namespace_entry.objectnode)
-                    # Add object node to object_node dict, used to make sure no object node is created twice
-                    self.object_dict[namespace_entry.objectnode] = object
-                    # Add variable to object node
-                    self.add_variable_to_node(namespace_entry, idx) 
+            if namespace_entry.objectnode not in self.object_node_dict.keys():
+                object = self.opcua_server.nodes.objects.add_object(idx, namespace_entry.objectnode)
+                self.object_node_dict[namespace_entry.objectnode] = object
 
-                else:
-                    self.add_variable_to_node(namespace_entry, idx)
+            self.add_variable_to_node(namespace_entry, idx)
 
-            # Pass iteration if variable doesent exists
-            else:
-                continue
-        
-        # Write namespace index into client namespace so the client knows where to find the variables
         client.client.add_namespace_url(idx)     
         print(f"The following namespaces are registered: {self.opcua_server.get_namespace_array()[2:]}")
 
 
     def add_variable_to_node(self, NamespaceEntry, Namespace_url):
-        # Create a placholder list containing floats for each variable
-        placeholder = [0.0] * NamespaceEntry.dim
-        # Create descriptive variable names: Object_node[Variavle]
-        variable_name = NamespaceEntry.objectnode + '[' + NamespaceEntry.variable + ']'
-        # Add variable to object node
-        datavector = self.object_dict[NamespaceEntry.objectnode].add_variable(opcua.ua.NodeId(variable_name, Namespace_url), variable_name, placeholder)
+        variable_name = f'{NamespaceEntry.objectnode}{NamespaceEntry.variable}'
+        datavector = self.object_node_dict[NamespaceEntry.objectnode].add_variable(opcua.ua.NodeId(variable_name, Namespace_url), variable_name, [0.0])
         datavector.set_writable()
-        # Write descreptive wariable name to client namespace
         NamespaceEntry.variable = variable_name
 
     
@@ -143,11 +120,6 @@ class RTClient:
         except RuntimeError:
             print("The connection to the server could not be established\n", self.server_address, "is not responding")
 
-
-    def return_namespace(self):        
-            return self.namespace
-    
-
     # Method used by server to mark namespace with the corresponding url
     def add_namespace_url(self, url):
         self.namespace._namespace_index = url
@@ -168,8 +140,7 @@ class RTClient:
         print("A client of type", self.name,"disconnected from server",self.server_address)
         
 
-    def writeData(self, dataVal, tag):
-
+    def writeData(self, tag, dataVal):
         assert type(dataVal) == list, "The data you provided is not arranged as a list. See the instructions for passing data to the server."
         
         try:
@@ -181,8 +152,7 @@ class RTClient:
         return wr_result
 
 
-    def readData(self, tag):
-           
+    def readData(self, tag):         
         try:
             dataVal = self.opcua_client.get_node(tag).get_value()
         except ConnectionRefusedError:
@@ -235,14 +205,30 @@ class RTBase:
 
 
     def make_step(self):
-        self.input = np.array([self.client.readData(i) for i in self.tagin]).reshape(-1,1)
+        self.input = self.read_from_tags()
         self.output = self.do_mpc_object.make_step(self.input)
-        self.write_current(self.output)
+        self.write_to_tags(self.output)
 
 
-    def write_current(self, data):        
-        for count, item in enumerate(self.tagout):
-            self.client.writeData([data.flatten()[count]], item)
+    def write_to_tags(self, data):
+        if isinstance(data, ctools.structure3.DMStruct):
+            data = data.cat.full().flatten()
+        elif isinstance(data, ctools.DM):
+            data = data.full().flatten()
+        elif isinstance(data, np.ndarray):
+            data = data.flatten()
+        else:
+            raise TypeError(f'Unsupported dtype:{type(data)}')
+
+        if data.size != len(self.tagout):
+            raise Exception(f'Trying to write {len(data)} elements to {len(self.tagout)}') 
+        
+        for tag, value in zip(self.tagout, data):
+            self.client.writeData(tag, [value])
+
+
+    def read_from_tags(self):
+        return np.array([self.client.readData(i) for i in self.tagin]).reshape(-1,1)
 
 
     def async_run(self):
@@ -269,15 +255,16 @@ class RTBase:
         self.is_running = False
         self.new_init = True
 
-    def init_server(self):
-        self.write_current(np.array(vertcat(self.do_mpc_object.x0)))
+    # #TODO: init_server weg
+    # def init_server(self):
+    #     self.write_to_tags(np.array(vertcat(self.do_mpc_object.x0)))
 
 
 @dataclass
 class NamespaceEntry:
     objectnode: str
     variable: str
-    dim: int
+
 
     def get_node_id(self, namespace_index):
         if namespace_index == None:
@@ -299,12 +286,10 @@ class Namespace:
 def namespace_from_model(model, model_name):
     node_list = []
     variable_list = ['aux', 'p', 'tvp', 'u', 'v', 'w', 'x', 'y', 'z']
-
     for var in variable_list:
         for key in model[var].labels():
-            key = key.strip('[]').split(',')
-            if key[0] != 'default':
-                node_list.append(NamespaceEntry(var, key[0], 1 + int(key[-1])))
+            if key.strip('[]').split(',')[0] != 'default':
+                node_list.append(NamespaceEntry(var, key))
             else:
                 continue
 
@@ -325,3 +310,21 @@ class ClientOpts:
     port: int
 
 
+
+# for k in range(10):
+#     if condition_a:
+#         if condition_b:
+#             if_condition_c:
+
+
+# for k in range(10):
+#     if condition_a:
+#         pass
+
+#     if condition_b:
+#         pass
+
+#     if condition_c:
+#         continue
+
+#     ...
