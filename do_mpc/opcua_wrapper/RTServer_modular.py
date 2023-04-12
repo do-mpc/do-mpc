@@ -205,9 +205,9 @@ class RTBase:
 
 
     def make_step(self):
-        self.input = self.read_from_tags()
-        self.output = self.do_mpc_object.make_step(self.input)
-        self.write_to_tags(self.output)
+        input = self.read_from_tags()
+        output = self.do_mpc_object.make_step(input)
+        self.write_to_tags(output)
 
 
     def write_to_tags(self, data):
@@ -235,6 +235,7 @@ class RTBase:
         self.is_running = False    
         self.async_step_start()
         self.make_step()
+        # self.thread.cancel() #TODO: If make_step takes longer than cycle time, it trys to create twice the same thread leading to an error
 
 
     def async_step_start(self):

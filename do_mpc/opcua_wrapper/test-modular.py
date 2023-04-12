@@ -234,15 +234,22 @@ rt_sim.async_step_start()
 # Server.stop()
 # %%
 
-for i in range(2):
+state_list = []
+input_list= []
+for i in range(10*60):
     print({'u':rt_sim.read_from_tags(),
     'x':rt_mpc.read_from_tags()})
+    state_list.append(rt_mpc.read_from_tags())
+    input_list.append(rt_sim.read_from_tags())
     time.sleep(3)
 
 rt_mpc.async_step_stop()
 rt_sim.async_step_stop()
+time.sleep(3)
 rt_mpc.disconnect()
 rt_sim.disconnect()
+time.sleep(3)
+Server.stop()
 # %%
 
 ''' 
@@ -255,5 +262,8 @@ Diskussionspunkte mit Felix:
 -wie sieht der do-mpc output für n-dim aus? np.array([?])
 
 TODO:
-
+plt.plot(controller.data['_x'])
+plt.plot(controller.data['_u'])
+plt.legend(('X_s','S_s','P_s','V_s','inp'))
+plt.yscale('log')
 '''
