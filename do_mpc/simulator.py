@@ -31,8 +31,6 @@ import pdb
 import do_mpc
 from typing import Union,Callable
 from dataclasses import dataclass
-from do_mpc.tools.algebraic_variable_initializer import \
-    init_algebraic_variables
 
 
 @dataclass
@@ -51,11 +49,6 @@ class SimulatorSettings:
     t_step: float = None
     """Timestep of the Simulator"""
     
-    init_algebraic_variables: bool = True
-    """ Initialize algebraic variables for DAE systems for the given initial state, input, parameter etc.
-    The initialized algebraic variables will then satisfy the algebraic equations.
-    """
-
     def check_for_mandatory_settings(self):
         """Method to assert the necessary settings required to design :py:class:`do_mpc.controller`
         """
@@ -139,7 +132,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         """
         self._t0 = np.array([0])
         self.data.init_storage()
-        self.falgs['first_step'] = True
+        self.flags['first_step'] = True
 
     def _check_validity(self):
         # tvp_fun must be set, if tvp are defined in model.
@@ -429,6 +422,42 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         self.sim_z_num['_z'] = self._z0.cat
 
+    def init_algebraic_variables(self) -> None:
+        """Initializes the algebraic variables. 
+        Solve the algebraic equations for the initial values of :py:attr:`x0`, :py:attr:`u0`, :py:attr:`p0`, :py:attr:`tvp0`.
+        Sets the results to :py:attr:`z0`.
+
+        """
+        if self.model.flags['setup'] is False:
+            raise RuntimeError(
+                'The model must be setup before the algebraic variables can be initialized.'
+            )
+
+
+        nlp = {}
+        nlp['x'] = castools.vertcat(self.model.z)
+        z0 = castools.vertcat(self.z0)
+        residual_to_initial_guess = castools.vertcat(self.model.z) - z0
+        nlp['f'] = castools.sum2(castools.sum1(residual_to_initial_guess**2))
+        algebraic_equations = castools.vertcat(self.model._alg)
+        variables_to_substitute = castools.vertcat(self.model.p, self.model.tvp, self.model.u, self.model.x)
+        initial_guess = castools.vertcat(self.p_fun(self.t0),
+                                self.tvp_fun(self.t0), self.u0,
+                                self.x0)
+        initialized_algebraic_equations = castools.substitute(algebraic_equations,
+                                                        variables_to_substitute,
+                                                        initial_guess)
+        nlp['g'] = initialized_algebraic_equations
+
+        solver = castools.nlpsol("solver", "ipopt", nlp)
+        res = solver(x0=z0, lbg=0, ubg=0)
+        z_init = res['x']
+
+        self.z0 = z_init
+
+        self.set_initial_guess()
+
+
     def simulate(self)->np.ndarray:
         """Call the CasADi simulator.
 
@@ -536,11 +565,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         p0 = self.p_fun(self._t0)
         t0 = self._t0
         x0 = self._x0
-        model_has_algebraic_variables = not self.model._alg.master.is_empty()
-        if (self.flags['first_step'] and self.init_algebraic_variables and
-                model_has_algebraic_variables):
-            init_algebraic_variables(self.model, self)
-            self.set_initial_guess()
+
         z0 = self.sim_z_num['_z']
         self.sim_x_num['_x'] = x0
         self.sim_p_num['_u'] = u0
@@ -575,6 +600,6 @@ class Simulator(do_mpc.model.IteratedVariables):
         self._t0 = self._t0 + self.settings.t_step 
 
         self.flags['first_step'] = False
-        
+
         return y_next.full()
 
