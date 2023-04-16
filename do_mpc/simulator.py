@@ -29,6 +29,50 @@ import casadi.tools as castools
 import pdb
 import do_mpc
 from typing import Union,Callable
+from dataclasses import dataclass
+
+@dataclass
+class SimulatorSettings:
+    """Settings for :py:class:`Simulator`.
+    An instance of this class is automatically generated as the attribute ``settings`` when creating the :py:class:`Simulator`.
+
+    **Example**:
+
+    ::
+
+        simulator = do_mpc.simulator.Simulator(model)
+        simulator.settings.t_step = 0.5
+
+    """
+    t_step: float = None
+    """Timestep of the Simulator"""
+
+    def check_for_mandatory_settings(self):
+        """Method to assert the necessary settings required to design :py:class:`do_mpc.controller`
+        """
+        if self.t_step is None:
+            raise ValueError("t_step must be set")
+
+class ContinousSimulatorSettings(SimulatorSettings):
+    """Settings for :py:class:`Simulator` for continous-time systems.
+    An instance of this class is automatically generated as the attribute ``settings`` when creating the :py:class:`Simulator`.
+
+    **Example**:
+
+    ::
+
+        simulator = do_mpc.simulator.Simulator(model)
+        simulator.settings.t_step = 0.5
+    """
+    
+    abstol: float = 1e-10
+    """Absolute tolerance for the integrator"""
+
+    reltol: float = 1e-10
+    """Relative tolerance for the integrator"""
+
+    integration_tool: str = 'cvodes'
+    """Integration tool to be used. Options are 'cvodes' and 'idas'"""
 
 class Simulator(do_mpc.model.IteratedVariables):
     """A class for simulating systems. Discrete-time and continuous systems can be considered.
@@ -67,23 +111,11 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         self.data = do_mpc.data.Data(model)
 
-        self.data_fields = [
-            't_step'
-        ]
 
         if self.model.model_type == 'continuous':
-
-            # expand possible data fields
-            self.data_fields.extend([
-                'abstol',
-                'reltol',
-                'integration_tool'
-            ])
-
-            # set default values
-            self.abstol = 1e-10
-            self.reltol = 1e-10
-            self.integration_tool = 'cvodes'
+            self.settings = ContinousSimulatorSettings()
+        elif self.model.model_type == 'discrete':
+            self.settings = SimulatorSettings()
 
         self.flags = {
             'set_tvp_fun': False,
@@ -117,7 +149,7 @@ class Simulator(do_mpc.model.IteratedVariables):
             def p_fun(t): return _p
             self.set_p_fun(p_fun)
 
-        assert self.t_step, 't_step is required in order to setup the simulator. Please set the simulation time step via set_param(**kwargs)'
+        self.settings.check_for_mandatory_settings()
 
 
     def setup(self)->None:
@@ -180,13 +212,13 @@ class Simulator(do_mpc.model.IteratedVariables):
 
             # Set the integrator options
             opts = {
-                'abstol': self.abstol,
-                'reltol': self.reltol,
-                'tf': self.t_step
+                'abstol': self.settings.abstol,
+                'reltol': self.settings.reltol,
             }
 
             # Build the simulator
-            self.simulator = castools.integrator('simulator', self.integration_tool, dae,  opts)
+            t0 = 0.0
+            self.simulator = castools.integrator('simulator', self.settings.integration_tool, dae, t0, self.settings.t_step, opts)
 
         sim_aux = self.model._aux_expression_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'])
         # Create function to caculate all auxiliary expressions:
@@ -196,20 +228,36 @@ class Simulator(do_mpc.model.IteratedVariables):
 
 
     def set_param(self, **kwargs)->None:
-        """Set the parameters for the simulator. Setting the simulation time step t_step is necessary for setting up the simulator via setup_simulator.
-
-        Args:
-            integration_tool(str): Sets which integration tool is used, defaults to ``cvodes`` (only continuous)
-            abstol(float): gives the maximum allowed absolute tolerance for the integration, defaults to ``1e-10`` (only continuous)
-            reltol(float): gives the maximum allowed relative tolerance for the integration, defaults to ``1e-10`` (only continuous)
-            t_step(float): Sets the time step for the simulation
         """
-        assert self.flags['setup'] == False, 'Cannot call set_param after simulator was setup.'
+        Warnings:
+            This method will be depreciated in a future version. Settings are available via the :py:attr:`settings` attribute which is an instance of :py:class:`ContinousSimulatorSettings` or :py:class:`SimulatorSettings`.
+
+        Note:
+            A comprehensive list of all available parameters can be found in :py:class:`ContinousSimulatorSettings` or :py:class:`SimulatorSettings`.
+        
+        For example:
+        
+        ::
+
+            simulator.settings.t_step = 0.5
+        
+        The old interface, as shown in the example below, can still be accessed until further notice.
+        
+        ::
+
+            simulator.set_param(t_step=0.5)
+
+        Note: 
+            The only required parameters  are ``t_step``. All other parameters are optional.
+
+        """
+        assert self.flags['setup'] == False, 'Setting parameters after setup is prohibited.'
 
         for key, value in kwargs.items():
-            if not (key in self.data_fields):
-                print('Warning: Key {} does not exist for {} model.'.format(key, self.model.model_type))
-            setattr(self, key, value)
+            if hasattr(self.settings, key):
+                    setattr(self.settings, key, value)
+            else:
+                print('Warning: Key {} does not exist for Simulator.'.format(key))
 
 
     def get_tvp_template(self)->Union[castools.structure3.SXStruct,castools.structure3.MXStruct]:
@@ -499,6 +547,6 @@ class Simulator(do_mpc.model.IteratedVariables):
         self._x0.master = x_next
         self._z0.master = z0
         self._u0.master = u0
-        self._t0 = self._t0 + self.t_step
+        self._t0 = self._t0 + self.settings.t_step 
 
         return y_next.full()
