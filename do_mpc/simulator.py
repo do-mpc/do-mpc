@@ -20,6 +20,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+
 """
 Simulate continous-time ODE/DAE or discrete-time dynamic systems.
 """
@@ -30,6 +31,9 @@ import pdb
 import do_mpc
 from typing import Union,Callable
 from dataclasses import dataclass
+from do_mpc.tools.algebraic_variable_initializer import \
+    init_algebraic_variables
+
 
 @dataclass
 class SimulatorSettings:
@@ -46,6 +50,11 @@ class SimulatorSettings:
     """
     t_step: float = None
     """Timestep of the Simulator"""
+    
+    init_algebraic_variables: bool = True
+    """ Initialize algebraic variables for DAE systems for the given initial state, input, parameter etc.
+    The initialized algebraic variables will then satisfy the algebraic equations.
+    """
 
     def check_for_mandatory_settings(self):
         """Method to assert the necessary settings required to design :py:class:`do_mpc.controller`
@@ -73,6 +82,7 @@ class ContinousSimulatorSettings(SimulatorSettings):
 
     integration_tool: str = 'cvodes'
     """Integration tool to be used. Options are 'cvodes' and 'idas'"""
+
 
 class Simulator(do_mpc.model.IteratedVariables):
     """A class for simulating systems. Discrete-time and continuous systems can be considered.
@@ -111,7 +121,6 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         self.data = do_mpc.data.Data(model)
 
-
         if self.model.model_type == 'continuous':
             self.settings = ContinousSimulatorSettings()
         elif self.model.model_type == 'discrete':
@@ -121,6 +130,7 @@ class Simulator(do_mpc.model.IteratedVariables):
             'set_tvp_fun': False,
             'set_p_fun': False,
             'setup': False,
+            'first_step': True,
         }
 
 
@@ -129,6 +139,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         """
         self._t0 = np.array([0])
         self.data.init_storage()
+        self.falgs['first_step'] = True
 
     def _check_validity(self):
         # tvp_fun must be set, if tvp are defined in model.
@@ -459,16 +470,20 @@ class Simulator(do_mpc.model.IteratedVariables):
         elif self.model.model_type == 'continuous':
             r = self.simulator(x0 = sim_x_num, z0 = sim_z_num, p = sim_p_num)
             x_new = r['xf']
-            z_now = r['zf']
-            sim_z_num.master = z_now
+            z_new = r['zf']
+            sim_z_num.master = z_new
+        else:
+            raise ValueError(f'Model type {self.model.model_type} is not supported.')
+        # There may be made an error here. sim_p_num fits to values in time step
+        # k + 1 (new). However, the values are actually the p values for step
+        # k (now).
+        aux_new = self.sim_aux_expression_fun(x_new, sim_z_num, sim_p_num)
 
-        aux_now = self.sim_aux_expression_fun(sim_x_num, sim_z_num, sim_p_num)
-
-        self.sim_aux_num.master = aux_now
+        self.sim_aux_num.master = aux_new
 
         return x_new
 
-    def make_step(self, u0:np.ndarray=None, v0:np.ndarray=None, w0:np.ndarray=None)->np.ndarray:
+    def make_step(self, u0:np.ndarray=None, v0:np.ndarray=None, w0:np.ndarray=None)-> np.ndarray:
         """Main method of the simulator class during control runtime. This method is called at each timestep
         and computes the next state or the current control input :py:obj:`u0`. The method returns the resulting measurement,
         as defined in :py:class:`do_mpc.model.Model.set_meas`.
@@ -521,19 +536,29 @@ class Simulator(do_mpc.model.IteratedVariables):
         p0 = self.p_fun(self._t0)
         t0 = self._t0
         x0 = self._x0
+        model_has_algebraic_variables = not self.model._alg.master.is_empty()
+        if (self.flags['first_step'] and self.init_algebraic_variables and
+                model_has_algebraic_variables):
+            init_algebraic_variables(self.model, self)
+            self.set_initial_guess()
+        z0 = self.sim_z_num['_z']
         self.sim_x_num['_x'] = x0
         self.sim_p_num['_u'] = u0
         self.sim_p_num['_p'] = p0
         self.sim_p_num['_tvp'] = tvp0
         self.sim_p_num['_w'] = w0
 
+        if self.flags['first_step']:
+            aux0 = self.sim_aux_expression_fun(x0, z0, self.sim_p_num)
+        else:
+            # .master is chosen so that a copy is created of the variables.
+            aux0 = self.sim_aux_num.master
+
         x_next = self.simulate()
 
-        z0 = self.sim_z_num['_z']
-        aux0 = self.sim_aux_num
-
         # Call measurement function
-        y_next = self.model._meas_fun(x_next, u0, z0, tvp0, p0, v0)
+        z_next = self.sim_z_num['_z']
+        y_next = self.model._meas_fun(x_next, u0, z_next, tvp0, p0, v0)
 
         self.data.update(_x = x0)
         self.data.update(_u = u0)
@@ -549,4 +574,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         self._u0.master = u0
         self._t0 = self._t0 + self.settings.t_step 
 
+        self.flags['first_step'] = False
+        
         return y_next.full()
+
