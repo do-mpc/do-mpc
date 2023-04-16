@@ -32,7 +32,7 @@ class IndexedProperty(object):
         return self.fset(self.obj,ind,val)
 
     def getter(self, fget):
-        @wraps(fset)
+        @wraps(fget)
         def wrapper(obj,*args, **kwargs):
             return fget(obj, *args, **kwargs)
         self.fget = wrapper

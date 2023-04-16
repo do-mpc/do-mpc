@@ -21,8 +21,7 @@
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-from casadi import *
-from casadi.tools import *
+import casadi.tools as castools
 import pdb
 
 
@@ -30,8 +29,7 @@ class IteratedVariables:
     """ Class to initiate properties and attributes for iterated variables.
     This class is inherited to all iterating **do-mpc** classes and based on the :py:class:`Model`.
 
-    .. warning::
-
+    Warnings:
         This base class can not be used independently.
     """
 
@@ -66,12 +64,12 @@ class IteratedVariables:
         assert n_val == n_var, err_msg.format(n_val, n_var)
 
         # Convert to structure (or return structure)
-        if isinstance(val, (np.ndarray, casadi.DM)):
+        if isinstance(val, (np.ndarray, castools.DM)):
             val = struct(val)
-        elif isinstance(val, structure3.DMStruct):
+        elif isinstance(val, castools.structure3.DMStruct):
             pass
         else:
-            types = (np.ndarray, casadi.DM, structure3.DMStruct)
+            types = (np.ndarray, castools.DM, castools.structure3.DMStruct)
             raise Exception('x0 must be of tpye {}. You have: {}'.format(types, type(val)))
 
         return val
@@ -206,9 +204,9 @@ class IteratedVariables:
         elif isinstance(val, np.ndarray):
             assert val.size == 1, 'Cant set time with shape {}. Must contain exactly one element.'.format(val.size)
             self._t0 = val.flatten()
-        elif isinstance(val, casadi.DM):
+        elif isinstance(val, castools.DM):
             assert val.size == 1, 'Cant set time with shape {}. Must contain exactly one element.'.format(val.size)
             self._t0 = val.full().flatten()
         else:
-            types = (np.ndarray, float, int, casadi.DM)
+            types = (np.ndarray, float, int, castools.DM)
             raise Exception('Passing object of type {} to set the current time. Must be of type {}'.format(type(val), types))

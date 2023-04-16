@@ -21,13 +21,16 @@
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-from casadi import *
-from casadi.tools import *
 import pdb
 from ._linearmodel import LinearModel
+from . import Model
 
-
-def linearize(model, xss=None, uss=None, tvp0 = None, p0 = None):
+def linearize(model:Model, 
+              xss:np.ndarray = None, 
+              uss:np.ndarray=None, 
+              tvp0:np.ndarray = None, 
+              p0:np.ndarray = None
+              )->LinearModel:
     """Linearize the non-linear model to linear model.
     
     This method uses the taylor expansion series to linearize non-linear model to linear model at the specified 
@@ -39,9 +42,9 @@ def linearize(model, xss=None, uss=None, tvp0 = None, p0 = None):
             
     The above model is linearized around steady state set point :math:`x_{ss}` and steady state input :math:`u_{ss}`
     
-    .. math::
-        \\frac{\\partial f}{\\partial x}|_{x_{ss}} = 0 \\\\
-        \\frac{\\partial f}{\\partial u}|_{u_{ss}} = 0
+        .. math::
+            \\frac{\\partial f}{\\partial x}|_{x_{ss}} = 0 \\\\
+            \\frac{\\partial f}{\\partial u}|_{u_{ss}} = 0
             
     The linearized model is as follows:
         
@@ -51,17 +54,16 @@ def linearize(model, xss=None, uss=None, tvp0 = None, p0 = None):
     Similarly it can be extended to discrete time systems. Since the linearized model has only rate of change input and state. The names are appended with 'del' to differentiate 
     from the original model. This can be seen in the above model definition. Therefore, the solution of the lqr will be ``u`` and its corresponding ``x``. In order to fetch :math:`\\Delta u` 
     and :math:`\\Delta x`, setpoints has to be subtracted from the solution of lqr.
-            
-    :param xss: Steady state state
-    :type xss: numpy.ndarray
     
-    :param uss: Steady state input
-    :type uss: numpy.ndarray
+    Args:
+        model : dynamic systems model 
+        xss : Steady state state
+        uss : Steady state input
+        tvp0 : value for tvp variable
+        p0 : value for parameter variable   
     
-    :return: Linearized Model
-    :rtype: LinearModel 
-    
-
+    Returns:
+        Linearized Model    
     """
     #Check whether model setup is done
     assert model.flags['setup'] == True, 'Run this function after original model is setup'

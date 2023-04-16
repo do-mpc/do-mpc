@@ -30,7 +30,6 @@ import pickle
 from ._indexedproperty import IndexedProperty
 from ._structure import Structure
 from ._casstructure import *
-# from ._dae2odeconversion import *
 from ._timer import Timer
 
 
@@ -45,27 +44,19 @@ def load_pickle(path_to_file):
     return data
 
 
-def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+def printProgressBar (iteration:int, total:int, prefix:str = '', suffix:str = '', decimals:int = 1, length:int = 100, fill:str = '█', printEnd:str = "\r"):
     """
     Print a progress bar to the console.
 
-    :param iteration: Current iteration
-    :type iteration: int
-    :param total: Total iterations
-    :type total: int
-    :param prefix: Prefix string
-    :type prefix: str
-    :param suffix: Suffix string
-    :type suffix: str
-    :param decimals: Positive number of decimals in percent complete
-    :type decimals: int
-    :param length: Character length of bar
-    :type length: int
-    :param fill: Bar fill character
-    :type fill: str
-    :param printEnd: End character (e.g. "\r")
-    :type printEnd: str
-
+    Args:
+        iteration: Current iteration
+        total: Total iterations
+        prefix: Prefix string
+        suffix: Suffix string
+        decimals: Positive number of decimals in percent complete
+        length: Character length of bar
+        fill: Bar fill character
+        printEnd: End character (e.g. "\r")
     """
     percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
     filledLength = int(length * iteration // total)

@@ -23,17 +23,20 @@
 
 import numpy as np
 import do_mpc
+from typing import Union
 
 class Estimator(do_mpc.model.IteratedVariables):
     """The Estimator base class. Used for :py:class:`StateFeedback`, :py:class:`EKF` and :py:class:`MHE`.
     This class cannot be used independently.
 
-    .. note::
+    Note:
        The methods :py:func:`Estimator.set_initial_state` and :py:func:`Estimator.reset_history`
        are overwritten when using the :py:class:`MHE` by the methods defined in :py:class:`do_mpc.optimizer.Optimizer`.
 
+    Args:
+        model: model from class :py:class:`do_mpc.model`
     """
-    def __init__(self, model):
+    def __init__(self, model:Union[do_mpc.model.Model,do_mpc.model.LinearModel]):
         self.model = model
         do_mpc.model.IteratedVariables.__init__(self)
 
@@ -43,7 +46,7 @@ class Estimator(do_mpc.model.IteratedVariables):
         self.data.dtype = 'Estimator'
 
 
-    def reset_history(self):
+    def reset_history(self)->None:
         """Reset the history of the estimator
         """
         self.data.init_storage()
@@ -57,7 +60,13 @@ class StateFeedback(Estimator):
     def __init__(self, model):
         super().__init__(model)
 
-    def make_step(self, y0):
-        """Return the measurement ``y0``.
+    def make_step(self, y0:np.ndarray)->np.ndarray:
+        """Returns the measurement.
+        
+        Args:
+            y0: measurment
+
+        Returns:
+            Return the measurement ``y0``.
         """
         return y0

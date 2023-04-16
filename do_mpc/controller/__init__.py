@@ -3,5 +3,5 @@
 Controller for dynamic systems.
 """
 
-from ._mpc import MPC
-from ._lqr import LQR
+from ._mpc import MPC,MPCSettings
+from ._lqr import LQR,LQRSettings

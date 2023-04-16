@@ -25,12 +25,12 @@ Storage and handling of data.
 """
 
 import numpy as np
-from casadi import *
-from casadi.tools import *
+import casadi.tools as castools
 import pdb
 import pickle
 import do_mpc
-
+import os
+from typing import Union,Tuple,Dict
 
 class Data:
     """**do-mpc** data container. An instance of this class is created for the active **do-mpc** classes,
@@ -41,8 +41,10 @@ class Data:
 
     The :py:class:`Data` class has a public API but is mostly used by other **do-mpc** classes, e.g. updated in the ``.make_step`` calls.
 
+    Args:
+        model: model object from the :py:class:`do_mpc.model` 
     """
-    def __init__(self, model):
+    def __init__(self, model:Union[do_mpc.model.Model,do_mpc.model.LinearModel]):
         self.dtype = 'default'
         assert model.flags['setup'] == True, 'Model was not setup. After the complete model creation call model.setup().'
         # As discussed here: https://groups.google.com/forum/#!topic/casadi-users/dqAb4tnA2ik
@@ -76,7 +78,7 @@ class Data:
         # Accelerate __getitem__ calls (to retrieve results) by saving indices of previous queries.
         self.result_queries = {'ind':[], 'f_ind':[]}
 
-    def __getitem__(self, ind):
+    def __getitem__(self, ind:Tuple)->np.ndarray:
         """Query data fields. This method can be used to obtain the stored results in the :py:class:`Data` instance.
 
         The full list of available fields can be inspected with:
@@ -89,7 +91,7 @@ class Data:
 
         The method allows for power indexing the results for the fields
         ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``, ``_aux``, ``_y``
-        where further indices refer to the configured variables in the :py:class:`do_mpc.model.Model` instance.
+        where further indices refer to the configured variables in the :py:class:`do_mpc.model.Model` and :py:class:`do_mpc.model.LinearModel` instance.
 
         **Example:**
 
@@ -120,9 +122,11 @@ class Data:
             mpc.data['t_wall_total']            # optimizer runtime
             # These do not allow further indices.
 
-        :return: Returns the queried data field (for all time instances)
-        :rtype: numpy.ndarray
-
+        Args:
+            ind: Power index to query the prediction of a specific variable.
+        
+        Returns:
+            Returns the queried data field (for all time instances)
         """
         # ensure list:
         if not isinstance(ind, tuple):
@@ -151,7 +155,7 @@ class Data:
             out = getattr(self, data_field)
         return out
 
-    def init_storage(self):
+    def init_storage(self)->None:
         """Create new (empty) arrays for all variables.
         The variables of interest are listed in the ``data_fields`` dictionary,
         with their respective dimension. This dictionary may be updated.
@@ -160,13 +164,13 @@ class Data:
         for field_i, dim_i in self.data_fields.items():
             setattr(self, field_i, np.empty((0, dim_i)))
 
-    def set_meta(self, **kwargs):
+    def set_meta(self, **kwargs)->None:
         """Set meta data for the current instance of the data object.
         """
         for key, value in kwargs.items():
             self.meta_data[key] = value
 
-    def update(self, **kwargs):
+    def update(self, **kwargs:Dict[np.ndarray,castools.DM])->None:
         """Update value(s) of the data structure with key word arguments.
         These key word arguments must exist in the data fields of the data objective.
         See self.data_fields for a complete list of data fields.
@@ -191,19 +195,17 @@ class Data:
 
             data.update(**data_dict)
 
+        Args:
+            kwargs : Arbitrary number of key word arguments for data fields that should be updated.
 
-        :param kwargs: Arbitrary number of key word arguments for data fields that should be updated.
-        :type kwargs: casadi.DM or numpy.ndarray
-
-        :raises assertion: Keyword must be in existing data_fields.
-
-        :return: None
+        Raises:
+            assertion: Keyword must be in existing data_fields.
         """
         for key, value in kwargs.items():
             assert key in self.data_fields.keys(), 'Cannot update non existing key {} in data object.'.format(key)
-            if type(value) == structure3.DMStruct:
+            if type(value) == castools.structure3.DMStruct:
                 value = value.cat
-            if type(value) == DM:
+            if type(value) == castools.DM:
                 # Convert to numpy
                 value = value.full()
             elif type(value) in [float, int, bool]:
@@ -215,11 +217,11 @@ class Data:
             # Update results array:
             setattr(self, key, updated)
 
-    def export(self):
+    def export(self)->dict:
         """The export method returns a dictionary of the stored data.
 
-        :return: Dictionary of the currently stored data.
-        :rtype: dict
+        Returns:
+            Dictionary of the currently stored data.
         """
         export_dict = {field_name: getattr(self, field_name) for field_name in self.data_fields}
         return export_dict
@@ -229,19 +231,20 @@ class MPCData(Data):
     """**do-mpc** data container for the :py:class:`do_mpc.controller.MPC` instance.
     This method inherits from :py:class:`Data` and extends it to query the MPC predictions.
 
+    Args:
+        model: model from :py:class:`do_mpc.model`
     """
 
-    def __init__(self, model):
+    def __init__(self, model:Union[do_mpc.model.Model,do_mpc.model.LinearModel]):
         super().__init__(model)
         # Accelerate prediction calls by saving indices of previous queries.
         self.prediction_queries = {'ind':[], 'f_ind':[]}
 
-    def prediction(self, ind, t_ind=-1):
+    def prediction(self, ind:tuple, t_ind:float=-1)->np.ndarray:
         """Query the MPC trajectories.
         Use this method to obtain specific MPC trajectories from the data object.
 
-        .. warning::
-
+        Warnings:
             This method requires that the optimal solution is stored in the :py:class:`do_mpc.data.MPCData` instance.
             Storing the optimal solution must be activated with :py:func:`do_mpc.controller.MPC.set_param`.
 
@@ -279,11 +282,12 @@ class MPCData(Data):
         Additional to the power index tuple, a time index (``t_ind``) can be passed to access the prediction for a certain
         time.
 
-        :param ind: Power index to query the prediction of a specific variable.
-        :type ind: tuple
+        Args:
+            ind: Power index to query the prediction of a specific variable.
+            t_ind: Time index
 
-        :return: Predicted trajectories for the queries variable.
-        :rtype: numpy.ndarray
+        Returns:
+            Predicted trajectories for the queries variable.
         """
 
         assert self.meta_data['store_full_solution'], 'Optimal trajectory is not stored. Please update your MPC settings.'
@@ -305,7 +309,7 @@ class MPCData(Data):
                 i = self.prediction_queries['ind'].index(ind)
                 f_ind = self.prediction_queries['f_ind'][i]
             else:
-                f_ind = self.opt_x.f[(ind[0], slice(None), lambda v: horzcat(*v),slice(None), -1)+ind[1:]]
+                f_ind = self.opt_x.f[(ind[0], slice(None), lambda v: castools.horzcat(*v),slice(None), -1)+ind[1:]]
                 f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind], dtype='int32')
                 # sort pred such that each column belongs to one scenario
                 # - By indexing structure_scenario until f_ind.shape[0] we cover the case of _x and _z at the same time
@@ -320,7 +324,7 @@ class MPCData(Data):
                 i = self.prediction_queries['ind'].index(ind)
                 f_ind = self.prediction_queries['f_ind'][i]
             else:
-                f_ind = self.opt_x.f[(ind[0], slice(None), lambda v: horzcat(*v),slice(None))+ind[1:]]
+                f_ind = self.opt_x.f[(ind[0], slice(None), lambda v: castools.horzcat(*v),slice(None))+ind[1:]]
                 f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind], dtype='int32')
                 # sort pred such that each column belongs to one scenario
                 if self.meta_data['open_loop']:
@@ -351,7 +355,7 @@ class MPCData(Data):
                 i = self.prediction_queries['ind'].index(ind)
                 f_ind = self.prediction_queries['f_ind'][i]
             else:
-                f_ind = self.opt_aux.f[(ind[0], slice(None), lambda v: horzcat(*v),slice(None))+ind[1:]]
+                f_ind = self.opt_aux.f[(ind[0], slice(None), lambda v: castools.horzcat(*v),slice(None))+ind[1:]]
                 f_ind = np.array([f_ind_k.full() for f_ind_k in f_ind], dtype='int32')
                 # sort pred such that each column belongs to one scenario
                 f_ind = f_ind[range(f_ind.shape[0]),:,structure_scenario[:-1,:].T].T
@@ -364,7 +368,11 @@ class MPCData(Data):
 
 
 
-def save_results(save_list, result_name='results', result_path='./results/', overwrite=False):
+def save_results(save_list:list, 
+                 result_name:str='results', 
+                 result_path:str='./results/', 
+                 overwrite:bool=False
+                 )->None:
     """Exports the data objects from the **do-mpc** modules in ``save_list`` as a pickled file. Supply any, all or a selection of (as a list):
 
     * :py:class:`do_mpc.controller.MPC`
@@ -375,23 +383,18 @@ def save_results(save_list, result_name='results', result_path='./results/', ove
 
     These objects can be used in post-processing to create graphics with the :py:class:`do_mpc.graphics_backend`.
 
-    :param save_list: List of the objects to be stored.
-    :type save_list: list
-    :param result_name: Name of the result file, defaults to 'result'.
-    :type result_name: string, optional
-    :param result_path: Result path, defaults to './results/'.
-    :type result_path: string, optional
-    :param overwrite: Option to overwrite existing results, defaults to False. Index will be appended if file already exists.
-    :type overwrite: bool, optional
+    Args:
+        save_list: List of the objects to be stored.
+        result_name: Name of the result file, defaults to 'result'.
+        result_path: Result path, defaults to './results/'.
+        overwrite: Option to overwrite existing results, defaults to False. Index will be appended if file already exists.
 
-    :raises assertion: save_list must be a list.
-    :raises assertion: result_name must be a string.
-    :raises assertion: results_path must be a string.
-    :raises assertion: overwrite must be boolean.
-    :raises Exception: save_list contains object which is neither do_mpc simulator, optimizizer nor estimator.
-
-    :return: None
-    :rtype: None
+    Raises:
+        assertion: save_list must be a list.
+        assertion: result_name must be a string.
+        assertion: results_path must be a string.
+        assertion: overwrite must be boolean.
+        Exception: save_list contains object which is neither do_mpc simulator, optimizizer nor estimator.
     """
 
     assert isinstance(save_list, list), 'save_list must be a list.'
@@ -426,7 +429,7 @@ def save_results(save_list, result_name='results', result_path='./results/', ove
     with open(result_path+result_name+'.pkl', 'wb') as f:
         pickle.dump(results, f)
 
-def load_results(file_name):
+def load_results(file_name:str)->Dict:
     """ Simple wrapper to open and unpickle a file.
     If used for **do-mpc** results, this will return a dictionary with the stored **do-mpc** modules:
 
@@ -436,8 +439,11 @@ def load_results(file_name):
 
     * :py:class:`do_mpc.estimator.Estimator`
 
-    :param file_name: File name (including path) for the file to be opened and unpickled.
-    :type file_name: str
+    Args:
+        file_name : File name (including path) for the file to be opened and unpickled.
+
+    Returns:
+        Returns the results stored in .pkl file.
     """
 
     with open(file_name, 'rb') as f:

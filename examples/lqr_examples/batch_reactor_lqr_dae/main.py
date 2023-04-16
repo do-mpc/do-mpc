@@ -22,8 +22,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from casadi import *
-from casadi.tools import *
+import casadi as cas
 import pdb
 import sys
 import os
