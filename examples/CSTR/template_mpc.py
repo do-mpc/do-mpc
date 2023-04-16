@@ -25,7 +25,9 @@ from casadi import *
 from casadi.tools import *
 import pdb
 import sys
-sys.path.append('../../')
+import os
+rel_do_mpc_path = os.path.join('..','..')
+sys.path.append(rel_do_mpc_path)
 import do_mpc
 
 
@@ -37,32 +39,27 @@ def template_mpc(model):
     """
     mpc = do_mpc.controller.MPC(model)
 
-    setup_mpc = {
-        'n_horizon': 20,
-        'n_robust': 1,
-        'open_loop': 0,
-        't_step': 0.005,
-        'state_discretization': 'collocation',
-        'collocation_type': 'radau',
-        'collocation_deg': 2,
-        'collocation_ni': 1,
-        # Use MA27 linear solver in ipopt for faster calculations:
-        # 'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
-    }
 
-    mpc.set_param(**setup_mpc)
+    # Set settings of MPC:
+    mpc.settings.n_horizon = 20
+    mpc.settings.n_robust = 1
+    mpc.settings.open_loop = 0
+    mpc.settings.t_step = 0.005
+    mpc.settings.state_discretization = 'collocation'
+    mpc.settings.collocation_type = 'radau'
+    mpc.settings.collocation_deg = 2
+    mpc.settings.collocation_ni = 1
+    mpc.settings.store_full_solution = True
+    # mpc.settings.supress_ipopt_output()
 
-    mpc.set_param(store_full_solution=True)
 
     mpc.scaling['_x', 'T_R'] = 100
     mpc.scaling['_x', 'T_K'] = 100
     mpc.scaling['_u', 'Q_dot'] = 2000
     mpc.scaling['_u', 'F'] = 100
 
-    _x = model.x
-
-    mterm = (_x['C_b'] - 0.6)**2
-    lterm = (_x['C_b'] - 0.6)**2
+    mterm = (model.x['C_b'] - 0.6)**2
+    lterm = (model.x['C_b'] - 0.6)**2
 
     mpc.set_objective(mterm=mterm, lterm=lterm)
 
@@ -86,7 +83,7 @@ def template_mpc(model):
     # Instead of having a regular bound on T_R:
     #mpc.bounds['upper', '_x', 'T_R'] = 140
     # We can also have soft consraints as part of the set_nl_cons method:
-    mpc.set_nl_cons('T_R', _x['T_R'], ub=140, soft_constraint=True, penalty_term_cons=1e2)
+    mpc.set_nl_cons('T_R', model.x['T_R'], ub=140, soft_constraint=True, penalty_term_cons=1e2)
 
 
     alpha_var = np.array([1., 1.05, 0.95])

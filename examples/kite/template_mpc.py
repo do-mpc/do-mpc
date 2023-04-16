@@ -25,7 +25,9 @@ from casadi import *
 from casadi.tools import *
 import pdb
 import sys
-sys.path.append('../../')
+import os
+rel_do_mpc_path = os.path.join('..','..')
+sys.path.append(rel_do_mpc_path)
 import do_mpc
 
 
@@ -44,7 +46,7 @@ def template_mpc(model, w_ref, E_0, h_min=100):
         't_step': 0.15,
         'store_full_solution': True,
         # Use MA27 linear solver in ipopt for faster calculations:
-        'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
+        # 'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
     }
 
     mpc.set_param(**setup_mpc)

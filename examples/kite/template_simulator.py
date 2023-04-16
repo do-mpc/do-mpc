@@ -25,7 +25,9 @@ from casadi import *
 from casadi.tools import *
 import pdb
 import sys
-sys.path.append('../../')
+import os
+rel_do_mpc_path = os.path.join('..','..')
+sys.path.append(rel_do_mpc_path)
 import do_mpc
 from wind_model import Wind
 
@@ -50,7 +52,7 @@ def template_simulator(model, w_ref, E_0):
     p_num = simulator.get_p_template()
 
     # Get instance of wind class and set mean and timestep:
-    wind = Wind(w_ref = w_ref, t_step = simulator.t_step, k_sigma_w=0.2)
+    wind = Wind(w_ref = w_ref, t_step = simulator.settings.t_step, k_sigma_w=0.2)
 
     # E_0 is now a random walk parameter (clipped if it deviates too much)
     simulator.E_0 = E_0

@@ -21,14 +21,67 @@
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import numpy as np
-from casadi import *
-from casadi.tools import *
+"""
+Simulate continous-time ODE/DAE or discrete-time dynamic systems.
+"""
 
-import do_mpc.model
-from do_mpc.data import Data
+import numpy as np
+import casadi.tools as castools
+import pdb
+import do_mpc
+from typing import Union,Callable
+from dataclasses import dataclass
 from do_mpc.tools.algebraic_variable_initializer import \
     init_algebraic_variables
+
+
+@dataclass
+class SimulatorSettings:
+    """Settings for :py:class:`Simulator`.
+    An instance of this class is automatically generated as the attribute ``settings`` when creating the :py:class:`Simulator`.
+
+    **Example**:
+
+    ::
+
+        simulator = do_mpc.simulator.Simulator(model)
+        simulator.settings.t_step = 0.5
+
+    """
+    t_step: float = None
+    """Timestep of the Simulator"""
+    
+    init_algebraic_variables: bool = True
+    """ Initialize algebraic variables for DAE systems for the given initial state, input, parameter etc.
+    The initialized algebraic variables will then satisfy the algebraic equations.
+    """
+
+    def check_for_mandatory_settings(self):
+        """Method to assert the necessary settings required to design :py:class:`do_mpc.controller`
+        """
+        if self.t_step is None:
+            raise ValueError("t_step must be set")
+
+class ContinousSimulatorSettings(SimulatorSettings):
+    """Settings for :py:class:`Simulator` for continous-time systems.
+    An instance of this class is automatically generated as the attribute ``settings`` when creating the :py:class:`Simulator`.
+
+    **Example**:
+
+    ::
+
+        simulator = do_mpc.simulator.Simulator(model)
+        simulator.settings.t_step = 0.5
+    """
+    
+    abstol: float = 1e-10
+    """Absolute tolerance for the integrator"""
+
+    reltol: float = 1e-10
+    """Relative tolerance for the integrator"""
+
+    integration_tool: str = 'cvodes'
+    """Integration tool to be used. Options are 'cvodes' and 'idas'"""
 
 
 class Simulator(do_mpc.model.IteratedVariables):
@@ -54,43 +107,24 @@ class Simulator(do_mpc.model.IteratedVariables):
     During runtime, call the simulator :py:func:`make_step` method with current input (``u``).
     This computes the next state of the system and the respective measurement.
     Optionally, pass (sampled) random variables for the process ``w`` and measurement noise ``v`` (if they were defined in :py:class`do_mpc.model.Model`)
-
     """
-    def __init__(self, model):
+    def __init__(self, model:do_mpc.model):
         """ Initialize the simulator class. The model gives the basic model description and is used to build the simulator. If the model is discrete-time, the simulator is a function, if the model is continuous, the simulator is an integrator.
 
-        :param model: Simulation model
-        :type var_type: model class
-
-        :return: None
-        :rtype: None
+        Args:
+            model: Simulation model
         """
         self.model = model
         do_mpc.model.IteratedVariables.__init__(self)
 
         assert model.flags['setup'] == True, 'Model for simulator was not setup. After the complete model creation call model.setup().'
 
-        self.data = Data(model)
-
-        self.data_fields = [
-            't_step',
-            'init_algebraic_variables'
-        ]
-        self.init_algebraic_variables = False
+        self.data = do_mpc.data.Data(model)
 
         if self.model.model_type == 'continuous':
-
-            # expand possible data fields
-            self.data_fields.extend([
-                'abstol',
-                'reltol',
-                'integration_tool'
-            ])
-
-            # set default values
-            self.abstol = 1e-10
-            self.reltol = 1e-10
-            self.integration_tool = 'cvodes'
+            self.settings = ContinousSimulatorSettings()
+        elif self.model.model_type == 'discrete':
+            self.settings = SimulatorSettings()
 
         self.flags = {
             'set_tvp_fun': False,
@@ -100,11 +134,12 @@ class Simulator(do_mpc.model.IteratedVariables):
         }
 
 
-    def reset_history(self):
+    def reset_history(self)->None:
         """Reset the history of the simulator.
         """
         self._t0 = np.array([0])
         self.data.init_storage()
+        self.falgs['first_step'] = True
 
     def _check_validity(self):
         # tvp_fun must be set, if tvp are defined in model.
@@ -125,33 +160,31 @@ class Simulator(do_mpc.model.IteratedVariables):
             def p_fun(t): return _p
             self.set_p_fun(p_fun)
 
-        assert self.t_step, 't_step is required in order to setup the simulator. Please set the simulation time step via set_param(**kwargs)'
+        self.settings.check_for_mandatory_settings()
 
 
-    def setup(self):
+    def setup(self)->None:
         """Sets up the simulator and finalizes the simulator configuration.
         Only after the setup, the :py:func:`make_step` method becomes available.
 
-        :raises assertion: t_step must be set
-
-        :return: None
-        :rtype: None
+        Raises:
+            assertion: t_step must be set
         """
 
         self._check_validity()
 
         self.sim_x = sim_x =  self.model.sv.sym_struct([
-            entry('_x', struct=self.model._x)
+            castools.entry('_x', struct=self.model._x)
             ])
         self.sim_z = sim_z =  self.model.sv.sym_struct([
-            entry('_z', struct=self.model._z)
+            castools.entry('_z', struct=self.model._z)
             ])
 
         self.sim_p = sim_p = self.model.sv.sym_struct([
-            entry('_u', struct=self.model._u),
-            entry('_p', struct=self.model._p),
-            entry('_tvp', struct=self.model._tvp),
-            entry('_w', struct=self.model._w)
+            castools.entry('_u', struct=self.model._u),
+            castools.entry('_p', struct=self.model._p),
+            castools.entry('_tvp', struct=self.model._tvp),
+            castools.entry('_w', struct=self.model._w)
         ])
 
         # Initiate numerical structures to store the solutions (updated at each iteration)
@@ -167,11 +200,11 @@ class Simulator(do_mpc.model.IteratedVariables):
             x_next = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
 
             # Build the DAE function
-            nlp = {'x': sim_z['_z'], 'p': vertcat(sim_x['_x'], sim_p), 'f': DM(0), 'g': alg}
-            self.discrete_dae_solver = nlpsol('dae_roots', 'ipopt', nlp)
+            nlp = {'x': sim_z['_z'], 'p': castools.vertcat(sim_x['_x'], sim_p), 'f': castools.DM(0), 'g': alg}
+            self.discrete_dae_solver = castools.nlpsol('dae_roots', 'ipopt', nlp)
 
             # Build the simulator function:
-            self.simulator = Function('simulator',[sim_x['_x'], sim_z['_z'], sim_p],[x_next])
+            self.simulator = castools.Function('simulator',[sim_x['_x'], sim_z['_z'], sim_p],[x_next])
 
 
         elif self.model.model_type == 'continuous':
@@ -190,56 +223,66 @@ class Simulator(do_mpc.model.IteratedVariables):
 
             # Set the integrator options
             opts = {
-                'abstol': self.abstol,
-                'reltol': self.reltol,
-                'tf': self.t_step
+                'abstol': self.settings.abstol,
+                'reltol': self.settings.reltol,
             }
 
             # Build the simulator
-            self.simulator = integrator('simulator', self.integration_tool, dae,  opts)
+            t0 = 0.0
+            self.simulator = castools.integrator('simulator', self.settings.integration_tool, dae, t0, self.settings.t_step, opts)
 
         sim_aux = self.model._aux_expression_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'])
         # Create function to caculate all auxiliary expressions:
-        self.sim_aux_expression_fun = Function('sim_aux_expression_fun', [sim_x, sim_z, sim_p], [sim_aux])
+        self.sim_aux_expression_fun = castools.Function('sim_aux_expression_fun', [sim_x, sim_z, sim_p], [sim_aux])
 
         self.flags['setup'] = True
 
 
-    def set_param(self, **kwargs):
-        """Set the parameters for the simulator. Setting the simulation time step t_step is necessary for setting up the simulator via setup_simulator.
-
-        :param integration_tool: Sets which integration tool is used, defaults to ``cvodes`` (only continuous)
-        :type integration_tool: string
-        :param abstol: gives the maximum allowed absolute tolerance for the integration, defaults to ``1e-10`` (only continuous)
-        :type abstol: float
-        :param reltol: gives the maximum allowed relative tolerance for the integration, defaults to ``1e-10`` (only continuous)
-        :type abstol: float
-        :param t_step: Sets the time step for the simulation
-        :type t_step: float
-
-        :return: None
-        :rtype: None
+    def set_param(self, **kwargs)->None:
         """
-        assert self.flags['setup'] == False, 'Cannot call set_param after simulator was setup.'
+        Warnings:
+            This method will be depreciated in a future version. Settings are available via the :py:attr:`settings` attribute which is an instance of :py:class:`ContinousSimulatorSettings` or :py:class:`SimulatorSettings`.
+
+        Note:
+            A comprehensive list of all available parameters can be found in :py:class:`ContinousSimulatorSettings` or :py:class:`SimulatorSettings`.
+        
+        For example:
+        
+        ::
+
+            simulator.settings.t_step = 0.5
+        
+        The old interface, as shown in the example below, can still be accessed until further notice.
+        
+        ::
+
+            simulator.set_param(t_step=0.5)
+
+        Note: 
+            The only required parameters  are ``t_step``. All other parameters are optional.
+
+        """
+        assert self.flags['setup'] == False, 'Setting parameters after setup is prohibited.'
 
         for key, value in kwargs.items():
-            if not (key in self.data_fields):
-                print('Warning: Key {} does not exist for {} model.'.format(key, self.model.model_type))
-            setattr(self, key, value)
+            if hasattr(self.settings, key):
+                    setattr(self.settings, key, value)
+            else:
+                print('Warning: Key {} does not exist for Simulator.'.format(key))
 
 
-    def get_tvp_template(self):
+    def get_tvp_template(self)->Union[castools.structure3.SXStruct,castools.structure3.MXStruct]:
         """Obtain the output template for :py:func:`set_tvp_fun`.
         Use this method in conjunction with :py:func:`set_tvp_fun`
         to define the function for retrieving the time-varying parameters at each sampling time.
 
-        :return: numerical CasADi structure
-        :rtype: struct_SX
+        Returns:
+            numerical CasADi structure
         """
         return self.model._tvp(0)
 
 
-    def set_tvp_fun(self,tvp_fun):
+    def set_tvp_fun(self,tvp_fun:Callable[[float],Union[castools.structure3.SXStruct,castools.structure3.MXStruct]])->None:
         """Method to set the function which returns the values of the time-varying parameters.
         This function must return a CasADi structure which can be obtained with :py:func:`get_tvp_template`.
 
@@ -272,44 +315,41 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         which results in constant parameters.
 
-        .. note::
-
+        Note:
             From the perspective of the simulator there is no difference between
             time-varying parameters and regular parameters. The difference is important only
             for the MPC controller and MHE estimator. These methods consider a finite sequence
             of future / past information, e.g. the weather, which can change over time.
             Parameters, on the other hand, are constant over the entire horizon.
 
-        :param tvp_fun: Function which gives the values of the time-varying parameters
-        :type tvp_fun: function
+        Args:
+            tvp_fun: Function which gives the values of the time-varying parameters
 
-        :raises assertion: tvp_fun has incorrect return type.
-        :raises assertion: Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.
-
-        :return: None
-        :rtype: None
+        Raises:
+            assertion: tvp_fun has incorrect return type.
+            assertion: Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.
         """
-        assert isinstance(tvp_fun(0), structure3.DMStruct), 'tvp_fun has incorrect return type.'
+        assert isinstance(tvp_fun(0), castools.structure3.DMStruct), 'tvp_fun has incorrect return type.'
         assert self.get_tvp_template().labels() == tvp_fun(0).labels(), 'Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.'
         self.tvp_fun = tvp_fun
 
         self.flags['set_tvp_fun'] = True
 
 
-    def get_p_template(self):
+    def get_p_template(self)->Union[castools.structure3.SXStruct,castools.structure3.MXStruct]:
         """Obtain output template for :py:func:`set_p_fun`.
         Use this method in conjunction with :py:func:`set_p_fun`
         to define the function for retrieving the parameters at each sampling time.
 
         See :py:func:`set_p_fun` for more details.
 
-        :return: numerical CasADi structure
-        :rtype: struct_SX
+        Returns:
+            numerical CasADi structure
         """
         return self.model._p(0)
 
 
-    def set_p_fun(self,p_fun):
+    def set_p_fun(self,p_fun:Callable[[float],Union[castools.structure3.SXStruct,castools.structure3.MXStruct]])->None:
         """Method to set the function which gives the values of the parameters.
         This function must return a CasADi structure which can be obtained with :py:func:`get_p_template`.
 
@@ -363,42 +403,36 @@ class Simulator(do_mpc.model.IteratedVariables):
                 p_template['Theta_3'] += 1e-6*np.random.randn()
                 return p_template
 
+        Args:
+            p_fun: A function which gives the values of the parameters
 
-
-        :param p_fun: A function which gives the values of the parameters
-        :type p_fun: python function
-
-        :raises assert: p must have the right structure
-
-        :return: None
-        :rtype: None
+        Raises:
+            assert: p must have the right structure
         """
-        assert isinstance(p_fun(0), structure3.DMStruct), 'p_fun has incorrect return type.'
+        assert isinstance(p_fun(0), castools.structure3.DMStruct), 'p_fun has incorrect return type.'
         assert self.get_p_template().labels() == p_fun(0).labels(), 'Incorrect output of p_fun. Use get_p_template to obtain the required structure.'
         self.p_fun = p_fun
         self.flags['set_p_fun'] = True
 
 
-    def set_initial_guess(self):
+    def set_initial_guess(self)->None:
         """Initial guess for DAE variables.
         Use the current class attribute :py:attr:`z0` to create the initial guess for the DAE algebraic equations.
 
         The simulator uses "warmstarting" to solve the continous/discrete DAE system by using the previously computed
         algebraic states as an initial guess. Thus, this method is typically only invoked once.
 
-        .. warning::
+        Warnings:
             If no initial values for :py:attr:`z0` were supplied during setup, they default to zero.
-
         """
-        assert self.flags['setup'] == True, 'MPC was not setup yet. Please call MPC.setup().'
+        assert self.flags['setup'] == True, 'Simulator was not setup yet. Please call Simulator.setup().'
 
         self.sim_z_num['_z'] = self._z0.cat
 
-    def simulate(self):
+    def simulate(self)->np.ndarray:
         """Call the CasADi simulator.
 
-        .. warning::
-
+        Warnings:
             :py:func:`simulate` can be used as part of the public API but is typically
             called from within :py:func:`make_step` which wraps this method and sets the
             required values to the ``sim_x_num`` and ``sim_p_num`` structures automatically.
@@ -418,8 +452,8 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         The function returns the new state of the system.
 
-        :return: x_new
-        :rtype: numpy array
+        Returns:
+            x_new
         """
         assert self.flags['setup'] == True, 'Simulator is not setup. Call simulator.setup() first.'
 
@@ -430,7 +464,7 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         if self.model.model_type == 'discrete':
             if self.model.n_z > 0: # Solve DAE only when it exists ...
-                r = self.discrete_dae_solver(x0 = sim_z_num, ubg = 0, lbg = 0, p=vertcat(sim_x_num,sim_p_num))
+                r = self.discrete_dae_solver(x0 = sim_z_num, ubg = 0, lbg = 0, p=castools.vertcat(sim_x_num,sim_p_num))
                 sim_z_num.master = r['x']
             x_new = self.simulator(sim_x_num, sim_z_num, sim_p_num)
         elif self.model.model_type == 'continuous':
@@ -449,7 +483,7 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         return x_new
 
-    def make_step(self, u0, v0=None, w0=None):
+    def make_step(self, u0:np.ndarray=None, v0:np.ndarray=None, w0:np.ndarray=None)-> np.ndarray:
         """Main method of the simulator class during control runtime. This method is called at each timestep
         and computes the next state or the current control input :py:obj:`u0`. The method returns the resulting measurement,
         as defined in :py:class:`do_mpc.model.Model.set_meas`.
@@ -465,35 +499,36 @@ class Simulator(do_mpc.model.IteratedVariables):
         The method prepares the simulator by setting the current parameters, calls :py:func:`simulator.simulate`
         and updates the :py:class:`do_mpc.data` object.
 
-        :param u0: Current input to the system.
-        :type u0: numpy.ndarray
-
-        :param v0: Additive measurement noise
-        :type v0: numpy.ndarray (optional)
-
-        :param w0: Additive process noise
-        :type w0: numpy.ndarray (optional)
-
-        :return: y_next
-        :rtype: numpy.ndarray
+        Args:
+            u0: Current input to the system. Optional parameter for autonomous systems.
+            v0: Additive measurement noise
+            w0: Additive process noise
+        
+        Returns:
+            y_next
         """
+        # Generate dummy input if system is autnomous
+        if u0 is None:
+            assert self.model.n_u == 0, 'No input u0 provided. Please provide an input u0.'
+            u0 = self.model._u(0)
+
         assert self.flags['setup'] == True, 'Simulator is not setup. Call simulator.setup() first.'
-        assert isinstance(u0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'u0 is wrong input type. You have: {}'.format(type(u0))
+        assert isinstance(u0, (np.ndarray, castools.DM, castools.structure3.DMStruct)), 'u0 is wrong input type. You have: {}'.format(type(u0))
         assert u0.shape == self.model._u.shape, 'u0 has incorrect shape. You have: {}, expected: {}'.format(u0.shape, self.model._u.shape)
-        assert isinstance(u0, (np.ndarray, casadi.DM, structure3.DMStruct)), 'u0 is wrong input type. You have: {}'.format(type(u0))
+        assert isinstance(u0, (np.ndarray, castools.DM, castools.structure3.DMStruct)), 'u0 is wrong input type. You have: {}'.format(type(u0))
         assert u0.shape == self.model._u.shape, 'u0 has incorrect shape. You have: {}, expected: {}'.format(u0.shape, self.model._u.shape)
 
         if w0 is None:
             w0 = self.model._w(0)
         else:
-            input_types = (np.ndarray, casadi.DM, structure3.DMStruct)
+            input_types = (np.ndarray, castools.DM, castools.structure3.DMStruct)
             assert isinstance(w0, input_types), 'w0 is wrong input type. You have: {}. Must be of type'.format(type(w0), input_types)
             assert w0.shape == self.model._w.shape, 'w0 has incorrect shape. You have: {}, expected: {}'.format(w0.shape, self.model._w.shape)
 
         if v0 is None:
             v0 = self.model._v(0)
         else:
-            input_types = (np.ndarray, casadi.DM, structure3.DMStruct)
+            input_types = (np.ndarray, castools.DM, castools.structure3.DMStruct)
             assert isinstance(v0, input_types), 'v0 is wrong input type. You have: {}. Must be of type'.format(type(v0), input_types)
             assert v0.shape == self.model._v.shape, 'v0 has incorrect shape. You have: {}, expected: {}'.format(v0.shape, self.model._v.shape)
 
@@ -537,8 +572,9 @@ class Simulator(do_mpc.model.IteratedVariables):
         self._x0.master = x_next
         self._z0.master = z0
         self._u0.master = u0
-        self._t0 = self._t0 + self.t_step
+        self._t0 = self._t0 + self.settings.t_step 
 
         self.flags['first_step'] = False
-
+        
         return y_next.full()
+
