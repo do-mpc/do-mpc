@@ -1,5 +1,6 @@
 import casadi
 import onnx
+from onnx import numpy_helper
 import numpy as np
 import pdb
 
@@ -120,7 +121,7 @@ class ONNXConversion:
         # The initialized tensors are converted into the numpy readable format  before assignment
         self.initialized_tensors = {}
         for initializer in onnx_initializers:
-            self.initialized_tensors[initializer.name] = onnx.numpy_helper.to_array(initializer)
+            self.initialized_tensors[initializer.name] = numpy_helper.to_array(initializer)
         
             
         # Determining the input shape 
@@ -329,6 +330,44 @@ class ONNXOperations:
         for arg in args:
             out += arg
         return out
+
+    def Mul(self,*args, attribute = None):
+        return args[0]*args[1]
+
+    def Sub(self, *args, attribute = None):
+        return args[0] - args[1]
+
+    def Gemm(self, *args, attribute = None):
+        """General Matrix Multiplication.
+        See `ONNX documentation"""
+
+        attr_dict = {
+            k.name: k.i for k in attribute
+        }
+
+        A = args[0]
+        B = args[1]
+        C = args[2]
+
+        if 'transA' in attr_dict.keys() and attr_dict['transA'] == 1:
+            A = casadi.transpose(A)
+        if 'transB' in attr_dict.keys() and attr_dict['transB'] == 1:
+            B = casadi.transpose(B)
+        if 'alpha' in attr_dict.keys():
+            alpha = attr_dict['alpha']
+        else:
+            alpha = 1
+        if 'beta' in attr_dict.keys():
+            beta = attr_dict['beta']
+        else:
+            beta = 1
+
+        if C.ndim == 1:
+            C = C.reshape(1,-1)
+        
+        res = alpha*self.MatMul(A,B) + beta*C
+
+        return res
 
     def Sum(self,*args, attribute = None):
         return  self.Add(*args)
