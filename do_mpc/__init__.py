@@ -84,3 +84,8 @@ from . import graphics
 from . import sysid
 
 from ._version import __version__
+
+
+import casadi
+if casadi.__version__ < "3.6.0":
+    raise ImportError("do-mpc requires CasADi version 3.6.0 or higher. Please update CasADi.")
