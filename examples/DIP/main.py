@@ -92,7 +92,6 @@ estimator.x0 = x0
 
 mpc.set_initial_guess()
 simulator.init_algebraic_variables()
-pdb.set_trace()
 
 """
 Setup graphic:
