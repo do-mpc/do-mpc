@@ -39,23 +39,15 @@ def template_mpc(model):
     """
     mpc = do_mpc.controller.MPC(model)
 
-    setup_mpc = {
-        'n_horizon': 20,
-        'n_robust': 1,
-        'open_loop': 0,
-        't_step': 50.0/3600.0,
-        'state_discretization': 'collocation',
-        'store_full_solution': True,
-        # Use MA27 linear solver in ipopt for faster calculations:
-        #'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
-    }
+    mpc.settings.n_horizon = 20
+    mpc.settings.n_robust = 1
+    mpc.settings.open_loop = 0
+    mpc.settings.t_step = 50.0/3600.0
+    mpc.settings.state_discretization = 'collocation'
+    mpc.settings.store_full_solution = True    
 
-    mpc.set_param(**setup_mpc)
-
-    _x = model.x
-
-    mterm = - _x['m_P']
-    lterm = - _x['m_P']
+    mterm = - model.x['m_P']
+    lterm = - model.x['m_P']
 
     mpc.set_objective(mterm=mterm, lterm=lterm)
     mpc.set_rterm(m_dot_f=0.002, T_in_M=0.004, T_in_EK=0.002)
@@ -97,9 +89,9 @@ def template_mpc(model):
     mpc.scaling['_u','m_dot_f'] = 100
 
     # Check if robust multi-stage is active
-    if mpc.n_robust == 0:
+    if mpc.settings.n_robust == 0:
         # Sot-constraint for the reactor upper bound temperature
-        mpc.set_nl_cons('T_R_UB', _x['T_R'], ub=363.15+temp_range, soft_constraint=True, penalty_term_cons=1e4)
+        mpc.set_nl_cons('T_R_UB', model.x['T_R'], ub=363.15+temp_range, soft_constraint=True, penalty_term_cons=1e4)
     else:
         mpc.bounds['upper','_x','T_R'] = 363.15+temp_range
 
