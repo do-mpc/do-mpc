@@ -50,10 +50,11 @@ extensions = ['sphinx.ext.autodoc',
           'sphinx.ext.viewcode',
           'sphinx_copybutton',
           'myst_parser',
-          'sphinx.ext.napoleon',
-          #'sphinxcontrib.napoleon',
+          #'sphinx.ext.napoleon',
+          'sphinxcontrib.napoleon',
           'sphinx_autodoc_typehints',
-          'sphinx_thebe'
+          'sphinx_thebe',
+          'sphinx.opengraph'
               ]
 
 graphviz_output_format = 'svg'
@@ -100,6 +101,7 @@ html_theme = 'sphinx_book_theme'
 #    'navigation_depth': 4,
 #}
 html_theme_options = {
+    "path_to_docs": "docs",
     "repository_url": "https://github.com/do-mpc/do-mpc",
     "use_repository_button": True,
     "use_source_button": True,
@@ -108,12 +110,19 @@ html_theme_options = {
     "show_navbar_depth": 4,
     "launch_buttons": {
         "thebe": True,
+    },
+     "logo": {
+        "image_dark": "static/dompc_var_02_rtd_dark.svg",
+        # "text": html_title,  # Uncomment to try text with logo
     }
 }
 html_theme_path = ["../.."]
-html_logo = "static/dompc_var_02_rtd_grey.svg"
+html_logo = "static/dompc_var_02_rtd_blue.svg"
 html_show_sourcelink = True
 
+ogp_social_cards = {
+    "image": "static/dompc_var_02_rtd_blue.png",
+}
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
