@@ -25,7 +25,9 @@ from casadi import *
 from casadi.tools import *
 import pdb
 import sys
-sys.path.append('../../')
+import os
+rel_do_mpc_path = os.path.join('..','..')
+sys.path.append(rel_do_mpc_path)
 import do_mpc
 
 
@@ -84,7 +86,7 @@ def template_mhe(model):
     y_template = mhe.get_y_template()
 
     def y_fun(t_now):
-        n_steps = min(mhe.data._y.shape[0], mhe.n_horizon)
+        n_steps = min(mhe.data._y.shape[0], mhe.settings.n_horizon)
         for k in range(-n_steps,0):
             y_template['y_meas',k] = mhe.data._y[k]
 

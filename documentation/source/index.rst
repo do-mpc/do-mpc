@@ -52,37 +52,6 @@ The **do-mpc** software is Python based and works therefore on any OS with a Pyt
 **do-mpc** has been developed by Sergio Lucia and Alexandru Tatulea at the DYN chair of the TU Dortmund lead by Sebastian Engell.
 The development is continued at the `Laboratory of Process Automation Systems <https://pas.bci.tu-dortmund.de>`_ (PAS) of the TU Dortmund by Felix Fiedler and Sergio Lucia.
 
-News
-****
-
-The first do-mpc developer con­fe­rence was hosted from 13.09.-15.09.2021 at TU Dort­mund.
-For everyone who missed the event, we are happy to share the recording below:
-
-.. raw :: html
-
-    <style>
-    .video-container {
-    position: relative;
-    padding-bottom: 56.25%; /* 16:9 */
-    height: 0;
-    }
-    .video-container iframe {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    }
-    </style>
-
-
-    <!-- HTML -->
-    <div class="video-container">
-    <iframe src="https://www.youtube-nocookie.com/embed/UzWy3E8Hlcg"
-    title="YouTube video player" frameborder="0" allow="accelerometer;
-    autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen>
-    </iframe>
-    </div>
 
 Example: Robust Multi-stage MPC
 *******************************
@@ -179,13 +148,13 @@ Table of contents
    credit
 
 .. toctree::
-   :maxdepth: 5
+   :maxdepth: 2
    :caption: How to use it?
-   
-   project_structure
-   FAQ
-   do_mpc
-   release_notes
+   :hidden:
+
+   FAQ <FAQ>
+   API reference <api/do_mpc>
+   Release notes <release_notes>
 
 .. toctree::
    :maxdepth: 5
@@ -197,6 +166,7 @@ Table of contents
    /example_gallery/oscillating_masses_discrete
    /example_gallery/DIP
    /example_gallery/data_generator
+   /example_gallery/CSTR_lqr
 
 
 

@@ -1,12 +1,15 @@
+onnx>=1.13.0
 sphinx
 ipykernel
 nbsphinx
 pygments
 docutils
 sphinx-copybutton
+sphinx-autodoc-typehints
 graphviz
 casadi
+scipy
 numpy
 matplotlib
-recommonmark
-scipy
+myst-parser
+

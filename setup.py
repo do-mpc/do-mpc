@@ -1,11 +1,13 @@
 from setuptools import setup
 
-exec(open('do_mpc/version.py').read())
+exec(open('do_mpc/_version.py').read())
 
 setup(
     name='do_mpc',
     version=__version__,
-    packages=['do_mpc','do_mpc.tools', 'do_mpc.sampling'],
+    packages=['do_mpc','do_mpc.controller','do_mpc.differentiator',
+              'do_mpc.estimator','do_mpc.model','do_mpc.sampling',
+              'do_mpc.sysid','do_mpc.tools'],
     author='Sergio Lucia and Felix Fiedler',
     author_email='sergio.lucia@tu-berlin.de',
     url='https://www.do-mpc.com',
