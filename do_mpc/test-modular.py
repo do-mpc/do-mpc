@@ -1,17 +1,20 @@
 #%%
 import sys
 from casadi import *
+import importlib
 import time
 import do_mpc
 import numpy as np
-from RTServer_modular import RTServer, RTBase, NamespaceEntry, Namespace, ServerOpts, ClientOpts
+from opcua_wrapper import *
+from multiprocessing import Pool
+# importlib.reload(RTServer_modular)
 
 def bio_model():
     model_type = 'continuous' # either 'discrete' or 'continuous'
     model = do_mpc.model.Model(model_type)
 
     # States struct (optimization variables):
-    X_s = model.set_variable('_x',  'X_s')
+    X_s = model.set_variable('_x',  'X_s', )
     S_s = model.set_variable('_x',  'S_s')
     P_s = model.set_variable('_x',  'P_s')
     V_s = model.set_variable('_x',  'V_s')
@@ -48,7 +51,7 @@ def bio_model():
     'n_horizon': 20,
     'n_robust': 1,
     'open_loop': 0,
-    't_step': 1.0,
+    't_step': 0.01,
     'state_discretization': 'collocation',
     'collocation_type': 'radau',
     'collocation_deg': 2,
@@ -152,7 +155,7 @@ def sim(model):
         'integration_tool': 'cvodes',
         'abstol': 1e-10,
         'reltol': 1e-10,
-        't_step': 1.0
+        't_step': 0.01
     }
 
     simulator.set_param(**params_simulator)
@@ -185,71 +188,44 @@ x0 = np.array([X_s_0, S_s_0, P_s_0, V_s_0])
 controller.x0 = x0
 controller.set_initial_guess()
 simulator.x0 = x0
-#%%
 
-e1 = NamespaceEntry(
-    'x', 'X_1', 1
-)
-e2 = NamespaceEntry(
-    'x', 'X_2', 1
-)
-e3 = NamespaceEntry(
-    'x', 'X_3', 1
-)
-e4 = NamespaceEntry(
-    'x', 'X_4', 1
-)
-e5 = NamespaceEntry(
-    'u', 'U_1', 1
-)
 
-ns = Namespace('my[name]space', [e1,e2,e3,e4,e5])
-ns2 = Namespace('my[othername]space', [e1,e2,e3,e4,e5])
 #%% Server setup
 
 
 # Defining the settings for the OPCUA server
 server_opts = ServerOpts("Bio Reactor OPCUA",   
                "opc.tcp://localhost:4840/freeopcua/server/",  
-               4840,                   
-               False)                 
-
-server_opts_2 = ServerOpts("Bio Reactor OPCUA",      
-               "opc.tcp://localhost:4840/freeopcua/server/",  
-               4841,                    
-               False)   
-
-
+               4840)                 
 
 client_opts_1 = ClientOpts("Bio Reactor OPCUA Client_1","opc.tcp://localhost:4840/freeopcua/server/",4840)
 client_opts_2 = ClientOpts("Bio Reactor OPCUA Client_2","opc.tcp://localhost:4840/freeopcua/server/",4840)
 
 Server = RTServer(server_opts)
-rt_mpc = RTBase(controller, client_opts_1, 'my[name]space')
-rt_sim = RTBase(simulator, client_opts_2, 'my[othername]space')
-rt_mpc.set_read_write(read='x', write='u')
-rt_sim.set_read_write(read='u', write='x')
+rt_mpc = RTBase(controller, client_opts_1)
+rt_sim = RTBase(simulator, client_opts_2)
 
-rt_mpc.user_namespace(ns)
-rt_sim.user_namespace(ns2)
-
-
-#%%
 Server.namespace_from_client(rt_mpc)
 Server.namespace_from_client(rt_sim)
+
+rt_mpc.set_write_tags(rt_mpc.def_namespace['u'])
+rt_sim.set_write_tags(rt_sim.def_namespace['x'])
+rt_mpc.set_read_tags(rt_sim.def_namespace['x'])
+rt_sim.set_read_tags(rt_mpc.def_namespace['u'])
 #%%
-rt_mpc.set_write_ns()
-rt_sim.set_write_ns()
+# Server.get_all_nodes()
+
+#%%
 # rt_mpc.set_default_read_ns()
-rt_mpc.readfrom(rt_sim)
-rt_sim.readfrom(rt_mpc)
+
 #%%
 # Server.get_all_nodes()
 Server.start()
 rt_mpc.connect()
 rt_sim.connect()
 
-
+rt_sim.write_to_tags(simulator.x0)
+rt_mpc.write_to_tags(controller.u0)
 #%%
 rt_mpc.async_step_start()
 rt_sim.async_step_start()
@@ -259,10 +235,38 @@ rt_sim.async_step_start()
 # Server.stop()
 # %%
 
-for i in range(200):
-    print({'u':rt_mpc.client.readData('ns=2;s=X_1'),
-    'x':rt_mpc.client.readData('ns=3;s=U_1')})
-    time.sleep(5)
+state_list = []
+input_list= []
 
+for i in range(10000):
+
+    print({'u':rt_sim.read_from_tags(),
+    'x':rt_mpc.read_from_tags()})
+    state_list.append(rt_mpc.read_from_tags())
+    input_list.append(rt_sim.read_from_tags())
+    time.sleep(3)
+
+rt_mpc.async_step_stop()
+rt_sim.async_step_stop()
+time.sleep(3)
+rt_mpc.disconnect()
+rt_sim.disconnect()
+time.sleep(3)
+Server.stop()
 # %%
 
+''' 
+Diskussionspunkte mit Felix:
+-Speichern von daten (SQL? - probleme mit async function, mpc.storesolution?)
+-gucken was felix an der set_read_write() class auszusetzen hat bzw. woher weiß base was sie ist?
+-Fehlermeldungen
+-felix nach seiner meinung zur Leikonsache fragen
+-wie soll die manuelle ns eingabe ablaufen und welchen zweck soll sie haben?
+-wie sieht der do-mpc output für n-dim aus? np.array([?])
+
+TODO:
+plt.plot(controller.data['_x'])
+plt.plot(controller.data['_u'])
+plt.legend(('X_s','S_s','P_s','V_s','inp'))
+plt.yscale('log')
+'''

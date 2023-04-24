@@ -2,9 +2,6 @@
 A opcua wrapper for do_mpc
 '''
 
-from .opcua_client import *
-from .opcua_server import *
-from .opc_simulator import *
-from .opc_controller import *
-from .opc_estimator import *
-from .opc_trigger import *
+from ._server import RTServer
+from ._client import RTClient
+from ._base import RTBase, NamespaceEntry, Namespace, ServerOpts, ClientOpts
