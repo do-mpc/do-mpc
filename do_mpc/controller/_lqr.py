@@ -432,7 +432,7 @@ class LQR(IteratedVariables):
         assert self.flags['setup'] == True, 'LQR is not setup. Run setup() function.'
 
         # Set or reset xss. Don't change xss if it already exists and uss is not passed
-        if xss:
+        if isinstance(xss, np.ndarray):
             self.xss = xss
         elif hasattr(self,'xss'):
             pass
@@ -440,7 +440,7 @@ class LQR(IteratedVariables):
             self.xss = np.zeros((self.model.n_u,1))
 
         # Set or reset uss. Don't change uss if it already exists and uss is not passed
-        if uss:
+        if isinstance(uss, np.ndarray): 
             self.uss = uss
         elif hasattr(self,'uss'):
             pass
