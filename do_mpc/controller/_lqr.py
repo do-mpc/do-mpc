@@ -37,9 +37,9 @@ class LQR(IteratedVariables):
     
     Two types of LQR can be desgined:
 
-        1. **Finite Horizon** LQR by choosing, e.g. ``n_horizon = 20``.
+    1. **Finite Horizon** LQR by choosing, e.g. ``n_horizon = 20``.
 
-        2. **Infinite Horizon** LQR by choosing ``n_horizon = None``.
+    2. **Infinite Horizon** LQR by choosing ``n_horizon = None``.
 
     The value for ``n_horizon`` is set using :py:meth:`set_param`. 
     
@@ -114,22 +114,22 @@ class LQR(IteratedVariables):
         
         For finite horizon :py:class:`LQR`, the problem formulation is as follows:
             
-            .. math::
-                \\pi(N) &= P_f\\\\
-                K(k) & = -(B'\\pi(k+1)B)^{-1}B'\\pi(k+1)A\\\\
-                \\pi(k) & = Q+A'\\pi(k+1)A-A'\\pi(k+1)B(B'\\pi(k+1)B+R)^{-1}B'\\pi(k+1)A
+        .. math::
+            \\pi(N) &= P_f\\\\
+            K(k) & = -(B'\\pi(k+1)B)^{-1}B'\\pi(k+1)A\\\\
+            \\pi(k) & = Q+A'\\pi(k+1)A-A'\\pi(k+1)B(B'\\pi(k+1)B+R)^{-1}B'\\pi(k+1)A
        
         For infinite horizon :py:class:`LQR`, the problem formulation is as follows:
             
-            .. math::
-                K & = -(B'PB+P)^{-1}B'PA\\\\
-                P & = Q+A'PA-A'PB(R+B'PB)^{-1}B'PA\\\\
+        .. math::
+            K & = -(B'PB+P)^{-1}B'PA\\\\
+            P & = Q+A'PA-A'PB(R+B'PB)^{-1}B'PA\\\\
         
         For example:
             
-            ::
+        ::
                 
-                K = lqr.discrete_gain(A,B)
+            K = lqr.discrete_gain(A,B)
         
         Args:
             A : State matrix - constant matrix with no variables
@@ -170,15 +170,15 @@ class LQR(IteratedVariables):
 
         The input rate penalization formulation is given as:
             
-            .. math::
-                x(k+1) = \\tilde{A} x(k) + \\tilde{B}\\Delta u(k)\\\\
+        .. math::
+            x(k+1) = \\tilde{A} x(k) + \\tilde{B}\\Delta u(k)\\\\
                 
-                \\text{where} \\quad
-                \\tilde{A} = \\begin{bmatrix} 
-                                A & B \\\\
-                                0 & I \\end{bmatrix},
-                \\tilde{B} = \\begin{bmatrix} B \\\\
-                             I \\end{bmatrix}
+            \\text{where} \\quad
+            \\tilde{A} = \\begin{bmatrix} 
+                            A & B \\\\
+                            0 & I \\end{bmatrix},
+            \\tilde{B} = \\begin{bmatrix} B \\\\
+                         I \\end{bmatrix}
                             
         We introduce new states of this system as :math:`\\tilde{x} = [x,u]` 
         where :math:`x` and :math:`u` are the original states and input of the system.
@@ -188,14 +188,13 @@ class LQR(IteratedVariables):
         As the system state matrix and input matrix are altered,
         cost matrices are also modified accordingly:
             
-            .. math::
-                \\tilde{Q} = \\begin{bmatrix}
-                                Q & 0 \\\\
-                                0 & R \\end{bmatrix},
-                \\tilde{R} = \\Delta R
+        .. math::
+            \\tilde{Q} = \\begin{bmatrix}
+                            Q & 0 \\\\
+                            0 & R \\end{bmatrix},
+            \\tilde{R} = \\Delta R
         
-        Args:
-            delR : Rated input cost matrix - constant matrix with no variables
+        :param delR: Rated input cost matrix - constant matrix with no variables
         """
         
         #Modifying A and B matrix for input rate penalization
@@ -213,9 +212,12 @@ class LQR(IteratedVariables):
         Two different kinds of LQR can be desgined. In order to design a finite horizon LQR, ``n_horizon`` and to design a infinite horizon LQR, ``n_horizon`` 
         should be set to ``None`` (default value).
 
+        .. deprecated:: v4.5.0
+            This function will be deprecated in the future
+        
         Warnings:
             This method will be depreciated in a future version. Please set parameters via :py:class:`do_mpc.controller.LQRSettings`.
-
+        
         Note:
             A comprehensive list of all available parameters can be found in :py:class:`do_mpc.controller.LQRSettings`. 
 
@@ -235,7 +237,8 @@ class LQR(IteratedVariables):
 
         It is also possible and convenient to pass a dictionary with multiple parameters simultaneously as shown in the following example:
 
-        ::
+        .. code-block:: python
+            :class: thebe
 
             setup_lqr = {
                 'n_horizon': 20,
@@ -329,17 +332,17 @@ class LQR(IteratedVariables):
             
             For **set-point tracking** mode:
                 
-                .. math::
+            .. math::
                         
-                    J = \\frac{1}{2}\\sum_{k=0} ^{N-1} (x_k - x_{ss})^T Q(x_k-x_{ss})+(u_k-u_{ss})^T R(u_k-u_{ss}) \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad\\\\
-                            + (x_N-x_{ss})^T P(x_N-x_{ss})
+                J = \\frac{1}{2}\\sum_{k=0} ^{N-1} (x_k - x_{ss})^T Q(x_k-x_{ss})+(u_k-u_{ss})^T R(u_k-u_{ss}) \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad\\\\
+                        + (x_N-x_{ss})^T P(x_N-x_{ss})
                             
             For **Input Rate Penalization** mode:
                 
-                .. math::
+            .. math::
                     
-                    J = \\frac{1}{2}\\sum_{k=0} ^{N-1} (\\tilde{x}_k - \\tilde{x}_{ss})^T \\tilde{Q}(\\tilde{x}_k-\\tilde{x}_{ss})+\\Delta u_k^T \\Delta R \\Delta u_k 
-                        + (\\tilde{x}_N-\\tilde{x}_{ss})^TP(\\tilde{x}_N-\\tilde{x}_{ss})
+                J = \\frac{1}{2}\\sum_{k=0} ^{N-1} (\\tilde{x}_k - \\tilde{x}_{ss})^T \\tilde{Q}(\\tilde{x}_k-\\tilde{x}_{ss})+\\Delta u_k^T \\Delta R \\Delta u_k 
+                    + (\\tilde{x}_N-\\tilde{x}_{ss})^TP(\\tilde{x}_N-\\tilde{x}_{ss})
                     
         **Infinite Horizon**:
             
