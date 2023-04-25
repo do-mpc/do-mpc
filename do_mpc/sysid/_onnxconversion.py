@@ -18,8 +18,7 @@ class ONNXConversion:
     """ Transform `ONNX model <https://onnx.ai>`_. 
     The transformation returns a CasADi expression of the model and can be used e.g. in the :py:class:`do_mpc.model.Model` class.
 
-    .. note::
-
+    Warning:
         The feature is experimental and currently only has a limited number of supported operations.
         All supported operations can be found in the :py:class:`ONNXOperations` class.
 
@@ -37,14 +36,10 @@ class ONNXConversion:
 
     5. Query the class instance with the respective layer or node name to obtain the CasADi expression of the respective layer or node.
 
-    .. note::
-
-        As a convenience feature, the :py:meth:`ONNXConversion.convert` method can be called with a `Keras <https://keras.io/>`_ model instead of an `ONNX model <https://onnx.ai>`_ model.
-        The conversion to an ONNX model is done automatically.
 
     **Example:**
 
-    We start with a simple Keras model and 
+    We start with a simple Tensorflow (with Keras) model:
     ::
     
         model_input = keras.Input(shape=(3), name='input')
@@ -53,7 +48,25 @@ class ONNXConversion:
 
         keras_model = keras.Model(inputs=model_input, outputs=output_layer)
 
-        casadi_converter = do_mpc.sysid.ONNXConversion(keras_model)
+    We then proceed to export the model in the ONNX format, using the `tf2onnx <https://pypi.org/project/tf2onnx/>`_ package:
+
+    ::
+
+        model_input_signature = [
+            tf.TensorSpec(np.array((1, 3)), name='input'),
+        ]
+        output_path = os.path.join('models', 'model.onnx')
+
+        onnx_model, _ = tf2onnx.convert.from_keras(keras_model, 
+            output_path=output_path, 
+            input_signature=model_input_signature
+        )
+
+    We can now use the ONNX model (either directly or loaded from disc) to initialize the :py:class:`ONNXConversion` class:
+
+    ::
+
+        casadi_converter = do_mpc.sysid.ONNXConversion(onnx_model)
 
     Obtain information about the model inputs and outputs by calling ``print(casadi_converter)``, yielding, in this example:
 

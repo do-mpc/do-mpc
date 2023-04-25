@@ -57,17 +57,17 @@ class LQR(IteratedVariables):
 
     1. **Standard** mode: 
 
-        - Set set-point with :py:meth:`set_setpoint` (default is ``0``).
-        
-        - Set ``Q`` and ``R`` values with :py:meth:`set_objective`.
+    - Set set-point with :py:meth:`set_setpoint` (default is ``0``).
+    
+    - Set ``Q`` and ``R`` values with :py:meth:`set_objective`.
     
     2. **Input Rate Penalization** mode:
 
-        - Setpoint can also be set using :py:meth:`set_setpoint` (default is ``0``).
-        
-        - Reformulate objective with :py:meth:`set_rterm` to penalize the input rate by setting the value ``delR``.
+    - Setpoint can also be set using :py:meth:`set_setpoint` (default is ``0``).
+    
+    - Reformulate objective with :py:meth:`set_rterm` to penalize the input rate by setting the value ``delR``.
 
-        - Set ``Q`` and ``R`` values with :py:meth:`set_objective`.
+    - Set ``Q`` and ``R`` values with :py:meth:`set_objective`.
     
     Note:
         The function :py:meth:`set_rterm` mode is not recommended to use if the model is converted from an DAE to an ODE system.
@@ -171,14 +171,16 @@ class LQR(IteratedVariables):
         The input rate penalization formulation is given as:
             
         .. math::
-            x(k+1) = \\tilde{A} x(k) + \\tilde{B}\\Delta u(k)\\\\
+            \\begin{aligned}
+            x(k+1) &= \\tilde{A} x(k) + \\tilde{B}\\Delta u(k)\\\\
                 
             \\text{where} \\quad
-            \\tilde{A} = \\begin{bmatrix} 
+            \\tilde{A} &= \\begin{bmatrix} 
                             A & B \\\\
-                            0 & I \\end{bmatrix},
+                            0 & I \\end{bmatrix},\\quad
             \\tilde{B} = \\begin{bmatrix} B \\\\
                          I \\end{bmatrix}
+            \\end{aligned}
                             
         We introduce new states of this system as :math:`\\tilde{x} = [x,u]` 
         where :math:`x` and :math:`u` are the original states and input of the system.
@@ -191,7 +193,7 @@ class LQR(IteratedVariables):
         .. math::
             \\tilde{Q} = \\begin{bmatrix}
                             Q & 0 \\\\
-                            0 & R \\end{bmatrix},
+                            0 & R \\end{bmatrix},\\quad
             \\tilde{R} = \\Delta R
         
         :param delR: Rated input cost matrix - constant matrix with no variables
@@ -235,18 +237,6 @@ class LQR(IteratedVariables):
 
             lqr.set_param(n_horizon = 20)
 
-        It is also possible and convenient to pass a dictionary with multiple parameters simultaneously as shown in the following example:
-
-        .. code-block:: python
-            :class: thebe
-
-            setup_lqr = {
-                'n_horizon': 20,
-                't_step': 0.5,
-            }
-            lqr.set_param(**setup_mpc)
-        
-        This makes use of thy python "unpack" operator. See `more details here`_.
 
         .. _`more details here`: https://codeyarns.github.io/tech/2012-04-25-unpack-operator-in-python.html
 
@@ -330,35 +320,37 @@ class LQR(IteratedVariables):
         
         **Finite Horizon**:
             
-            For **set-point tracking** mode:
-                
-            .. math::
+        For **set-point tracking** mode:
+            
+        .. math::
+
+            \\begin{aligned}       
+            J &= \\frac{1}{2}\\sum_{k=0} ^{N-1} (x_k - x_{ss})^T Q(x_k-x_{ss})+(u_k-u_{ss})^T R(u_k-u_{ss})\\\\
+                    &+ (x_N-x_{ss})^T P(x_N-x_{ss})
+            \\end{aligned}
                         
-                J = \\frac{1}{2}\\sum_{k=0} ^{N-1} (x_k - x_{ss})^T Q(x_k-x_{ss})+(u_k-u_{ss})^T R(u_k-u_{ss}) \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad\\\\
-                        + (x_N-x_{ss})^T P(x_N-x_{ss})
-                            
-            For **Input Rate Penalization** mode:
+        For **Input Rate Penalization** mode:
+            
+        .. math::
                 
-            .. math::
-                    
-                J = \\frac{1}{2}\\sum_{k=0} ^{N-1} (\\tilde{x}_k - \\tilde{x}_{ss})^T \\tilde{Q}(\\tilde{x}_k-\\tilde{x}_{ss})+\\Delta u_k^T \\Delta R \\Delta u_k 
-                    + (\\tilde{x}_N-\\tilde{x}_{ss})^TP(\\tilde{x}_N-\\tilde{x}_{ss})
+            J = \\frac{1}{2}\\sum_{k=0} ^{N-1} (\\tilde{x}_k - \\tilde{x}_{ss})^T \\tilde{Q}(\\tilde{x}_k-\\tilde{x}_{ss})+\\Delta u_k^T \\Delta R \\Delta u_k 
+                + (\\tilde{x}_N-\\tilde{x}_{ss})^TP(\\tilde{x}_N-\\tilde{x}_{ss})
                     
         **Infinite Horizon**:
             
-            For **set-point tracking** mode:
-                
-                .. math::
-                    
-                    J = \\frac{1}{2}\\sum_{k=0} ^{\\inf} (x_k - x_{ss})^T Q(x_k-x_{ss})+(u_k-u_{ss})^T R(u_k-u_{ss}) \\quad \\quad \\quad \\quad \\quad \\quad \\quad
-                    
-            For **Input Rate Penalization** mode:
-                
-                .. math::
-                    
-                    J = \\frac{1}{2}\\sum_{k=0} ^{\\inf} (\\tilde{x}_k - \\tilde{x}_{ss})^T \\tilde{Q}(\\tilde{x}_k-\\tilde{x}_{ss})+ \\Delta u_k^T \\Delta R \\Delta u_k \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad
+        For **set-point tracking** mode:
             
-            where :math:`\\tilde{x} = [x,u]^T`
+        .. math::
+            
+            J = \\frac{1}{2}\\sum_{k=0} ^{\\inf} (x_k - x_{ss})^T Q(x_k-x_{ss})+(u_k-u_{ss})^T R(u_k-u_{ss}) \\quad \\quad \\quad \\quad \\quad \\quad \\quad
+                
+        For **Input Rate Penalization** mode:
+            
+        .. math::
+            
+            J = \\frac{1}{2}\\sum_{k=0} ^{\\inf} (\\tilde{x}_k - \\tilde{x}_{ss})^T \\tilde{Q}(\\tilde{x}_k-\\tilde{x}_{ss})+ \\Delta u_k^T \\Delta R \\Delta u_k \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad
+        
+        where :math:`\\tilde{x} = [x,u]^T` .
 
         Note:
             For the problem to be solved in ``inputRatePenalization`` mode, ``Q``, ``R`` and ``delR`` should be set.

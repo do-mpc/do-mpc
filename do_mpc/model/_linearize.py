@@ -31,27 +31,28 @@ def linearize(model:Model,
               tvp0:np.ndarray = None, 
               p0:np.ndarray = None
               )->LinearModel:
-    """Linearize the non-linear model to linear model.
+    """Linearize the non-linear :py:class:`Model` to obtain a :py:class:`LinearModel` .
+    The linearized model is required, e.g. for the :py:class:`do_mpc.controller.LQR` controller.
     
     This method uses the taylor expansion series to linearize non-linear model to linear model at the specified 
     set points. Linearized model retains the same variable names for all states, inputs with respect to the original model. 
     The non-linear model equation this method can solve is as follows:
     
-        .. math::
-            \\dot{x} = f(x,u)
+    .. math::
+        \\dot{x} = f(x,u)
             
     The above model is linearized around steady state set point :math:`x_{ss}` and steady state input :math:`u_{ss}`
     
-        .. math::
-            \\frac{\\partial f}{\\partial x}|_{x_{ss}} = 0 \\\\
-            \\frac{\\partial f}{\\partial u}|_{u_{ss}} = 0
+    .. math::
+        \\frac{\\partial f}{\\partial x}|_{x_{ss}} = 0 \\\\
+        \\frac{\\partial f}{\\partial u}|_{u_{ss}} = 0
             
     The linearized model is as follows:
         
-        .. math::
-            \\Delta\\dot{x} = A \\Delta x + B \\Delta u
+    .. math::
+        \\Delta\\dot{x} = A \\Delta x + B \\Delta u
             
-    Similarly it can be extended to discrete time systems. Since the linearized model has only rate of change input and state. The names are appended with 'del' to differentiate 
+    Similarly, it can be extended to discrete time systems. Since the linearized model has only rate of change input and state. The names are appended with 'del' to differentiate 
     from the original model. This can be seen in the above model definition. Therefore, the solution of the lqr will be ``u`` and its corresponding ``x``. In order to fetch :math:`\\Delta u` 
     and :math:`\\Delta x`, setpoints has to be subtracted from the solution of lqr.
     

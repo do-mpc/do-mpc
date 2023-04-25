@@ -447,45 +447,17 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
             mpc.set_param(n_horizon = 20)
 
-        It is also possible and convenient to pass a dictionary with multiple parameters simultaneously as shown in the following example:
-
-        ::
-
-            setup_mpc = {
-                'n_horizon': 20,
-                't_step': 0.5,
-            }
-            mpc.set_param(**setup_mpc)
-
-        This method makes use of the python "unpack" operator. See `more details here`_.
-
-        .. _`more details here`: https://codeyarns.github.io/tech/2012-04-25-unpack-operator-in-python.html
 
         Note: 
             The only required parameters  are ``n_horizon`` and ``t_step``. All other parameters are optional.
 
-        Note: 
-            :py:func:`set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
-            This only works prior to calling :py:func:`setup`. 
 
         Note: 
-            We highly suggest to change the linear solver for IPOPT from `mumps` to `MA27`. In many cases this will drastically boost the speed of **do-mpc**. Change the linear solver with:
-
-            ::
-
-                MPC.set_param(nlpsol_opts = {'ipopt.linear_solver': 'MA27'})
-            
+            We highly suggest to change the linear solver for IPOPT from `mumps` to `MA27`. 
             Any available linear solver can be set using :py:meth:`do_mpc.controller.MPCSettings.set_linear_solver`.
             For more details, please check the :py:class:`do_mpc.controller.MPCSettings`.
         
         Note: 
-            To suppress the output of IPOPT, please use:
-
-            ::
-
-                suppress_ipopt = {'ipopt.print_level':0, 'ipopt.sb': 'yes', 'print_time':0}
-                MPC.set_param(nlpsol_opts = suppress_ipopt)
-            
             The output of IPOPT can be suppressed :py:meth:`do_mpc.controller.MPCSettings.supress_ipopt_output`.
             For more details, please check the :py:class:`do_mpc.controller.MPCSettings`.
         """

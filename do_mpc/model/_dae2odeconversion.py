@@ -30,20 +30,20 @@ def dae2odeconversion(model:Model)->Model:
     This method utilizes the differentiation method of converting index-1 DAE systems to ODE systems. This method
     cannot handle higher index DAE systems. The DAE system is as follows:
             
-        .. math::
-            \\dot{x} = f(x,u,z) \\\\
-                0 = g(x,u,z)
+    .. math::
+        \\dot{x} = f(x,u,z) \\\\
+            0 = g(x,u,z)
                 
     where :math:`x` is the states, :math:`u` is the input and :math:`z` is the algebraic states of the system.
     Differentiation method is as follows:
     
-        .. math::
-            \\dot{z} = -\\frac{\\partial g}{\\partial z}^{-1}\\frac{\\partial g}{\\partial x}f-\\frac{\\partial g}{\\partial z}^{-1}\\frac{\\partial g}{\\partial u}\\dot{u}
+    .. math::
+        \\dot{z} = -\\frac{\\partial g}{\\partial z}^{-1}\\frac{\\partial g}{\\partial x}f-\\frac{\\partial g}{\\partial z}^{-1}\\frac{\\partial g}{\\partial u}\\dot{u}
             
     Therefore the converted ODE system looks like:
 
-        .. math::
-            \\begin{pmatrix} \\dot{x} \\\\ \\dot{u} \\\\ \\dot{z} \\end{pmatrix} = \\begin{pmatrix} f(x,u,z) \\\\ q \\\\ g(x,u,z) \\end{pmatrix}
+    .. math::
+        \\begin{pmatrix} \\dot{x} \\\\ \\dot{u} \\\\ \\dot{z} \\end{pmatrix} = \\begin{pmatrix} f(x,u,z) \\\\ q \\\\ g(x,u,z) \\end{pmatrix}
             
     where :math:`\\dot{x},\\dot{u},\\dot{z}` are the states of the model and q is the input to the model. Similarly, it can be extended to discrete time systems.
     The dae to ode converted model assumes that converted algebraic states and states measurements are available.
