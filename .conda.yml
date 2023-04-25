@@ -18,6 +18,7 @@ dependencies:
   - docutils
   - sphinx-copybutton
   - sphinx-autodoc-typehints
+  - sphinx-book-theme
   - graphviz
   - myst-parser
   - packaging
