@@ -31,7 +31,7 @@ sys.path.append(rel_do_mpc_path)
 import do_mpc
 
 
-def template_mpc(model):
+def template_mpc(model, silence_solver = False):
     """
     --------------------------------------------------------------------------
     template_mpc: tuning parameters
@@ -45,6 +45,9 @@ def template_mpc(model):
     mpc.settings.t_step = 50.0/3600.0
     mpc.settings.state_discretization = 'collocation'
     mpc.settings.store_full_solution = True    
+
+    if silence_solver:
+        mpc.settings.supress_ipopt_output()
 
     mterm = - model.x['m_P']
     lterm = - model.x['m_P']

@@ -31,7 +31,7 @@ sys.path.append(rel_do_mpc_path)
 import do_mpc
 
 
-def template_mpc(model):
+def template_mpc(model, silence_solver=False):
     """
     --------------------------------------------------------------------------
     template_mpc: tuning parameters
@@ -50,7 +50,9 @@ def template_mpc(model):
     mpc.settings.collocation_deg = 2
     mpc.settings.collocation_ni = 1
     mpc.settings.store_full_solution = True
-    # mpc.settings.supress_ipopt_output()
+    
+    if silence_solver:
+        mpc.settings.supress_ipopt_output()
 
 
     mpc.scaling['_x', 'T_R'] = 100
