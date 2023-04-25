@@ -12,4 +12,4 @@ scipy
 numpy
 matplotlib
 myst-parser
-
+packaging

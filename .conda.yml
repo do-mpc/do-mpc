@@ -12,6 +12,15 @@ dependencies:
   - tf2onnx
   - ipython
   - jupyter
+  - sphinx
+  - nbsphinx
+  - pygments
+  - docutils
+  - sphinx-copybutton
+  - sphinx-autodoc-typehints
+  - graphviz
+  - myst-parser
+  - packaging
 
   # install with:
-  # conda env create --prefix .venv -f .venv.yml  
+  # conda env create --prefix .venv -f .conda.yml  
