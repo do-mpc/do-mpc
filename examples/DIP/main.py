@@ -91,7 +91,7 @@ mpc.x0 = x0
 estimator.x0 = x0
 
 mpc.set_initial_guess()
-simulator.init_algebraic_variables()
+z0 = simulator.init_algebraic_variables()
 
 """
 Setup graphic:

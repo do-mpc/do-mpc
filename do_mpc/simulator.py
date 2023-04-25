@@ -422,10 +422,33 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         self.sim_z_num['_z'] = self._z0.cat
 
-    def init_algebraic_variables(self) -> None:
+    def init_algebraic_variables(self) -> np.ndarray:
         """Initializes the algebraic variables. 
         Solve the algebraic equations for the initial values of :py:attr:`x0`, :py:attr:`u0`, :py:attr:`p0`, :py:attr:`tvp0`.
-        Sets the results to :py:attr:`z0`.
+        Sets the results to :py:attr:`z0` and returns them. 
+
+        Note:
+            The method internally calls :py:func:`set_initial_guess` to set the initial guess for the algebraic variables.
+
+        The initialization is computed by solving the algebraic model equations under consideration of the initial guess supplied in :py:attr:`z0`.
+
+        **Example**:
+
+        ::
+
+            simulator = do_mpc.simulator.Simulator(model)
+
+            # Set initial value for the state:
+            simulator.x0 = np.array([0.1, 0.1]).reshape(-1,1)
+
+            # Obtain initial guess for the algebraic variables:
+            z0 = simulator.init_algebraic_variables()
+
+            # Initial guess is stored in simulator.z0 and simulator.set_initial_guess() was called internally.
+
+
+        Returns:
+            Initial guess for the algebraic variables.
 
         """
         if self.model.flags['setup'] is False:
@@ -434,28 +457,28 @@ class Simulator(do_mpc.model.IteratedVariables):
             )
 
 
+        z0 = castools.vertcat(self.z0)
+        p0 = castools.vertcat(self.p_fun(self.t0), self.tvp_fun(self.t0), self.u0, self.x0)
+
+
+        residual_to_initial_guess = castools.vertcat(self.model.z) - z0
+        cost = castools.sum2(castools.sum1(residual_to_initial_guess**2))
+
         nlp = {}
         nlp['x'] = castools.vertcat(self.model.z)
-        z0 = castools.vertcat(self.z0)
-        residual_to_initial_guess = castools.vertcat(self.model.z) - z0
-        nlp['f'] = castools.sum2(castools.sum1(residual_to_initial_guess**2))
-        algebraic_equations = castools.vertcat(self.model._alg)
-        variables_to_substitute = castools.vertcat(self.model.p, self.model.tvp, self.model.u, self.model.x)
-        initial_guess = castools.vertcat(self.p_fun(self.t0),
-                                self.tvp_fun(self.t0), self.u0,
-                                self.x0)
-        initialized_algebraic_equations = castools.substitute(algebraic_equations,
-                                                        variables_to_substitute,
-                                                        initial_guess)
-        nlp['g'] = initialized_algebraic_equations
+        nlp['f'] = cost
+        nlp['g'] = castools.vertcat(self.model._alg)
+        nlp['p'] = castools.vertcat(self.model.p, self.model.tvp, self.model.u, self.model.x)
 
         solver = castools.nlpsol("solver", "ipopt", nlp)
-        res = solver(x0=z0, lbg=0, ubg=0)
+        res = solver(x0=z0, lbg=0, ubg=0, p=p0)
         z_init = res['x']
 
         self.z0 = z_init
 
         self.set_initial_guess()
+
+        return z_init.full()
 
 
     def simulate(self)->np.ndarray:
