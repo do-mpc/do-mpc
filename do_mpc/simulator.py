@@ -470,7 +470,9 @@ class Simulator(do_mpc.model.IteratedVariables):
         nlp['g'] = castools.vertcat(self.model._alg)
         nlp['p'] = castools.vertcat(self.model.p, self.model.tvp, self.model.u, self.model.x)
 
-        solver = castools.nlpsol("solver", "ipopt", nlp)
+        supress_ipopt =  {'ipopt.print_level':0, 'ipopt.sb': 'yes', 'print_time':0}
+
+        solver = castools.nlpsol("solver", "ipopt", nlp, supress_ipopt)
         res = solver(x0=z0, lbg=0, ubg=0, p=p0)
         z_init = res['x']
 
