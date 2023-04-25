@@ -54,6 +54,7 @@ class TestBatchReactorLQRDAE(unittest.TestCase):
         self.template_lqr = reload(template_lqr)
         self.template_simulator = reload(template_simulator)
         sys.path = default_path
+
         
     def test_SX(self):
         self.batch_reactor_lqr_dae('SX')

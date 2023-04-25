@@ -73,7 +73,7 @@ class TestDIP(unittest.TestCase):
         ]
 
         model = self.template_model.template_model(obstacles, symvar_type)
-        mpc = self.template_mpc.template_mpc(model)
+        mpc = self.template_mpc.template_mpc(model, silence_solver=True)
         simulator = self.template_simulator.template_simulator(model)
         estimator = do_mpc.estimator.StateFeedback(model)
 
