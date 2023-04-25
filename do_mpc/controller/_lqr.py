@@ -211,7 +211,7 @@ class LQR(IteratedVariables):
         """Set the parameters of the :py:class:`LQR` class. Parameters must be passed as pairs of valid keywords and respective argument.
         
         Two different kinds of LQR can be desgined. In order to design a finite horizon LQR, ``n_horizon`` and to design a infinite horizon LQR, ``n_horizon`` 
-        should be set to ``None``(default value).
+        should be set to ``None`` (default value).
 
         Warnings:
             This method will be depreciated in a future version. Please set parameters via :py:class:`do_mpc.controller.LQRSettings`.

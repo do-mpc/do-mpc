@@ -283,14 +283,17 @@ class LinearModel(Model):
         """Calculates steady states for the given input or states.
         
         This method calculates steady states of a discrete system for the given steady state input and vice versa.
-        The mathematical formulation can be described as 
+        The mathematical formulation can be described as: 
             
             .. math::
-                x_{ss} = (I-A)^{-1}Bu_{ss}\\\\
+                x_{ss} = (I-A)^{-1}Bu_{ss}
                 
-               or\\\\
                 
+        or
+
+            .. math::
                 u_{ss} = B^{-1}(I-A)x_{ss}
+
         Args:
             xss : Steady state State values
             uss : Steady state Input values

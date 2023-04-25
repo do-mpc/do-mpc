@@ -85,7 +85,22 @@ from . import sysid
 
 from ._version import __version__
 
+import pdb
+
+from packaging import version
+import warnings
 
 import casadi
-if casadi.__version__ < "3.6.0":
-    raise ImportError("do-mpc requires CasADi version 3.6.0 or higher. Please update CasADi.")
+
+# From within Sphinx, casadi.__version__ is not available
+try:
+    casadi_version_check = version.parse(casadi.__version__) < version.parse("3.6.0")
+except:
+    casadi_version_check = False
+
+if casadi_version_check:
+    warnings.warn("It is recommended to use CasADi version 3.6.0 or higher. Future versions of do-mpc might not be compatible with older versions of CasADi.")
+    CASADI_LEGACY_MODE = True
+
+else:
+    CASADI_LEGACY_MODE = False

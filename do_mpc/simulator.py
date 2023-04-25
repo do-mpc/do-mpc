@@ -33,6 +33,9 @@ from typing import Union,Callable
 from dataclasses import dataclass
 
 
+# Define what is included in the Sphinx documentation.
+__all__ = ['Simulator', 'SimulatorSettings', 'ContinousSimulatorSettings']
+
 @dataclass
 class SimulatorSettings:
     """Settings for :py:class:`Simulator`.
@@ -220,9 +223,13 @@ class Simulator(do_mpc.model.IteratedVariables):
                 'reltol': self.settings.reltol,
             }
 
-            # Build the simulator
-            t0 = 0.0
-            self.simulator = castools.integrator('simulator', self.settings.integration_tool, dae, t0, self.settings.t_step, opts)
+            if do_mpc.CASADI_LEGACY_MODE:
+                opts['tf'] = self.settings.t_step
+                self.simulator = castools.integrator('simulator', self.settings.integration_tool, dae, opts)
+            else:
+                # Build the simulator
+                t0 = 0.0
+                self.simulator = castools.integrator('simulator', self.settings.integration_tool, dae, t0, self.settings.t_step, opts)
 
         sim_aux = self.model._aux_expression_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'])
         # Create function to caculate all auxiliary expressions:
