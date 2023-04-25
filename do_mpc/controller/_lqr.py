@@ -431,15 +431,22 @@ class LQR(IteratedVariables):
         """
         assert self.flags['setup'] == True, 'LQR is not setup. Run setup() function.'
 
-        if xss is None and not hasattr(self,'xss'):
-            self.xss = np.zeros((self.model.n_x,1))
-        else:
+        # Set or reset xss. Don't change xss if it already exists and uss is not passed
+        if xss:
             self.xss = xss
-        
-        if uss is None and not hasattr(self, 'uss'):
-            self.uss = np.zeros((self.model.n_u,1))
+        elif hasattr(self,'xss'):
+            pass
         else:
+            self.xss = np.zeros((self.model.n_u,1))
+
+        # Set or reset uss. Don't change uss if it already exists and uss is not passed
+        if uss:
             self.uss = uss
+        elif hasattr(self,'uss'):
+            pass
+        else:
+            self.uss = np.zeros((self.model.n_u,1))
+        
         if self.mode == 'inputRatePenalization':
             self.xss = np.block([[self.xss],[self.uss]])
             self.uss = np.zeros((self.model.n_u,1))
