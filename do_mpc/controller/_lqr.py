@@ -409,7 +409,7 @@ class LQR(IteratedVariables):
         if self.settings.n_horizon != None:
             assert self.P.shape == self.Q.shape, 'P must have same shape as Q. You have {}'.format(P.shape)
 
-    def set_setpoint(self,xss :np.ndarray= None,uss:np.ndarray = None)->None:   
+    def set_setpoint(self,xss :np.ndarray= None, uss:np.ndarray = None)->None:   
         """Sets setpoints for states and inputs.
 
         This method can be used to set setpoints for either states or inputs or for both (states and inputs) at each time step. 
@@ -437,7 +437,7 @@ class LQR(IteratedVariables):
         elif hasattr(self,'xss'):
             pass
         else:
-            self.xss = np.zeros((self.model.n_u,1))
+            self.xss = np.zeros((self.model.n_x,1))
 
         # Set or reset uss. Don't change uss if it already exists and uss is not passed
         if isinstance(uss, np.ndarray): 
@@ -466,8 +466,6 @@ class LQR(IteratedVariables):
         """
         self.settings.check_for_mandatory_settings()
 
-        if self.settings.n_horizon == None:
-            warnings.warn('discrete infinite horizon gain will be computed since prediction horizon is set to default value 0')
         if self.mode in ['standard',None]:
             self.K = self.discrete_gain(self.model._A,self.model._B)
         elif self.mode == 'inputRatePenalization':
@@ -483,6 +481,6 @@ class LQR(IteratedVariables):
                 self.K = self.discrete_gain(self.A_rated,self.B_rated)
             else:
                  raise AttributeError("set delR using set_rterm fun to execute in inputRatePenalization mode.")   
-        if not self.mode in ['standard','inputRatePenalization']:
+        else:
             raise Exception('mode must be standard, inputRatePenalization, None. you have {}'.format(self.method))
         self.flags['setup'] = True
