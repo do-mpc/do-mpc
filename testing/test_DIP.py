@@ -104,7 +104,7 @@ class TestDIP(unittest.TestCase):
         """
         Store results (from reference run):
         """
-        #do_mpc.data.save_results([mpc, simulator, estimator], 'results_dip', overwrite=True)
+        # do_mpc.data.save_results([mpc, simulator, estimator], 'results_dip', overwrite=True)
 
         """
         Compare results to reference run:
@@ -113,16 +113,22 @@ class TestDIP(unittest.TestCase):
 
         test = ['_x', '_u', '_time', '_z']
 
+        msg = 'Check if variable {var} for {module} is identical to previous runs: {check}. Max diff is {max_diff:.4E}.'
         for test_i in test:
             # Check MPC
-            check = np.allclose(mpc.data.__dict__[test_i], ref['mpc'].__dict__[test_i])
-            self.assertTrue(check)
+            max_diff = np.max(np.abs(mpc.data.__dict__[test_i] - ref['mpc'].__dict__[test_i]), initial=0)
+            check = max_diff < 1e-8
+            self.assertTrue(check, msg.format(var=test_i, module='MPC', check=check, max_diff=max_diff))
+
             # Check Simulator
-            check = np.allclose(simulator.data.__dict__[test_i], ref['simulator'].__dict__[test_i])
-            self.assertTrue(check)
+            max_diff = np.max(np.abs(simulator.data.__dict__[test_i] - ref['simulator'].__dict__[test_i]), initial=0)
+            check = max_diff < 1e-8
+            self.assertTrue(check, msg.format(var=test_i, module='Simulator', check=check, max_diff=max_diff))
+
             # Estimator
-            check = np.allclose(estimator.data.__dict__[test_i], ref['estimator'].__dict__[test_i])
-            self.assertTrue(check)
+            max_diff = np.max(np.abs(estimator.data.__dict__[test_i] - ref['estimator'].__dict__[test_i]), initial=0)
+            check = max_diff < 1e-8
+            self.assertTrue(check, msg.format(var=test_i, module='Estimator', check=check, max_diff=max_diff))
 
         # Store for test reasons
         try:

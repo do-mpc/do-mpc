@@ -42,8 +42,8 @@ def template_simulator(model):
     params_simulator = {
         # Note: cvode doesn't support DAE systems.
         'integration_tool': 'idas',
-        'abstol': 1e-10,
-        'reltol': 1e-10,
+        'abstol': 1e-8,
+        'reltol': 1e-8,
         't_step': 0.04
     }
 
