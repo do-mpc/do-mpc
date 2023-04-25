@@ -81,7 +81,7 @@ class TestDIP(unittest.TestCase):
         Set initial state
         """
 
-        simulator.x0['theta'] = np.pi
+        simulator.x0['theta'] = .9*np.pi
         simulator.x0['pos'] = 0
 
         x0 = simulator.x0.cat.full()
@@ -90,6 +90,7 @@ class TestDIP(unittest.TestCase):
         estimator.x0 = x0
 
         mpc.set_initial_guess()
+        simulator.init_algebraic_variables()
 
         """
         Run some steps:
