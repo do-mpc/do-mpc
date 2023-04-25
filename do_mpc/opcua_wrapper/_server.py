@@ -19,15 +19,16 @@
 #
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
-
+import asyncio
 import time
 from casadi import *
+import sqlite3
 
 try:
     import asyncua.sync as opcua
 except ImportError:
     raise ImportError("The asyncua library is not installed. Please install it and try again.")
-        
+from asyncua import sync
 
 
 class RTServer:
@@ -88,7 +89,7 @@ class RTServer:
         datavector.set_writable()
         namespace_entry.variable = variable_name
 
-    
+
     # Start server
     def start(self):
         try:

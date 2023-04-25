@@ -6,8 +6,9 @@ import time
 import do_mpc
 import numpy as np
 from opcua_wrapper import *
-from multiprocessing import Pool
-# importlib.reload(RTServer_modular)
+from multiprocessing import Process, Queue
+
+#%% Create do-mpc classes
 
 def bio_model():
     model_type = 'continuous' # either 'discrete' or 'continuous'
@@ -176,80 +177,104 @@ def sim(model):
 
     return simulator
 
+
+
 model = bio_model()
 controller = mpc(model)
 simulator = sim(model)
-# Initial guess
-X_s_0 = 1.0 # Concentration biomass [mol/l]
-S_s_0 = 0.5 # Concentration substrate [mol/l]
-P_s_0 = 0.0 # Concentration product [mol/l]
-V_s_0 = 120.0 # Volume inside tank [m^3]
-x0 = np.array([X_s_0, S_s_0, P_s_0, V_s_0])
-controller.x0 = x0
-controller.set_initial_guess()
-simulator.x0 = x0
 
+#%% Setup server and dummy clients to get namespaces automatically
 
-#%% Server setup
-
-
-# Defining the settings for the OPCUA server
 server_opts = ServerOpts("Bio Reactor OPCUA",   
                "opc.tcp://localhost:4840/freeopcua/server/",  
-               4840)                 
-
-client_opts_1 = ClientOpts("Bio Reactor OPCUA Client_1","opc.tcp://localhost:4840/freeopcua/server/",4840)
-client_opts_2 = ClientOpts("Bio Reactor OPCUA Client_2","opc.tcp://localhost:4840/freeopcua/server/",4840)
+               4840)                      
 
 Server = RTServer(server_opts)
-rt_mpc = RTBase(controller, client_opts_1)
-rt_sim = RTBase(simulator, client_opts_2)
+rt_mpc = RTBase(controller, ClientOpts("Bio Reactor OPCUA Client_2","opc.tcp://localhost:4840/freeopcua/server/",4840))
+rt_sim = RTBase(simulator, ClientOpts("Bio Reactor OPCUA Client_1","opc.tcp://localhost:4840/freeopcua/server/",4840))
 
 Server.namespace_from_client(rt_mpc)
 Server.namespace_from_client(rt_sim)
 
-rt_mpc.set_write_tags(rt_mpc.def_namespace['u'])
-rt_sim.set_write_tags(rt_sim.def_namespace['x'])
-rt_mpc.set_read_tags(rt_sim.def_namespace['x'])
-rt_sim.set_read_tags(rt_mpc.def_namespace['u'])
-#%%
-# Server.get_all_nodes()
+mpc_write_tags = rt_mpc.def_namespace['u']
+sim_write_tags  = rt_sim.def_namespace['x']
+mpc_read_tags = rt_sim.def_namespace['x']
+sim_read_tags = rt_mpc.def_namespace['u']
 
-#%%
-# rt_mpc.set_default_read_ns()
 
-#%%
-# Server.get_all_nodes()
-Server.start()
-rt_mpc.connect()
-rt_sim.connect()
+#%% Client setup for multiprocessing
+def send_mpc_to_process(read_tags, write_tags):
+    model_p = bio_model()
+    controller_p = mpc(model_p)
+    controller_p.x0 = np.array([1.0, 0.5, 0.0, 120.0])
+    controller_p.set_initial_guess()
 
-rt_sim.write_to_tags(simulator.x0)
-rt_mpc.write_to_tags(controller.u0)
-# #%%
-rt_mpc.async_step_start()
-rt_sim.async_step_start()
-# #%%
+    rt_mpc_p = RTBase(controller_p, ClientOpts("Bio Reactor OPCUA Client_1","opc.tcp://localhost:4840/freeopcua/server/",4840))
+    rt_mpc_p.set_write_tags(write_tags)
+    rt_mpc_p.set_read_tags(read_tags)
+    rt_mpc_p.connect()
+    rt_mpc_p.write_to_tags(controller_p.u0)
+    rt_mpc_p.async_step_start()
+    time.sleep(20)
+    rt_mpc_p.async_step_stop()
+    rt_mpc_p.disconnect()
 
-# #%%
-# # Server.stop()
-# # %%
 
-state_list = []
-input_list= []
+def send_sim_to_process(q, read_tags, write_tags):
+    model_p = bio_model()
+    simulator_p = sim(model_p)
+    simulator_p.x0 = np.array([1.0, 0.5, 0.0, 120.0])
 
-for i in range(5):
+    rt_sim_p = RTBase(simulator_p, ClientOpts("Bio Reactor OPCUA Observer","opc.tcp://localhost:4840/freeopcua/server/",4840))
+    rt_sim_p.set_write_tags(write_tags)
+    rt_sim_p.set_read_tags(read_tags)
+    rt_sim_p.connect()
+    rt_sim_p.write_to_tags(simulator_p.x0)
+    rt_sim_p.async_step_start()
+    time.sleep(20)
+    rt_sim_p.async_step_stop()
+    q.put(rt_sim_p.do_mpc_object.data)
+    rt_sim_p.disconnect()
+    
 
-    print({'u':rt_sim.read_from_tags(),
-    'x':rt_mpc.read_from_tags()})
-    state_list.append(rt_mpc.read_from_tags())
-    input_list.append(rt_sim.read_from_tags())
-    time.sleep(3)
 
-rt_mpc.async_step_stop()
-rt_sim.async_step_stop()
-time.sleep(3)
-rt_mpc.disconnect()
-rt_sim.disconnect()
-time.sleep(3)
-Server.stop()
+# Observer client for main process
+obs_client = RTClient(ClientOpts("Bio Reactor OPCUA Observer","opc.tcp://localhost:4840/freeopcua/server/",4840), [])
+
+
+
+
+#%% Run all processes
+
+if __name__ == '__main__':
+
+    q = Queue()
+
+    Server.start()
+    obs_client.connect()
+
+    sim_process = Process(target=send_sim_to_process, args=(q, sim_read_tags, sim_write_tags))
+    sim_process.start()
+
+    
+
+    mpc_process = Process(target=send_mpc_to_process, args=(mpc_read_tags, mpc_write_tags))
+    mpc_process.start()
+
+
+    time.sleep(10)
+
+    for i in range(10):
+        mpc_test = obs_client.readData(mpc_write_tags[0])
+        sim_test = np.array([obs_client.readData(sim_write_tags[0]), obs_client.readData(sim_write_tags[1]), obs_client.readData(sim_write_tags[2]), obs_client.readData(sim_write_tags[3])])
+
+        print(f'controller write (u): {mpc_test} simulator write (X0-X3): {sim_test}')
+        time.sleep(3)
+    
+    
+    res = q.get()
+    
+    sim_process.join(timeout=20)
+    
+    mpc_process.join(timeout=20)
+    Server.stop()

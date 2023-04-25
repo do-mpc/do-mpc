@@ -86,6 +86,7 @@ class RTBase:
         self.tagin = []
         self.is_running = False
         self.new_init = True
+        self.async_fag = False
 
 
     def namespace_from_model(self, model, model_name):
@@ -226,6 +227,10 @@ class RTBase:
             self.thread.start()
             self.is_running = True
 
+        if self.async_fag == True:
+            self.async_fag = False
+            return print('Async operation was interrupted by the user')
+
 
     def async_step_stop(self):
         '''
@@ -234,6 +239,7 @@ class RTBase:
         self.thread.cancel()
         self.is_running = False
         self.new_init = True
+        self.async_fag = True
 
 
 
