@@ -941,6 +941,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         self.data.update(_u = u0)
         self.data.update(_z = z0)
         self.data.update(_tvp = tvp0['_tvp', 0])
+        self.data.update(_p = p0['_p', 0])
         self.data.update(_time = t0)
         self.data.update(_aux = aux0)
 
