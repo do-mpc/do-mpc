@@ -44,7 +44,6 @@ master_doc = 'index'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = ['sphinx.ext.autodoc',
-           #   'sphinx_rtd_theme',
 	      'sphinx.ext.intersphinx',
           'nbsphinx',
           'sphinx.ext.mathjax',
@@ -53,11 +52,8 @@ extensions = ['sphinx.ext.autodoc',
           'sphinx.ext.viewcode',
           'sphinx_copybutton',
           'myst_parser',
-          #'sphinx.ext.napoleon',
-          'sphinxcontrib.napoleon',
+          'sphinx.ext.napoleon',
           'sphinx_autodoc_typehints',
-          'sphinx_thebe',
-          'sphinx.opengraph'
               ]
 
 graphviz_output_format = 'svg'
@@ -108,9 +104,9 @@ html_theme_options = {
     "use_issues_button": True,
     #"use_download_button": True,
     "show_navbar_depth": 4,
-    "launch_buttons": {
-        "thebe": True,
-    },
+    # "launch_buttons": {
+    #     "thebe": True,
+    # },
      "logo": {
         "image_dark": "static/dompc_var_02_rtd_dark.svg",
         # "text": html_title,  # Uncomment to try text with logo
