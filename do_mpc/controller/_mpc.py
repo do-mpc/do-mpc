@@ -28,7 +28,7 @@ import itertools
 import time
 import warnings
 from do_mpc.tools import IndexedProperty
-from typing import Union,Callable
+from typing import Union, Callable, Optional
 from dataclasses import asdict
 import do_mpc
 from ._controllersettings import MPCSettings
@@ -73,7 +73,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             graph [fontname = "helvetica"];
             rankdir=LR;
 
-            subgraph cluster_main {
+            subgraph cluster_main {
                 node [fontname = "helvetica", shape=box, fontcolor="#404040", color="#707070"];
                 edge [fontname = "helvetica", color="#707070"];
 
@@ -112,6 +112,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
     Args:
         model: Model
+        settings: Settings for the MPC controller. See :py:class:`MPCSettings` for details.
 
     Warnings:
         Before running the controller, make sure to supply a valid initial guess for all optimized variables (states, algebraic states and inputs).
@@ -122,7 +123,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     During runtime call :py:func:`make_step` with the current state :math:`x` to obtain the optimal control input :math:`u`.
 
     """
-    def __init__(self, model:Union[do_mpc.model.Model,do_mpc.model.LinearModel]):
+    def __init__(self, model:Union[do_mpc.model.Model,do_mpc.model.LinearModel], settings: Optional[MPCSettings] = None):
 
         self.model = model
 
@@ -355,7 +356,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         """Query and set the terminal bounds for the states.
         The :py:func:`terminal_bounds` method is an indexed property, meaning
         getting and setting this property requires an index and calls this function.
-        The power index (elements are seperated by comas) must contain atleast the following elements:
+        The power index (elements are seperated by commas) must contain at least the following elements:
 
         ======      =================   ==========================================================
         order       index name          valid options
@@ -941,6 +942,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         self.data.update(_u = u0)
         self.data.update(_z = z0)
         self.data.update(_tvp = tvp0['_tvp', 0])
+        self.data.update(_p = p0['_p', 0])
         self.data.update(_time = t0)
         self.data.update(_aux = aux0)
 

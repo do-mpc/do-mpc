@@ -724,7 +724,7 @@ class Optimizer:
             subprocess.Popen(compiler_command, shell=True).wait()
 
         # Overwrite solver object with loaded nlp:
-        self.S = castools.nlpsol('solver_compiled', 'ipopt', {libname}, self.settings.nlpsol_opts)
+        self.S = nlpsol('solver_compiled', 'ipopt', libname, self.settings.nlpsol_opts)
         print('Using compiled NLP solver.')
 
     def solve(self)->None:
@@ -781,7 +781,7 @@ class Optimizer:
                 self.opt_x_num,
                 self.opt_p_num
             )
-        
+
         # For warmstarting purposes: Flag that initial run has been completed.
         self.flags['initial_run'] = True
 

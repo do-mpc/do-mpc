@@ -39,10 +39,8 @@ def template_lqr(model):
     lqr = do_mpc.controller.LQR(model)
     
     # Initialize the parameters
-    setup_lqr = {
-                 't_step':0.5}
-    
-    lqr.set_param(**setup_lqr)
+    lqr.settings.t_step = .5
+    lqr.settings.n_horizon = None # infinite horizon
     
     # Setting the objective
     Q = np.identity(4)

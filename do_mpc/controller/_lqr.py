@@ -210,7 +210,7 @@ class LQR(IteratedVariables):
         """Set the parameters of the :py:class:`LQR` class. Parameters must be passed as pairs of valid keywords and respective argument.
         
         Two different kinds of LQR can be desgined. In order to design a finite horizon LQR, ``n_horizon`` and to design a infinite horizon LQR, ``n_horizon`` 
-        should be set to ``None``(default value).
+        should be set to ``None`` (default value).
 
         .. deprecated:: v4.5.0
             This function will be deprecated in the future
@@ -412,7 +412,7 @@ class LQR(IteratedVariables):
         if self.settings.n_horizon != None:
             assert self.P.shape == self.Q.shape, 'P must have same shape as Q. You have {}'.format(P.shape)
 
-    def set_setpoint(self,xss :np.ndarray= None,uss:np.ndarray = None)->None:   
+    def set_setpoint(self,xss :np.ndarray= None, uss:np.ndarray = None)->None:   
         """Sets setpoints for states and inputs.
 
         This method can be used to set setpoints for either states or inputs or for both (states and inputs) at each time step. 
@@ -434,15 +434,22 @@ class LQR(IteratedVariables):
         """
         assert self.flags['setup'] == True, 'LQR is not setup. Run setup() function.'
 
-        if xss is None and not hasattr(self,'xss'):
-            self.xss = np.zeros((self.model.n_x,1))
-        else:
+        # Set or reset xss. Don't change xss if it already exists and uss is not passed
+        if isinstance(xss, np.ndarray):
             self.xss = xss
-        
-        if uss is None and not hasattr(self, 'uss'):
-            self.uss = np.zeros((self.model.n_u,1))
+        elif hasattr(self,'xss'):
+            pass
         else:
+            self.xss = np.zeros((self.model.n_x,1))
+
+        # Set or reset uss. Don't change uss if it already exists and uss is not passed
+        if isinstance(uss, np.ndarray): 
             self.uss = uss
+        elif hasattr(self,'uss'):
+            pass
+        else:
+            self.uss = np.zeros((self.model.n_u,1))
+        
         if self.mode == 'inputRatePenalization':
             self.xss = np.block([[self.xss],[self.uss]])
             self.uss = np.zeros((self.model.n_u,1))
@@ -462,8 +469,6 @@ class LQR(IteratedVariables):
         """
         self.settings.check_for_mandatory_settings()
 
-        if self.settings.n_horizon == None:
-            warnings.warn('discrete infinite horizon gain will be computed since prediction horizon is set to default value 0')
         if self.mode in ['standard',None]:
             self.K = self.discrete_gain(self.model._A,self.model._B)
         elif self.mode == 'inputRatePenalization':
@@ -479,6 +484,6 @@ class LQR(IteratedVariables):
                 self.K = self.discrete_gain(self.A_rated,self.B_rated)
             else:
                  raise AttributeError("set delR using set_rterm fun to execute in inputRatePenalization mode.")   
-        if not self.mode in ['standard','inputRatePenalization']:
+        else:
             raise Exception('mode must be standard, inputRatePenalization, None. you have {}'.format(self.method))
         self.flags['setup'] = True

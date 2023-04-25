@@ -1,8 +1,18 @@
 import casadi
 import onnx
+from onnx import numpy_helper
 import numpy as np
 import pdb
+import importlib
 
+
+# Import optional packages
+
+ONNX_INSTALLED = False
+
+if importlib.util.find_spec("onnx"):
+    import onnx
+    ONNX_INSTALLED = True
 
 class ONNXConversion:
     """ Transform `ONNX model <https://onnx.ai>`_. 
@@ -86,31 +96,17 @@ class ONNXConversion:
 
     """
     
-    def __init__(self, model, model_name=None, from_keras=False):  
+    def __init__(self, model, model_name=None):  
+        if not ONNX_INSTALLED:
+            raise Exception("The package 'onnx' is not installed. Please install it..")
+
         # In case of a keras model as input, convert it to an ONNX model
-        if from_keras:
-            try:
-                import tf2onnx
-                import tensorflow as tf
-            except:
-                raise Exception("The package 'tf2onnx' or 'tensorflow' is not installed. Please install it..")
-
-            assert isinstance(model,(tf.keras.Model)), 'The input model is not a Keras model.'
-
-            model_input_signature = [tf.TensorSpec(np.array(self._determine_shape(inp_spec.shape)),
-                                        name=inp_spec.name) for inp_spec in model.input_spec]
-            self.onnx_model, _ = tf2onnx.convert.from_keras(model,output_path=None,
-                                                            input_signature=model_input_signature)
-            self.name = "casadi_model" if not isinstance(model_name, (str)) else model.name
         
-        elif isinstance(model,(onnx.onnx_ml_pb2.ModelProto)):
+        if isinstance(model,(onnx.onnx_ml_pb2.ModelProto)):
             self.onnx_model = model
             self.name = "casadi_model" if not isinstance(model_name, (str)) else model_name
-
         else:
             raise Exception("Please pass a keras or onnx model as input. Please use the from_keras flag to convert a keras model to an onnx model.")
-            
-        
         
         # From the ONNX model the graph and the nodes and the initializers are directly inherited
         self.graph = self.onnx_model.graph
@@ -120,7 +116,7 @@ class ONNXConversion:
         # The initialized tensors are converted into the numpy readable format  before assignment
         self.initialized_tensors = {}
         for initializer in onnx_initializers:
-            self.initialized_tensors[initializer.name] = onnx.numpy_helper.to_array(initializer)
+            self.initialized_tensors[initializer.name] = numpy_helper.to_array(initializer)
         
             
         # Determining the input shape 
@@ -329,6 +325,44 @@ class ONNXOperations:
         for arg in args:
             out += arg
         return out
+
+    def Mul(self,*args, attribute = None):
+        return args[0]*args[1]
+
+    def Sub(self, *args, attribute = None):
+        return args[0] - args[1]
+
+    def Gemm(self, *args, attribute = None):
+        """General Matrix Multiplication.
+        See `ONNX documentation"""
+
+        attr_dict = {
+            k.name: k.i for k in attribute
+        }
+
+        A = args[0]
+        B = args[1]
+        C = args[2]
+
+        if 'transA' in attr_dict.keys() and attr_dict['transA'] == 1:
+            A = casadi.transpose(A)
+        if 'transB' in attr_dict.keys() and attr_dict['transB'] == 1:
+            B = casadi.transpose(B)
+        if 'alpha' in attr_dict.keys():
+            alpha = attr_dict['alpha']
+        else:
+            alpha = 1
+        if 'beta' in attr_dict.keys():
+            beta = attr_dict['beta']
+        else:
+            beta = 1
+
+        if C.ndim == 1:
+            C = C.reshape(1,-1)
+        
+        res = alpha*self.MatMul(A,B) + beta*C
+
+        return res
 
     def Sum(self,*args, attribute = None):
         return  self.Add(*args)

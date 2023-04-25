@@ -31,7 +31,7 @@ sys.path.append(rel_do_mpc_path)
 import do_mpc
 
 
-def template_mpc(model):
+def template_mpc(model, silence_solver = False):
     """
     --------------------------------------------------------------------------
     template_mpc: tuning parameters
@@ -39,21 +39,19 @@ def template_mpc(model):
     """
     mpc = do_mpc.controller.MPC(model)
 
-    setup_mpc = {
-        'n_horizon': 20,
-        'n_robust': 0,
-        'open_loop': 0,
-        't_step': 1.0,
-        'state_discretization': 'collocation',
-        'collocation_type': 'radau',
-        'collocation_deg': 2,
-        'collocation_ni': 2,
-        'store_full_solution': True,
-        # Use MA27 linear solver in ipopt for faster calculations:
-        #'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
-    }
+    mpc.settings.n_horizon =  20
+    mpc.settings.n_robust =  0
+    mpc.settings.open_loop =  0
+    mpc.settings.t_step =  1.0
+    mpc.settings.state_discretization =  'collocation'
+    mpc.settings.collocation_type =  'radau'
+    mpc.settings.collocation_deg =  2
+    mpc.settings.collocation_ni =  2
+    mpc.settings.store_full_solution =  True
 
-    mpc.set_param(**setup_mpc)
+    if silence_solver:
+        mpc.settings.supress_ipopt_output()
+
 
     mterm = -model.x['P_s']
     lterm = -model.x['P_s']

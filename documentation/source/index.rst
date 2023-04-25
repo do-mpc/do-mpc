@@ -36,17 +36,17 @@ that can be easily extended and combined to fit many different applications.
 
 In summary, **do-mpc** offers the following features:
 
-* nonlinear and economic model predictive control
+    * nonlinear and economic model predictive control
 
-* support for differential algebraic equations (DAE)
+    * support for differential algebraic equations (DAE)
 
-* time discretization with orthogonal collocation on finite elements
+    * time discretization with orthogonal collocation on finite elements
 
-* robust multi-stage model predictive control
+    * robust multi-stage model predictive control
 
-* moving horizon state and parameter estimation
+    * moving horizon state and parameter estimation
 
-* modular design that can be easily extended
+    * modular design that can be easily extended
 
 The **do-mpc** software is Python based and works therefore on any OS with a Python 3.x distribution.
 **do-mpc** has been developed by Sergio Lucia and Alexandru Tatulea at the DYN chair of the TU Dortmund lead by Sebastian Engell.
@@ -156,17 +156,17 @@ Table of contents
    API reference <api/do_mpc>
    Release notes <release_notes>
 
-.. toctree::
-   :maxdepth: 5
-   :caption: Example gallery
+.. .. toctree::
+..    :maxdepth: 5
+..    :caption: Example gallery
 
-   /example_gallery/batch_reactor
-   /example_gallery/CSTR
-   /example_gallery/industrial_poly
-   /example_gallery/oscillating_masses_discrete
-   /example_gallery/DIP
-   /example_gallery/data_generator
-   /example_gallery/CSTR_lqr
+..    /example_gallery/batch_reactor
+..    /example_gallery/CSTR
+..    /example_gallery/industrial_poly
+..    /example_gallery/oscillating_masses_discrete
+..    /example_gallery/DIP
+..    /example_gallery/data_generator
+..    /example_gallery/CSTR_lqr
 
 
 
