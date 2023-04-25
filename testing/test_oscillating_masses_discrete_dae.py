@@ -82,13 +82,12 @@ class TestOscillatingMassesDiscrete(unittest.TestCase):
         """
         Get configured do-mpc modules:
         """
-        mpc = self.template_mpc.template_mpc(model)
+        mpc = self.template_mpc.template_mpc(model, silence_solver=True)
         simulator = self.template_simulator.template_simulator(model)
         estimator = do_mpc.estimator.StateFeedback(model)
         """
         Set initial state
         """
-
         np.random.seed(99)
 
         x0 = np.random.rand(model.n_x)-0.5
@@ -114,7 +113,7 @@ class TestOscillatingMassesDiscrete(unittest.TestCase):
         """
         Store results (from reference run):
         """
-        #do_mpc.data.save_results([mpc, simulator, estimator], 'results_oscillatingMasses_dae', overwrite=True)
+        # do_mpc.data.save_results([mpc, simulator, estimator], 'results_oscillatingMasses_dae', overwrite=True)
 
         """
         Compare results to reference run:
@@ -123,16 +122,22 @@ class TestOscillatingMassesDiscrete(unittest.TestCase):
 
         test = ['_x', '_u', '_aux', '_time', '_z']
 
+        msg = 'Check if variable {var} for {module} is identical to previous runs: {check}. Max diff is {max_diff:.4E}.'
         for test_i in test:
             # Check MPC
-            check = np.allclose(mpc.data.__dict__[test_i], ref['mpc'].__dict__[test_i])
-            self.assertTrue(check)
+            max_diff = np.max(np.abs(mpc.data.__dict__[test_i] - ref['mpc'].__dict__[test_i]), initial=0)
+            check = max_diff < 1e-8
+            self.assertTrue(check, msg.format(var=test_i, module='MPC', check=check, max_diff=max_diff))
+
             # Check Simulator
-            check = np.allclose(simulator.data.__dict__[test_i], ref['simulator'].__dict__[test_i])
-            self.assertTrue(check)
+            max_diff = np.max(np.abs(simulator.data.__dict__[test_i] - ref['simulator'].__dict__[test_i]), initial=0)
+            check = max_diff < 1e-8
+            self.assertTrue(check, msg.format(var=test_i, module='Simulator', check=check, max_diff=max_diff))
+
             # Estimator
-            check = np.allclose(estimator.data.__dict__[test_i], ref['estimator'].__dict__[test_i])
-            self.assertTrue(check)
+            max_diff = np.max(np.abs(estimator.data.__dict__[test_i] - ref['estimator'].__dict__[test_i]), initial=0)
+            check = max_diff < 1e-8
+            self.assertTrue(check, msg.format(var=test_i, module='Estimator', check=check, max_diff=max_diff))
 
         # Store for test reasons
         try:
