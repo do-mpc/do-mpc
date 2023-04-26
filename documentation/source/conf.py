@@ -25,7 +25,7 @@ sys.path.append(os.path.abspath(os.path.join('.')))
 # -- Project information -----------------------------------------------------
 
 project = 'do-mpc'
-copyright = '2021, Sergio Lucia and Felix Fiedler'
+copyright = '2023, Sergio Lucia and Felix Fiedler'
 author = 'Sergio Lucia and Felix Fiedler'
 
 # The full version, including alpha/beta/rc tags
@@ -103,7 +103,7 @@ html_theme_options = {
     "use_source_button": True,
     "use_issues_button": True,
     #"use_download_button": True,
-    "show_navbar_depth": 4,
+    "show_navbar_depth":1,
     # "launch_buttons": {
     #     "thebe": True,
     # },
