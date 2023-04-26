@@ -213,7 +213,7 @@ class LQR(IteratedVariables):
         Two different kinds of LQR can be desgined. In order to design a finite horizon LQR, ``n_horizon`` and to design a infinite horizon LQR, ``n_horizon`` 
         should be set to ``None`` (default value).
 
-        .. deprecated:: v4.5.0
+        .. deprecated:: >v4.5.1
             This function will be deprecated in the future
         
         Warnings:
@@ -357,11 +357,11 @@ class LQR(IteratedVariables):
             
         For example:
 
-            ::
-                
-                # Values used are to show how to use this function.
-                # For ODE models
-                lqr.set_objective(Q = np.identity(2), R = np.identity(2), P = np.identity(2))        
+        ::
+            
+            # Values used are to show how to use this function.
+            # For ODE models
+            lqr.set_objective(Q = np.identity(2), R = np.identity(2), P = np.identity(2))        
         
         Warning:
             ``Q``, ``R``, ``P`` is chosen as matrix of zeros since it is not passed explicitly.
