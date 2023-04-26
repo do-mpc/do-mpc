@@ -20,6 +20,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+
 """
 Simulate continous-time ODE/DAE or discrete-time dynamic systems.
 """
@@ -29,6 +30,55 @@ import casadi.tools as castools
 import pdb
 import do_mpc
 from typing import Union,Callable
+from dataclasses import dataclass
+
+
+# Define what is included in the Sphinx documentation.
+__all__ = ['Simulator', 'SimulatorSettings', 'ContinousSimulatorSettings']
+
+@dataclass
+class SimulatorSettings:
+    """Settings for :py:class:`Simulator`.
+    An instance of this class is automatically generated as the attribute ``settings`` when creating the :py:class:`Simulator`.
+
+    **Example**:
+
+    ::
+
+        simulator = do_mpc.simulator.Simulator(model)
+        simulator.settings.t_step = 0.5
+
+    """
+    t_step: float = None
+    """Timestep of the Simulator"""
+    
+    def check_for_mandatory_settings(self):
+        """Method to assert the necessary settings required to design :py:class:`do_mpc.controller`
+        """
+        if self.t_step is None:
+            raise ValueError("t_step must be set")
+
+class ContinousSimulatorSettings(SimulatorSettings):
+    """Settings for :py:class:`Simulator` for continous-time systems.
+    An instance of this class is automatically generated as the attribute ``settings`` when creating the :py:class:`Simulator`.
+
+    **Example**:
+
+    ::
+
+        simulator = do_mpc.simulator.Simulator(model)
+        simulator.settings.t_step = 0.5
+    """
+    
+    abstol: float = 1e-10
+    """Absolute tolerance for the integrator"""
+
+    reltol: float = 1e-10
+    """Relative tolerance for the integrator"""
+
+    integration_tool: str = 'cvodes'
+    """Integration tool to be used. Options are 'cvodes' and 'idas'"""
+
 
 class Simulator(do_mpc.model.IteratedVariables):
     """A class for simulating systems. Discrete-time and continuous systems can be considered.
@@ -53,13 +103,12 @@ class Simulator(do_mpc.model.IteratedVariables):
     During runtime, call the simulator :py:func:`make_step` method with current input (``u``).
     This computes the next state of the system and the respective measurement.
     Optionally, pass (sampled) random variables for the process ``w`` and measurement noise ``v`` (if they were defined in :py:class`do_mpc.model.Model`)
-    """
-    def __init__(self, model:do_mpc.model):
-        """ Initialize the simulator class. The model gives the basic model description and is used to build the simulator. If the model is discrete-time, the simulator is a function, if the model is continuous, the simulator is an integrator.
 
-        Args:
-            model: Simulation model
-        """
+    Args:
+        model: A configured and setup :py:class:`do_mpc.model.Model`
+    """
+    def __init__(self, model:do_mpc.model.Model):
+
         self.model = model
         do_mpc.model.IteratedVariables.__init__(self)
 
@@ -67,28 +116,16 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         self.data = do_mpc.data.Data(model)
 
-        self.data_fields = [
-            't_step'
-        ]
-
         if self.model.model_type == 'continuous':
-
-            # expand possible data fields
-            self.data_fields.extend([
-                'abstol',
-                'reltol',
-                'integration_tool'
-            ])
-
-            # set default values
-            self.abstol = 1e-10
-            self.reltol = 1e-10
-            self.integration_tool = 'cvodes'
+            self.settings = ContinousSimulatorSettings()
+        elif self.model.model_type == 'discrete':
+            self.settings = SimulatorSettings()
 
         self.flags = {
             'set_tvp_fun': False,
             'set_p_fun': False,
             'setup': False,
+            'first_step': True,
         }
 
 
@@ -97,6 +134,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         """
         self._t0 = np.array([0])
         self.data.init_storage()
+        self.flags['first_step'] = True
 
     def _check_validity(self):
         # tvp_fun must be set, if tvp are defined in model.
@@ -117,7 +155,7 @@ class Simulator(do_mpc.model.IteratedVariables):
             def p_fun(t): return _p
             self.set_p_fun(p_fun)
 
-        assert self.t_step, 't_step is required in order to setup the simulator. Please set the simulation time step via set_param(**kwargs)'
+        self.settings.check_for_mandatory_settings()
 
 
     def setup(self)->None:
@@ -180,13 +218,17 @@ class Simulator(do_mpc.model.IteratedVariables):
 
             # Set the integrator options
             opts = {
-                'abstol': self.abstol,
-                'reltol': self.reltol,
-                'tf': self.t_step
+                'abstol': self.settings.abstol,
+                'reltol': self.settings.reltol,
             }
 
-            # Build the simulator
-            self.simulator = castools.integrator('simulator', self.integration_tool, dae,  opts)
+            if do_mpc.CASADI_LEGACY_MODE:
+                opts['tf'] = self.settings.t_step
+                self.simulator = castools.integrator('simulator', self.settings.integration_tool, dae, opts)
+            else:
+                # Build the simulator
+                t0 = 0.0
+                self.simulator = castools.integrator('simulator', self.settings.integration_tool, dae, t0, self.settings.t_step, opts)
 
         sim_aux = self.model._aux_expression_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'])
         # Create function to caculate all auxiliary expressions:
@@ -196,20 +238,36 @@ class Simulator(do_mpc.model.IteratedVariables):
 
 
     def set_param(self, **kwargs)->None:
-        """Set the parameters for the simulator. Setting the simulation time step t_step is necessary for setting up the simulator via setup_simulator.
-
-        Args:
-            integration_tool(str): Sets which integration tool is used, defaults to ``cvodes`` (only continuous)
-            abstol(float): gives the maximum allowed absolute tolerance for the integration, defaults to ``1e-10`` (only continuous)
-            reltol(float): gives the maximum allowed relative tolerance for the integration, defaults to ``1e-10`` (only continuous)
-            t_step(float): Sets the time step for the simulation
         """
-        assert self.flags['setup'] == False, 'Cannot call set_param after simulator was setup.'
+        Warnings:
+            This method will be depreciated in a future version. Settings are available via the :py:attr:`settings` attribute which is an instance of :py:class:`ContinousSimulatorSettings` or :py:class:`SimulatorSettings`.
+
+        Note:
+            A comprehensive list of all available parameters can be found in :py:class:`ContinousSimulatorSettings` or :py:class:`SimulatorSettings`.
+        
+        For example:
+        
+        ::
+
+            simulator.settings.t_step = 0.5
+        
+        The old interface, as shown in the example below, can still be accessed until further notice.
+        
+        ::
+
+            simulator.set_param(t_step=0.5)
+
+        Note: 
+            The only required parameters  are ``t_step``. All other parameters are optional.
+
+        """
+        assert self.flags['setup'] == False, 'Setting parameters after setup is prohibited.'
 
         for key, value in kwargs.items():
-            if not (key in self.data_fields):
-                print('Warning: Key {} does not exist for {} model.'.format(key, self.model.model_type))
-            setattr(self, key, value)
+            if hasattr(self.settings, key):
+                    setattr(self.settings, key, value)
+            else:
+                print('Warning: Key {} does not exist for Simulator.'.format(key))
 
 
     def get_tvp_template(self)->Union[castools.structure3.SXStruct,castools.structure3.MXStruct]:
@@ -370,6 +428,67 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         self.sim_z_num['_z'] = self._z0.cat
 
+    def init_algebraic_variables(self) -> np.ndarray:
+        """Initializes the algebraic variables. 
+        Solve the algebraic equations for the initial values of :py:attr:`x0`, :py:attr:`u0`, :py:attr:`p0`, :py:attr:`tvp0`.
+        Sets the results to :py:attr:`z0` and returns them. 
+
+        Note:
+            The method internally calls :py:func:`set_initial_guess` to set the initial guess for the algebraic variables.
+
+        The initialization is computed by solving the algebraic model equations under consideration of the initial guess supplied in :py:attr:`z0`.
+
+        **Example**:
+
+        ::
+
+            simulator = do_mpc.simulator.Simulator(model)
+
+            # Set initial value for the state:
+            simulator.x0 = np.array([0.1, 0.1]).reshape(-1,1)
+
+            # Obtain initial guess for the algebraic variables:
+            z0 = simulator.init_algebraic_variables()
+
+            # Initial guess is stored in simulator.z0 and simulator.set_initial_guess() was called internally.
+
+
+        Returns:
+            Initial guess for the algebraic variables.
+
+        """
+        if self.model.flags['setup'] is False:
+            raise RuntimeError(
+                'The model must be setup before the algebraic variables can be initialized.'
+            )
+
+
+        z0 = castools.vertcat(self.z0)
+        p0 = castools.vertcat(self.p_fun(self.t0), self.tvp_fun(self.t0), self.u0, self.x0)
+
+
+        residual_to_initial_guess = castools.vertcat(self.model.z) - z0
+        cost = castools.sum2(castools.sum1(residual_to_initial_guess**2))
+
+        nlp = {}
+        nlp['x'] = castools.vertcat(self.model.z)
+        nlp['f'] = cost
+        nlp['g'] = castools.vertcat(self.model._alg)
+        nlp['p'] = castools.vertcat(self.model.p, self.model.tvp, self.model.u, self.model.x)
+
+        supress_ipopt =  {'ipopt.print_level':0, 'ipopt.sb': 'yes', 'print_time':0}
+
+        solver = castools.nlpsol("solver", "ipopt", nlp, supress_ipopt)
+        res = solver(x0=z0, lbg=0, ubg=0, p=p0)
+        z_init = res['x']
+
+        self.z0 = z_init
+
+        self.set_initial_guess()
+
+        return z_init.full()
+
+
     def simulate(self)->np.ndarray:
         """Call the CasADi simulator.
 
@@ -411,16 +530,20 @@ class Simulator(do_mpc.model.IteratedVariables):
         elif self.model.model_type == 'continuous':
             r = self.simulator(x0 = sim_x_num, z0 = sim_z_num, p = sim_p_num)
             x_new = r['xf']
-            z_now = r['zf']
-            sim_z_num.master = z_now
+            z_new = r['zf']
+            sim_z_num.master = z_new
+        else:
+            raise ValueError(f'Model type {self.model.model_type} is not supported.')
+        # There may be made an error here. sim_p_num fits to values in time step
+        # k + 1 (new). However, the values are actually the p values for step
+        # k (now).
+        aux_new = self.sim_aux_expression_fun(x_new, sim_z_num, sim_p_num)
 
-        aux_now = self.sim_aux_expression_fun(sim_x_num, sim_z_num, sim_p_num)
-
-        self.sim_aux_num.master = aux_now
+        self.sim_aux_num.master = aux_new
 
         return x_new
 
-    def make_step(self, u0:np.ndarray=None, v0:np.ndarray=None, w0:np.ndarray=None)->np.ndarray:
+    def make_step(self, u0:np.ndarray=None, v0:np.ndarray=None, w0:np.ndarray=None)-> np.ndarray:
         """Main method of the simulator class during control runtime. This method is called at each timestep
         and computes the next state or the current control input :py:obj:`u0`. The method returns the resulting measurement,
         as defined in :py:class:`do_mpc.model.Model.set_meas`.
@@ -473,19 +596,25 @@ class Simulator(do_mpc.model.IteratedVariables):
         p0 = self.p_fun(self._t0)
         t0 = self._t0
         x0 = self._x0
+
+        z0 = self.sim_z_num['_z']
         self.sim_x_num['_x'] = x0
         self.sim_p_num['_u'] = u0
         self.sim_p_num['_p'] = p0
         self.sim_p_num['_tvp'] = tvp0
         self.sim_p_num['_w'] = w0
 
+        if self.flags['first_step']:
+            aux0 = self.sim_aux_expression_fun(x0, z0, self.sim_p_num)
+        else:
+            # .master is chosen so that a copy is created of the variables.
+            aux0 = self.sim_aux_num.master
+
         x_next = self.simulate()
 
-        z0 = self.sim_z_num['_z']
-        aux0 = self.sim_aux_num
-
         # Call measurement function
-        y_next = self.model._meas_fun(x_next, u0, z0, tvp0, p0, v0)
+        z_next = self.sim_z_num['_z']
+        y_next = self.model._meas_fun(x_next, u0, z_next, tvp0, p0, v0)
 
         self.data.update(_x = x0)
         self.data.update(_u = u0)
@@ -499,6 +628,9 @@ class Simulator(do_mpc.model.IteratedVariables):
         self._x0.master = x_next
         self._z0.master = z0
         self._u0.master = u0
-        self._t0 = self._t0 + self.t_step
+        self._t0 = self._t0 + self.settings.t_step 
+
+        self.flags['first_step'] = False
 
         return y_next.full()
+

@@ -1050,6 +1050,9 @@ class Optimizer:
             Only AFTER calling :py:meth:`prepare_nlp` the previously mentionned attributes
             :py:attr:`nlp_obj`, :py:attr:`nlp_cons`, :py:attr:`nlp_cons_lb`, :py:attr:`nlp_cons_ub`
             become available.
+        
+        Returns:
+            None
         """
         # MPC and MHE have similar methods. The documentation is valid for both of them.
         self._prepare_nlp()
@@ -1070,6 +1073,9 @@ class Optimizer:
             Only AFTER calling :py:meth:`prepare_nlp` the previously mentionned attributes
             :py:attr:`nlp_obj`, :py:attr:`nlp_cons`, :py:attr:`nlp_cons_lb`, :py:attr:`nlp_cons_ub`
             become available.
+
+        Returns:
+            None
         """
         # MPC and MHE have similar methods. The documentation is valid for both of them.
         self._create_nlp()

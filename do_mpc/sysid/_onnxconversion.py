@@ -1,7 +1,10 @@
 import casadi
+import onnx
+from onnx import numpy_helper
 import numpy as np
 import pdb
 import importlib
+from typing import List, Dict, Tuple, Union, Callable, Any, Optional
 
 
 # Import optional packages
@@ -16,8 +19,7 @@ class ONNXConversion:
     """ Transform `ONNX model <https://onnx.ai>`_. 
     The transformation returns a CasADi expression of the model and can be used e.g. in the :py:class:`do_mpc.model.Model` class.
 
-    .. note::
-
+    Warning:
         The feature is experimental and currently only has a limited number of supported operations.
         All supported operations can be found in the :py:class:`ONNXOperations` class.
 
@@ -35,14 +37,10 @@ class ONNXConversion:
 
     5. Query the class instance with the respective layer or node name to obtain the CasADi expression of the respective layer or node.
 
-    .. note::
-
-        As a convenience feature, the :py:meth:`ONNXConversion.convert` method can be called with a `Keras <https://keras.io/>`_ model instead of an `ONNX model <https://onnx.ai>`_ model.
-        The conversion to an ONNX model is done automatically.
 
     **Example:**
 
-    We start with a simple Keras model and 
+    We start with a simple Tensorflow (with Keras) model:
     ::
     
         model_input = keras.Input(shape=(3), name='input')
@@ -51,7 +49,25 @@ class ONNXConversion:
 
         keras_model = keras.Model(inputs=model_input, outputs=output_layer)
 
-        casadi_converter = do_mpc.sysid.ONNXConversion(keras_model)
+    We then proceed to export the model in the ONNX format, using the `tf2onnx <https://pypi.org/project/tf2onnx/>`_ package:
+
+    ::
+
+        model_input_signature = [
+            tf.TensorSpec(np.array((1, 3)), name='input'),
+        ]
+        output_path = os.path.join('models', 'model.onnx')
+
+        onnx_model, _ = tf2onnx.convert.from_keras(keras_model, 
+            output_path=output_path, 
+            input_signature=model_input_signature
+        )
+
+    We can now use the ONNX model (either directly or loaded from disc) to initialize the :py:class:`ONNXConversion` class:
+
+    ::
+
+        casadi_converter = do_mpc.sysid.ONNXConversion(onnx_model)
 
     Obtain information about the model inputs and outputs by calling ``print(casadi_converter)``, yielding, in this example:
 
@@ -85,16 +101,13 @@ class ONNXConversion:
 
         print(casadi_converter['output'])
 
-    :param model: ``ONNX`` model or ``Keras`` model.
-    :type model: ``onnx.ModelProto`` or ``keras.Model``
-    :param model_name: (Optional) name of the model
-    :type model_name: str
-    :param from_keras: (Optional) Flag to indicate that the model is a Keras model.
-    :type from_keras: bool
+    Args:
+        model: An ONNX model.
+        model_name: Name of the model
 
     """
     
-    def __init__(self, model, model_name=None):  
+    def __init__(self, model: onnx.onnx_ml_pb2.ModelProto, model_name: Optional[str]=None):  
         if not ONNX_INSTALLED:
             raise Exception("The package 'onnx' is not installed. Please install it..")
 
@@ -114,7 +127,7 @@ class ONNXConversion:
         # The initialized tensors are converted into the numpy readable format  before assignment
         self.initialized_tensors = {}
         for initializer in onnx_initializers:
-            self.initialized_tensors[initializer.name] = onnx.numpy_helper.to_array(initializer)
+            self.initialized_tensors[initializer.name] = numpy_helper.to_array(initializer)
         
             
         # Determining the input shape 
@@ -133,7 +146,7 @@ class ONNXConversion:
         self.operations = ONNXOperations()
         
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """ Prints information about the converter.
 
         Use this method to obtain information about the model inputs and outputs. 
@@ -177,9 +190,15 @@ class ONNXConversion:
     
             
     
-    def convert(self, verbose=False, **kwargs):
-        """ Convert ONNX model to CasADi model.
-        
+    def convert(self, verbose=False, **kwargs) -> None:
+        """ Evaluate ONNX model with inputs of type ``casadi.SX``, ``casadi.MX``, ``casadi.DM`` or ``numpy.ndarray``.
+
+        The keyword arguments of this method refer to the names of the inputs of the model. 
+        If these names are unknown, print the instance of the class to obtain the names.
+
+        Convert does not return anything. The converted model is stored in the instance of the class.
+        To obtain the results of the conversion at an arbitrary internal layer, query the instance with the respective layer name.
+        Layer names can be obtained by printing the instance of the class.
         """
         
         
@@ -323,6 +342,45 @@ class ONNXOperations:
         for arg in args:
             out += arg
         return out
+
+    def Mul(self,*args, attribute = None):
+        return args[0]*args[1]
+
+    def Sub(self, *args, attribute = None):
+        return args[0] - args[1]
+
+    def Gemm(self, *args, attribute = None):
+        """General Matrix Multiplication.
+        See `ONNX documentation  <https://github.com/onnx/onnx/blob/main/docs/Operators.md#gemm>`_ for more details.
+        """
+
+        attr_dict = {
+            k.name: k.i for k in attribute
+        }
+
+        A = args[0]
+        B = args[1]
+        C = args[2]
+
+        if 'transA' in attr_dict.keys() and attr_dict['transA'] == 1:
+            A = casadi.transpose(A)
+        if 'transB' in attr_dict.keys() and attr_dict['transB'] == 1:
+            B = casadi.transpose(B)
+        if 'alpha' in attr_dict.keys():
+            alpha = attr_dict['alpha']
+        else:
+            alpha = 1
+        if 'beta' in attr_dict.keys():
+            beta = attr_dict['beta']
+        else:
+            beta = 1
+
+        if C.ndim == 1:
+            C = C.reshape(1,-1)
+        
+        res = alpha*self.MatMul(A,B) + beta*C
+
+        return res
 
     def Sum(self,*args, attribute = None):
         return  self.Add(*args)

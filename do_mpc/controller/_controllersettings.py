@@ -48,17 +48,17 @@ class LQRSettings(ControllerSettings):
 
     Example to change settings:
 
-        ::
+    ::
 
-            lqr.settings.n_horizon = 20
+        lqr.settings.n_horizon = 20
 
     Note:     
         Settings cannot be updated after calling :py:meth:`do_mpc.controller.LQR.setup`.
     """
-    n_horizon: int = 0
+    n_horizon: int = None
     """Prediction horizon of the optimal control problem. 
-    
-    Parameter must be set by user"""
+   Defaults to ``None``, which represents an infinite horizon. 
+   """
         
 @dataclass
 class MPCSettings(ControllerSettings):
@@ -67,9 +67,9 @@ class MPCSettings(ControllerSettings):
 
     Example to change settings:
 
-        ::
+    ::
 
-            mpc.settings.n_horizon = 20
+        mpc.settings.n_horizon = 20
 
     Note:     
         Settings cannot be updated after calling :py:meth:`do_mpc.controller.MPC.setup`.

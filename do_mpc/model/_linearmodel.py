@@ -66,23 +66,23 @@ class LinearModel(Model):
     
     Model can be setup in two different ways. The first method is as follows:
     
-        1. Use :py:func:`set_variable` to introduce new variables to the linear model.
-    
-        2. Optionally introduce "auxiliary" expressions as functions of the previously defined variables with :py:func:`set_expression`. The expressions can be used for monitoring or be reused as constraints, the cost function etc.
-    
-        3. Optionally introduce measurement equations with :py:func:`set_meas`. The syntax is identical to :py:func:`set_expression`. By default state-feedback is assumed.
-    
-        4. Define the right-hand-side of the `discrete` or `continuous` model as a function of the previously defined variables with :py:func:`set_rhs`. This method must be called once for each introduced state.
-    
-        5. Call :py:func:`setup` to finalize the :py:class:`LinearModel`. No further changes are possible afterwards.
+    1. Use :py:func:`set_variable` to introduce new variables to the linear model.
+
+    2. Optionally introduce "auxiliary" expressions as functions of the previously defined variables with :py:func:`set_expression`. The expressions can be used for monitoring or be reused as constraints, the cost function etc.
+
+    3. Optionally introduce measurement equations with :py:func:`set_meas`. The syntax is identical to :py:func:`set_expression`. By default state-feedback is assumed.
+
+    4. Define the right-hand-side of the `discrete` or `continuous` model as a function of the previously defined variables with :py:func:`set_rhs`. This method must be called once for each introduced state.
+
+    5. Call :py:func:`setup` to finalize the :py:class:`LinearModel`. No further changes are possible afterwards.
         
     The second method is as follows:
         
-        1. Use :py:func:`set_variable` to introduce new variables to the linear model.
-        
-        2. Optionally introduce "auxiliary" expressions as functions of the previously defined variables with :py:func:`set_expression`. The expressions can be used for monitoring or be reused as constraints, the cost function etc.
-        
-        3. Call :py:func:`setup` and pass the system dynamics matrices as arguments instead of setting up the right hand side equations and measurement equations to finalize the :py:class:`LinearModel`. No further changes are possible afterwards.
+    1. Use :py:func:`set_variable` to introduce new variables to the linear model.
+    
+    2. Optionally introduce "auxiliary" expressions as functions of the previously defined variables with :py:func:`set_expression`. The expressions can be used for monitoring or be reused as constraints, the cost function etc.
+    
+    3. Call :py:func:`setup` and pass the system dynamics matrices as arguments instead of setting up the right hand side equations and measurement equations to finalize the :py:class:`LinearModel`. No further changes are possible afterwards.
         
     Note:
          All introduced model variables are accessible as **Attributes** of the :py:class:`Model`.
@@ -283,14 +283,17 @@ class LinearModel(Model):
         """Calculates steady states for the given input or states.
         
         This method calculates steady states of a discrete system for the given steady state input and vice versa.
-        The mathematical formulation can be described as 
+        The mathematical formulation can be described as: 
             
-            .. math::
-                x_{ss} = (I-A)^{-1}Bu_{ss}\\\\
+        .. math::
+            x_{ss} = (I-A)^{-1}Bu_{ss}
                 
-               or\\\\
                 
-                u_{ss} = B^{-1}(I-A)x_{ss}
+        or
+
+        .. math::
+            u_{ss} = B^{-1}(I-A)x_{ss}
+
         Args:
             xss : Steady state State values
             uss : Steady state Input values

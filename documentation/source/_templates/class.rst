@@ -1,38 +1,44 @@
-{{ objname | escape | underline}}
+{{ objname | escape | underline('=')}}
 
 .. currentmodule:: {{ module }}
 
 .. autoclass:: {{ objname }}
-   :show-inheritance:
-   :special-members: __call__, __getitem__
+    :show-inheritance:
+    :special-members: __call__, __getitem__
 
-   {% block methods %}
-   {% if methods %}
-   .. currentmodule:: {{ fullname }}
-   .. rubric:: {{ _('Methods') }}
+{% block methods %}
+{% if methods %}
+.. currentmodule:: {{ fullname }}
 
-   .. autosummary:: 
-      :toctree:
-      :template: method.rst
-      :nosignatures:
-   {% for item in methods %}
-      {%- if not item.startswith('_') %}
-      {{ item }}
-      {%- endif -%}
-   {%- endfor %}
-   {% endif %}
-   {% endblock %}
+Methods
+-------
 
-   {% block attributes %}
-   {% if attributes %}
-   .. currentmodule:: {{ fullname }}
-   .. rubric:: {{ _('Attributes') }}
+{% for item in methods %}
+{%- if not item.startswith('_') %}
+ 
+{{ item | escape | underline('~') }}
 
-   .. autosummary::
-      :toctree:
-      :template: attribute.rst
-      {% for item in attributes %}
-         {{ item }}
-      {%- endfor %}
-      {% endif %}
-   {% endblock %}
+.. autofunction:: {{ item }}
+
+{%- endif -%}
+{%- endfor %}
+{% endif %}
+{% endblock %}
+
+{% block attributes %}
+{% if attributes %}
+ 
+.. currentmodule:: {{ fullname }}
+
+Attributes
+----------
+ 
+{% for item in attributes %}
+ 
+{{ item | escape | underline('~') }}
+
+.. autoattribute:: {{fullname}}.{{item}}
+
+{%- endfor %}
+{% endif %}
+{% endblock %}

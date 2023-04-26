@@ -31,7 +31,7 @@ sys.path.append(rel_do_mpc_path)
 import do_mpc
 
 
-def template_mpc(model):
+def template_mpc(model, silence_solver = False):
     """
     --------------------------------------------------------------------------
     template_mpc: tuning parameters
@@ -39,24 +39,19 @@ def template_mpc(model):
     """
     mpc = do_mpc.controller.MPC(model)
 
-    setup_mpc = {
-        'n_horizon': 100,
-        'n_robust': 0,
-        'open_loop': 0,
-        't_step': 0.04,
-        'state_discretization': 'collocation',
-        'collocation_type': 'radau',
-        'collocation_deg': 3,
-        'collocation_ni': 1,
-        'store_full_solution': True,
-        # Use MA27 linear solver in ipopt for faster calculations:
-        #'nlpsol_opts': {'ipopt.linear_solver': 'ma27'}
-    }
+    mpc.settings.n_horizon =  100
+    mpc.settings.n_robust =  0
+    mpc.settings.open_loop =  0
+    mpc.settings.t_step =  0.04
+    mpc.settings.state_discretization =  'collocation'
+    mpc.settings.collocation_type =  'radau'
+    mpc.settings.collocation_deg =  3
+    mpc.settings.collocation_ni =  1
+    mpc.settings.store_full_solution =  True
 
-    mpc.set_param(**setup_mpc)
+    if silence_solver:
+        mpc.settings.supress_ipopt_output()
 
-    # mterm = 100*(model.aux['E_kin'] - model.aux['E_pot'])
-    # lterm = (model.aux['E_kin'] - model.aux['E_pot'])+10*(model.x['pos']-model.tvp['pos_set'])**2 # stage cost
 
     mterm = model.aux['E_kin'] - model.aux['E_pot']
     lterm = -model.aux['E_pot']+10*(model.x['pos']-model.tvp['pos_set'])**2 # stage cost
@@ -82,10 +77,10 @@ def template_mpc(model):
 
     # When to switch setpoint:
     t_switch = 4    # seconds
-    ind_switch = t_switch // setup_mpc['t_step']
+    ind_switch = t_switch // mpc.settings.t_step
 
     def tvp_fun(t_ind):
-        ind = t_ind // setup_mpc['t_step']
+        ind = t_ind // mpc.settings.t_step
         if ind <= ind_switch:
             tvp_template['_tvp',:, 'pos_set'] = -0.8
         else:

@@ -230,6 +230,9 @@ class Data:
 class MPCData(Data):
     """**do-mpc** data container for the :py:class:`do_mpc.controller.MPC` instance.
     This method inherits from :py:class:`Data` and extends it to query the MPC predictions.
+    
+    Warning:
+        For robust multi-stage MPC, the :py:class:`MPCData` class stores by default only the nominal values of the uncertain parameters. 
 
     Args:
         model: model from :py:class:`do_mpc.model`

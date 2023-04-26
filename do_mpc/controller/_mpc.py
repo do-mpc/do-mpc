@@ -28,7 +28,7 @@ import itertools
 import time
 import warnings
 from do_mpc.tools import IndexedProperty
-from typing import Union,Callable
+from typing import Union, Callable, Optional
 from dataclasses import asdict
 import do_mpc
 from ._controllersettings import MPCSettings
@@ -36,9 +36,7 @@ from ._controllersettings import MPCSettings
 class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     """Model predictive controller.
 
-    For general information on model predictive control, please read our `background article`_.
-
-    .. _`background article`: ../theory_mpc.html
+    For general information on model predictive control, please read our `background article <../theory_mpc.html>`_ .
 
     The MPC controller extends the :py:class:`do_mpc.optimizer.Optimizer` base class
     (which is also used for the :py:class:`do_mpc.estimator.MHE` estimator).
@@ -112,6 +110,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
     Args:
         model: Model
+        settings: Settings for the MPC controller. See :py:class:`MPCSettings` for details.
 
     Warnings:
         Before running the controller, make sure to supply a valid initial guess for all optimized variables (states, algebraic states and inputs).
@@ -122,7 +121,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     During runtime call :py:func:`make_step` with the current state :math:`x` to obtain the optimal control input :math:`u`.
 
     """
-    def __init__(self, model:Union[do_mpc.model.Model,do_mpc.model.LinearModel]):
+    def __init__(self, model:Union[do_mpc.model.Model,do_mpc.model.LinearModel], settings: Optional[MPCSettings] = None):
 
         self.model = model
 
@@ -446,45 +445,17 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
             mpc.set_param(n_horizon = 20)
 
-        It is also possible and convenient to pass a dictionary with multiple parameters simultaneously as shown in the following example:
-
-        ::
-
-            setup_mpc = {
-                'n_horizon': 20,
-                't_step': 0.5,
-            }
-            mpc.set_param(**setup_mpc)
-
-        This method makes use of the python "unpack" operator. See `more details here`_.
-
-        .. _`more details here`: https://codeyarns.github.io/tech/2012-04-25-unpack-operator-in-python.html
 
         Note: 
             The only required parameters  are ``n_horizon`` and ``t_step``. All other parameters are optional.
 
-        Note: 
-            :py:func:`set_param` can be called multiple times. Previously passed arguments are overwritten by successive calls.
-            This only works prior to calling :py:func:`setup`. 
 
         Note: 
-            We highly suggest to change the linear solver for IPOPT from `mumps` to `MA27`. In many cases this will drastically boost the speed of **do-mpc**. Change the linear solver with:
-
-            ::
-
-                MPC.set_param(nlpsol_opts = {'ipopt.linear_solver': 'MA27'})
-            
+            We highly suggest to change the linear solver for IPOPT from `mumps` to `MA27`. 
             Any available linear solver can be set using :py:meth:`do_mpc.controller.MPCSettings.set_linear_solver`.
             For more details, please check the :py:class:`do_mpc.controller.MPCSettings`.
         
         Note: 
-            To suppress the output of IPOPT, please use:
-
-            ::
-
-                suppress_ipopt = {'ipopt.print_level':0, 'ipopt.sb': 'yes', 'print_time':0}
-                MPC.set_param(nlpsol_opts = suppress_ipopt)
-            
             The output of IPOPT can be suppressed :py:meth:`do_mpc.controller.MPCSettings.supress_ipopt_output`.
             For more details, please check the :py:class:`do_mpc.controller.MPCSettings`.
         """
@@ -617,9 +588,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         Low level API method to set user defined scenarios for robust multi-stage MPC by defining an arbitrary number
         of combinations for the parameters defined in the model.
-        For more details on robust multi-stage MPC please read our `background article`_.
-
-        .. _`background article`: ../theory_mpc.html#robust-multi-stage-nmpc
+        For more details on robust multi-stage MPC please read our `background article <../theory_mpc.html#robust-multi-stage-nmpc>`_
 
         The method returns a structured object which is
         initialized with all zeros.
@@ -675,9 +644,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         This is the low-level API method to set user defined scenarios for robust multi-stage MPC by defining an arbitrary number
         of combinations for the parameters defined in the model.
-        For more details on robust multi-stage MPC please read our `background article`_.
-
-        .. _`background article`: ../theory_mpc.html#robust-multi-stage-nmpc
+        For more details on robust multi-stage MPC please read our `background article <../theory_mpc.html#robust-multi-stage-nmpc>`_ .
 
         The method takes as input a function, which MUST
         return a structured object, based on the defined parameters and the number of combinations.
@@ -718,7 +685,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         which is determined by the order in the arrays above (first element is nominal).
 
         Args:
-            p_fun(function): Function which returns a structure with numerical values. Must be the same structure as obtained from :py:func:`get_p_template`. Function must have a single input (time).
+            p_fun: Function which returns a structure with numerical values. Must be the same structure as obtained from :py:func:`get_p_template`. Function must have a single input (time).
         """
         assert self.get_p_template(self.n_combinations).labels() == p_fun(0).labels(), 'Incorrect output of p_fun. Use get_p_template to obtain the required structure.'
         self.flags['set_p_fun'] = True
@@ -727,9 +694,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     def set_uncertainty_values(self, **kwargs)->None:
         """Define scenarios for the uncertain parameters.
         High-level API method to conveniently set all possible scenarios for multistage MPC.
-        For more details on robust multi-stage MPC please read our `background article`_.
-
-        .. _`background article`: ../theory_mpc.html#robust-multi-stage-nmpc
+        For more details on robust multi-stage MPC please read our `background article <../theory_mpc.html#robust-multi-stage-nmpc>`_ .
 
         Pass a number of keyword arguments, where each keyword refers to a user defined parameter name from the model definition.
         The value for each parameter must be an array (or list), with an arbitrary number of possible values for this parameter.
@@ -856,9 +821,8 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             Note that especially for robust multi-stage MPC with a long robust horizon and many
             possible combinations of the uncertain parameters very large problems will arise.
 
-            For more details on robust multi-stage MPC please read our `background article`_.
+            For more details on robust multi-stage MPC please read our `background article <../theory_mpc.html#robust-multi-stage-nmpc>`_ .
 
-        .. _`background article`: ../theory_mpc.html#robust-multi-stage-nmpc
         """
         self.prepare_nlp()
         self.create_nlp()
@@ -941,6 +905,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         self.data.update(_u = u0)
         self.data.update(_z = z0)
         self.data.update(_tvp = tvp0['_tvp', 0])
+        self.data.update(_p = p0['_p', 0])
         self.data.update(_time = t0)
         self.data.update(_aux = aux0)
 
