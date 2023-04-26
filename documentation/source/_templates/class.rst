@@ -1,4 +1,4 @@
-{{ objname | escape | underline}}
+{{ objname | escape | underline('=')}}
 
 .. currentmodule:: {{ module }}
 
@@ -6,26 +6,39 @@
     :show-inheritance:
     :special-members: __call__, __getitem__
 
-    {% block methods %}
-    {% if methods %}
-    .. currentmodule:: {{ fullname }}
-    .. rubric:: {{ _('Methods') }}
+{% block methods %}
+{% if methods %}
+.. currentmodule:: {{ fullname }}
 
-    {% for item in methods %}
-    {%- if not item.startswith('_') %}
-    .. autofunction:: {{ item }}
-    {%- endif -%}
-    {%- endfor %}
-    {% endif %}
-    {% endblock %}
+Methods
+-------
 
-    {% block attributes %}
-    {% if attributes %}
-    .. currentmodule:: {{ fullname }}
-    .. rubric:: {{ _('Attributes') }}
+{% for item in methods %}
+{%- if not item.startswith('_') %}
+ 
+{{ item | escape | underline('~') }}
 
-    {% for item in attributes %}
-    .. autoattribute:: {{fullname}}.{{item}}
-    {%- endfor %}
-    {% endif %}
-    {% endblock %}
+.. autofunction:: {{ item }}
+
+{%- endif -%}
+{%- endfor %}
+{% endif %}
+{% endblock %}
+
+{% block attributes %}
+{% if attributes %}
+ 
+.. currentmodule:: {{ fullname }}
+
+Attributes
+----------
+ 
+{% for item in attributes %}
+ 
+{{ item | escape | underline('~') }}
+
+.. autoattribute:: {{fullname}}.{{item}}
+
+{%- endfor %}
+{% endif %}
+{% endblock %}
