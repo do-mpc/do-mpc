@@ -4,6 +4,7 @@ from onnx import numpy_helper
 import numpy as np
 import pdb
 import importlib
+from typing import List, Dict, Tuple, Union, Callable, Any, Optional
 
 
 # Import optional packages
@@ -100,16 +101,13 @@ class ONNXConversion:
 
         print(casadi_converter['output'])
 
-    :param model: ``ONNX`` model or ``Keras`` model.
-    :type model: ``onnx.ModelProto`` or ``keras.Model``
-    :param model_name: (Optional) name of the model
-    :type model_name: str
-    :param from_keras: (Optional) Flag to indicate that the model is a Keras model.
-    :type from_keras: bool
+    Args:
+        model: An ONNX model.
+        model_name: Name of the model
 
     """
     
-    def __init__(self, model, model_name=None):  
+    def __init__(self, model: onnx.onnx_ml_pb2.ModelProto, model_name: Optional[str]=None):  
         if not ONNX_INSTALLED:
             raise Exception("The package 'onnx' is not installed. Please install it..")
 
@@ -148,7 +146,7 @@ class ONNXConversion:
         self.operations = ONNXOperations()
         
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """ Prints information about the converter.
 
         Use this method to obtain information about the model inputs and outputs. 
@@ -192,9 +190,15 @@ class ONNXConversion:
     
             
     
-    def convert(self, verbose=False, **kwargs):
-        """ Convert ONNX model to CasADi model.
-        
+    def convert(self, verbose=False, **kwargs) -> None:
+        """ Evaluate ONNX model with inputs of type ``casadi.SX``, ``casadi.MX``, ``casadi.DM`` or ``numpy.ndarray``.
+
+        The keyword arguments of this method refer to the names of the inputs of the model. 
+        If these names are unknown, print the instance of the class to obtain the names.
+
+        Convert does not return anything. The converted model is stored in the instance of the class.
+        To obtain the results of the conversion at an arbitrary internal layer, query the instance with the respective layer name.
+        Layer names can be obtained by printing the instance of the class.
         """
         
         
@@ -347,7 +351,8 @@ class ONNXOperations:
 
     def Gemm(self, *args, attribute = None):
         """General Matrix Multiplication.
-        See `ONNX documentation"""
+        See `ONNX documentation  <https://github.com/onnx/onnx/blob/main/docs/Operators.md#gemm>`_ for more details.
+        """
 
         attr_dict = {
             k.name: k.i for k in attribute
