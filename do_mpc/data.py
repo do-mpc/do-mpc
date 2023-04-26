@@ -366,6 +366,8 @@ class MPCData(Data):
                 self.prediction_queries['ind'].append(ind)
                 self.prediction_queries['f_ind'].append(f_ind)
             out = _opt_aux_num[t_ind,f_ind]
+        else:
+            raise ValueError('Index {} not recognized.'.format(ind[0]))
 
         return out
 
