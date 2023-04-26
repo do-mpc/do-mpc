@@ -173,7 +173,6 @@ class LQR(IteratedVariables):
         .. math::
             \\begin{aligned}
             x(k+1) &= \\tilde{A} x(k) + \\tilde{B}\\Delta u(k)\\\\
-                
             \\text{where} \\quad
             \\tilde{A} &= \\begin{bmatrix} 
                             A & B \\\\
@@ -415,10 +414,10 @@ class LQR(IteratedVariables):
         
         For example:
             
-            ::
-                
-                # For ODE models
-                lqr.set_setpoint(xss = np.array([[10],[15]]) ,uss = np.array([[2],[3]]))
+        ::
+            
+            # For ODE models
+            lqr.set_setpoint(xss = np.array([[10],[15]]) ,uss = np.array([[2],[3]]))
 
         Args:
             xss : set point for states of the system(optional)

@@ -36,9 +36,7 @@ from ._controllersettings import MPCSettings
 class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     """Model predictive controller.
 
-    For general information on model predictive control, please read our `background article`_.
-
-    .. _`background article`: ../theory_mpc.html
+    For general information on model predictive control, please read our `background article <../theory_mpc.html>`_ .
 
     The MPC controller extends the :py:class:`do_mpc.optimizer.Optimizer` base class
     (which is also used for the :py:class:`do_mpc.estimator.MHE` estimator).
@@ -590,9 +588,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         Low level API method to set user defined scenarios for robust multi-stage MPC by defining an arbitrary number
         of combinations for the parameters defined in the model.
-        For more details on robust multi-stage MPC please read our `background article`_.
-
-        .. _`background article`: ../theory_mpc.html#robust-multi-stage-nmpc
+        For more details on robust multi-stage MPC please read our `background article <../theory_mpc.html#robust-multi-stage-nmpc>`_
 
         The method returns a structured object which is
         initialized with all zeros.
@@ -648,9 +644,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         This is the low-level API method to set user defined scenarios for robust multi-stage MPC by defining an arbitrary number
         of combinations for the parameters defined in the model.
-        For more details on robust multi-stage MPC please read our `background article`_.
-
-        .. _`background article`: ../theory_mpc.html#robust-multi-stage-nmpc
+        For more details on robust multi-stage MPC please read our `background article <../theory_mpc.html#robust-multi-stage-nmpc>`_ .
 
         The method takes as input a function, which MUST
         return a structured object, based on the defined parameters and the number of combinations.
@@ -700,9 +694,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     def set_uncertainty_values(self, **kwargs)->None:
         """Define scenarios for the uncertain parameters.
         High-level API method to conveniently set all possible scenarios for multistage MPC.
-        For more details on robust multi-stage MPC please read our `background article`_.
-
-        .. _`background article`: ../theory_mpc.html#robust-multi-stage-nmpc
+        For more details on robust multi-stage MPC please read our `background article <../theory_mpc.html#robust-multi-stage-nmpc>`_ .
 
         Pass a number of keyword arguments, where each keyword refers to a user defined parameter name from the model definition.
         The value for each parameter must be an array (or list), with an arbitrary number of possible values for this parameter.
@@ -829,9 +821,8 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             Note that especially for robust multi-stage MPC with a long robust horizon and many
             possible combinations of the uncertain parameters very large problems will arise.
 
-            For more details on robust multi-stage MPC please read our `background article`_.
+            For more details on robust multi-stage MPC please read our `background article <../theory_mpc.html#robust-multi-stage-nmpc>`_ .
 
-        .. _`background article`: ../theory_mpc.html#robust-multi-stage-nmpc
         """
         self.prepare_nlp()
         self.create_nlp()
