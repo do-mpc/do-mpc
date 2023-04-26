@@ -76,10 +76,10 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                 edge [fontname = "helvetica", color="#707070"];
 
                 start [label="Two ways to setup"];
-                setup [label="setup", href="../api/do_mpc.controller.MPC.setup.html", target="_top", fontname = "Consolas"];
-                create_nlp [label="create_nlp", href="../api/do_mpc.controller.MPC.create_nlp.html", target="_top", fontname = "Consolas"];
+                setup [label="setup", href="../api/do_mpc.controller.MPC.html#setup", target="_top", fontname = "Consolas"];
+                create_nlp [label="create_nlp", href="../api/do_mpc.controller.MPC.html#create-nlp", target="_top", fontname = "Consolas"];
                 process [label="Modify NLP"];
-                prepare_nlp [label="prepare_nlp", href="../api/do_mpc.controller.MPC.prepare_nlp.html", target="_top", fontname = "Consolas"];
+                prepare_nlp [label="prepare_nlp", href="../api/do_mpc.controller.MPC.html#prepare-nlp", target="_top", fontname = "Consolas"];
                 finish [label="Configured MPC class"]
                 start -> setup, prepare_nlp;
                 prepare_nlp -> process;
@@ -92,11 +92,10 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                 rankdir=TB;
                 node [fontname = "helvetica", shape=box, fontcolor="#404040", color="#707070"];
                 edge [fontname = "helvetica", color="#707070"];
-                opt_x [label="opt_x", href="../api/do_mpc.controller.MPC.opt_x.html", target="_top", fontname = "Consolas"];
-                opt_p [label="opt_p", href="../api/do_mpc.controller.MPC.opt_p.html", target="_top", fontname = "Consolas"];
-                nlp_cons [label="nlp_cons", href="../api/do_mpc.controller.MPC.nlp_cons.html", target="_top", fontname = "Consolas"];
-                nlp_obj [label="nlp_obj", href="../api/do_mpc.controller.MPC.nlp_obj.html", target="_top", fontname = "Consolas"];
-
+                opt_x [label="opt_x", href="../api/do_mpc.controller.MPC.html#opt-x", target="_top", fontname = "Consolas"];
+                opt_p [label="opt_p", href="../api/do_mpc.controller.MPC.html#opt-p", target="_top", fontname = "Consolas"];
+                nlp_cons [label="nlp_cons", href="../api/do_mpc.controller.MPC.html#nlp-cons", target="_top", fontname = "Consolas"];
+                nlp_obj [label="nlp_obj", href="../api/do_mpc.controller.MPC.html#nlp-obj", target="_top", fontname = "Consolas"];
                 opt_x -> nlp_cons, nlp_obj;
                 opt_p -> nlp_cons, nlp_obj;
 
