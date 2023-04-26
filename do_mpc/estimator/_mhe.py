@@ -423,8 +423,8 @@ class MHE(Optimizer, Estimator):
     def set_param(self, **kwargs)->None:
         """Method to set the parameters of the :py:class:`MHE` class. Parameters must be passed as pairs of valid keywords and respective argument.
         
-        Warnings:
-            This method will be depreciated in a future version. Please set parameters via :py:class:`do_mpc.estimator.MHESettings`.
+        .. deprecated:: >v4.5.1
+            This function will be deprecated in the future
         
         Note:
             A comprehensive list of all available parameters can be found in :py:class:`do_mpc.estimator.MHESettings`.
