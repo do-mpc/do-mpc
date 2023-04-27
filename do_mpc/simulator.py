@@ -103,13 +103,12 @@ class Simulator(do_mpc.model.IteratedVariables):
     During runtime, call the simulator :py:func:`make_step` method with current input (``u``).
     This computes the next state of the system and the respective measurement.
     Optionally, pass (sampled) random variables for the process ``w`` and measurement noise ``v`` (if they were defined in :py:class`do_mpc.model.Model`)
-    """
-    def __init__(self, model:do_mpc.model):
-        """ Initialize the simulator class. The model gives the basic model description and is used to build the simulator. If the model is discrete-time, the simulator is a function, if the model is continuous, the simulator is an integrator.
 
-        Args:
-            model: Simulation model
-        """
+    Args:
+        model: A configured and setup :py:class:`do_mpc.model.Model`
+    """
+    def __init__(self, model:do_mpc.model.Model):
+
         self.model = model
         do_mpc.model.IteratedVariables.__init__(self)
 

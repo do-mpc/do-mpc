@@ -37,9 +37,9 @@ class LQR(IteratedVariables):
     
     Two types of LQR can be desgined:
 
-        1. **Finite Horizon** LQR by choosing, e.g. ``n_horizon = 20``.
+    1. **Finite Horizon** LQR by choosing, e.g. ``n_horizon = 20``.
 
-        2. **Infinite Horizon** LQR by choosing ``n_horizon = None``.
+    2. **Infinite Horizon** LQR by choosing ``n_horizon = None``.
 
     The value for ``n_horizon`` is set using :py:meth:`set_param`. 
     
@@ -57,17 +57,17 @@ class LQR(IteratedVariables):
 
     1. **Standard** mode: 
 
-        - Set set-point with :py:meth:`set_setpoint` (default is ``0``).
-        
-        - Set ``Q`` and ``R`` values with :py:meth:`set_objective`.
+    - Set set-point with :py:meth:`set_setpoint` (default is ``0``).
+    
+    - Set ``Q`` and ``R`` values with :py:meth:`set_objective`.
     
     2. **Input Rate Penalization** mode:
 
-        - Setpoint can also be set using :py:meth:`set_setpoint` (default is ``0``).
-        
-        - Reformulate objective with :py:meth:`set_rterm` to penalize the input rate by setting the value ``delR``.
+    - Setpoint can also be set using :py:meth:`set_setpoint` (default is ``0``).
+    
+    - Reformulate objective with :py:meth:`set_rterm` to penalize the input rate by setting the value ``delR``.
 
-        - Set ``Q`` and ``R`` values with :py:meth:`set_objective`.
+    - Set ``Q`` and ``R`` values with :py:meth:`set_objective`.
     
     Note:
         The function :py:meth:`set_rterm` mode is not recommended to use if the model is converted from an DAE to an ODE system.
@@ -114,22 +114,22 @@ class LQR(IteratedVariables):
         
         For finite horizon :py:class:`LQR`, the problem formulation is as follows:
             
-            .. math::
-                \\pi(N) &= P_f\\\\
-                K(k) & = -(B'\\pi(k+1)B)^{-1}B'\\pi(k+1)A\\\\
-                \\pi(k) & = Q+A'\\pi(k+1)A-A'\\pi(k+1)B(B'\\pi(k+1)B+R)^{-1}B'\\pi(k+1)A
+        .. math::
+            \\pi(N) &= P_f\\\\
+            K(k) & = -(B'\\pi(k+1)B)^{-1}B'\\pi(k+1)A\\\\
+            \\pi(k) & = Q+A'\\pi(k+1)A-A'\\pi(k+1)B(B'\\pi(k+1)B+R)^{-1}B'\\pi(k+1)A
        
         For infinite horizon :py:class:`LQR`, the problem formulation is as follows:
             
-            .. math::
-                K & = -(B'PB+P)^{-1}B'PA\\\\
-                P & = Q+A'PA-A'PB(R+B'PB)^{-1}B'PA\\\\
+        .. math::
+            K & = -(B'PB+P)^{-1}B'PA\\\\
+            P & = Q+A'PA-A'PB(R+B'PB)^{-1}B'PA\\\\
         
         For example:
             
-            ::
+        ::
                 
-                K = lqr.discrete_gain(A,B)
+            K = lqr.discrete_gain(A,B)
         
         Args:
             A : State matrix - constant matrix with no variables
@@ -170,15 +170,16 @@ class LQR(IteratedVariables):
 
         The input rate penalization formulation is given as:
             
-            .. math::
-                x(k+1) = \\tilde{A} x(k) + \\tilde{B}\\Delta u(k)\\\\
-                
-                \\text{where} \\quad
-                \\tilde{A} = \\begin{bmatrix} 
-                                A & B \\\\
-                                0 & I \\end{bmatrix},
-                \\tilde{B} = \\begin{bmatrix} B \\\\
-                             I \\end{bmatrix}
+        .. math::
+            \\begin{aligned}
+            x(k+1) &= \\tilde{A} x(k) + \\tilde{B}\\Delta u(k)\\\\
+            \\text{where} \\quad
+            \\tilde{A} &= \\begin{bmatrix} 
+                            A & B \\\\
+                            0 & I \\end{bmatrix},\\quad
+            \\tilde{B} = \\begin{bmatrix} B \\\\
+                         I \\end{bmatrix}
+            \\end{aligned}
                             
         We introduce new states of this system as :math:`\\tilde{x} = [x,u]` 
         where :math:`x` and :math:`u` are the original states and input of the system.
@@ -188,14 +189,13 @@ class LQR(IteratedVariables):
         As the system state matrix and input matrix are altered,
         cost matrices are also modified accordingly:
             
-            .. math::
-                \\tilde{Q} = \\begin{bmatrix}
-                                Q & 0 \\\\
-                                0 & R \\end{bmatrix},
-                \\tilde{R} = \\Delta R
+        .. math::
+            \\tilde{Q} = \\begin{bmatrix}
+                            Q & 0 \\\\
+                            0 & R \\end{bmatrix},\\quad
+            \\tilde{R} = \\Delta R
         
-        Args:
-            delR : Rated input cost matrix - constant matrix with no variables
+        :param delR: Rated input cost matrix - constant matrix with no variables
         """
         
         #Modifying A and B matrix for input rate penalization
@@ -213,9 +213,12 @@ class LQR(IteratedVariables):
         Two different kinds of LQR can be desgined. In order to design a finite horizon LQR, ``n_horizon`` and to design a infinite horizon LQR, ``n_horizon`` 
         should be set to ``None`` (default value).
 
+        .. deprecated:: v4.5.0
+            This function will be deprecated in the future
+        
         Warnings:
             This method will be depreciated in a future version. Please set parameters via :py:class:`do_mpc.controller.LQRSettings`.
-
+        
         Note:
             A comprehensive list of all available parameters can be found in :py:class:`do_mpc.controller.LQRSettings`. 
 
@@ -233,17 +236,6 @@ class LQR(IteratedVariables):
 
             lqr.set_param(n_horizon = 20)
 
-        It is also possible and convenient to pass a dictionary with multiple parameters simultaneously as shown in the following example:
-
-        ::
-
-            setup_lqr = {
-                'n_horizon': 20,
-                't_step': 0.5,
-            }
-            lqr.set_param(**setup_mpc)
-        
-        This makes use of thy python "unpack" operator. See `more details here`_.
 
         .. _`more details here`: https://codeyarns.github.io/tech/2012-04-25-unpack-operator-in-python.html
 
@@ -327,35 +319,37 @@ class LQR(IteratedVariables):
         
         **Finite Horizon**:
             
-            For **set-point tracking** mode:
-                
-                .. math::
+        For **set-point tracking** mode:
+            
+        .. math::
+
+            \\begin{aligned}       
+            J &= \\frac{1}{2}\\sum_{k=0} ^{N-1} (x_k - x_{ss})^T Q(x_k-x_{ss})+(u_k-u_{ss})^T R(u_k-u_{ss})\\\\
+                    &+ (x_N-x_{ss})^T P(x_N-x_{ss})
+            \\end{aligned}
                         
-                    J = \\frac{1}{2}\\sum_{k=0} ^{N-1} (x_k - x_{ss})^T Q(x_k-x_{ss})+(u_k-u_{ss})^T R(u_k-u_{ss}) \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad\\\\
-                            + (x_N-x_{ss})^T P(x_N-x_{ss})
-                            
-            For **Input Rate Penalization** mode:
+        For **Input Rate Penalization** mode:
+            
+        .. math::
                 
-                .. math::
-                    
-                    J = \\frac{1}{2}\\sum_{k=0} ^{N-1} (\\tilde{x}_k - \\tilde{x}_{ss})^T \\tilde{Q}(\\tilde{x}_k-\\tilde{x}_{ss})+\\Delta u_k^T \\Delta R \\Delta u_k 
-                        + (\\tilde{x}_N-\\tilde{x}_{ss})^TP(\\tilde{x}_N-\\tilde{x}_{ss})
+            J = \\frac{1}{2}\\sum_{k=0} ^{N-1} (\\tilde{x}_k - \\tilde{x}_{ss})^T \\tilde{Q}(\\tilde{x}_k-\\tilde{x}_{ss})+\\Delta u_k^T \\Delta R \\Delta u_k 
+                + (\\tilde{x}_N-\\tilde{x}_{ss})^TP(\\tilde{x}_N-\\tilde{x}_{ss})
                     
         **Infinite Horizon**:
             
-            For **set-point tracking** mode:
-                
-                .. math::
-                    
-                    J = \\frac{1}{2}\\sum_{k=0} ^{\\inf} (x_k - x_{ss})^T Q(x_k-x_{ss})+(u_k-u_{ss})^T R(u_k-u_{ss}) \\quad \\quad \\quad \\quad \\quad \\quad \\quad
-                    
-            For **Input Rate Penalization** mode:
-                
-                .. math::
-                    
-                    J = \\frac{1}{2}\\sum_{k=0} ^{\\inf} (\\tilde{x}_k - \\tilde{x}_{ss})^T \\tilde{Q}(\\tilde{x}_k-\\tilde{x}_{ss})+ \\Delta u_k^T \\Delta R \\Delta u_k \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad
+        For **set-point tracking** mode:
             
-            where :math:`\\tilde{x} = [x,u]^T`
+        .. math::
+            
+            J = \\frac{1}{2}\\sum_{k=0} ^{\\inf} (x_k - x_{ss})^T Q(x_k-x_{ss})+(u_k-u_{ss})^T R(u_k-u_{ss}) \\quad \\quad \\quad \\quad \\quad \\quad \\quad
+                
+        For **Input Rate Penalization** mode:
+            
+        .. math::
+            
+            J = \\frac{1}{2}\\sum_{k=0} ^{\\inf} (\\tilde{x}_k - \\tilde{x}_{ss})^T \\tilde{Q}(\\tilde{x}_k-\\tilde{x}_{ss})+ \\Delta u_k^T \\Delta R \\Delta u_k \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad \\quad
+        
+        where :math:`\\tilde{x} = [x,u]^T` .
 
         Note:
             For the problem to be solved in ``inputRatePenalization`` mode, ``Q``, ``R`` and ``delR`` should be set.
@@ -420,10 +414,10 @@ class LQR(IteratedVariables):
         
         For example:
             
-            ::
-                
-                # For ODE models
-                lqr.set_setpoint(xss = np.array([[10],[15]]) ,uss = np.array([[2],[3]]))
+        ::
+            
+            # For ODE models
+            lqr.set_setpoint(xss = np.array([[10],[15]]) ,uss = np.array([[2],[3]]))
 
         Args:
             xss : set point for states of the system(optional)

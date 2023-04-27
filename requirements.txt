@@ -4,6 +4,7 @@ ipykernel
 nbsphinx
 pygments
 docutils
+sphinx-book-theme
 sphinx-copybutton
 sphinx-autodoc-typehints
 graphviz

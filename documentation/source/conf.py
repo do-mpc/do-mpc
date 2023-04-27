@@ -25,7 +25,7 @@ sys.path.append(os.path.abspath(os.path.join('.')))
 # -- Project information -----------------------------------------------------
 
 project = 'do-mpc'
-copyright = '2021, Sergio Lucia and Felix Fiedler'
+copyright = '2023, Sergio Lucia and Felix Fiedler'
 author = 'Sergio Lucia and Felix Fiedler'
 
 # The full version, including alpha/beta/rc tags
@@ -44,7 +44,6 @@ master_doc = 'index'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = ['sphinx.ext.autodoc',
-              'sphinx_rtd_theme',
 	      'sphinx.ext.intersphinx',
           'nbsphinx',
           'sphinx.ext.mathjax',
@@ -54,7 +53,7 @@ extensions = ['sphinx.ext.autodoc',
           'sphinx_copybutton',
           'myst_parser',
           'sphinx.ext.napoleon',
-          'sphinx_autodoc_typehints'
+          'sphinx_autodoc_typehints',
               ]
 
 graphviz_output_format = 'svg'
@@ -66,12 +65,11 @@ mathjax3_config = {
     'jax': ['input/TeX', 'output/HTML-CSS'],
 }
 
-
 typehints_document_path = 'api/typehints'
 typehints_document_rtype = True
 always_document_param_types = True
 typehints_use_rtype = False
-
+napoleon_use_param = True
 # Order methods in documentation by their appearence in the sourcecode:
 autodoc_member_order = 'bysource'
 # Delete this previous line, to autoclass_content = "both"  # Add __init__ doc (ie. params) to class summaries
@@ -95,20 +93,37 @@ exclude_patterns = ['_build', '**.ipynb_checkpoints']
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'sphinx_book_theme'
 
+
+html_theme_options = {
+    "path_to_docs": "docs",
+    "repository_url": "https://github.com/do-mpc/do-mpc",
+    "use_repository_button": True,
+    "use_source_button": True,
+    "use_issues_button": True,
+    #"use_download_button": True,
+    "show_navbar_depth":1,
+    # "launch_buttons": {
+    #     "thebe": True,
+    # },
+     "logo": {
+        "image_dark": "static/dompc_var_02_rtd_dark.svg",
+        # "text": html_title,  # Uncomment to try text with logo
+    }
+}
+
+html_theme_path = ["../.."]
+html_logo = "static/dompc_var_02_rtd_blue.svg"
+html_show_sourcelink = True
+
+ogp_social_cards = {
+    "image": "static/dompc_var_02_rtd_blue.png",
+}
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['static']
-
-html_theme_options = {
-    'logo_only': True,
-    'navigation_depth': 4,
-}
-html_theme_path = ["../../"]
-html_logo = "static/dompc_var_02_white.svg"
-html_show_sourcelink = True
 
 
 
