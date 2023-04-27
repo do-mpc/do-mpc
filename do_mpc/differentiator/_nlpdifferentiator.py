@@ -5,6 +5,7 @@ from casadi import *
 from casadi.tools import *
 from dataclasses import dataclass
 from typing import List, Dict, Tuple, Union, Optional, Any
+import pdb
 
 from do_mpc.optimizer import Optimizer
 
@@ -56,6 +57,9 @@ class NLPDifferentiatorSettings:
     check_LICQ: bool = True
     """
     Check if the constraints are linearly independent.    
+
+    Warning:
+        This feature is computationally demanding and should only be used for debugging purposes.
     """
 
     check_SC: bool = True
@@ -70,7 +74,10 @@ class NLPDifferentiatorSettings:
 
     check_rank: bool = False
     """
-    ....
+
+    
+    Warning:
+        This feature is computationally demanding and should only be used for debugging purposes.
     """
 
     lstsq_fallback: bool = False
@@ -391,6 +398,7 @@ class NLPDifferentiator:
             param_sens = ca_lin_solver.solve(A_num, -B_num)
             # param_sens = solve(A_num, -B_num)
         elif lin_solver == "lstsq":
+            print('Fallback to least-squares solver')
             param_sens = np.linalg.lstsq(A_num, -B_num, rcond=None)[0]
         else:
             raise ValueError("Unknown linear solver.")
@@ -560,6 +568,7 @@ class NLPDifferentiator:
         param_sens, residuals, LICQ_status, SC_status = self._calculate_sensitivities(z_num, p_num, where_cons_active)
 
         # map sensitivities to original decision variables and lagrange multipliers
+        
         dx_dp_num_red, dlam_dp_num_red = self._map_param_sens(param_sens, where_cons_active)
         if self.flags['reduced_nlp']:
             dx_dp_num, dlam_dp_num = self._map_param_sens_to_full(dx_dp_num_red,dlam_dp_num_red)
@@ -571,81 +580,78 @@ class NLPDifferentiator:
 
   
 class DoMPCDifferentiatior(NLPDifferentiator):
+    """
+    
+    
+    """
     def __init__(self, optimizer: Optimizer, **kwargs):
-        nlp_container = self._get_do_mpc_nlp(optimizer)        
         self.optimizer = optimizer
         self.x_scaling_factors = self.optimizer.opt_x_scaling.master
+        self._init_sens_sym_struct()
+
+        nlp_container = self._get_do_mpc_nlp()        
         super().__init__(nlp_container,**kwargs)
 
-    def _get_do_mpc_nlp(self, mpc_object):
+    @property
+    def sens_num(self):
+        """
+        #TODO: Documentation of this important property.
+        
+        """
+        return self._sens_num
+    
+
+    def _get_do_mpc_nlp(self):
         """
         This function is used to extract the symbolic expressions and bounds of the underlying NLP of the MPC.
         It is used to initialize the NLPDifferentiator class.
         """
 
         # 1 get symbolic expressions of NLP
-        nlp = {'x': vertcat(mpc_object.opt_x), 'f': mpc_object.nlp_obj, 'g': mpc_object.nlp_cons, 'p': vertcat(mpc_object.opt_p)}
+        nlp = {'x': vertcat(self.optimizer.opt_x), 'f': self.optimizer.nlp_obj, 'g': self.optimizer.nlp_cons, 'p': vertcat(self.optimizer.opt_p)}
 
         # 2 extract bounds
         nlp_bounds = {}
-        nlp_bounds['lbg'] = mpc_object.nlp_cons_lb
-        nlp_bounds['ubg'] = mpc_object.nlp_cons_ub
-        nlp_bounds['lbx'] = vertcat(mpc_object._lb_opt_x)
-        nlp_bounds['ubx'] = vertcat(mpc_object._ub_opt_x)
+        nlp_bounds['lbg'] = self.optimizer.nlp_cons_lb
+        nlp_bounds['ubg'] = self.optimizer.nlp_cons_ub
+        nlp_bounds['lbx'] = vertcat(self.optimizer._lb_opt_x)
+        nlp_bounds['ubx'] = vertcat(self.optimizer._ub_opt_x)
 
-        # return nlp, nlp_bounds
-        # return {"nlp": nlp.copy(), "nlp_bounds": nlp_bounds.copy()}
         return {"nlp": nlp, "nlp_bounds": nlp_bounds}
 
-    def _get_do_mpc_nlp_sol(self, mpc_object):
-        nlp_sol = {}
-        nlp_sol["x"] = vertcat(mpc_object.opt_x_num)
-        nlp_sol["x_unscaled"] = vertcat(mpc_object.opt_x_num_unscaled)
-        nlp_sol["g"] = vertcat(mpc_object.opt_g_num)
-        nlp_sol["lam_g"] = vertcat(mpc_object.lam_g_num)
-        nlp_sol["lam_x"] = vertcat(mpc_object.lam_x_num)
-        nlp_sol["p"] = vertcat(mpc_object.opt_p_num)
-        return nlp_sol
+    def _get_do_mpc_nlp_sol(self):
+
+        if not hasattr(self, 'nlp_sol'):
+            self.nlp_sol = {}
+
+        self.nlp_sol["x"] = vertcat(self.optimizer.opt_x_num)
+        self.nlp_sol["x_unscaled"] = vertcat(self.optimizer.opt_x_num_unscaled)
+        self.nlp_sol["g"] = vertcat(self.optimizer.opt_g_num)
+        self.nlp_sol["lam_g"] = vertcat(self.optimizer.lam_g_num)
+        self.nlp_sol["lam_x"] = vertcat(self.optimizer.lam_x_num)
+        self.nlp_sol["p"] = vertcat(self.optimizer.opt_p_num)
+
+        return self.nlp_sol
     
     def differentiate(self):
-        nlp_sol = self._get_do_mpc_nlp_sol(self.optimizer)
-        dx_dp_num, dlam_dp_num, residuals, LICQ_status, SC_status, where_cons_active = super().differentiate(nlp_sol)
+
+        nlp_sol = self._get_do_mpc_nlp_sol()
+        out = super().differentiate(nlp_sol)
+        dx_dp_num = out[0]
         
         # rescale dx_dp_num
         dx_dp_num = times(dx_dp_num,self.x_scaling_factors.tocsc())
 
-        return dx_dp_num, dlam_dp_num, residuals, LICQ_status, SC_status, where_cons_active
-    
-    # mapping of parametric sensitivities of decision variables w.r.t parameters on casadi sym struct
-    def get_dxdp_symstruct(self,dx_dp_num):
-        sens_struct = self._build_sens_sym_struct(self.optimizer)
-        sens_num = self._assign_num_to_sens_struct(sens_struct,dx_dp_num)
-        return sens_num
+        self.sens_num["dxdp"] = dx_dp_num
 
-    def _build_sens_sym_struct(self,mpc: Optimizer):
-        opt_x = mpc._opt_x
-        opt_p = mpc._opt_p
+        # return dx_dp_num, dlam_dp_num, residuals, LICQ_status, SC_status, where_cons_active
+    
+    def _init_sens_sym_struct(self):
+        opt_x = self.optimizer._opt_x
+        opt_p = self.optimizer._opt_p
         
         sens_struct = struct_symSX([
             entry("dxdp",shapestruct=(opt_x, opt_p)),
         ])
 
-        return sens_struct
-
-    def _assign_num_to_sens_struct(self,sens_struct,dxdp_num):
-
-        # dxdp_init = dxdp_num
-        # ins_idx_x = [val-idx for idx, val in enumerate(self.undet_sym_idx_dict["opt_x"])] # used for inserting zero rows in dxdp_init
-        # ins_idx_p = [val-idx for idx, val in enumerate(self.undet_sym_idx_dict["opt_p"])] # used for inserting zero columns in dxdp_init
-        
-        # dxdp_init = np.insert(dxdp_init, ins_idx_x, 0.0, axis=0)
-        # dxdp_init = np.insert(dxdp_init, ins_idx_p, 0.0, axis=1)
-        
-        # assert dxdp_init.shape == sens_struct["dxdp"].shape
-        
-        sens_num = sens_struct(0)
-        
-        # sens_num["dxdp"] = dxdp_init
-        sens_num["dxdp"] = dxdp_num
-
-        return sens_num
+        self._sens_num = sens_struct(0)
