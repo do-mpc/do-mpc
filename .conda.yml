@@ -24,4 +24,4 @@ dependencies:
   - packaging
 
   # install with:
-  # conda env create --prefix .venv -f .conda.yml  
+  # conda env create --prefix ./.venv -f .conda.yml  
