@@ -14,3 +14,4 @@ numpy
 matplotlib
 myst-parser
 packaging
+asyncua

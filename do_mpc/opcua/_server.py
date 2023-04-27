@@ -19,21 +19,48 @@
 #
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
-import asyncio
+
 import time
 from casadi import *
-import sqlite3
+from ._base import RTBase
+from ._helper import NamespaceEntry, ServerOpts
+from ._client import RTClient
+
 
 try:
     import asyncua.sync as opcua
 except ImportError:
     raise ImportError("The asyncua library is not installed. Please install it and try again.")
-from asyncua import sync
+
 
 
 class RTServer:
+    '''
+    Real Time Server.
+    The RTServer class extends do-mpc with an easy to setup opcua server.
 
-    def __init__(self, opts):
+    **Configuration and setup:**
+
+    Configuring and setting up the RTServer client involves the following steps:
+
+    1. Use :py:class:`do_mpc.opcua.ServerOpts` dataclass to specify server name as well as IP adress and port for the server.
+
+    2. Initiate the RTServer class with the ServerOpts dataclass.
+
+    3. Use the :py:meth:`namespace_from_client` to automatically generate a namespace from a :py:class:`do_mpc.opcua.RTBase` instance (optional).
+
+    4. Start the OPC UA server by calling :py:meth:`start`
+
+    Note:
+
+        Remember to properly stop the server afterwards using the :py:meth:`stop` method.
+    
+    Args:
+        opts : Server options.
+    
+    '''
+
+    def __init__(self, opts:ServerOpts)->None:
        
         # The basic OPCUA server definition contains a name, address and a port numer
         self.name    = opts.name
@@ -49,10 +76,15 @@ class RTServer:
             print("Server could not be created. Check your opcua module installation!")
             return False
 
+     
+    def namespace_from_client(self, client:RTClient)->None:
+        '''
+        Takes an instance of :py:class:`do_mpc.opcua.RTBase` as input and registers an OPC UA namespace for the namespace stored in the RTBase class.
 
-    # Register namespace from client    
-    def namespace_from_client(self, client):
-        # get namespace from clients method
+        Args:
+            client : A client with a stored namespace.
+        '''
+        # get namespace from client
         client_namespace = client.client.namespace
         self.object_node_dict = {}
         # register a new namespace on the OPC UA server
@@ -76,7 +108,14 @@ class RTServer:
 
 
     # Add variables to a registered node
-    def add_variable_to_node(self, namespace_entry, namespace_url):
+    def add_variable_to_node(self, namespace_entry:NamespaceEntry, namespace_url:int)->None:
+        '''
+        Adds a variable to a registered node on the OPC UA server.
+
+        Args:
+            namespace_entry : A OPCUA node ID. Contains the variable as well as the target node name.
+            namespace_url : The namespace index identifying the namespace on the OPC UA server
+        '''
         # create unique and descriptive variable name
         variable_name = f'{namespace_entry.objectnode}{namespace_entry.variable}'
         # add variable to object node
@@ -91,7 +130,10 @@ class RTServer:
 
 
     # Start server
-    def start(self):
+    def start(self)->None:
+        '''
+        Starts the OPC UA server.
+        '''
         try:
             self.opcua_server.start()
 
@@ -101,7 +143,10 @@ class RTServer:
     
         
     # Stop server
-    def stop(self):
+    def stop(self)->None:
+        '''
+        Stops the OPC UA server
+        '''
         try:
             self.opcua_server.stop()
             print("The server  "+ self.name +" was stopped successfully @ ",time.strftime('%Y-%m-%d %H:%M %Z', time.localtime()))

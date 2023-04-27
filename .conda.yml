@@ -9,7 +9,6 @@ dependencies:
   - matplotlib
   - casadi=3.6.*
   - onnx
-  - tf2onnx
   - ipython
   - jupyter
   - sphinx
@@ -22,6 +21,7 @@ dependencies:
   - graphviz
   - myst-parser
   - packaging
+  - asyncua
 
   # install with:
   # conda env create --prefix .venv -f .conda.yml  
