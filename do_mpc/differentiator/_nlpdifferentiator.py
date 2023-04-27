@@ -96,6 +96,7 @@ class NLPDifferentiatorSettings:
     """
 
 
+
 ### NLP Differentiator
 class NLPDifferentiator:
     """
@@ -114,6 +115,12 @@ class NLPDifferentiator:
         self.flags = {}
         self.flags['sym_KKT_system'] = False
         self.flags['reduced_nlp'] = False
+
+        self.status = {}
+        self.status['LICQ'] = None
+        self.status['SC'] = None
+        self.status['residuals'] = None
+
 
         self.settings = NLPDifferentiatorSettings(**kwargs)
 
@@ -413,23 +420,18 @@ class NLPDifferentiator:
             tol: float, tolerance for determining the active set.
         Returns:
         """
-        # returns
-        LICQ_status = None
-        SC_status = None
-        residuals = None
 
         if self.settings.check_LICQ:
             LICQ_status = self._check_LICQ(z_num[:self.n_x], p_num,where_cons_active)
+            self.status['LICQ'] = LICQ_status
         
         if self.settings.check_SC:
             SC_status = self._check_SC(z_num[self.n_x:], where_cons_active)
+            self.status['SC'] = SC_status
         
         A_num, B_num = self._get_sensitivity_matrices(z_num, p_num)
         A_num, B_num = self._reduce_sensitivity_matrices(A_num, B_num, where_cons_active)
         
-        # assert np.all(sp_linalg.eigvals(A_num)>0)
-        # assert where_cons_active.shape[0]<= self.n_x
-
         if self.settings.check_rank:
             self._check_rank(A_num)
 
@@ -446,8 +448,9 @@ class NLPDifferentiator:
                         
         if self.settings.track_residuals:
             residuals = self._track_residuals(A_num, B_num, param_sens)
+            self.status['residuals'] = residuals
             
-        return param_sens, residuals, LICQ_status, SC_status
+        return param_sens
     
     ### Mapping functions ###
     def _map_dxdp(self, param_sens: np.ndarray) -> np.ndarray:
@@ -565,7 +568,7 @@ class NLPDifferentiator:
         z_num, where_cons_active = self._extract_active_primal_dual_solution(nlp_sol)
 
         # calculate parametric sensitivities
-        param_sens, residuals, LICQ_status, SC_status = self._calculate_sensitivities(z_num, p_num, where_cons_active)
+        param_sens = self._calculate_sensitivities(z_num, p_num, where_cons_active)
 
         # map sensitivities to original decision variables and lagrange multipliers
         
@@ -575,7 +578,7 @@ class NLPDifferentiator:
         else:
             dx_dp_num = dx_dp_num_red
 
-        return dx_dp_num, dlam_dp_num, residuals, LICQ_status, SC_status, where_cons_active
+        return dx_dp_num, dlam_dp_num
 
 
   
@@ -636,15 +639,14 @@ class DoMPCDifferentiatior(NLPDifferentiator):
     def differentiate(self):
 
         nlp_sol = self._get_do_mpc_nlp_sol()
-        out = super().differentiate(nlp_sol)
-        dx_dp_num = out[0]
+        dx_dp_num, dlam_dp_num = super().differentiate(nlp_sol)
         
         # rescale dx_dp_num
         dx_dp_num = times(dx_dp_num,self.x_scaling_factors.tocsc())
 
         self.sens_num["dxdp"] = dx_dp_num
 
-        # return dx_dp_num, dlam_dp_num, residuals, LICQ_status, SC_status, where_cons_active
+        return dx_dp_num, dlam_dp_num
     
     def _init_sens_sym_struct(self):
         opt_x = self.optimizer._opt_x
