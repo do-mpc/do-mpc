@@ -53,11 +53,13 @@ def template_mpc(model):
 
     mpc.set_param(**setup_mpc)
 
+    mpc.settings.supress_ipopt_output()
+
     mterm = -model.x['P_s']
     lterm = -model.x['P_s']
 
     mpc.set_objective(mterm=mterm, lterm=lterm)
-    mpc.set_rterm(inp=1.0)
+    mpc.set_rterm(inp=1)
 
     # soft constraint
     # mpc.set_nl_cons('soft_constraint', -model.x['S_s'], ub=0.0, soft_constraint=True, penalty_term_cons=1, maximum_violation=np.inf)
