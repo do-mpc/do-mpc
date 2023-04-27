@@ -32,6 +32,24 @@ from ._controllersettings import LQRSettings
 
 class LQR(IteratedVariables):
     """Linear Quadratic Regulator.
+
+    .. versionadded:: >v4.5.1
+
+        New interface to settings. The class has an attribute ``settings`` which is an instance of :py:class:`LQRSettings` (please see this documentation for a list of available settings).
+        Settings are now chosen as:
+
+        ::
+
+            lqr.settings.t_step = .5
+        
+        Previously, settings were passed to :py:meth:`set_param`. This method is still available and wraps the new interface.
+        The new method has important advantages:
+        
+        1. The ``lqr.settings`` attribute can be printed to see the current configuration.
+        
+        2. Context help is available in most IDEs (e.g. VS Code) to see the available settings, the type and a description.
+
+
     Use this class to configure and run the LQR controller
     according to the previously configured :py:class:`do_mpc.model.LinearModel` instance. 
     
@@ -47,8 +65,8 @@ class LQR(IteratedVariables):
     
     Configuring and setting up the LQR controller involves the following steps:
     
-    1. Use :py:meth:`set_param` to configure the :py:class:`LQR` instance.
-    
+    1. Configure the LQR controller with :py:class:`LQRSettings` class. The LQR instance has the attribute ``settings`` which is an instance of :py:class:`LQRSettings`. 
+
     2. Set the objective of the control problem with :py:meth:`set_objective`
     
     3. To finalize the class configuration call :py:meth:`setup`.

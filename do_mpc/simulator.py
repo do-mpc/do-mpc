@@ -60,6 +60,8 @@ class SimulatorSettings:
 
 class ContinousSimulatorSettings(SimulatorSettings):
     """Settings for :py:class:`Simulator` for continous-time systems.
+    
+
     An instance of this class is automatically generated as the attribute ``settings`` when creating the :py:class:`Simulator`.
 
     **Example**:
@@ -82,6 +84,24 @@ class ContinousSimulatorSettings(SimulatorSettings):
 
 class Simulator(do_mpc.model.IteratedVariables):
     """A class for simulating systems. Discrete-time and continuous systems can be considered.
+    
+    .. versionadded:: >v4.5.1
+
+        New interface to settings. The class has an attribute ``settings`` which is an instance of :py:class:`SimulatorSettings` or :py:class:`ContinousSimulatorSettings`
+        (please see this documentation for a list of available settings).
+        Settings are now chosen as:
+
+        ::
+
+            simulator.settings.t_step = 0.5
+        
+        Previously, settings were passed to :py:meth:`set_param`. This method is still available and wraps the new interface.
+        The new method has important advantages:
+        
+        1. The ``simulator.settings`` attribute can be printed to see the current configuration.
+        
+        2. Context help is available in most IDEs (e.g. VS Code) to see the available settings, the type and a description.
+
 
     **do-mpc** uses the CasADi interface to popular state-of-the-art tools such as Sundials `CVODES`_
     for the integration of ODE/DAE equations.
@@ -92,7 +112,7 @@ class Simulator(do_mpc.model.IteratedVariables):
 
     Configuring and setting up the simulator involves the following steps:
 
-    1. Set parameters with :py:func:`set_param`, e.g. the sampling time.
+    1. Configure the simulator with :py:class:`SimulatorSettings` or :py:class:`ContinousSimulatorSettings`. The simulator instance has the attribute ``settings`` which is an instance of :py:class:`SimulatorSettings` or :py:class:`ContinousSimulatorSettings`.
 
     2. Set parameter function with :py:func:`get_p_template` and  :py:func:`set_p_fun`.
 
