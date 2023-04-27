@@ -36,6 +36,25 @@ from ._controllersettings import MPCSettings
 class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     """Model predictive controller.
 
+    .. versionadded:: >v4.5.1
+
+        New interface to settings. The class has an attribute ``settings`` which is an instance of :py:class:`MPCSettings` (please see this documentation for a list of available settings).
+        Settings are now chosen as:
+
+        ::
+
+            mpc.settings.n_horizon = 20
+        
+        Previously, settings were passed to :py:meth:`set_param`. This method is still available and wraps the new interface.
+        The new method has important advantages:
+        
+        1. The ``mpc.settings`` attribute can be printed to see the current configuration.
+
+        2. Context help is available in most IDEs (e.g. VS Code) to see the available settings, the type and a description.
+
+        3. The :py:class:`MPCSettings` class has convenient methods, such as :py:meth:`MPCSettings.supress_ipopt_output()` to silence the solver.
+
+
     For general information on model predictive control, please read our `background article <../theory_mpc.html>`_ .
 
     The MPC controller extends the :py:class:`do_mpc.optimizer.Optimizer` base class
@@ -48,7 +67,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
     Configuring and setting up the MPC controller involves the following steps:
 
-    1. Use :py:func:`set_param` to configure the :py:class:`MPC` instance.
+    1. Configure the MPC controller with :py:class:`MPCSettings`. The MPC instance has the attribute ``settings`` which is an instance of :py:class:`MPCSettings`. 
 
     2. Set the objective of the control problem with :py:func:`set_objective` and :py:func:`set_rterm`
 

@@ -36,7 +36,8 @@ class Optimizer:
     This class establishes the jointly used attributes, methods and properties.
 
     Warnings:
-        The ``Optimizer`` base class can not be used independently.
+        The ``Optimizer`` base class can not be used independently. The methods and properties are 
+        inherited to :py:class:`do_mpc.estimator.MHE` and :py:class:`do_mpc.controller.MPC`.
     """
     def __init__(self):
         assert 'model' in self.__dict__.keys(), 'Cannot initialize the optimizer before assigning the model to the current class instance.'
