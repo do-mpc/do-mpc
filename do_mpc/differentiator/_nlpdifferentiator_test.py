@@ -1,7 +1,12 @@
+
+import sys
+import os
+
+sys.path.append(os.path.join('..', '..')) # add the current folder location to the path
+
 from _nlpdifferentiator import NLPDifferentiator
 import casadi as ca
 import numpy as np
-
 
 def validate_fd(sens_vals, nlp_solver, nlp_bounds, p_num, x0, n_eval = 10, step_size = 1e-3):
     
@@ -130,10 +135,9 @@ nlp_sol["p"] = p_num
 dx_dp_num, dlam_dp_num, residuals, LICQ_status, SC_status, where_cons_active = nlp_diff.differentiate(nlp_sol)
 
 # print residuals, LICQ_statusm where_cons_active
-print("residuals: ", residuals)
-print("LICQ_status: ", LICQ_status)
-print("SC_status: ", SC_status)
-print("where_cons_active: ", where_cons_active)
+print("residuals: ", nlp_diff.status['residuals'])
+print("LICQ_status: ", nlp_diff.status['LICQ'])
+print("SC_status: ", nlp_diff.status['SC'])
 
 if False:
     eval_dict = validate_fd(dx_dp_num, nlp_solver, nlp_bounds, p_num, x0=nlp_sol["x"], n_eval = 10, step_size = 1e-3)

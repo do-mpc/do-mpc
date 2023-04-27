@@ -26,10 +26,9 @@ from casadi import *
 from casadi.tools import *
 import pdb
 import sys
+import copy
 sys.path.append('../../')
 import do_mpc
-import do_mpc.differentiator as differentiator
-# from do_mpc.differentiator._nlpdifferentiator import get_do_mpc_nlp_sol, build_sens_sym_struct, assign_num_to_sens_struct
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -69,12 +68,6 @@ estimator.x0 = x0
 
 mpc.set_initial_guess()
 
-"""
-Setup graphic:
-"""
-
-fig, ax, graphics = do_mpc.graphics.default_plot(mpc.data, figsize=(8,5))
-plt.ion()
 
 """
 Run MPC main loop:
@@ -89,10 +82,6 @@ track_nlp_obj = []
 track_nlp_res = []
 
 
-# nlp_diff = differentiator.NLPDifferentiator.from_optimizer(mpc)
-# nlp_diff = differentiator.NLPDifferentiator(mpc)
-nlp_diff = differentiator.DoMPCDifferentiatior(mpc)
-
 
 import cProfile
 import pstats
@@ -101,52 +90,67 @@ import pstats
 pr = cProfile.Profile()
 pr.enable()
 
-    
 
-for k in range(10):
-    
+class ASMPC:
+    def __init__(self, mpc):
+        self.mpc = mpc
+        self.nlp_diff = do_mpc.differentiator.DoMPCDifferentiatior(mpc)
+        self.nlp_diff.settings.check_LICQ = False
+        self.nlp_diff.settings.check_rank = False
+        self.nlp_diff.settings.solver ='casadi'
 
+        self._u_data = [mpc.u0.cat.full().reshape(-1,1)]
+
+    def make_step(self, x0):
+        x0 = x0.reshape(-1,1)
+
+        self.nlp_diff.differentiate()
+
+
+        x_prev = self.mpc.x0.cat.full().reshape(-1,1)
+        u0 = self.mpc.u0.cat.full().reshape(-1,1)
+        u_prev = self.mpc.opt_p_num['_u_prev'].full().reshape(-1,1)
+
+        
+
+        du0dx0_num = self.nlp_diff.sens_num["dxdp", indexf["_u",0,0], indexf["_x0"]]
+        du0du_prev_num = self.nlp_diff.sens_num["dxdp", indexf["_u",0,0], indexf["_u_prev"]].full()
+
+        A = np.eye(self.mpc.model.n_u)-du0du_prev_num
+
+        u_next  = np.linalg.inv(A)@(u0 + du0dx0_num @ (x0 - x_prev) - du0du_prev_num @ (u0))
+        # u_next = u0 + du0dx0_num @ (x0 - x_prev) - du0du_prev_num @ (u0 - u_prev)
+
+        self._u_data.append(u_next)
+
+        return u_next
+    
+    @property
+    def u_data(self):
+        return np.hstack(self._u_data)
+
+
+asmpc = ASMPC(mpc)
+
+for k in range(30):
+    
+    if k>0:
+        u0_approx = asmpc.make_step(x0)
     u0 = mpc.make_step(x0)
     y_next = simulator.make_step(u0)    
     x0 = estimator.make_step(y_next)
 
-
-    track_nlp_obj.append(nlp_diff.nlp.copy())
-    track_nlp_res.append(nlp_diff._get_do_mpc_nlp_sol(nlp_diff.optimizer).copy())
-
-    tic = time.time()
-    print("iteration: ", k)
-    dx_dp_num, dlam_dp_num, residuals, LICQ_status, SC_status, where_cons_active = nlp_diff.differentiate()
-    toc = time.time()
-    print("Time to calculate sensitivities: ", toc-tic)
-    assert LICQ_status==True
-    assert residuals<=1e-12
-    
-
-    LICQ_status_list.append(LICQ_status)
-    SC_status_list.append(SC_status)
-    residuals_list.append(residuals)
-    param_sens_list.append(dx_dp_num)
-
-    sens_num = nlp_diff.get_dxdp_symstruct(dx_dp_num)
-    du0dx0_num = sens_num["dxdp", indexf["_u",0,0], indexf["_x0"]]
-    du0du_prev_num = sens_num["dxdp", indexf["_u",0,0], indexf["_u_prev"]]
   
 
-    if show_animation:
-        graphics.plot_results(t_ind=k)
-        graphics.plot_predictions(t_ind=k)
-        graphics.reset_axes()
-        plt.show()
-        plt.pause(0.01)
-
-# input('Press any key to exit.')
 
 pr.disable()
 
 stats = pstats.Stats(pr)
-# stats.sort_stats(pstats.SortKey.TIME)
-stats.sort_stats("tottime")
-stats.print_stats()
-# dump stats to readable file
-# stats.dump_stats("profile_stats_Sens.prof")
+
+fig, ax = plt.subplots(1,1)
+
+ax.plot(asmpc.u_data.T, label="approx")
+ax.plot(mpc.data['_u'], label="mpc")
+ax.legend()
+
+plt.show(block=True)
