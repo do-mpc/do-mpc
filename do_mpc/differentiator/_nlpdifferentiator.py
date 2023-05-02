@@ -8,96 +8,13 @@ from typing import List, Dict, Tuple, Union, Optional, Any
 import pdb
 
 from do_mpc.optimizer import Optimizer
+from .helper import NLPDifferentiatorSettings, NLPDifferentiatorStatus
 
 from functools import wraps
 import time
+import logging
 import warnings
-# set np.linalg.LinalgWarning to np.linalg.LinalgError
-warnings.filterwarnings("error",category=sp_linalg.LinAlgWarning)
 
-### Helper Functions NLP Differentiator
-# def build_sens_sym_struct(mpc: Optimizer):
-#     opt_x = mpc._opt_x
-#     opt_p = mpc._opt_p
-    
-#     sens_struct = struct_symSX([
-#         entry("dxdp",shapestruct=(opt_x, opt_p)),
-#     ])
-
-#     return sens_struct
-
-# def assign_num_to_sens_struct(sens_struct,dxdp_num,undet_sym_idx_dict):
-
-#     dxdp_init = dxdp_num#.copy()
-#     ins_idx_x = [val-idx for idx, val in enumerate(undet_sym_idx_dict["opt_x"])] # used for inserting zero rows in dxdp_init
-#     ins_idx_p = [val-idx for idx, val in enumerate(undet_sym_idx_dict["opt_p"])] # used for inserting zero columns in dxdp_init
-    
-#     dxdp_init = np.insert(dxdp_init, ins_idx_x, 0.0, axis=0)
-#     dxdp_init = np.insert(dxdp_init, ins_idx_p, 0.0, axis=1)
-    
-#     assert dxdp_init.shape == sens_struct["dxdp"].shape
-    
-#     sens_num = sens_struct(0)
-    
-#     sens_num["dxdp"] = dxdp_init
-
-#     return sens_num
-
-
-@dataclass
-class NLPDifferentiatorSettings:
-    """Settings for NLPDifferentiator.
-    """
-
-    lin_solver: str = 'casadi' #'scipy' or 'casadi' or 'lstsq'
-    """
-    Choose the linear solver for the KKT system.
-    """
-
-    check_LICQ: bool = True
-    """
-    Check if the constraints are linearly independent.    
-
-    Warning:
-        This feature is computationally demanding and should only be used for debugging purposes.
-    """
-
-    check_SC: bool = True
-    """
-    Check if strict complementarity holds.   
-    """
-
-    track_residuals: bool = True
-    """
-    Compute the residuals of the KKT system.
-    """
-
-    check_rank: bool = False
-    """
-
-    
-    Warning:
-        This feature is computationally demanding and should only be used for debugging purposes.
-    """
-
-    lstsq_fallback: bool = False
-    """
-    ...
-    """
-
-    active_set_tol : float = 1e-6
-    """
-    ...
-    """
-
-    set_lam_zero: bool = False
-    """
-    ...
-    """
-
-
-
-### NLP Differentiator
 class NLPDifferentiator:
     """
     Documentation for NLPDifferentiator.
@@ -112,16 +29,7 @@ class NLPDifferentiator:
         ## Setup
         self._setup_nlp(nlp_container)
 
-        self.flags = {}
-        self.flags['sym_KKT_system'] = False
-        self.flags['reduced_nlp'] = False
-
-        self.status = {}
-        self.status['LICQ'] = None
-        self.status['SC'] = None
-        self.status['residuals'] = None
-
-
+        self.status = NLPDifferentiatorStatus()
         self.settings = NLPDifferentiatorSettings(**kwargs)
 
         ## Preparation
@@ -210,10 +118,10 @@ class NLPDifferentiator:
             self.nlp_unreduced, self.nlp_bounds_unreduced = self.nlp, self.nlp_bounds
             self.nlp, self.nlp_bounds = nlp_red, nlp_bounds_red
             self.det_sym_idx_dict, self.undet_sym_idx_dict = det_sym_idx_dict, undet_sym_idx_dict
-            self.flags["reduced_nlp"] = True
+            self.status.reduced_nlp = True
             # self.flags["fully_determined_nlp"] = True
         else:
-            self.flags["reduced_nlp"] = False
+            self.status.reduced_nlp = False
             # self.flags["fully_determined_nlp"] = True
             print("NLP formulation does not contain unused variables.")
 
@@ -225,7 +133,7 @@ class NLPDifferentiator:
         self.n_g = self.nlp["g"].shape[0]
         self.n_p = self.nlp["p"].shape[0]
 
-        if self.flags["reduced_nlp"]:
+        if self.status.reduced_nlp:
             self.n_x_unreduced = self.nlp_unreduced["x"].shape[0]
             self.n_p_unreduced = self.nlp_unreduced["p"].shape[0]
 
@@ -259,7 +167,7 @@ class NLPDifferentiator:
     def _prepare_sensitivity_matrices(self):
         self._get_A_matrix()
         self._get_B_matrix()
-        self.flags['sym_KKT_system'] = True
+        self.status.sym_KKT = True
 
     def _prepare_constraint_gradients(self):
         self.cons_sym = vertcat(self.nlp["g"],self.nlp["x"])
@@ -268,7 +176,7 @@ class NLPDifferentiator:
 
     ### ALGORITHM    
     def _reduce_nlp_solution_to_determined(self,nlp_sol: dict) -> dict: 
-        assert self.flags["reduced_nlp"], "NLP is not reduced."
+        assert self.status.reduced_nlp, "NLP is not reduced."
 
         # adapt nlp_sol
         nlp_sol_red = nlp_sol.copy()
@@ -370,7 +278,7 @@ class NLPDifferentiator:
         """
         Returns the sensitivity matrix A and the sensitivity vector B of the NLP.
         """
-        if self.flags['sym_KKT_system'] is False:
+        if self.status.sym_KKT is False:
             raise RuntimeError('No symbolic expression for sensitivitiy system computed yet.')        
         A_num = self.A_func(z_num, p_num)
         B_num = self.B_func(z_num, p_num)
@@ -395,20 +303,34 @@ class NLPDifferentiator:
         Returns:
             parametric sensitivities (n_x,n_p)
         """
-        if lin_solver == "scipy":
-            with np.errstate(all="raise"):
-                # param_sens = sp_linalg.solve(A_num.full(), -B_num.full(), assume_a="sym")
+        self.status.lse_solved = False
+
+        try:
+            if lin_solver == 'scipy':
+                logging.info("Solving linear system with Scipy.")
                 param_sens = sp_sparse.linalg.spsolve(A_num.tocsc(),-B_num.tocsc())
-        elif lin_solver == "casadi":
-            ca_lin_solver = Linsol("sol","qr",A_num.sparsity())
-            # ca_lin_solver = Linsol("sol","qr",A_num.sparsity())
-            param_sens = ca_lin_solver.solve(A_num, -B_num)
-            # param_sens = solve(A_num, -B_num)
-        elif lin_solver == "lstsq":
-            print('Fallback to least-squares solver')
-            param_sens = np.linalg.lstsq(A_num, -B_num, rcond=None)[0]
-        else:
-            raise ValueError("Unknown linear solver.")
+
+            elif lin_solver == 'casadi':
+                logging.info("Solving linear system with Casadi.")
+                ca_lin_solver = Linsol("sol","qr",A_num.sparsity())
+                param_sens = ca_lin_solver.solve(A_num, -B_num)
+
+            elif lin_solver ==  'lstsq':
+                logging.info("Solving linear system with least squares solver.")
+                param_sens = np.linalg.lstsq(A_num, -B_num, rcond=None)[0]
+
+            else:
+                raise Exception("Linear solver not recognized.")
+
+            self.status.lse_solved = True
+
+        except Exception as e:
+            logging.exception(e)
+            logging.info("Linear system could not be solved. Return array of NaNs for parametric sensitivities.")
+            param_sens = np.full(shape=(A_num.shape[0], B_num.shape[1]), fill_value=np.nan)
+
+            self.status.lse_solved = False
+
         return param_sens
     
     def _calculate_sensitivities(self, z_num: DM, p_num: DM, where_cons_active: np.ndarray):
@@ -423,32 +345,33 @@ class NLPDifferentiator:
 
         if self.settings.check_LICQ:
             LICQ_status = self._check_LICQ(z_num[:self.n_x], p_num,where_cons_active)
-            self.status['LICQ'] = LICQ_status
+            self.status.LICQ = LICQ_status
+            logging.info('LICQ status: {}'.format(LICQ_status))
         
         if self.settings.check_SC:
             SC_status = self._check_SC(z_num[self.n_x:], where_cons_active)
-            self.status['SC'] = SC_status
+            self.status.SC = SC_status
+            logging.info('SC status: {}'.format(SC_status))
         
         A_num, B_num = self._get_sensitivity_matrices(z_num, p_num)
         A_num, B_num = self._reduce_sensitivity_matrices(A_num, B_num, where_cons_active)
-        
+
         if self.settings.check_rank:
-            self._check_rank(A_num)
+            full_rank_status =  self._check_rank(A_num)
+            self.status.full_rank = full_rank_status
+            logging.info('Full rank status: {}'.format(full_rank_status))
 
         # solve LSE to get parametric sensitivities
-        try:
-            param_sens = self._solve_linear_system(A_num,B_num, lin_solver=self.settings.lin_solver)
-        # except np.linalg.LinAlgError:
-        except:
-            if self.settings.lstsq_fallback:
-                print("Solving LSE failed. Falling back to least squares solution.")
-                param_sens = self._solve_linear_system(A_num,B_num, lin_solver="lstsq")
-            else:
-                raise np.linalg.LinAlgError("Solving LSE failed.")
+        param_sens = self._solve_linear_system(A_num,B_num, lin_solver=self.settings.lin_solver)
+
+        if not self.status.lse_solved and self.settings.lstsq_fallback:
+            logging.info('Linear system could not be solved. Falling back to least squares solver.')
+            param_sens = self._solve_linear_system(A_num,B_num, lin_solver="lstsq")
+
                         
         if self.settings.track_residuals:
             residuals = self._track_residuals(A_num, B_num, param_sens)
-            self.status['residuals'] = residuals
+            self.status.residuals = residuals
             
         return param_sens
     
@@ -491,12 +414,10 @@ class NLPDifferentiator:
         """
         idx_x_determined, idx_p_determined = self.det_sym_idx_dict["opt_x"], self.det_sym_idx_dict["opt_p"]
 
-        dx_dp_num = np.zeros((self.n_x_unreduced,self.n_p_unreduced))
-        dx_dp_num = sp_sparse.csc_matrix(dx_dp_num)
+        dx_dp_num = sp_sparse.lil_matrix((self.n_x_unreduced,self.n_p_unreduced))
         dx_dp_num[idx_x_determined[:,None],idx_p_determined] = dx_dp_num_red
         
-        dlam_dp_num = np.zeros((self.n_g+self.n_x_unreduced,self.n_p_unreduced))
-        dlam_dp_num = sp_sparse.csc_matrix(dlam_dp_num)
+        dlam_dp_num = sp_sparse.lil_matrix((self.n_g+self.n_x_unreduced,self.n_p_unreduced))
 
         idx_lam_determined = np.hstack([np.arange(0,self.n_g,dtype=np.int64),idx_x_determined+self.n_g])
 
@@ -509,8 +430,8 @@ class NLPDifferentiator:
         """
         Checks if the sensitivity matrix A has full rank.
         """
-        if np.linalg.matrix_rank(A_num) < A_num.shape[0]:
-            raise KeyError("Sensitivity matrix A does not have full rank.")
+        full_rank = np.linalg.matrix_rank(A_num) == A_num.shape[0]
+        return full_rank 
     
     def _track_residuals(self, A_num: DM, B_num: DM, param_sens: np.ndarray) -> float:
         """
@@ -529,10 +450,10 @@ class NLPDifferentiator:
         # check rank
         if np.linalg.matrix_rank(cons_grad_num) < cons_grad_num.shape[0]:
             # raise KeyError("Constraint Jacobian does not have full rank at current solution. LICQ not satisfied.")
-            print("Constraint Jacobian does not have full rank at current solution. LICQ not satisfied.")
+            logging.info("Constraint Jacobian does not have full rank at current solution. LICQ not satisfied.")
             return False
         else:
-            print("LICQ satisfied.")
+            logging.info("LICQ satisfied.")
             return True
     
     def _check_SC(self, lam_num: DM, where_cons_active: np.ndarray):
@@ -541,11 +462,11 @@ class NLPDifferentiator:
         lam_num = lam_num[where_cons_active]
         # check if all absolute values of lagrange multipliers are strictly greater than active set tolerance
         if np.all(np.abs(lam_num) >= self.settings.active_set_tol):
-            print("Strict complementarity satisfied.")
+            logging.info("Strict complementarity satisfied.")
             return True
         else:
             # n_violation_SC = sum(np.abs(lam_num)<self.settings.active_set_tol)
-            print("Strict complementarity not satisfied.")
+            logging.info("Strict complementarity not satisfied.")
             return False
 
     ### differentiaton step ###
@@ -558,7 +479,7 @@ class NLPDifferentiator:
 
 
         # reduce NLP solution if necessary
-        if self.flags['reduced_nlp']:
+        if self.status.reduced_nlp:
             nlp_sol = self._reduce_nlp_solution_to_determined(nlp_sol)
 
         # get parameters of optimal solution
@@ -573,7 +494,7 @@ class NLPDifferentiator:
         # map sensitivities to original decision variables and lagrange multipliers
         
         dx_dp_num_red, dlam_dp_num_red = self._map_param_sens(param_sens, where_cons_active)
-        if self.flags['reduced_nlp']:
+        if self.status.reduced_nlp:
             dx_dp_num, dlam_dp_num = self._map_param_sens_to_full(dx_dp_num_red,dlam_dp_num_red)
         else:
             dx_dp_num = dx_dp_num_red
