@@ -76,6 +76,7 @@ def template_mpc(model):
     mpc.bounds['lower','_u','inp'] = 0.0
     mpc.bounds['upper','_u','inp'] = 0.2
 
+
     Y_x_values = np.array([0.5, 0.4, 0.3])
     S_in_values = np.array([200.0, 220.0, 180.0])
     # Y_x_values = np.array([0.4])

@@ -33,10 +33,13 @@ import do_mpc
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import time
+import logging
 
 from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator
+
+logging.basicConfig( level=logging.INFO)
 
 
 """ User settings: """
@@ -97,7 +100,7 @@ class ASMPC:
         self.nlp_diff = do_mpc.differentiator.DoMPCDifferentiatior(mpc)
         self.nlp_diff.settings.check_LICQ = False
         self.nlp_diff.settings.check_rank = False
-        self.nlp_diff.settings.solver ='casadi'
+        self.nlp_diff.settings.lin_solver = 'scipy'
 
         self._u_data = [mpc.u0.cat.full().reshape(-1,1)]
 
@@ -149,8 +152,8 @@ stats = pstats.Stats(pr)
 
 fig, ax = plt.subplots(1,1)
 
-ax.plot(asmpc.u_data.T, label="approx")
-ax.plot(mpc.data['_u'], label="mpc")
+ax.plot(asmpc.u_data.T, '-x', label="approx")
+ax.plot(mpc.data['_u'], '-x', label="mpc")
 ax.legend()
 
 plt.show(block=True)
