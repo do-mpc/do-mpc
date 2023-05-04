@@ -79,7 +79,7 @@ class RTBase:
         else:
             self.namespace = namespace
 
-        self.cycle_time = do_mpc_object.settings.t_step
+        self.cycle_time = do_mpc_object.settings.t_step*3600.0
         self.client = RTClient(clientOpts, self.namespace)
         self.tagout = []
         self.tagin = []
