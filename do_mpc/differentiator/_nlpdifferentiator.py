@@ -175,20 +175,20 @@ class NLPDifferentiator:
         self.cons_grad_func = Function("cons_grad", [self.nlp["x"],self.nlp["p"]], [self.cons_grad_sym], ["x_opt", "p_opt"], ["d(g,x)/dx"])
 
     ### ALGORITHM    
-    def _reduce_nlp_solution_to_determined(self,nlp_sol: dict) -> dict: 
+    def _reduce_nlp_solution_to_determined(self, nlp_sol: dict, p_num: DM) -> Tuple[dict, DM]: 
         assert self.status.reduced_nlp, "NLP is not reduced."
 
         # adapt nlp_sol
         nlp_sol_red = nlp_sol.copy()
         nlp_sol_red["x"] = nlp_sol["x"][self.det_sym_idx_dict["opt_x"]]
         nlp_sol_red["lam_x"] = nlp_sol["lam_x"][self.det_sym_idx_dict["opt_x"]] 
-        nlp_sol_red["p"] = nlp_sol["p"][self.det_sym_idx_dict["opt_p"]]
+        p_num = p_num[self.det_sym_idx_dict["opt_p"]]
         
         # backwards compatilibity TODO: remove
         if "x_unscaled" in nlp_sol:
             nlp_sol_red["x_unscaled"] = nlp_sol["x_unscaled"][self.det_sym_idx_dict["opt_x"]]
 
-        return nlp_sol_red
+        return nlp_sol_red, p_num
     
     def _get_active_constraints(self,nlp_sol: dict) -> tuple[np.ndarray]:
         """
@@ -443,17 +443,15 @@ class NLPDifferentiator:
         return residuals
 
     def _check_LICQ(self, x_num: DM, p_num: DM, where_cons_active: np.ndarray) -> bool:        
-        # get constraint Jacobian
         cons_grad_num = self.cons_grad_func(x_num, p_num)
         # reduce constraint Jacobian
         cons_grad_num = cons_grad_num[where_cons_active,:]
-        # check rank
-        if np.linalg.matrix_rank(cons_grad_num) < cons_grad_num.shape[0]:
-            # raise KeyError("Constraint Jacobian does not have full rank at current solution. LICQ not satisfied.")
-            logging.info("Constraint Jacobian does not have full rank at current solution. LICQ not satisfied.")
+
+        if cons_grad_num.shape[0] == 0:
+            return True
+        elif np.linalg.matrix_rank(cons_grad_num) < cons_grad_num.shape[0]:
             return False
         else:
-            logging.info("LICQ satisfied.")
             return True
     
     def _check_SC(self, lam_num: DM, where_cons_active: np.ndarray):
@@ -472,18 +470,14 @@ class NLPDifferentiator:
     ### differentiaton step ###
 
     # the next function applies the whole algorithm given in the code abouve and returns the sensitivities dx_dp
-    def differentiate(self, nlp_sol: dict):
+    def differentiate(self, nlp_sol: dict, p_num: DM) -> tuple[DM, DM]:
         """
         Differentiates the NLP solution.
         """
 
-
         # reduce NLP solution if necessary
         if self.status.reduced_nlp:
-            nlp_sol = self._reduce_nlp_solution_to_determined(nlp_sol)
-
-        # get parameters of optimal solution
-        p_num = nlp_sol["p"]
+            nlp_sol, p_num = self._reduce_nlp_solution_to_determined(nlp_sol, p_num)
 
         # extract active primal and dual solution
         z_num, where_cons_active = self._extract_active_primal_dual_solution(nlp_sol)
@@ -498,6 +492,7 @@ class NLPDifferentiator:
             dx_dp_num, dlam_dp_num = self._map_param_sens_to_full(dx_dp_num_red,dlam_dp_num_red)
         else:
             dx_dp_num = dx_dp_num_red
+            dlam_dp_num = dlam_dp_num_red
 
         return dx_dp_num, dlam_dp_num
 
@@ -553,14 +548,17 @@ class DoMPCDifferentiatior(NLPDifferentiator):
         self.nlp_sol["g"] = vertcat(self.optimizer.opt_g_num)
         self.nlp_sol["lam_g"] = vertcat(self.optimizer.lam_g_num)
         self.nlp_sol["lam_x"] = vertcat(self.optimizer.lam_x_num)
-        self.nlp_sol["p"] = vertcat(self.optimizer.opt_p_num)
 
         return self.nlp_sol
+
+    def _get_p_num(self):
+        return vertcat(self.optimizer.opt_p_num)
     
     def differentiate(self):
 
         nlp_sol = self._get_do_mpc_nlp_sol()
-        dx_dp_num, dlam_dp_num = super().differentiate(nlp_sol)
+        p_num = self._get_p_num()
+        dx_dp_num, dlam_dp_num = super().differentiate(nlp_sol, p_num)
         
         # rescale dx_dp_num
         dx_dp_num = times(dx_dp_num,self.x_scaling_factors.tocsc())

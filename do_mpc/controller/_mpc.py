@@ -944,9 +944,9 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         # Update initial
         self._t0 = self._t0 + self.settings.t_step
-        self._x0.master = x0
-        self._u0.master = u0
-        self._z0.master = z0
+        self._x0.master = castools.DM(x0)
+        self._u0.master = castools.DM(u0)
+        self._z0.master = castools.DM(z0)
 
         # Return control input:
         return u0.full()
