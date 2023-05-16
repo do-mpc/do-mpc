@@ -31,14 +31,7 @@ from ._helper import Namespace, NamespaceEntry, ClientOpts
 import casadi.tools as ctools
 from ..model import Model
 
-
-class TimeUnit(Enum):
-    SECOND = 1
-    MINUTE = 60
-    HOUR   = 3600
-    DAY    = 3600*24
-
-        
+   
 class RTBase:
     ''' Real Time Base.
     The RTBase class extends do-mpc with an OPC UA interface.
