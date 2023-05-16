@@ -101,7 +101,17 @@ class ClientOpts:
         name : Name of the client.
         address : IP address of the target server.
         port : Used port number of the target server.
+        timeunit: Time unit factor to convert the time unit used by the dynamic system into seconds. The default value is 1 for seconds. Use 60 for minutes, 3600 for hours, and so on. 
     '''
+
+    """
+    Name of the client.
+    """
     name: str
+    """
+    IP address of the target server.
+    """
+
     address: str
     port: int
+    timeunit: int = 1

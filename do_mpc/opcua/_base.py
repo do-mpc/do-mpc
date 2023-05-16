@@ -24,11 +24,19 @@ import time
 import numpy as np
 from typing import List
 from threading import Timer, Thread
+from enum import Enum, auto
 from casadi import *
 from ._client import RTClient
 from ._helper import Namespace, NamespaceEntry, ClientOpts
 import casadi.tools as ctools
 from ..model import Model
+
+
+class TimeUnit(Enum):
+    SECOND = 1
+    MINUTE = 60
+    HOUR   = 3600
+    DAY    = 3600*24
 
         
 class RTBase:
@@ -79,7 +87,7 @@ class RTBase:
         else:
             self.namespace = namespace
 
-        self.cycle_time = do_mpc_object.settings.t_step*3600.0
+        self.cycle_time = do_mpc_object.settings.t_step*clientOpts.timeunit
         self.client = RTClient(clientOpts, self.namespace)
         self.tagout = []
         self.tagin = []
