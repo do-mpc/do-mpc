@@ -82,6 +82,7 @@ from . import sampling
 from . import data
 from . import graphics
 from . import sysid
+from . import opcua
 
 from ._version import __version__
 
