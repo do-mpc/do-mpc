@@ -36,6 +36,25 @@ from ._controllersettings import MPCSettings
 class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     """Model predictive controller.
 
+    .. versionadded:: >v4.5.1
+
+        New interface to settings. The class has an attribute ``settings`` which is an instance of :py:class:`MPCSettings` (please see this documentation for a list of available settings).
+        Settings are now chosen as:
+
+        ::
+
+            mpc.settings.n_horizon = 20
+        
+        Previously, settings were passed to :py:meth:`set_param`. This method is still available and wraps the new interface.
+        The new method has important advantages:
+        
+        1. The ``mpc.settings`` attribute can be printed to see the current configuration.
+
+        2. Context help is available in most IDEs (e.g. VS Code) to see the available settings, the type and a description.
+
+        3. The :py:class:`MPCSettings` class has convenient methods, such as :py:meth:`MPCSettings.supress_ipopt_output()` to silence the solver.
+
+
     For general information on model predictive control, please read our `background article <../theory_mpc.html>`_ .
 
     The MPC controller extends the :py:class:`do_mpc.optimizer.Optimizer` base class
@@ -48,7 +67,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
     Configuring and setting up the MPC controller involves the following steps:
 
-    1. Use :py:func:`set_param` to configure the :py:class:`MPC` instance.
+    1. Configure the MPC controller with :py:class:`MPCSettings`. The MPC instance has the attribute ``settings`` which is an instance of :py:class:`MPCSettings`. 
 
     2. Set the objective of the control problem with :py:func:`set_objective` and :py:func:`set_rterm`
 
@@ -76,10 +95,10 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                 edge [fontname = "helvetica", color="#707070"];
 
                 start [label="Two ways to setup"];
-                setup [label="setup", href="../api/do_mpc.controller.MPC.setup.html", target="_top", fontname = "Consolas"];
-                create_nlp [label="create_nlp", href="../api/do_mpc.controller.MPC.create_nlp.html", target="_top", fontname = "Consolas"];
+                setup [label="setup", href="../api/do_mpc.controller.MPC.html#setup", target="_top", fontname = "Consolas"];
+                create_nlp [label="create_nlp", href="../api/do_mpc.controller.MPC.html#create-nlp", target="_top", fontname = "Consolas"];
                 process [label="Modify NLP"];
-                prepare_nlp [label="prepare_nlp", href="../api/do_mpc.controller.MPC.prepare_nlp.html", target="_top", fontname = "Consolas"];
+                prepare_nlp [label="prepare_nlp", href="../api/do_mpc.controller.MPC.html#prepare-nlp", target="_top", fontname = "Consolas"];
                 finish [label="Configured MPC class"]
                 start -> setup, prepare_nlp;
                 prepare_nlp -> process;
@@ -92,11 +111,10 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                 rankdir=TB;
                 node [fontname = "helvetica", shape=box, fontcolor="#404040", color="#707070"];
                 edge [fontname = "helvetica", color="#707070"];
-                opt_x [label="opt_x", href="../api/do_mpc.controller.MPC.opt_x.html", target="_top", fontname = "Consolas"];
-                opt_p [label="opt_p", href="../api/do_mpc.controller.MPC.opt_p.html", target="_top", fontname = "Consolas"];
-                nlp_cons [label="nlp_cons", href="../api/do_mpc.controller.MPC.nlp_cons.html", target="_top", fontname = "Consolas"];
-                nlp_obj [label="nlp_obj", href="../api/do_mpc.controller.MPC.nlp_obj.html", target="_top", fontname = "Consolas"];
-
+                opt_x [label="opt_x", href="../api/do_mpc.controller.MPC.html#opt-x", target="_top", fontname = "Consolas"];
+                opt_p [label="opt_p", href="../api/do_mpc.controller.MPC.html#opt-p", target="_top", fontname = "Consolas"];
+                nlp_cons [label="nlp_cons", href="../api/do_mpc.controller.MPC.html#nlp-cons", target="_top", fontname = "Consolas"];
+                nlp_obj [label="nlp_obj", href="../api/do_mpc.controller.MPC.html#nlp-obj", target="_top", fontname = "Consolas"];
                 opt_x -> nlp_cons, nlp_obj;
                 opt_p -> nlp_cons, nlp_obj;
 
@@ -427,8 +445,8 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     def set_param(self, **kwargs)->None:
         """Set the parameters of the :py:class:`MPC` class. Parameters must be passed as pairs of valid keywords and respective argument.
         
-        Warnings:
-            This method will be depreciated in a future version. Please set parameters via :py:class:`do_mpc.controller.MPCSettings`.
+        .. deprecated:: >v4.5.1
+            This function will be deprecated in the future
 
         Note:
             A comprehensive list of all available parameters can be found in :py:class:`do_mpc.controller.MPCSettings` 

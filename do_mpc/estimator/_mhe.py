@@ -37,6 +37,24 @@ from ._estimatorsettings import MHESettings
 class MHE(Optimizer, Estimator):
     """Moving horizon estimator.
 
+    .. versionadded:: >v4.5.1
+
+        New interface to settings. The class has an attribute ``settings`` which is an instance of :py:class:`MHESettings` (please see this documentation for a list of available settings).
+        Settings are now chosen as:
+
+        ::
+
+            mhe.settings.n_horizon = 20
+        
+        Previously, settings were passed to :py:meth:`set_param`. This method is still available and wraps the new interface.
+        The new method has important advantages:
+        
+        1. The ``mhe.settings`` attribute can be printed to see the current configuration.
+        
+        2. Context help is available in most IDEs (e.g. VS CODe) to see the available settings, the type and a description.
+
+        3. The :py:class:`MHESettings` class has convenient methods, such as :py:meth:`MHESettings.supress_ipopt_output()` to silence the solver.
+
     For general information on moving horizon estimation, please read our `background article`_.
 
     .. _`background article`: ../theory_mhe.html
@@ -58,7 +76,7 @@ class MHE(Optimizer, Estimator):
 
     Configuring and setting up the MHE involves the following steps:
 
-    1. Use :py:func:`set_param` to configure the :py:class:`MHE`. See docstring for details.
+    1. Configure the MHE controller with :py:class:`MHESettings`. The MHE instance has the attribute ``settings`` which is an instance of :py:class:`MHESettings`. 
 
     2. Set the objective of the control problem with :py:func:`set_default_objective` or use the low-level interface :py:func:`set_objective`.
 
@@ -423,8 +441,8 @@ class MHE(Optimizer, Estimator):
     def set_param(self, **kwargs)->None:
         """Method to set the parameters of the :py:class:`MHE` class. Parameters must be passed as pairs of valid keywords and respective argument.
         
-        Warnings:
-            This method will be depreciated in a future version. Please set parameters via :py:class:`do_mpc.estimator.MHESettings`.
+        .. deprecated:: >v4.5.1
+            This function will be deprecated in the future
         
         Note:
             A comprehensive list of all available parameters can be found in :py:class:`do_mpc.estimator.MHESettings`.
