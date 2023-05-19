@@ -23,45 +23,33 @@ class NLPDifferentiator:
 
         This tool is currently not fully implemented and cannot be used.
     """
-
-    def __init__(self, nlp_container, **kwargs):
+    # TODO: Use two arguments instead of nlp_container  
+    def __init__(self, nlp: dict, nlp_bounds: dict, **kwargs):
         
-        ## Setup
-        self._setup_nlp(nlp_container)
+        if not isinstance(nlp, dict):
+            raise ValueError('nlp must be a dictionary.')
+        if not isinstance(nlp_bounds, dict):
+            raise ValueError('nlp_bounds must be a dictionary.')
+        if not set(nlp.keys()).issubset(set(['f', 'g', 'x', 'p'])):
+            raise ValueError('nlp must contain keys "f", "g", "x", "p".')
+        if not set(nlp_bounds.keys()).issubset(set(['lbx', 'ubx', 'lbg', 'ubg'])):
+            raise ValueError('nlp_bounds must contain keys "lbx", "ubx", "lbg", "ubg".')
+        
+        self.nlp = nlp.copy()
+        self.nlp_bounds = nlp_bounds.copy()
 
         self.status = NLPDifferentiatorStatus()
         self.settings = NLPDifferentiatorSettings(**kwargs)
 
-        ## Preparation
         self._prepare_differentiator()
-                
-    ### SETUP
-    def _setup_nlp(self, nlp_container: dict) -> None:
-        if isinstance(nlp_container, dict):
-            self.nlp, self.nlp_bounds = nlp_container["nlp"].copy(), nlp_container["nlp_bounds"].copy()
-        else:
-            raise ValueError('nlp_container must be a dictionary with keys "nlp" and "nlp_bounds".')
 
-    ### PREPARATION
     def _prepare_differentiator(self):
-        # 1. Detect undetermined symbolic variables and reduce NLP
-        # if self.flags['reduced_nlp']:
         self._remove_unused_sym_vars()
-
-        # 2. Get size metrics
         self._get_size_metrics()
-
-        # 3. Get symbolic expressions for lagrange multipliers
         self._get_sym_lagrange_multipliers()
         self._stack_primal_dual()
-
-        # 4. Get symbolic expressions for Lagrangian
         self._get_Lagrangian_sym()
-        
-        # 5. Get symbolic expressions for sensitivity matrices
         self._prepare_sensitivity_matrices()
-
-        # 6. Prepare gradient d(g,x)/dx
         self._prepare_constraint_gradients()
         
     def _detect_undetermined_sym_var(self, var: str ="x") -> tuple[np.ndarray,np.ndarray]: #TODO: change data structure of return to tuple of lists (beware that code might break)
@@ -508,8 +496,8 @@ class DoMPCDifferentiatior(NLPDifferentiator):
         self.x_scaling_factors = self.optimizer.opt_x_scaling.master
         self._init_sens_sym_struct()
 
-        nlp_container = self._get_do_mpc_nlp()        
-        super().__init__(nlp_container,**kwargs)
+        nlp, nlp_bounds = self._get_do_mpc_nlp()        
+        super().__init__(nlp, nlp_bounds,**kwargs)
 
     @property
     def sens_num(self):
@@ -536,7 +524,7 @@ class DoMPCDifferentiatior(NLPDifferentiator):
         nlp_bounds['lbx'] = vertcat(self.optimizer._lb_opt_x)
         nlp_bounds['ubx'] = vertcat(self.optimizer._ub_opt_x)
 
-        return {"nlp": nlp, "nlp_bounds": nlp_bounds}
+        return nlp, nlp_bounds
 
     def _get_do_mpc_nlp_sol(self):
 

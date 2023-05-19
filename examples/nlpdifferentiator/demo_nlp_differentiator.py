@@ -36,9 +36,8 @@ def get_optim():
     return nlp, nlp_bounds, solver
 
 def get_optim_diff(nlp, nlp_bounds):
-    nlp_dict = {"nlp": nlp, "nlp_bounds": nlp_bounds}
     # instantiate NLPDifferentiator
-    nlp_diff = do_mpc.differentiator.NLPDifferentiator(nlp_dict)
+    nlp_diff = do_mpc.differentiator.NLPDifferentiator(nlp, nlp_bounds)
     nlp_diff.settings.check_LICQ = True
     nlp_diff.settings.check_rank = True
     nlp_diff.settings.track_residuals = True
