@@ -1,10 +1,35 @@
+
+#   This file is part of do-mpc
+#
+#   do-mpc: An environment for the easy, modular and efficient implementation of
+#        robust nonlinear model predictive control
+#
+#   Copyright (c) 2014-2019 Sergio Lucia, Alexandru Tatulea-Codrean
+#                        TU Dortmund. All rights reserved
+#
+#   do-mpc is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Lesser General Public License as
+#   published by the Free Software Foundation, either version 3
+#   of the License, or (at your option) any later version.
+#
+#   do-mpc is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU Lesser General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
+
 # %%
 import casadi as ca
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+import pdb
 
 import os 
 import sys
+plt.style.use('dark_background')
 
 sys.path.append(os.path.join('..','..'))
 import do_mpc
@@ -62,14 +87,21 @@ for i,p_i in enumerate(p_test):
     dxdp_test[i] = dxdp.full().flatten()
 # %%
 fig, ax = plt.subplots(2, sharex=True)
+
+colors = mpl.rcParams['axes.prop_cycle'].by_key()['color']
+
 ax[0].plot(p_test, x_test[:,0], label='$x_0^*(p)$')
 ax[1].plot(p_test, x_test[:,1], label='$x_1^*(p)$')
 
 ax[0].plot(p_test, dxdp_test[:,0], label='$\partial_p x_0^*(p)$')
 ax[1].plot(p_test, dxdp_test[:,1], label='$\partial_p x_1^*(p)$')
 
-ax[0].quiver(p_test, x_test[:,0], np.ones_like(p_test), dxdp_test[:,0], angles='xy')
-ax[1].quiver(p_test, x_test[:,1], np.ones_like(p_test), dxdp_test[:,1], angles='xy')
+every_nth = 5
+
+s = slice(None, None, every_nth)
+
+ax[0].quiver(p_test[s], x_test[s,0], np.ones_like(p_test[s]), dxdp_test[s,0], angles='xy', color=colors[1])
+ax[1].quiver(p_test[s], x_test[s,1], np.ones_like(p_test[s]), dxdp_test[s,1], angles='xy', color=colors[1])
 
 ax[1].set_xlabel('$p$')
 
@@ -78,5 +110,7 @@ ax[1].legend()
 
 ax[0].set_title('Optimal solution and sensitivity depending on parameter $p$')
 
+fig.savefig('demo_nlp_differentiator_dark.svg', format='svg')
 plt.show(block=True)
+
 # %%
