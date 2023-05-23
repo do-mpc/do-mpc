@@ -1,8 +1,30 @@
+#
+#   This file is part of do-mpc
+#
+#   do-mpc: An environment for the easy, modular and efficient implementation of
+#        robust nonlinear model predictive control
+#
+#   Copyright (c) 2014-2019 Sergio Lucia, Alexandru Tatulea-Codrean
+#                        TU Dortmund. All rights reserved
+#
+#   do-mpc is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Lesser General Public License as
+#   published by the Free Software Foundation, either version 3
+#   of the License, or (at your option) any later version.
+#
+#   do-mpc is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU Lesser General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
+
 import numpy as np
 import scipy.linalg as sp_linalg
 import scipy.sparse as sp_sparse
-from casadi import *
-from casadi.tools import *
+import casadi as ca
+import casadi.tools as castools 
 from dataclasses import dataclass
 from typing import List, Dict, Tuple, Union, Optional, Any
 import pdb
@@ -10,10 +32,9 @@ import pdb
 from do_mpc.optimizer import Optimizer
 from .helper import NLPDifferentiatorSettings, NLPDifferentiatorStatus
 
-from functools import wraps
-import time
 import logging
-import warnings
+
+__all__ = ['NLPDifferentiator', 'DoMPCDifferentiator']
 
 class NLPDifferentiator:
     """
@@ -23,10 +44,6 @@ class NLPDifferentiator:
     Note:
         This is an experimental feature. The API might change in the future. 
 
-    Note:
-        Settings of the :py:class:`NLPDifferentiator` can be changed with the ``settings`` attribute.
-        This attribute is an instance of :py:class:`NLPDifferentiatorSettings` 
-        (see the documentation for more information on available settings).
 
     **Example**:
 
@@ -36,52 +53,58 @@ class NLPDifferentiator:
         - objective function ``f``
         - constraints ``g``
 
-        :: 
+    :: 
 
-            import casadi as ca
+        import casadi as ca
 
-            x = ca.SX.sym('x', 2)
-            p = ca.SX.sym('p', 1)
-            f = (1-x[0])**2 + 0.2*(x[1]-x[0]**2)**2
-            cons_inner = (x[0] + 0.5)**2+x[1]**2
+        x = ca.SX.sym('x', 2)
+        p = ca.SX.sym('p', 1)
+        f = (1-x[0])**2 + 0.2*(x[1]-x[0]**2)**2
+        cons_inner = (x[0] + 0.5)**2+x[1]**2
 
-            g = ca.vertcat(
-                p**2/4 - cons_inner,
-                cons_inner - p**2
-            )
+        g = ca.vertcat(
+            p**2/4 - cons_inner,
+            cons_inner - p**2
+        )
 
-            ca_solver = ca.nlpsol('solver', 'ipopt', nlp)
+        ca_solver = ca.nlpsol('solver', 'ipopt', nlp)
 
     2. Create dictionaries for the NLP and the NLP bounds:
 
-        ::
-        
-            nlp = {'x':x, 'p':p, 'f':cost, 'g':cons}
-            nlp_bounds = {
-                'lbx': np.array([0, -ca.inf]).reshape(-1,1), 
-                'ubx': np.array([ca.inf, ca.inf]).reshape(-1,1), 
-                'lbg': np.array([-ca.inf, -ca.inf]).reshape(-1,1), 
-                'ubg': np.array([0, 0]).reshape(-1,1)
-            }
+    ::
+    
+        nlp = {'x':x, 'p':p, 'f':cost, 'g':cons}
+        nlp_bounds = {
+            'lbx': np.array([0, -ca.inf]).reshape(-1,1), 
+            'ubx': np.array([ca.inf, ca.inf]).reshape(-1,1), 
+            'lbg': np.array([-ca.inf, -ca.inf]).reshape(-1,1), 
+            'ubg': np.array([0, 0]).reshape(-1,1)
+        }
 
-    3. Initialize the NLP differentiator with the NLP and the NLP bounds. Additional keyword arguments can be passed to :py:class:`NLPDifferentiatorSettings`.
+    3. Initialize the NLP differentiator with the NLP and the NLP bounds. 
 
-        ::
+    ::
 
-            nlp_diff = NLPDifferentiator(nlp, nlp_bounds, check_licq=False)
+        nlp_diff = NLPDifferentiator(nlp, nlp_bounds)
 
-    4. Solve the parametric NLP for the parameters ``p0``, e.g. with the CasADi solver ``ca_solver``. Pass the same bounds that were used previously.
+    4. Configure the differentiator settings with the :py:attr:`settings` attribute.
 
-        ::
+    ::
 
-            p0 = np.array([1.])
-            r = solver(p=p0, **nlp_bounds)
+        nlp_diff.settings.check_LICQ = False
 
-    5. Calculate the parametric NLP sensitivity matrices with :py:meth:`differentiate` considering the solution ``r`` and the corresponding parameters ``p0``.
+    5. Solve the parametric NLP for the parameters ``p0``, e.g. with the CasADi solver ``ca_solver``. Pass the same bounds that were used previously.
 
-        ::
+    ::
 
-            dxdp, dlamdp = nlp_diff.get_sensitivity_matrices(r, p0)
+        p0 = np.array([1.])
+        r = solver(p=p0, **nlp_bounds)
+
+    6. Calculate the parametric NLP sensitivity matrices with :py:meth:`differentiate` considering the solution ``r`` and the corresponding parameters ``p0``.
+
+    ::
+
+        dxdp, dlamdp = nlp_diff.get_sensitivity_matrices(r, p0)
 
 
     Args:
@@ -109,10 +132,36 @@ class NLPDifferentiator:
         self.nlp = nlp.copy()
         self.nlp_bounds = nlp_bounds.copy()
 
-        self.status = NLPDifferentiatorStatus()
-        self.settings = NLPDifferentiatorSettings(**kwargs)
+        self._status = NLPDifferentiatorStatus()
+        self._settings = NLPDifferentiatorSettings(**kwargs)
 
         self._prepare_differentiator()
+
+    @property
+    def status(self) -> NLPDifferentiatorStatus:
+        """
+        Status of the NLP differentiator. This is an annotated dataclass that can also be printed for convenience.
+        See :py:class:`do_mpc.differentiator.helper.NLPDifferentiatorStatus` for more information.
+        """
+        return self._status
+    
+    @property
+    def settings(self) -> NLPDifferentiatorSettings:
+        """
+        Settings of the NLP differentiator. This is an annotated dataclass that can also be printed for convenience.
+        See :py:class:`do_mpc.differentiator.helper.NLPDifferentiatorSettings` for more information.
+
+        **Example**:
+
+        ::
+
+            nlp_diff = NLPDifferentiator(nlp, nlp_bounds)
+            nlp_diff.settings.check_licq = False
+
+        Note:
+            Settings can also be passed as keyword arguments to the constructor of :py:class:`NLPDifferentiator`.
+        """
+        return self._settings
 
     def _prepare_differentiator(self):
         """
@@ -141,8 +190,8 @@ class NLPDifferentiator:
         g_sym = self.nlp["g"]
 
         # boolean expressions on wether a symbolic is contained in the objective function f or the constraints g
-        map_f_var = map(lambda x: depends_on(f_sym,x),vertsplit(var_sym))
-        map_g_var = map(lambda x: depends_on(g_sym,x),vertsplit(var_sym))
+        map_f_var = map(lambda x: ca.depends_on(f_sym,x),ca.vertsplit(var_sym))
+        map_g_var = map(lambda x: ca.depends_on(g_sym,x),ca.vertsplit(var_sym))
 
         # combined boolean expressions as list for each symbolic variable in var_sym
         dep_list = [f_dep or g_dep for f_dep,g_dep in zip(map_f_var,map_g_var)]
@@ -213,9 +262,9 @@ class NLPDifferentiator:
 
         Adds symbolic variables for the Lagrange multipliers to the NLP.
         """
-        self.nlp["lam_g"] = SX.sym("lam_g",self.n_g,1)
-        self.nlp["lam_x"] = SX.sym("lam_x",self.n_x,1)
-        self.nlp["lam"] = vertcat(self.nlp["lam_g"],self.nlp["lam_x"])
+        self.nlp["lam_g"] = ca.SX.sym("lam_g",self.n_g,1)
+        self.nlp["lam_x"] = ca.SX.sym("lam_x",self.n_x,1)
+        self.nlp["lam"] = ca.vertcat(self.nlp["lam_g"],self.nlp["lam_x"])
 
     def _stack_primal_dual(self):
         """
@@ -225,7 +274,7 @@ class NLPDifferentiator:
         Stacks the primal and dual variables of the NLP.
         """
 
-        self.nlp["z"] = vertcat(self.nlp["x"],self.nlp["lam"])
+        self.nlp["z"] = ca.vertcat(self.nlp["x"],self.nlp["lam"])
 
     def _get_Lagrangian_sym(self): 
         """
@@ -245,12 +294,12 @@ class NLPDifferentiator:
 
         Calculates the sensitivity matrices of the NLP.
         """
-        self.A_sym = hessian(self.L_sym,self.nlp["z"])[0]
-        self.A_func = Function("A", [self.nlp["z"],self.nlp["p"]], [self.A_sym], ["z_opt", "p_opt"], ["A"])
+        self.A_sym = ca.hessian(self.L_sym,self.nlp["z"])[0]
+        self.A_func = ca.Function("A", [self.nlp["z"],self.nlp["p"]], [self.A_sym], ["z_opt", "p_opt"], ["A"])
 
         # TODO: Note, full parameter vector considered for differentiation. This is not necessary, if only a subset of the parametric sensitivities is required. Future version will considere reduces parameter space.
-        self.B_sym = jacobian(gradient(self.L_sym,self.nlp["z"]),self.nlp["p"])
-        self.B_func = Function("B", [self.nlp["z"],self.nlp["p"]], [self.B_sym], ["z_opt", "p_opt"], ["B"])
+        self.B_sym = ca.jacobian(ca.gradient(self.L_sym,self.nlp["z"]),self.nlp["p"])
+        self.B_func = ca.Function("B", [self.nlp["z"],self.nlp["p"]], [self.B_sym], ["z_opt", "p_opt"], ["B"])
 
         self.status.sym_KKT = True
 
@@ -262,11 +311,11 @@ class NLPDifferentiator:
 
         Calculates the gradients of the constraints of the NLP.
         """
-        self.cons_sym = vertcat(self.nlp["g"],self.nlp["x"])
-        self.cons_grad_sym = jacobian(self.cons_sym,self.nlp["x"])
-        self.cons_grad_func = Function("cons_grad", [self.nlp["x"],self.nlp["p"]], [self.cons_grad_sym], ["x_opt", "p_opt"], ["d(g,x)/dx"])
+        self.cons_sym = ca.vertcat(self.nlp["g"],self.nlp["x"])
+        self.cons_grad_sym = ca.jacobian(self.cons_sym,self.nlp["x"])
+        self.cons_grad_func = ca.Function("cons_grad", [self.nlp["x"],self.nlp["p"]], [self.cons_grad_sym], ["x_opt", "p_opt"], ["d(g,x)/dx"])
 
-    def _reduce_nlp_solution_to_determined(self, nlp_sol: Dict, p_num: DM) -> Tuple[dict, DM]: 
+    def _reduce_nlp_solution_to_determined(self, nlp_sol: Dict, p_num: ca.DM) -> Tuple[dict, ca.DM]: 
         """
         Warning:
             Not part of the public API.
@@ -346,7 +395,7 @@ class NLPDifferentiator:
         
         return where_g_inactive, where_x_inactive, where_g_active, where_x_active 
     
-    def _extract_active_primal_dual_solution(self, nlp_sol: Dict) -> tuple[DM,np.ndarray]:
+    def _extract_active_primal_dual_solution(self, nlp_sol: Dict) -> tuple[ca.DM,np.ndarray]:
         """
         Warning:
             Not part of the public API.
@@ -376,12 +425,12 @@ class NLPDifferentiator:
         
         # stack primal and dual solution
         x_num = nlp_sol["x"]
-        lam_num = vertcat(nlp_sol["lam_g"],nlp_sol["lam_x"])
-        z_num = vertcat(x_num,lam_num)
+        lam_num = ca.vertcat(nlp_sol["lam_g"],nlp_sol["lam_x"])
+        z_num = ca.vertcat(x_num,lam_num)
 
         return z_num, where_cons_active        
     
-    def _get_sensitivity_matrices(self, z_num: DM, p_num: DM) -> tuple[DM]:
+    def _get_sensitivity_matrices(self, z_num: ca.DM, p_num: ca.DM) -> tuple[ca.DM]:
         """
         Warning:
             Not part of the public API.
@@ -397,7 +446,7 @@ class NLPDifferentiator:
         B_num = self.B_func(z_num, p_num)
         return A_num, B_num
     
-    def _reduce_sensitivity_matrices(self, A_num: DM, B_num: DM, where_cons_active: np.ndarray) -> tuple[DM, DM]:
+    def _reduce_sensitivity_matrices(self, A_num: ca.DM, B_num: ca.DM, where_cons_active: np.ndarray) -> tuple[ca.DM, ca.DM]:
         """
         Warning:
             Not part of the public API.
@@ -419,7 +468,7 @@ class NLPDifferentiator:
         B_num = B_num[where_keep_idx,:]
         return A_num, B_num
 
-    def _solve_linear_system(self,A_num: DM,B_num: DM, lin_solver=None) -> np.ndarray:
+    def _solve_linear_system(self,A_num: ca.DM,B_num: ca.DM, lin_solver=None) -> np.ndarray:
         """
         Solves the linear system of equations to calculate parametric sensitivities.
 
@@ -440,7 +489,7 @@ class NLPDifferentiator:
 
             elif lin_solver == 'casadi':
                 logging.info("Solving linear system with Casadi.")
-                ca_lin_solver = Linsol("sol","qr",A_num.sparsity())
+                ca_lin_solver = ca.Linsol("sol","qr",A_num.sparsity())
                 param_sens = ca_lin_solver.solve(A_num, -B_num)
 
             elif lin_solver ==  'lstsq':
@@ -461,7 +510,7 @@ class NLPDifferentiator:
 
         return param_sens
     
-    def _calculate_sensitivities(self, z_num: DM, p_num: DM, where_cons_active: np.ndarray) -> np.ndarray:
+    def _calculate_sensitivities(self, z_num: ca.DM, p_num: ca.DM, where_cons_active: np.ndarray) -> np.ndarray:
         """
         Calculates the sensitivities of the NLP solution.
 
@@ -539,7 +588,7 @@ class NLPDifferentiator:
         dlam_dp = self._map_dlamdp(param_sens, where_cons_active)
         return dx_dp, dlam_dp
 
-    def _map_param_sens_to_full(self, dx_dp_num_red: DM, dlam_dp_num_red: DM) -> tuple[DM, DM]:
+    def _map_param_sens_to_full(self, dx_dp_num_red: ca.DM, dlam_dp_num_red: ca.DM) -> tuple[ca.DM, ca.DM]:
         """
         Maps the reduced parametric sensitivities to the full decision variables.
         """
@@ -556,21 +605,21 @@ class NLPDifferentiator:
 
         return dx_dp_num, dlam_dp_num
     
-    def _check_rank(self, A_num: DM):
+    def _check_rank(self, A_num: ca.DM):
         """
         Checks if the sensitivity matrix A has full rank.
         """
         full_rank = np.linalg.matrix_rank(A_num) == A_num.shape[0]
         return full_rank 
     
-    def _track_residuals(self, A_num: DM, B_num: DM, param_sens: np.ndarray) -> float:
+    def _track_residuals(self, A_num: ca.DM, B_num: ca.DM, param_sens: np.ndarray) -> float:
         """
         Tracks the residuals of the linear system of equations.
         """
-        residuals = norm_fro(A_num@param_sens+B_num)
+        residuals = ca.norm_fro(A_num@param_sens+B_num)
         return residuals
 
-    def _check_LICQ(self, x_num: DM, p_num: DM, where_cons_active: np.ndarray) -> bool:        
+    def _check_LICQ(self, x_num: ca.DM, p_num: ca.DM, where_cons_active: np.ndarray) -> bool:        
         """
         Checks if the linear independence constraint qualification is satisfied.
         """
@@ -584,7 +633,7 @@ class NLPDifferentiator:
         else:
             return True
     
-    def _check_SC(self, lam_num: DM, where_cons_active: np.ndarray):
+    def _check_SC(self, lam_num: ca.DM, where_cons_active: np.ndarray):
         """
         Checks if the strict complementarity is satisfied.
         """
@@ -601,7 +650,7 @@ class NLPDifferentiator:
 
 
     # the next function applies the whole algorithm given in the code abouve and returns the sensitivities dx_dp
-    def differentiate(self, nlp_sol: dict, p_num: DM) -> tuple[DM, DM]:
+    def differentiate(self, nlp_sol: dict, p_num: ca.DM) -> tuple[ca.DM, ca.DM]:
         """
         Main method of the class. Call this method to obtain the parametric sensitivities.
         
@@ -626,10 +675,10 @@ class NLPDifferentiator:
             raise ValueError('nlp_sol must contain keys {}.'.format(nlp_sol_mandatory_keys))
 
         if isinstance(p_num, (float, int)):
-            p_num = DM(p_num)
+            p_num = ca.DM(p_num)
         elif isinstance(p_num, np.ndarray):
-            p_num = DM(p_num)
-        elif isinstance(p_num, DM):
+            p_num = ca.DM(p_num)
+        elif isinstance(p_num, ca.DM):
             pass
         else:
             raise ValueError('p_num must be a float, int, np.ndarray or DM object. You have {}'.format(type(p_num)))
@@ -660,10 +709,58 @@ class NLPDifferentiator:
 
 
   
-class DoMPCDifferentiatior(NLPDifferentiator):
+class DoMPCDifferentiator(NLPDifferentiator):
     """
-    
-    
+    Nonlinear program (NLP) Differentiator for ``do_mpc`` objects. 
+    Can be used with :py:class:`do_mpc.controller.MPC` and :py:class:`do_mpc.estimator.MHE` objects.
+    The class inherits the :py:class:`NLPDifferentiator` class and overwrites the :py:meth:`differentiate` method.
+
+    **Example:**
+
+    1. Setup a ``do_mpc`` optimizer object (e.g. :py:class:`do_mpc.controller.MPC` or :py:class:`do_mpc.estimator.MHE`).
+
+    ::
+
+        model = ...
+        mpc = do_mpc.controller.MPC(model)
+        ...
+        mpc.setup()
+
+    2. Initialize the differentiator with the ``do_mpc`` optimizer object. 
+
+    ::
+
+        nlp_diff = DoMPCDifferentiator(mpc)
+
+    3. Configure the differentiator settings with the :py:attr:`settings` attribute.
+
+    ::
+
+        nlp_diff.settings.check_LICQ = False
+
+    4. Solve the NLP of the original ``do_mpc`` optimizer object.
+
+    ::
+
+        mpc.make_step(x0)
+
+    5. Call the :py:meth:`differentiate` method of the differentiator object to compute the parametric sensitivities. The current parameters and optimal solution are read from the ``do_mpc`` optimizer object.
+
+    ::
+
+        dx_dp_num, dlam_dp_num = nlp_diff.differentiate()
+
+    6. Typically, we are interested in specific segments of the parametric sensitivities. These can be retrieved by powerindexing the :py:attr:`sens_num` attribute.
+
+    ::
+
+        du0dx0 = nlp_diff.sens_num['dxdp', indexf['_u', 0, 0], indexf['_x', 0, 0]]
+
+    This last step returns the parametric sensitivity of the first input with respect to the initial state.
+
+
+    Args:
+        optimizer: ``do_mpc`` class that inherits the :py:class:`Optimizer` class, that is, a :py:class:`do_mpc.controller.MPC` or :py:class:`do_mpc.estimator.MHE` object.
     """
     def __init__(self, optimizer: Optimizer, **kwargs):
         self.optimizer = optimizer
@@ -671,12 +768,24 @@ class DoMPCDifferentiatior(NLPDifferentiator):
         self._init_sens_sym_struct()
 
         nlp, nlp_bounds = self._get_do_mpc_nlp()        
-        super().__init__(nlp, nlp_bounds,**kwargs)
+        super().__init__(nlp, nlp_bounds, **kwargs)
 
     @property
     def sens_num(self):
         """
-        #TODO: Documentation of this important property.
+        The sensitivity structure of the NLP. 
+        This can be queried as follows:
+
+        ::
+
+            from casadi.tools import indexf
+
+            du0dx0 = nlp_diff.sens_num['dxdp', indexf['_u', 0, 0], indexf['_x0']]
+
+        The powerindices passed to ``indexf`` are derived from the attributes:
+
+        - :py:attr:`do_mpc.controller.MPC.opt_x`
+        - :py:attr:`do_mpc.controller.MPC.opt_p`
         
         """
         return self._sens_num
@@ -684,47 +793,70 @@ class DoMPCDifferentiatior(NLPDifferentiator):
 
     def _get_do_mpc_nlp(self):
         """
+        Warning:
+            Not part of the public API.
+
         This function is used to extract the symbolic expressions and bounds of the underlying NLP of the MPC.
         It is used to initialize the NLPDifferentiator class.
         """
 
         # 1 get symbolic expressions of NLP
-        nlp = {'x': vertcat(self.optimizer.opt_x), 'f': self.optimizer.nlp_obj, 'g': self.optimizer.nlp_cons, 'p': vertcat(self.optimizer.opt_p)}
+        nlp = {'x': ca.vertcat(self.optimizer.opt_x), 'f': self.optimizer.nlp_obj, 'g': self.optimizer.nlp_cons, 'p': ca.vertcat(self.optimizer.opt_p)}
 
         # 2 extract bounds
         nlp_bounds = {}
         nlp_bounds['lbg'] = self.optimizer.nlp_cons_lb
         nlp_bounds['ubg'] = self.optimizer.nlp_cons_ub
-        nlp_bounds['lbx'] = vertcat(self.optimizer._lb_opt_x)
-        nlp_bounds['ubx'] = vertcat(self.optimizer._ub_opt_x)
+        nlp_bounds['lbx'] = ca.vertcat(self.optimizer._lb_opt_x)
+        nlp_bounds['ubx'] = ca.vertcat(self.optimizer._ub_opt_x)
 
         return nlp, nlp_bounds
 
     def _get_do_mpc_nlp_sol(self):
+        """
+        Warning:
+            Not part of the public API.
+
+        Reads the optimal solution of the underlying NLP of the MPC.
+        """
 
         if not hasattr(self, 'nlp_sol'):
             self.nlp_sol = {}
 
-        self.nlp_sol["x"] = vertcat(self.optimizer.opt_x_num)
-        self.nlp_sol["x_unscaled"] = vertcat(self.optimizer.opt_x_num_unscaled)
-        self.nlp_sol["g"] = vertcat(self.optimizer.opt_g_num)
-        self.nlp_sol["lam_g"] = vertcat(self.optimizer.lam_g_num)
-        self.nlp_sol["lam_x"] = vertcat(self.optimizer.lam_x_num)
+        self.nlp_sol["x"] = ca.vertcat(self.optimizer.opt_x_num)
+        self.nlp_sol["x_unscaled"] = ca.vertcat(self.optimizer.opt_x_num_unscaled)
+        self.nlp_sol["g"] = ca.vertcat(self.optimizer.opt_g_num)
+        self.nlp_sol["lam_g"] = ca.vertcat(self.optimizer.lam_g_num)
+        self.nlp_sol["lam_x"] = ca.vertcat(self.optimizer.lam_x_num)
 
         return self.nlp_sol
 
     def _get_p_num(self):
-        return vertcat(self.optimizer.opt_p_num)
+        """
+        Warning:
+            Not part of the public API.
+
+        Reads the current parameters of the underlying NLP of the MPC.
+
+        """
+    
+        return ca.vertcat(self.optimizer.opt_p_num)
     
     def differentiate(self):
+        """
+        Main method of the class. Computes the parametric sensitivities of the underlying NLP of the MPC or MHE.
+        Should be called after solving the underlying NLP.
+        The current optimal solution and the corresponding parameters are read from the ``do_mpc`` object.  
+        """
 
         nlp_sol = self._get_do_mpc_nlp_sol()
         p_num = self._get_p_num()
         dx_dp_num, dlam_dp_num = super().differentiate(nlp_sol, p_num)
         
         # rescale dx_dp_num
-        dx_dp_num = times(dx_dp_num,self.x_scaling_factors.tocsc())
+        dx_dp_num = ca.times(dx_dp_num,self.x_scaling_factors.tocsc())
 
+        # Set values on sens_num
         self.sens_num["dxdp"] = dx_dp_num
 
         return dx_dp_num, dlam_dp_num
@@ -733,8 +865,8 @@ class DoMPCDifferentiatior(NLPDifferentiator):
         opt_x = self.optimizer._opt_x
         opt_p = self.optimizer._opt_p
         
-        sens_struct = struct_symSX([
-            entry("dxdp",shapestruct=(opt_x, opt_p)),
+        sens_struct = castools.struct_symSX([
+            castools.entry("dxdp",shapestruct=(opt_x, opt_p)),
         ])
 
         self._sens_num = sens_struct(0)

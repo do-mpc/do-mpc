@@ -1,9 +1,15 @@
+"""
+Helper functions for the NLPDifferentiator.
+"""
+
 import numpy as np
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import List, Union, Dict, Tuple, Optional
 
 
+# Define what is documented in Sphinx
+__all__ = ['NLPDifferentiatorSettings', 'NLPDifferentiatorStatus']
 
 @dataclass
 class NLPDifferentiatorSettings:
@@ -12,12 +18,14 @@ class NLPDifferentiatorSettings:
 
     lin_solver: str = field(default_factory = lambda: 'casadi')
     """
-    Choose the linear solver for the KKT system.
+    Choose the linear solver for the KKT system. 
+    Can be ``'casadi'``, ``'scipy'`` or ``'lstsq'`` (least squares).
     """
 
     check_LICQ: bool = True
     """
     Check if the constraints are linearly independent.    
+    The result of this check is stored in :py:class:`NLPDifferentiatorStatus`.
 
     Warning:
         This feature is computationally demanding and should only be used for debugging purposes.
@@ -25,7 +33,9 @@ class NLPDifferentiatorSettings:
 
     check_SC: bool = True
     """
-    Check if strict complementarity holds.   
+    Check if strict complementarity holds.  
+    The result of this check is stored in :py:class:`NLPDifferentiatorStatus`.
+
     """
 
     track_residuals: bool = True
@@ -35,7 +45,8 @@ class NLPDifferentiatorSettings:
 
     check_rank: bool = False
     """
-
+    Check if the KKT system has full rank.
+    The result of this check is stored in :py:class:`NLPDifferentiatorStatus`.
     
     Warning:
         This feature is computationally demanding and should only be used for debugging purposes.
@@ -43,21 +54,25 @@ class NLPDifferentiatorSettings:
 
     lstsq_fallback: bool = False
     """
-    ...
+    Fallback to least squares if the linear solver fails.
     """
 
     active_set_tol : float = 1e-6
     """
-    ...
+    Tolerance for the active set constraints. 
     """
 
     set_lam_zero: bool = False
     """
-    ...
+    Set the Lagrangen multipliers to exactly zero if they are below the tolerance.
     """
 
 @dataclass
 class NLPDifferentiatorStatus:
+    """
+    Status of the NLPDifferentiator.
+    """
+
     LICQ: Optional[bool] = None
     """
     Linear independence constraint qualification. 
