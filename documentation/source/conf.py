@@ -29,7 +29,7 @@ copyright = '2023, Sergio Lucia and Felix Fiedler'
 author = 'Sergio Lucia and Felix Fiedler'
 
 # The full version, including alpha/beta/rc tags
-exec(open('../../do_mpc/_version.py').read())
+exec(open(os.path.join('..', '..', 'do_mpc', '_version.py')).read())
 
 release = __version__
 
