@@ -83,6 +83,7 @@ from . import data
 from . import graphics
 from . import sysid
 from . import differentiator
+from . import opcua
 
 from ._version import __version__
 
