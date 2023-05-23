@@ -17,23 +17,94 @@ import warnings
 
 class NLPDifferentiator:
     """
-    Documentation for NLPDifferentiator.
+    Base class for nonlinear program (NLP) differentiator. 
+    This class can be used independently from ``do-mpc`` to differentiate a given NLP.
  
-    .. warning::
+    Note:
+        This is an experimental feature. The API might change in the future. 
 
-        This tool is currently not fully implemented and cannot be used.
+    Note:
+        Settings of the :py:class:`NLPDifferentiator` can be changed with the ``settings`` attribute.
+        This attribute is an instance of :py:class:`NLPDifferentiatorSettings` 
+        (see the documentation for more information on available settings).
+
+    **Example**:
+
+    1. Consider an NLP created with CasADi, including
+        - optimization variables ``x``
+        - optimization parameters ``p``
+        - objective function ``f``
+        - constraints ``g``
+
+        :: 
+
+            import casadi as ca
+
+            x = ca.SX.sym('x', 2)
+            p = ca.SX.sym('p', 1)
+            f = (1-x[0])**2 + 0.2*(x[1]-x[0]**2)**2
+            cons_inner = (x[0] + 0.5)**2+x[1]**2
+
+            g = ca.vertcat(
+                p**2/4 - cons_inner,
+                cons_inner - p**2
+            )
+
+            ca_solver = ca.nlpsol('solver', 'ipopt', nlp)
+
+    2. Create dictionaries for the NLP and the NLP bounds:
+
+        ::
+        
+            nlp = {'x':x, 'p':p, 'f':cost, 'g':cons}
+            nlp_bounds = {
+                'lbx': np.array([0, -ca.inf]).reshape(-1,1), 
+                'ubx': np.array([ca.inf, ca.inf]).reshape(-1,1), 
+                'lbg': np.array([-ca.inf, -ca.inf]).reshape(-1,1), 
+                'ubg': np.array([0, 0]).reshape(-1,1)
+            }
+
+    3. Initialize the NLP differentiator with the NLP and the NLP bounds. Additional keyword arguments can be passed to :py:class:`NLPDifferentiatorSettings`.
+
+        ::
+
+            nlp_diff = NLPDifferentiator(nlp, nlp_bounds, check_licq=False)
+
+    4. Solve the parametric NLP for the parameters ``p0``, e.g. with the CasADi solver ``ca_solver``. Pass the same bounds that were used previously.
+
+        ::
+
+            p0 = np.array([1.])
+            r = solver(p=p0, **nlp_bounds)
+
+    5. Calculate the parametric NLP sensitivity matrices with :py:meth:`differentiate` considering the solution ``r`` and the corresponding parameters ``p0``.
+
+        ::
+
+            dxdp, dlamdp = nlp_diff.get_sensitivity_matrices(r, p0)
+
+
+    Args:
+        nlp : Dictionary with keys ``x``, ``p``, ``f``, ``g``.
+        nlp_bounds : Dictionary with keys ``lbx``, ``ubx``, ``lbg``, ``ubg``.
+
     """
-    # TODO: Use two arguments instead of nlp_container  
-    def __init__(self, nlp: dict, nlp_bounds: dict, **kwargs):
+    def __init__(self, nlp: Dict, nlp_bounds: Dict, **kwargs):
+
+        nlp_mandatory_keys = ['f', 'x', 'p', 'g']
+        nlp_bounds_mandatory_keys = ['lbx', 'ubx', 'lbg', 'ubg']
         
         if not isinstance(nlp, dict):
             raise ValueError('nlp must be a dictionary.')
+
         if not isinstance(nlp_bounds, dict):
             raise ValueError('nlp_bounds must be a dictionary.')
-        if not set(nlp.keys()).issubset(set(['f', 'g', 'x', 'p'])):
-            raise ValueError('nlp must contain keys "f", "g", "x", "p".')
-        if not set(nlp_bounds.keys()).issubset(set(['lbx', 'ubx', 'lbg', 'ubg'])):
-            raise ValueError('nlp_bounds must contain keys "lbx", "ubx", "lbg", "ubg".')
+
+        if not set(nlp.keys()).issuperset(set(nlp_mandatory_keys)):
+            raise ValueError('nlp must contain keys {}.'.format(nlp_mandatory_keys))
+
+        if not set(nlp_bounds.keys()).issuperset(set(nlp_bounds_mandatory_keys)):
+            raise ValueError('nlp_bounds must contain keys {}.'.format(nlp_bounds_mandatory_keys))
         
         self.nlp = nlp.copy()
         self.nlp_bounds = nlp_bounds.copy()
@@ -44,6 +115,13 @@ class NLPDifferentiator:
         self._prepare_differentiator()
 
     def _prepare_differentiator(self):
+        """
+        Warning:
+            Not part of the public API.
+
+        This method is called in the constructor of :py:class:`NLPDifferentiator` 
+        and prepares the differentiator for the differentiation of the NLP.
+        """
         self._remove_unused_sym_vars()
         self._get_size_metrics()
         self._get_sym_lagrange_multipliers()
@@ -52,7 +130,8 @@ class NLPDifferentiator:
         self._prepare_sensitivity_matrices()
         self._prepare_constraint_gradients()
         
-    def _detect_undetermined_sym_var(self, var: str ="x") -> tuple[np.ndarray,np.ndarray]: #TODO: change data structure of return to tuple of lists (beware that code might break)
+    def _detect_undetermined_sym_var(self, var: str ="x") -> tuple[np.ndarray,np.ndarray]: 
+        #TODO: change data structure of return to tuple of lists (beware that code might break)
         
         # symbolic expressions
         var_sym = self.nlp[var]        
@@ -72,14 +151,15 @@ class NLPDifferentiator:
         undet_sym_idx = np.where(np.logical_not(dep_list))[0]
         det_sym_idx = np.where(dep_list)[0]
 
-        # example:
-        # if undet_sym_idx = [1,3], then the second and fourth symbolic variable in var_sym are undetermined
-                
-        return undet_sym_idx,det_sym_idx
+        return undet_sym_idx, det_sym_idx
 
     def _remove_unused_sym_vars(self):
         """
-        Reduces the NLP by removing symbolic variables for x and p that are not contained in the objective function or the constraints.
+        Warning:
+            Not part of the public API.
+
+        Reduces the NLP by removing symbolic variables 
+        for x and p that are not contained in the objective function or the constraints.
 
         """
         # detect undetermined symbolic variables
@@ -107,14 +187,15 @@ class NLPDifferentiator:
             self.nlp, self.nlp_bounds = nlp_red, nlp_bounds_red
             self.det_sym_idx_dict, self.undet_sym_idx_dict = det_sym_idx_dict, undet_sym_idx_dict
             self.status.reduced_nlp = True
-            # self.flags["fully_determined_nlp"] = True
         else:
             self.status.reduced_nlp = False
-            # self.flags["fully_determined_nlp"] = True
             print("NLP formulation does not contain unused variables.")
 
     def _get_size_metrics(self):
         """
+        Warning:
+            Not part of the public API.
+
         Specifies the number of decision variables, nonlinear constraints and parameters of the NLP.
         """
         self.n_x = self.nlp["x"].shape[0]
@@ -126,44 +207,82 @@ class NLPDifferentiator:
             self.n_p_unreduced = self.nlp_unreduced["p"].shape[0]
 
     def _get_sym_lagrange_multipliers(self):
+        """
+        Warning:
+            Not part of the public API.
+
+        Adds symbolic variables for the Lagrange multipliers to the NLP.
+        """
         self.nlp["lam_g"] = SX.sym("lam_g",self.n_g,1)
         self.nlp["lam_x"] = SX.sym("lam_x",self.n_x,1)
         self.nlp["lam"] = vertcat(self.nlp["lam_g"],self.nlp["lam_x"])
 
     def _stack_primal_dual(self):
+        """
+        Warning:
+            Not part of the public API.
+
+        Stacks the primal and dual variables of the NLP.
+        """
+
         self.nlp["z"] = vertcat(self.nlp["x"],self.nlp["lam"])
 
     def _get_Lagrangian_sym(self): 
         """
+        Warning:
+            Not part of the public API.
+
         Sets the Lagrangian of the NLP for sensitivity calculation.
         Attention: It is not verified, whether the NLP is in standard form. 
-
         """
         # TODO: verify if NLP is in standard form to simplify further evaluations
         self.L_sym = self.nlp["f"] + self.nlp['lam_g'].T @ self.nlp['g'] + self.nlp['lam_x'].T @ self.nlp['x']
-        # self.flags['get_Lagrangian'] = True
 
-    def _get_A_matrix(self):
+    def _prepare_sensitivity_matrices(self):
+        """
+        Warning:
+            Not part of the public API.
+
+        Calculates the sensitivity matrices of the NLP.
+        """
         self.A_sym = hessian(self.L_sym,self.nlp["z"])[0]
         self.A_func = Function("A", [self.nlp["z"],self.nlp["p"]], [self.A_sym], ["z_opt", "p_opt"], ["A"])
 
-    def _get_B_matrix(self):
         # TODO: Note, full parameter vector considered for differentiation. This is not necessary, if only a subset of the parametric sensitivities is required. Future version will considere reduces parameter space.
         self.B_sym = jacobian(gradient(self.L_sym,self.nlp["z"]),self.nlp["p"])
         self.B_func = Function("B", [self.nlp["z"],self.nlp["p"]], [self.B_sym], ["z_opt", "p_opt"], ["B"])
 
-    def _prepare_sensitivity_matrices(self):
-        self._get_A_matrix()
-        self._get_B_matrix()
         self.status.sym_KKT = True
 
+
     def _prepare_constraint_gradients(self):
+        """
+        Warning:
+            Not part of the public API.
+
+        Calculates the gradients of the constraints of the NLP.
+        """
         self.cons_sym = vertcat(self.nlp["g"],self.nlp["x"])
         self.cons_grad_sym = jacobian(self.cons_sym,self.nlp["x"])
         self.cons_grad_func = Function("cons_grad", [self.nlp["x"],self.nlp["p"]], [self.cons_grad_sym], ["x_opt", "p_opt"], ["d(g,x)/dx"])
 
-    ### ALGORITHM    
-    def _reduce_nlp_solution_to_determined(self, nlp_sol: dict, p_num: DM) -> Tuple[dict, DM]: 
+    def _reduce_nlp_solution_to_determined(self, nlp_sol: Dict, p_num: DM) -> Tuple[dict, DM]: 
+        """
+        Warning:
+            Not part of the public API.
+        
+        Maps the full NLP solutions to the reduced NLP solutions (the determined variables).
+
+        Args:
+            nlp_sol: Full NLP solution.
+            p_num: Numerical parameter vector.
+
+        Returns:
+            nlp_sol_red: Reduced NLP solution.
+            p_num: Reduced parameter vector.
+
+        """
+
         assert self.status.reduced_nlp, "NLP is not reduced."
 
         # adapt nlp_sol
@@ -178,34 +297,31 @@ class NLPDifferentiator:
 
         return nlp_sol_red, p_num
     
-    def _get_active_constraints(self,nlp_sol: dict) -> tuple[np.ndarray]:
+    def _get_active_constraints(self, nlp_sol: dict) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
-        This function determines the active set of the current NLP solution. The active set is determined by the "primal" solution, considering the bounds on the variables and constraints.
-        The active set is returned as a list of numpy arrays containing the indices of the active and inactive nonlinear and linear constraints.
+        Warning:
+            Not part of the public API.
+
+        This function determines the active set of the current NLP solution. 
+        The active set is determined by the "primal" solution, 
+        considering the bounds on the variables and constraints.
+        The active set is returned as a list of numpy arrays 
+        containing the indices of the active and inactive nonlinear and linear constraints.
 
         Args:
-            nlp_sol: dict containing the NLP solution.
-            tol: tolerance for the active set detection. Default: 1e-6. (Should be related to optimizer tolerance.)
+            nlp_sol: the NLP solution.
 
         Returns:
-            where_g_inactive: numpy array containing the indices of the inactive nonlinear constraints.
-            where_x_inactive: numpy array containing the indices of the inactive linear constraints.
-            where_g_active: numpy array containing the indices of the active nonlinear constraints.
-            where_x_active: numpy array containing the indices of the active linear constraints.
+            where_g_inactive: Indices of the inactive nonlinear constraints.
+            where_x_inactive: Indices of the inactive linear constraints.
+            where_g_active: Indices of the active nonlinear constraints.
+            where_x_active: Indices of the active linear constraints.
 
         Raises:
             KeyError: If the NLP solution does not contain the primal or dual solution.
         """
 
-        if "x" not in nlp_sol.keys():
-            raise KeyError("NLP solution does not contain primal solution.")
-        if "lam_g" not in nlp_sol.keys():
-            raise KeyError("NLP solution does not contain dual solution to nonlinear constraints.")
-        if "lam_x" not in nlp_sol.keys():
-            raise KeyError("NLP solution does not contain dual solution to linear constraints.")
-        if "g" not in nlp_sol.keys():
-            raise KeyError("NLP solution does not contain nonlinear constraints.")        
-        
+
         x_num = nlp_sol["x"]
         g_num = nlp_sol["g"]
         
@@ -230,23 +346,24 @@ class NLPDifferentiator:
         
         return where_g_inactive, where_x_inactive, where_g_active, where_x_active 
     
-    def _extract_active_primal_dual_solution(self, nlp_sol: dict) -> tuple[DM,np.ndarray]:
+    def _extract_active_primal_dual_solution(self, nlp_sol: Dict) -> tuple[DM,np.ndarray]:
         """
-        This function extracts the active primal and dual solution from the NLP solution and stackes it into a single vector. The active set is determined by the "primal" or "dual" solution.
+        Warning:
+            Not part of the public API.
+
+
+        This function extracts the active primal and dual solution from the NLP solution and stackes it into a single vector. 
+        The active set is determined by the "primal" or "dual" solution.
         Lagrange multipliers of inactive constraints can be set to zero with the argument set_lam_zero.
         
         Args:
-            nlp_sol: dict containing the NLP solution.
-            tol: tolerance for the active set detection. Default: 1e-6. (Should be related to optimizer tolerance.)
-            set_lam_zero: bool, if True, the dual solution is set to zero for inactive constraints. Default: False.
+            nlp_sol: the NLP solution.
 
         Returns:
             z_num: casadi DM containing the active primal and dual solution.
             where_cons_active: numpy array containing the indices of the active constraints.
         """
 
-        x_num = nlp_sol["x"]
-        lam_num = vertcat(nlp_sol["lam_g"],nlp_sol["lam_x"])
 
         where_g_inactive, where_x_inactive, where_g_active, where_x_active = self._get_active_constraints(nlp_sol)
         
@@ -258,23 +375,44 @@ class NLPDifferentiator:
             lam_num[where_cons_inactive] = 0
         
         # stack primal and dual solution
+        x_num = nlp_sol["x"]
+        lam_num = vertcat(nlp_sol["lam_g"],nlp_sol["lam_x"])
         z_num = vertcat(x_num,lam_num)
 
         return z_num, where_cons_active        
     
     def _get_sensitivity_matrices(self, z_num: DM, p_num: DM) -> tuple[DM]:
         """
-        Returns the sensitivity matrix A and the sensitivity vector B of the NLP.
+        Warning:
+            Not part of the public API.
+
+        Args:
+            z_num: Stacked vector of the primal and dual solution.
+            p_num: Parameter vector.
         """
         if self.status.sym_KKT is False:
             raise RuntimeError('No symbolic expression for sensitivitiy system computed yet.')        
+
         A_num = self.A_func(z_num, p_num)
         B_num = self.B_func(z_num, p_num)
         return A_num, B_num
     
-    def _reduce_sensitivity_matrices(self, A_num: DM, B_num: DM, where_cons_active: np.ndarray) -> tuple[DM]:
+    def _reduce_sensitivity_matrices(self, A_num: DM, B_num: DM, where_cons_active: np.ndarray) -> tuple[DM, DM]:
         """
-        Reduces the sensitivity matrix A and the sensitivity vector B of the NLP such that only the rows and columns corresponding to non-zero dual variables are kept.
+        Warning:
+            Not part of the public API.
+
+        Reduces the sensitivity matrix A and the sensitivity vector B 
+        of the NLP such that only the rows and columns corresponding to non-zero dual variables are kept.
+
+        Args:
+            A_num: Full A-Matrix
+            B_num: Full B-Matrix
+
+        Returns:
+            A_num: Reduced A-Matrix
+            B_num: Reduced B-Matrix
+
         """
         where_keep_idx = [i for i in range(self.n_x)]+list(where_cons_active+self.n_x)
         A_num = A_num[where_keep_idx,where_keep_idx]
@@ -284,12 +422,14 @@ class NLPDifferentiator:
     def _solve_linear_system(self,A_num: DM,B_num: DM, lin_solver=None) -> np.ndarray:
         """
         Solves the linear system of equations to calculate parametric sensitivities.
+
         Args:
-            A_num: Numeric A-Matrix (dF/dz).
-            B_num: Numeric B-Matrix (dF/dp).
-            lin_solver: Linear solver to use. Options are "scipy", "casadi" and "lstq".
+            A_num: Numeric A-Matrix ``(dF/dz)``.
+            B_num: Numeric B-Matrix ``(dF/dp)``.
+            lin_solver: Linear solver to use. Options are ``scipy``, ``casadi`` and ``lstq``.
+
         Returns:
-            parametric sensitivities (n_x,n_p)
+            parametric sensitivities of shape ``(n_x,n_p)``
         """
         self.status.lse_solved = False
 
@@ -321,14 +461,17 @@ class NLPDifferentiator:
 
         return param_sens
     
-    def _calculate_sensitivities(self, z_num: DM, p_num: DM, where_cons_active: np.ndarray):
+    def _calculate_sensitivities(self, z_num: DM, p_num: DM, where_cons_active: np.ndarray) -> np.ndarray:
         """
         Calculates the sensitivities of the NLP solution.
+
         Args:
             nlp_sol: dict containing the NLP solution.
             method_active_set: str, either "primal" or "dual". Determines the active set by the primal or dual solution.
             tol: float, tolerance for determining the active set.
+
         Returns:
+            parametric sensitivities of shape ``(n_x,n_p)``
         """
 
         if self.settings.check_LICQ:
@@ -388,7 +531,7 @@ class NLPDifferentiator:
 
         return dlam_dp
     
-    def _map_param_sens(self, param_sens: np.ndarray, where_cons_active: np.ndarray) -> tuple[np.ndarray]:
+    def _map_param_sens(self, param_sens: np.ndarray, where_cons_active: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """
         Maps the parametric sensitivities to the original decision variables and lagrange multipliers.
         """
@@ -396,7 +539,7 @@ class NLPDifferentiator:
         dlam_dp = self._map_dlamdp(param_sens, where_cons_active)
         return dx_dp, dlam_dp
 
-    def _map_param_sens_to_full(self, dx_dp_num_red: DM, dlam_dp_num_red: DM) -> tuple[DM]:
+    def _map_param_sens_to_full(self, dx_dp_num_red: DM, dlam_dp_num_red: DM) -> tuple[DM, DM]:
         """
         Maps the reduced parametric sensitivities to the full decision variables.
         """
@@ -413,7 +556,6 @@ class NLPDifferentiator:
 
         return dx_dp_num, dlam_dp_num
     
-    ### Check assumptions ###
     def _check_rank(self, A_num: DM):
         """
         Checks if the sensitivity matrix A has full rank.
@@ -425,14 +567,14 @@ class NLPDifferentiator:
         """
         Tracks the residuals of the linear system of equations.
         """
-        # residuals = np.linalg.norm(A_num.dot(param_sens)+B_num, ord=2)
-        # residuals = np.linalg.norm(A_num.full().dot(param_sens)+B_num.full(), ord=2)
         residuals = norm_fro(A_num@param_sens+B_num)
         return residuals
 
     def _check_LICQ(self, x_num: DM, p_num: DM, where_cons_active: np.ndarray) -> bool:        
+        """
+        Checks if the linear independence constraint qualification is satisfied.
+        """
         cons_grad_num = self.cons_grad_func(x_num, p_num)
-        # reduce constraint Jacobian
         cons_grad_num = cons_grad_num[where_cons_active,:]
 
         if cons_grad_num.shape[0] == 0:
@@ -443,7 +585,10 @@ class NLPDifferentiator:
             return True
     
     def _check_SC(self, lam_num: DM, where_cons_active: np.ndarray):
-        # function to check assumption of strict complementarity
+        """
+        Checks if the strict complementarity is satisfied.
+        """
+
         # lagrange multipliers for active set
         lam_num = lam_num[where_cons_active]
         # check if all absolute values of lagrange multipliers are strictly greater than active set tolerance
@@ -451,17 +596,46 @@ class NLPDifferentiator:
             logging.info("Strict complementarity satisfied.")
             return True
         else:
-            # n_violation_SC = sum(np.abs(lam_num)<self.settings.active_set_tol)
             logging.info("Strict complementarity not satisfied.")
             return False
 
-    ### differentiaton step ###
 
     # the next function applies the whole algorithm given in the code abouve and returns the sensitivities dx_dp
     def differentiate(self, nlp_sol: dict, p_num: DM) -> tuple[DM, DM]:
         """
-        Differentiates the NLP solution.
+        Main method of the class. Call this method to obtain the parametric sensitivities.
+        
+        Note:
+            Please read the documentation of the class :py:class:`NLPDifferentiator` for more information.
+
+        Args:
+            nlp_sol: Dictionary containing the optimal solution of the NLP.
+            p_num: Numerical value of the parameters of the NLP.
+
+        Returns:
+            dx_dp: Parametric sensitivities of the decision variables.
+            dlam_dp: Parametric sensitivities of the lagrange multipliers.
         """
+
+        nlp_sol_mandatory_keys = ['x', 'lam_g', 'lam_x', 'g']
+        
+        if not isinstance(nlp_sol, dict):
+            raise ValueError('nlp_sol must be a dictionary.')
+
+        if not set(nlp_sol.keys()).issuperset(set(nlp_sol_mandatory_keys)):
+            raise ValueError('nlp_sol must contain keys {}.'.format(nlp_sol_mandatory_keys))
+
+        if isinstance(p_num, (float, int)):
+            p_num = DM(p_num)
+        elif isinstance(p_num, np.ndarray):
+            p_num = DM(p_num)
+        elif isinstance(p_num, DM):
+            pass
+        else:
+            raise ValueError('p_num must be a float, int, np.ndarray or DM object. You have {}'.format(type(p_num)))
+        
+        if not p_num.shape == (self.n_p, 1):
+            raise ValueError('p_num must have length {}.'.format(self.n_p))
 
         # reduce NLP solution if necessary
         if self.status.reduced_nlp:
