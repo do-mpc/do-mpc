@@ -179,8 +179,7 @@ class NLPDifferentiator:
         self._prepare_sensitivity_matrices()
         self._prepare_constraint_gradients()
         
-    def _detect_undetermined_sym_var(self, var: str ="x") -> tuple[np.ndarray,np.ndarray]: 
-        #TODO: change data structure of return to tuple of lists (beware that code might break)
+    def _detect_undetermined_sym_var(self, var: str ="x") -> Tuple[np.ndarray,np.ndarray]: 
         
         # symbolic expressions
         var_sym = self.nlp[var]        
@@ -346,7 +345,7 @@ class NLPDifferentiator:
 
         return nlp_sol_red, p_num
     
-    def _get_active_constraints(self, nlp_sol: dict) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def _get_active_constraints(self, nlp_sol: dict) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
         Warning:
             Not part of the public API.
@@ -395,7 +394,7 @@ class NLPDifferentiator:
         
         return where_g_inactive, where_x_inactive, where_g_active, where_x_active 
     
-    def _extract_active_primal_dual_solution(self, nlp_sol: Dict) -> tuple[ca.DM,np.ndarray]:
+    def _extract_active_primal_dual_solution(self, nlp_sol: Dict) -> Tuple[ca.DM,np.ndarray]:
         """
         Warning:
             Not part of the public API.
@@ -430,7 +429,7 @@ class NLPDifferentiator:
 
         return z_num, where_cons_active        
     
-    def _get_sensitivity_matrices(self, z_num: ca.DM, p_num: ca.DM) -> tuple[ca.DM]:
+    def _get_sensitivity_matrices(self, z_num: ca.DM, p_num: ca.DM) -> Tuple[ca.DM]:
         """
         Warning:
             Not part of the public API.
@@ -446,7 +445,7 @@ class NLPDifferentiator:
         B_num = self.B_func(z_num, p_num)
         return A_num, B_num
     
-    def _reduce_sensitivity_matrices(self, A_num: ca.DM, B_num: ca.DM, where_cons_active: np.ndarray) -> tuple[ca.DM, ca.DM]:
+    def _reduce_sensitivity_matrices(self, A_num: ca.DM, B_num: ca.DM, where_cons_active: np.ndarray) -> Tuple[ca.DM, ca.DM]:
         """
         Warning:
             Not part of the public API.
@@ -580,7 +579,7 @@ class NLPDifferentiator:
 
         return dlam_dp
     
-    def _map_param_sens(self, param_sens: np.ndarray, where_cons_active: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def _map_param_sens(self, param_sens: np.ndarray, where_cons_active: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """
         Maps the parametric sensitivities to the original decision variables and lagrange multipliers.
         """
@@ -588,7 +587,7 @@ class NLPDifferentiator:
         dlam_dp = self._map_dlamdp(param_sens, where_cons_active)
         return dx_dp, dlam_dp
 
-    def _map_param_sens_to_full(self, dx_dp_num_red: ca.DM, dlam_dp_num_red: ca.DM) -> tuple[ca.DM, ca.DM]:
+    def _map_param_sens_to_full(self, dx_dp_num_red: ca.DM, dlam_dp_num_red: ca.DM) -> Tuple[ca.DM, ca.DM]:
         """
         Maps the reduced parametric sensitivities to the full decision variables.
         """
@@ -650,7 +649,7 @@ class NLPDifferentiator:
 
 
     # the next function applies the whole algorithm given in the code abouve and returns the sensitivities dx_dp
-    def differentiate(self, nlp_sol: dict, p_num: ca.DM) -> tuple[ca.DM, ca.DM]:
+    def differentiate(self, nlp_sol: dict, p_num: ca.DM) -> Tuple[ca.DM, ca.DM]:
         """
         Main method of the class. Call this method to obtain the parametric sensitivities.
         
