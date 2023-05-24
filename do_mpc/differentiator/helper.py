@@ -24,7 +24,7 @@ class NLPDifferentiatorSettings:
 
     check_LICQ: bool = True
     """
-    Check if the constraints are linearly independent.    
+    Check if the constraints are linearly independent at the given optimal solution.    
     The result of this check is stored in :py:class:`NLPDifferentiatorStatus`.
 
     Warning:
@@ -35,7 +35,6 @@ class NLPDifferentiatorSettings:
     """
     Check if strict complementarity holds.  
     The result of this check is stored in :py:class:`NLPDifferentiatorStatus`.
-
     """
 
     track_residuals: bool = True
@@ -45,7 +44,7 @@ class NLPDifferentiatorSettings:
 
     check_rank: bool = False
     """
-    Check if the KKT system has full rank.
+    Check if the KKT matrix has full rank.
     The result of this check is stored in :py:class:`NLPDifferentiatorStatus`.
     
     Warning:

@@ -742,7 +742,7 @@ class DoMPCDifferentiator(NLPDifferentiator):
 
         mpc.make_step(x0)
 
-    5. Call the :py:meth:`differentiate` method of the differentiator object to compute the parametric sensitivities. The current parameters and optimal solution are read from the ``do_mpc`` optimizer object.
+    5. Call the :py:meth:`differentiate` method of the differentiator object to compute the parametric sensitivities at the current optimal solution previously calculated with :py:meth:`make_step()`. The current parameters and optimal solution are read from the ``do_mpc`` optimizer object.
 
     ::
 
