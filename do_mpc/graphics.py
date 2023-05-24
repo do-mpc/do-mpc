@@ -369,9 +369,7 @@ def default_plot(data,
         kwargs: Further arguments are passed to the call of ``plt.subplots(n_plot, 1, sharex=True, **kwargs)``.
 
     Returns:
-        fig 
-        ax
-        configured :py:class:`Graphics` object
+        Matplotlib ``fig`` and ``ax`` and configured :py:class:`Graphics` object.
     """
     err_message = '{} contains invalid keys. Must be a subset of {}. You have {}.'
     if states_list is None:

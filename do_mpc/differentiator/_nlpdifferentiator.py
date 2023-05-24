@@ -326,8 +326,7 @@ class NLPDifferentiator:
             p_num: Numerical parameter vector.
 
         Returns:
-            nlp_sol_red: Reduced NLP solution.
-            p_num: Reduced parameter vector.
+            Reduced NLP solution ``nlp_sol_red`` and Reduced parameter vector ``p_num``.
 
         """
 
@@ -652,6 +651,7 @@ class NLPDifferentiator:
     def differentiate(self, nlp_sol: dict, p_num: ca.DM) -> Tuple[ca.DM, ca.DM]:
         """
         Main method of the class. Call this method to obtain the parametric sensitivities.
+        The sensitivity matrix ``dx_dp`` is of shape ``(n_x, n_p)``.
         
         Note:
             Please read the documentation of the class :py:class:`NLPDifferentiator` for more information.
@@ -661,8 +661,7 @@ class NLPDifferentiator:
             p_num: Numerical value of the parameters of the NLP.
 
         Returns:
-            dx_dp: Parametric sensitivities of the decision variables.
-            dlam_dp: Parametric sensitivities of the lagrange multipliers.
+            Parametric sensitivities of the decision variables and lagrange multipliers.
         """
 
         nlp_sol_mandatory_keys = ['x', 'lam_g', 'lam_x', 'g']

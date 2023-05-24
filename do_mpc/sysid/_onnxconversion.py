@@ -199,6 +199,10 @@ class ONNXConversion:
         Convert does not return anything. The converted model is stored in the instance of the class.
         To obtain the results of the conversion at an arbitrary internal layer, query the instance with the respective layer name.
         Layer names can be obtained by printing the instance of the class.
+
+        Args:
+            verbose: If True, prints the conversion progress.
+            **kwargs: Keyword arguments of the method refer to the names of the inputs of the model. The values of the keyword arguments are the inputs of the model and can be of type ``casadi.SX``, ``casadi.MX``, ``casadi.DM`` or ``numpy.ndarray``.
         """
         
         
@@ -283,15 +287,19 @@ class ONNXConversion:
             
         
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str):
         """ Enables the output of the CasADi expression of a specific layer or 
         graph operation node. 
 
-        To learn about possible keywords, use the method '__repr__' of the converter, i.e.:
+        To learn about possible keywords, it is recommended to print the instance of the class:
 
         ::
 
             print(converter)
+
+        Args:
+            key: Name of the layer of the ONNX graph.
+
 
         """
         node_values = self.node_values
