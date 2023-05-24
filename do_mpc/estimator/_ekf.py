@@ -28,7 +28,7 @@ class EKF(Estimator):
     """Extended Kalman Filter. Setup this class and use :py:func:`EKF.make_step`
     during runtime to obtain the currently estimated states given the measurements ``y0``.
 
-    .. warning::
+    Warnings:
         Not currently implemented.
     """
     def __init__(self, model):

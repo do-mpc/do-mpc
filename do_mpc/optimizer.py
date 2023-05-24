@@ -23,27 +23,24 @@
 """
 Shared tools for optimization-based estimation (MHE) and control (MPC).
 """
-
 import numpy as np
-from casadi import *
-from casadi.tools import *
+import casadi.tools as castools
 import pdb
 import do_mpc
-
-
+from typing import Union,Callable
+import os
+import subprocess
 
 class Optimizer:
     """The base clase for the optimization based state estimation (MHE) and predictive controller (MPC).
     This class establishes the jointly used attributes, methods and properties.
 
-    .. warning::
-
-        The ``Optimizer`` base class can not be used independently.
-
+    Warnings:
+        The ``Optimizer`` base class can not be used independently. The methods and properties are 
+        inherited to :py:class:`do_mpc.estimator.MHE` and :py:class:`do_mpc.controller.MPC`.
     """
     def __init__(self):
         assert 'model' in self.__dict__.keys(), 'Cannot initialize the optimizer before assigning the model to the current class instance.'
-
 
         # Initialize structures for bounds, scaling, initial values by calling the symbolic structures defined in the model
         # with the default numerical value.
@@ -75,10 +72,10 @@ class Optimizer:
 
         # Lists for further non-linear constraints (optional). Constraints are formulated as cons < ub
         self.nl_cons_list = [
-            {'expr_name': 'default', 'expr': DM([]), 'ub': DM([])}
+            {'expr_name': 'default', 'expr': castools.DM([]), 'ub': castools.DM([])}
         ]
         self.slack_vars_list = [
-            {'slack_name': 'default', 'shape':0, 'ub': DM([]), 'penalty': 0}
+            {'slack_name': 'default', 'shape':0, 'ub': castools.DM([]), 'penalty': 0}
         ]
         self.slack_cost = 0
 
@@ -99,18 +96,15 @@ class Optimizer:
 
         See the documentation of :py:attr:`opt_x` and :py:attr:`opt_p` on how to query these attributes.
 
-        .. warning::
-
+        Warnings:
             This is a VERY low level feature and should be used with extreme caution.
             It is easy to break the code.
 
             Be especially careful NOT to accidentially overwrite the default objective.
 
-        .. note::
-
+        Note:
             Modifications must be done after calling :py:meth:`prepare_nlp`
             and before calling :py:meth:`create_nlp`
-
         """
         assert self.flags['prepare_nlp'], 'Cannot query attribute prior to calling MPC.prepare_nlp or MPC.setup'
         return self._nlp_obj
@@ -150,18 +144,15 @@ class Optimizer:
 
         See the documentation of :py:attr:`opt_x` and :py:attr:`opt_p` on how to query these attributes.
 
-        .. warning::
-
+        Warnings:
             This is a VERY low level feature and should be used with extreme caution.
             It is easy to break the code.
 
             Be especially careful NOT to accidentially overwrite the default objective.
 
-        .. note::
-
+        Note:
             Modifications must be done after calling :py:meth:`prepare_nlp`
             and before calling :py:meth:`create_nlp`
-
         """
         assert self.flags['prepare_nlp'], 'Cannot query attribute prior to calling MPC.prepare_nlp or MPC.setup'
         return self._nlp_cons
@@ -183,15 +174,12 @@ class Optimizer:
 
         Values for lower (and upper) bounds MUST be added when adding new constraints to :py:attr:`nlp_cons`.
 
-        .. warning::
-
+        Warnings:
             This is a VERY low level feature and should be used with extreme caution.
             It is easy to break the code.
 
-        .. note::
-
+        Note:
             Modifications must be done after calling :py:meth:`prepare_nlp`
-
         """
         assert self.flags['prepare_nlp'], 'Cannot query attribute prior to calling MPC.prepare_nlp or MPC.setup'
         return self._nlp_cons_lb
@@ -211,15 +199,12 @@ class Optimizer:
 
         Values for upper (and lower) bounds MUST be added when adding new constraints to :py:attr:`nlp_cons`.
 
-        .. warning::
-
+        Warnings:
             This is a VERY low level feature and should be used with extreme caution.
             It is easy to break the code.
 
-        .. note::
-
+        Note:
             Modifications must be done after calling :py:meth:`prepare_nlp`
-
         """
         assert self.flags['prepare_nlp'], 'Cannot query attribute prior to calling MPC.prepare_nlp or MPC.setup'
         return self._nlp_cons_ub
@@ -237,14 +222,11 @@ class Optimizer:
 
         The attribute returns a nested structure that can be indexed using powerindexing. Please refer to :py:attr:`opt_x` for more details. 
 
-        .. note::
-
+        Note:
             The attribute automatically considers the scaling variables when setting the bounds. See :py:attr:`scaling` for more details.
 
-        .. note::
-
+        Note:
             Modifications must be done after calling :py:meth:`prepare_nlp` or :py:meth:`setup` respectively.
-
         """
         return self._lb_opt_x[ind] 
 
@@ -266,14 +248,11 @@ class Optimizer:
 
         The attribute returns a nested structure that can be indexed using powerindexing. Please refer to :py:attr:`opt_x` for more details. 
 
-        .. note::
-
+        Note:
             The attribute automatically considers the scaling variables when setting the bounds. See :py:attr:`scaling` for more details.
 
-        .. note::
-
+        Note:
             Modifications must be done after calling :py:meth:`prepare_nlp` or :py:meth:`setup` respectively.
-
         """
         return self._ub_opt_x[ind]
 
@@ -313,7 +292,6 @@ class Optimizer:
 
             # Query with:
             optimizer.bounds['lower','_x', 'phi_1']
-
         """
         assert isinstance(ind, tuple), 'Power index must include bound_type, var_type, var_name (as a tuple).'
         assert len(ind)>=3, 'Power index must include bound_type, var_type, var_name (as a tuple).'
@@ -413,11 +391,9 @@ class Optimizer:
         and for the evaluation of the ODE. For the objective function and the nonlinear constraints
         the unscaled variables are used. The algebraic equations are also not scaled.
 
-        .. note::
-
+        Note:
             Scaling the optimization problem is suggested when states and / or inputs take on values
             which differ by orders of magnitude.
-
         """
         assert isinstance(ind, tuple), 'Power index must include bound_type, var_type, var_name (as a tuple).'
         assert len(ind)>=2, 'Power index must include bound_type, var_type, var_name (as a tuple).'
@@ -462,7 +438,7 @@ class Optimizer:
 
         var_struct[var_name] = val
 
-    def reset_history(self):
+    def reset_history(self)->None:
         """Reset the history of the optimizer.
         All data from the :py:class:`do_mpc.data.Data` instance is removed.
         """
@@ -477,7 +453,7 @@ class Optimizer:
         self.data.data_fields.update({'opt_p_num': self.n_opt_p})
         self.data.opt_p = self.opt_p
 
-        if self.store_full_solution == True:
+        if self.settings.store_full_solution == True:
             # Create data_field for the optimal solution.
             self.data.data_fields.update({'_opt_x_num': self.n_opt_x})
             self.data.data_fields.update({'_opt_aux_num': self.n_opt_aux})
@@ -485,10 +461,10 @@ class Optimizer:
             # aux_struct is the struct_symSX variant of opt_aux (which is struct_SX). struct_SX cannot be unpickled (bug).
             # See: https://groups.google.com/forum/#!topic/casadi-users/dqAb4tnA2ik
             self.data.opt_aux = self.aux_struct
-        if self.store_lagr_multiplier == True:
+        if self.settings.store_lagr_multiplier == True:
             # Create data_field for the lagrange multipliers
             self.data.data_fields.update({'_lam_g_num': self.n_opt_lagr})
-        if len(self.store_solver_stats) > 0:
+        if len(self.settings.store_solver_stats) > 0:
             # These are valid arguments for solver stats:
             solver_stats = ['iter_count', 'iterations', 'n_call_S', 'n_call_callback_fun',
                             'n_call_nlp_f', 'n_call_nlp_g', 'n_call_nlp_grad', 'n_call_nlp_grad_f',
@@ -498,13 +474,19 @@ class Optimizer:
                             't_wall_callback_fun', 't_wall_nlp_f', 't_wall_nlp_g', 't_wall_nlp_grad', 't_wall_nlp_grad_f',
                             't_wall_nlp_hess_l', 't_wall_nlp_jac_g']
             # Create data_field(s) for the recorded (valid) stats.
-            for stat_i in self.store_solver_stats:
+            for stat_i in self.settings.store_solver_stats:
                 assert stat_i in solver_stats, 'The requested {} is not a valid solver stat and cannot be recorded. Please supply one of the following (or none): {}'.format(stat_i, solver_stats)
                 self.data.data_fields.update({stat_i: 1})
 
         self.data.init_storage()
 
-    def set_nl_cons(self, expr_name, expr, ub=np.inf, soft_constraint=False, penalty_term_cons=1, maximum_violation=np.inf):
+    def set_nl_cons(self, 
+                    expr_name:str, 
+                    expr:Union[castools.SX,castools.MX], 
+                    ub:float=np.inf, 
+                    soft_constraint:bool=False, 
+                    penalty_term_cons:int=1, 
+                    maximum_violation:float=np.inf)->Union[castools.SX,castools.MX]:
         """Introduce new constraint to the class. Further constraints are optional.
         Expressions must be formulated with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
         They are implemented as:
@@ -524,20 +506,24 @@ class Optimizer:
         This formulation makes constraints soft, meaning that a certain violation is tolerated and does not lead to infeasibility.
         Typically, high values for the penalty are suggested to avoid significant violation of the constraints.
 
-        :param expr_name: Arbitrary name for the given expression. Names are used for key word indexing.
-        :type expr_name: string
-        :param expr: CasADi SX or MX function depending on ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
-        :type expr: CasADi SX or MX
+        Args:
+            expr_name: Arbitrary name for the given expression. Names are used for key word indexing.
+            expr: CasADi SX or MX function depending on ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
+            ub: Upper bound
+            soft_constraint: Flag to enable soft constraint
+            penalty_term_cons: Penalty term constant
+            maximum_violation: Maximum violation
 
-        :raises assertion: expr_name must be str
-        :raises assertion: expr must be a casadi SX or MX type
+        Raises:
+            assertion: expr_name must be str
+            assertion: expr must be a casadi SX or MX type
 
-        :return: Returns the newly created expression. Expression can be used e.g. for the RHS.
-        :rtype: casadi.SX or casadi.MX
+        Returns:
+            Returns the newly created expression. Expression can be used e.g. for the RHS.
         """
         assert self.flags['setup'] == False, 'Cannot call .set_expression after .setup().'
         assert isinstance(expr_name, str), 'expr_name must be str, you have: {}'.format(type(expr_name))
-        assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have: {}'.format(type(expr))
+        assert isinstance(expr, (castools.SX, castools.MX)), 'expr must be a casadi SX or MX type, you have: {}'.format(type(expr))
         assert isinstance(ub, (int, float, np.ndarray)), 'ub must be float, int or numpy.ndarray, you have: {}'.format(type(ub))
         assert isinstance(soft_constraint, bool), 'soft_constraint must be boolean, you have: {}'.format(type(soft_constraint))
 
@@ -554,22 +540,23 @@ class Optimizer:
 
         return expr
 
-    def _setup_nl_cons(self, nl_cons_input):
+    def _setup_nl_cons(self, nl_cons_input:Union[castools.SX,castools.MX])->None:
         """Private method that is called from :py:func:`do_mpc.controller.MPC.setup` or :py:func:`do_mpc.estimator.MHE.setup`.
         Afterwards no further non-linear constraints can be added with the :py:func:`Optimizer.set_nl_cons` method.
 
         This is not part of the public API. Do not call this method.
 
-        ``nl_cons_input`` list of symbolic variables used as input to the nl_cons function.
+        Args:
+            nl_cons_input: list of symbolic variables used as input to the nl_cons function.
         """
         # Create struct for soft constraints:
         self._eps = _eps = self.model.sv.sym_struct([
-            entry(slack_i['slack_name'], shape=slack_i['shape']) for slack_i in self.slack_vars_list
+            castools.entry(slack_i['slack_name'], shape=slack_i['shape']) for slack_i in self.slack_vars_list
         ])
         # Create struct for _nl_cons:
         # Use the previously defined sym variables to declare shape and symbolic variable.
         self._nl_cons = self.model.sv.struct([
-            entry(expr_i['expr_name'], expr=expr_i['expr']) for expr_i in self.nl_cons_list
+            castools.entry(expr_i['expr_name'], expr=expr_i['expr']) for expr_i in self.nl_cons_list
         ])
 
         self.n_eps = _eps.shape[0]
@@ -581,14 +568,14 @@ class Optimizer:
         for slack_i in self.slack_vars_list:
             self._eps_ub[slack_i['slack_name']] = slack_i['ub']
             self._nl_cons[slack_i['slack_name']] -= self._eps[slack_i['slack_name']]
-            self.slack_cost += sum1(slack_i['penalty']*self._eps[slack_i['slack_name']])
+            self.slack_cost += castools.sum1(slack_i['penalty']*self._eps[slack_i['slack_name']])
 
         # Objective function epsilon contribution:
-        self.epsterm_fun = Function('epsterm', [_eps], [self.slack_cost])
+        self.epsterm_fun = castools.Function('epsterm', [_eps], [self.slack_cost])
 
         # Make function from these expressions:
         nl_cons_input += [_eps]
-        self._nl_cons_fun = Function('nl_cons_fun', nl_cons_input, [self._nl_cons])
+        self._nl_cons_fun = castools.Function('nl_cons_fun', nl_cons_input, [self._nl_cons])
 
         # Create bounds:
         self._nl_cons_ub = self._nl_cons(np.inf)
@@ -598,7 +585,7 @@ class Optimizer:
             self._nl_cons_ub[nl_cons_i['expr_name']] = nl_cons_i['ub']
 
 
-    def get_tvp_template(self):
+    def get_tvp_template(self)->Union[castools.structure3.SXStruct,castools.structure3.MXStruct]:
         """Obtain output template for :py:func:`set_tvp_fun`.
 
         The method returns a structured object with ``n_horizon+1`` elements,
@@ -633,16 +620,16 @@ class Optimizer:
 
             optimizer.set_tvp_fun(tvp_fun)
 
-        :return: None
-        :rtype: None
+        Returns:
+            Casadi SX or MX structure
         """
 
         tvp_template = self.model.sv.sym_struct([
-            entry('_tvp', repeat=self.n_horizon+1, struct=self.model._tvp)
+            castools.entry('_tvp', repeat=self.settings.n_horizon+1, struct=self.model._tvp)
         ])
         return tvp_template(0)
 
-    def set_tvp_fun(self, tvp_fun):
+    def set_tvp_fun(self, tvp_fun:Callable[[float],Union[castools.structure3.SXStruct,castools.structure3.MXStruct]])->None:
         """ Set function which returns time-varying parameters.
 
         The ``tvp_fun`` is called at each optimization step to get the current prediction of the time-varying parameters.
@@ -674,37 +661,32 @@ class Optimizer:
 
             optimizer.set_tvp_fun(tvp_fun)
 
-        .. note::
-
+        Note:
             The method :py:func:`set_tvp_fun`. must be called prior to setup IF time-varying parameters are defined in the model.
             It is not required to call the method if no time-varying parameters are defined.
 
-        :param tvp_fun: Function that returns the predicted tvp values at each timestep. Must have single input (float) and return a ``structure3.DMStruct`` (obtained with :py:func:`get_tvp_template`).
-        :type tvp_fun: function
-
+        Args:
+            tvp_fun: Function that returns the predicted tvp values at each timestep. Must have single input (float) and return a ``structure3.DMStruct`` (obtained with :py:func:`get_tvp_template`).
         """
-        assert isinstance(tvp_fun(0), structure3.DMStruct), 'Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.'
+        assert isinstance(tvp_fun(0), castools.structure3.DMStruct), 'Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.'
         assert self.get_tvp_template().labels() == tvp_fun(0).labels(), 'Incorrect output of tvp_fun. Use get_tvp_template to obtain the required structure.'
 
         self.flags['set_tvp_fun'] = True
 
         self.tvp_fun = tvp_fun
 
-    def compile_nlp(self, overwrite = False, cname = 'nlp.c', libname='nlp.so', compiler_command=None):
+    def compile_nlp(self, overwrite:bool = False, cname:str = 'nlp.c', libname:str='nlp.so', compiler_command:str=None)->None:
         """Compile the NLP. This may accelerate the optimization.
         As compilation is time consuming, the default option is to NOT overwrite (``overwrite=False``) an existing compilation.
         If an existing compilation with the name ``libname`` is found, it is used. **This can be dangerous, if the NLP has changed**
         (user tweaked the cost function, the model etc.).
 
-        .. warning:: 
-
+        Warnings: 
             This feature is experimental and currently only supported on Linux and MacOS.
-
 
         **What happens here?**
         
         1. The NLP is written to a C-file (``cname``)
-        
         
         2. The C-File (``cname``) is compiled. The custom compiler uses:
 
@@ -718,21 +700,16 @@ class Optimizer:
 
             self.S = nlpsol('solver_compiled', 'ipopt', f'{libname}', self.nlpsol_opts)      
 
-
-        :param overwrite: If True, the existing compiled NLP will be overwritten.
-        :type overwrite: bool
-        :param cname: Name of the C file that will be exported.
-        :type cname: str
-        :param libname: Name of the shared library that will be created after compilation.
-        :type libname: str
-        :param compiler_command: Command to use for compiling. If None, the default compiler command will be used. Please make sure to use matching strings for ``libname`` when supplying your custom compiler command.
-        :type compiler_command: str
-
+        Args:
+            overwrite: If True, the existing compiled NLP will be overwritten.
+            cname: Name of the C file that will be exported.
+            libname: Name of the shared library that will be created after compilation.
+            compiler_command: Command to use for compiling. If None, the default compiler command will be used. Please make sure to use matching strings for ``libname`` when supplying your custom compiler command.
         """
         if not self.flags['setup']:
             raise Exception('Optimizer not setup. Call setup first.')
 
-        if sys.platform  not in ('darwin', 'linux', 'linux2'):
+        if castools.sys.platform  not in ('darwin', 'linux', 'linux2'):
             raise Exception('Compilation not supported on this platform.')
 
         if compiler_command is None:
@@ -747,14 +724,11 @@ class Optimizer:
             print('Compiling c-code of nlp.')
             subprocess.Popen(compiler_command, shell=True).wait()
 
-
         # Overwrite solver object with loaded nlp:
-        self.S = nlpsol('solver_compiled', 'ipopt', {libname}, self.nlpsol_opts)
+        self.S = nlpsol('solver_compiled', 'ipopt', libname, self.settings.nlpsol_opts)
         print('Using compiled NLP solver.')
 
-            
-
-    def solve(self):
+    def solve(self)->None:
         """Solves the optmization problem.
 
         The current problem is defined by the parameters in the
@@ -767,16 +741,13 @@ class Optimizer:
         By resetting :py:attr:`opt_x_num` to the current solution, the method implicitly
         enables **warmstarting the optimizer** for the next iteration, since this vector is always used as the initial guess.
 
-        .. warning::
-
+        Warnings:
             The method is part of the public API but it is generally not advised to use it.
             Instead we recommend to call :py:func:`make_step` at each iterations, which acts as a wrapper
             for :py:func:`solve`.
 
-        :raises asssertion: Optimizer was not setup yet.
-
-        :return: None
-        :rtype: None
+        Raises:
+            asssertion: Optimizer was not setup yet.
         """
         assert self.flags['setup'] == True, 'optimizer was not setup yet. Please call optimizer.setup().'
 
@@ -795,8 +766,6 @@ class Optimizer:
                 'lam_x0': self.lam_x_num,
                 'lam_g0': self.lam_g_num,
             })
-
-
 
         r = self.S(**solver_call_kwargs)
         # Note: .master accesses the underlying vector of the structure.
@@ -848,21 +817,20 @@ class Optimizer:
         # Scale (only _rhs)
         _rhs_scaled = _rhs/self._x_scaling.cat
 
-
         if self.model.model_type == 'discrete':
             _i = self.model.sv.sym('i', 0)
             # discrete integrator ifcs mimics the API the collocation ifcn.
-            ifcn = Function('ifcn', [_x, _i, _u, _z, _tvp, _p, _w], [_alg, _rhs_scaled])
+            ifcn = castools.Function('ifcn', [_x, _i, _u, _z, _tvp, _p, _w], [_alg, _rhs_scaled])
             n_total_coll_points = 0
-        elif self.state_discretization == 'collocation':
-            ffcn = Function('ffcn', [_x, _u, _z, _tvp, _p, _w], [_rhs_scaled])
-            afcn = Function('afcn', [_x, _u, _z, _tvp, _p, _w], [_alg])
+        elif self.settings.state_discretization == 'collocation':
+            ffcn = castools.Function('ffcn', [_x, _u, _z, _tvp, _p, _w], [_rhs_scaled])
+            afcn = castools.Function('afcn', [_x, _u, _z, _tvp, _p, _w], [_alg])
             # Get collocation information
-            coll = self.collocation_type
-            deg = self.collocation_deg
-            ni = self.collocation_ni
-            nk = self.n_horizon
-            t_step = self.t_step
+            coll = self.settings.collocation_type
+            deg = self.settings.collocation_deg
+            ni = self.settings.collocation_ni
+            nk = self.settings.n_horizon
+            t_step = self.settings.t_step
             n_x = self.model.n_x
             n_u = self.model.n_u
             n_p = self.model.n_p
@@ -873,9 +841,9 @@ class Optimizer:
 
             # Choose collocation points
             if coll == 'legendre':    # Legendre collocation points
-                tau_root = [0] + collocation_points(deg, 'legendre')
+                tau_root = [0] + castools.collocation_points(deg, 'legendre')
             elif coll == 'radau':     # Radau collocation points
-                tau_root = [0] + collocation_points(deg, 'radau')
+                tau_root = [0] + castools.collocation_points(deg, 'radau')
             else:
                 raise Exception('Unknown collocation scheme')
 
@@ -906,11 +874,11 @@ class Optimizer:
                 for r in range(deg + 1):
                     if r != j:
                         L *= (tau - tau_root[r]) / (tau_root[j] - tau_root[r])
-                lfcn = Function('lfcn', [tau], [L])
+                lfcn = castools.Function('lfcn', [tau], [L])
                 D[j] = lfcn(1.0)
                 # Evaluate the time derivative of the polynomial at all collocation
                 # points to get the coefficients of the continuity equation
-                tfcn = Function('tfcn', [tau], [tangent(L, tau)])
+                tfcn = castools.Function('tfcn', [tau], [castools.tangent(L, tau)])
                 for r in range(deg + 1):
                     C[j, r] = tfcn(tau_root[r])
 
@@ -1004,14 +972,14 @@ class Optimizer:
                 ubgk.append(np.zeros(n_x))
 
             # Concatenate constraints
-            gk = vertcat(*gk)
+            gk = castools.vertcat(*gk)
             lbgk = np.concatenate(lbgk)
             ubgk = np.concatenate(ubgk)
 
             assert(gk.shape[0] == ik.shape[0] + zk.shape[0])
 
             # Create the integrator function
-            ifcn = Function("ifcn", [xk0, ik, uk, zk, tv_pk, pk, wk], [gk, xkf])
+            ifcn = castools.Function("ifcn", [xk0, ik, uk, zk, tv_pk, pk, wk], [gk, xkf])
 
             # Return the integration function and the number of collocation points
         return ifcn, n_total_coll_points
@@ -1024,10 +992,9 @@ class Optimizer:
 
         There is no point in calling this method as part of the public API.
         """
-
         n_p = self.model.n_p
-        nk = self.n_horizon
-        n_robust = self.n_robust
+        nk = self.settings.n_horizon
+        n_robust = self.settings.n_robust
         # Build auxiliary variables that code the structure of the tree
         # Number of branches
         n_branches = [self.n_combinations if k < n_robust else 1 for k in range(nk)]
@@ -1068,8 +1035,7 @@ class Optimizer:
         }
         return n_branches, n_scenarios, child_scenario, parent_scenario, branch_offset
 
-
-    def prepare_nlp(self):
+    def prepare_nlp(self)->None:
         """Prepare the optimization problem.
         Typically, this method is called internally from :py:meth:`setup`.
 
@@ -1078,22 +1044,21 @@ class Optimizer:
 
         To finish the setup process, users MUST call :py:meth:`create_nlp` afterwards.
 
-        .. note::
-
+        Note:
             Do NOT call :py:meth:`setup` if you intend to go the manual route with :py:meth:`prepare_nlp` and :py:meth:`create_nlp`.
 
-        .. note::
-
+        Note:
             Only AFTER calling :py:meth:`prepare_nlp` the previously mentionned attributes
             :py:attr:`nlp_obj`, :py:attr:`nlp_cons`, :py:attr:`nlp_cons_lb`, :py:attr:`nlp_cons_ub`
             become available.
-
+        
+        Returns:
+            None
         """
-
         # MPC and MHE have similar methods. The documentation is valid for both of them.
         self._prepare_nlp()
 
-    def create_nlp(self):
+    def create_nlp(self)->None:
         """Create the optimization problem.
         Typically, this method is called internally from :py:meth:`setup`.
 
@@ -1102,17 +1067,16 @@ class Optimizer:
 
         To finish the setup process, users MUST call :py:meth:`create_nlp` afterwards.
 
-        .. note::
-
+        Note:
             Do NOT call :py:meth:`setup` if you intend to go the manual route with :py:meth:`prepare_nlp` and :py:meth:`create_nlp`.
 
-        .. note::
-
+        Note:
             Only AFTER calling :py:meth:`prepare_nlp` the previously mentionned attributes
             :py:attr:`nlp_obj`, :py:attr:`nlp_cons`, :py:attr:`nlp_cons_lb`, :py:attr:`nlp_cons_ub`
             become available.
 
+        Returns:
+            None
         """
-
         # MPC and MHE have similar methods. The documentation is valid for both of them.
         self._create_nlp()

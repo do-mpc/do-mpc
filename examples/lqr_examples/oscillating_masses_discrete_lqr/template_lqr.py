@@ -21,8 +21,7 @@
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-from casadi import *
-from casadi.tools import *
+import casadi as cas
 import pdb
 import sys
 import os
@@ -40,10 +39,8 @@ def template_lqr(model):
     lqr = do_mpc.controller.LQR(model)
     
     # Initialize the parameters
-    setup_lqr = {
-                 't_step':0.5}
-    
-    lqr.set_param(**setup_lqr)
+    lqr.settings.t_step = .5
+    lqr.settings.n_horizon = None # infinite horizon
     
     # Setting the objective
     Q = np.identity(4)

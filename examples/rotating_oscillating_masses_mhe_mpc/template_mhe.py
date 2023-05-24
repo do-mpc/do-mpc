@@ -31,7 +31,7 @@ sys.path.append(rel_do_mpc_path)
 import do_mpc
 
 
-def template_mhe(model):
+def template_mhe(model, silence_solver = False):
     """
     --------------------------------------------------------------------------
     template_mhe: tuning parameters
@@ -39,16 +39,13 @@ def template_mhe(model):
     """
     mhe = do_mpc.estimator.MHE(model, ['Theta_1'])
 
-    setup_mhe = {
-        'n_horizon': 10,
-        't_step': 0.1,
-        'store_full_solution': True,
-        'nl_cons_check_colloc_points': True,
-        #'nlpsol_opts': {'ipopt.linear_solver': 'MA27'},
-    }
+    mhe.settings.n_horizon =  10
+    mhe.settings.t_step =  0.1
+    mhe.settings.store_full_solution =  True
+    mhe.settings.nl_cons_check_colloc_points =  True
 
-    mhe.set_param(**setup_mhe)
-
+    if silence_solver:
+        mhe.settings.supress_ipopt_output()
 
     P_v = model.tvp['P_v']
     P_x = 1e-4*np.eye(8)
@@ -86,7 +83,7 @@ def template_mhe(model):
     y_template = mhe.get_y_template()
 
     def y_fun(t_now):
-        n_steps = min(mhe.data._y.shape[0], mhe.n_horizon)
+        n_steps = min(mhe.data._y.shape[0], mhe.settings.n_horizon)
         for k in range(-n_steps,0):
             y_template['y_meas',k] = mhe.data._y[k]
 

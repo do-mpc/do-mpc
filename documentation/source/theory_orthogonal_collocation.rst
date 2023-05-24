@@ -67,12 +67,11 @@ An (incomplete!) overview and classification of commonly used methods is shown i
 
 **do-mpc** is based on **orthogonal collocation on finite elements** which is a direct, simultaneous, full discretization approach.
 
-    **Direct**: The continuous time variables are discretized to transform the infinite-dimensional optimal control problem
-    to a finite dimensional nonlinear programming (NLP) problem.
+* **Direct**: The continuous time variables are discretized to transform the infinite-dimensional optimal control problem to a finite dimensional nonlinear programming (NLP) problem.
 
-    **Simultaneous**: Both the control inputs and the states are discretized.
+* **Simultaneous**: Both the control inputs and the states are discretized.
 
-    **Full discretization**: A discretization scheme is hand implemented in terms of symbolic variables instead of using an ODE/DAE solver.
+* **Full discretization**: A discretization scheme is hand implemented in terms of symbolic variables instead of using an ODE/DAE solver.
 
 The full discretization is realized with **orthogonal collocation on finite elements** which is discussed in the remainder of this post.
 The content is based on [Biegler2010]_.

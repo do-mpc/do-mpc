@@ -31,7 +31,7 @@ sys.path.append(rel_do_mpc_path)
 import do_mpc
 
 
-def template_mpc(model):
+def template_mpc(model, silence_solver=False):
     """
     --------------------------------------------------------------------------
     template_mpc: tuning parameters
@@ -39,14 +39,13 @@ def template_mpc(model):
     """
     mpc = do_mpc.controller.MPC(model)
 
-    setup_mpc = {
-        'n_robust': 0,
-        'n_horizon': 7,
-        't_step': 0.5,
-        'store_full_solution':True,
-    }
+    mpc.settings.n_robust = 0
+    mpc.settings.n_horizon = 7
+    mpc.settings.t_step = 0.5
+    mpc.settings.store_full_solution =True
 
-    mpc.set_param(**setup_mpc)
+    if silence_solver:
+        mpc.settings.supress_ipopt_output()
 
     mterm = model.aux['cost']
     lterm = model.aux['cost'] # terminal cost
