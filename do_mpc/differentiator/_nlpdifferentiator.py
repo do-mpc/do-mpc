@@ -682,12 +682,12 @@ class NLPDifferentiator:
         else:
             raise ValueError('p_num must be a float, int, np.ndarray or DM object. You have {}'.format(type(p_num)))
         
-        if not p_num.shape == (self.n_p, 1):
-            raise ValueError('p_num must have length {}.'.format(self.n_p))
-
         # reduce NLP solution if necessary
         if self.status.reduced_nlp:
             nlp_sol, p_num = self._reduce_nlp_solution_to_determined(nlp_sol, p_num)
+
+        if not p_num.shape == (self.n_p, 1):
+            raise ValueError('p_num must have length {}.'.format(self.n_p))
 
         # extract active primal and dual solution
         z_num, where_cons_active = self._extract_active_primal_dual_solution(nlp_sol)

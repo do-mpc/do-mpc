@@ -97,7 +97,7 @@ pr.enable()
 class ASMPC:
     def __init__(self, mpc):
         self.mpc = mpc
-        self.nlp_diff = do_mpc.differentiator.DoMPCDifferentiatior(mpc)
+        self.nlp_diff = do_mpc.differentiator.DoMPCDifferentiator(mpc)        
         self.nlp_diff.settings.check_LICQ = False
         self.nlp_diff.settings.check_rank = False
         self.nlp_diff.settings.lin_solver = 'scipy'
