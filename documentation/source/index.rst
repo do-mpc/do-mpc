@@ -21,8 +21,8 @@ Model predictive control python toolbox
 .. image:: https://readthedocs.org/projects/do-mpc/badge/?version=latest
     :target: https://www.do-mpc.com
     :alt: Documentation Status
-.. image:: https://app.travis-ci.com/do-mpc/do-mpc.svg?branch=master
-    :target: https://app.travis-ci.com/do-mpc/do-mpc
+.. image:: https://github.com/do-mpc/do-mpc/actions/workflows/pythontest.yml/badge.svg?branch=develop
+    :target: https://github.com/do-mpc/do-mpc/actions/workflows/pythontest.yml
     :alt: Build Status
 .. image:: https://badge.fury.io/py/do-mpc.svg
     :target: https://badge.fury.io/py/do-mpc
