@@ -1,19 +1,17 @@
 import casadi
-import onnx
-from onnx import numpy_helper
 import numpy as np
 import pdb
-import importlib
 from typing import List, Dict, Tuple, Union, Callable, Any, Optional
 
 
 # Import optional packages
 
-ONNX_INSTALLED = False
-
-if importlib.util.find_spec("onnx"):
+try:
     import onnx
+    from onnx import numpy_helper
     ONNX_INSTALLED = True
+except ImportError:
+    ONNX_INSTALLED = False
 
 class ONNXConversion:
     """ Transform `ONNX model <https://onnx.ai>`_. 
@@ -107,13 +105,13 @@ class ONNXConversion:
 
     """
     
-    def __init__(self, model: onnx.onnx_ml_pb2.ModelProto, model_name: Optional[str]=None):  
+    def __init__(self, model: "onnx.onnx_ml_pb2.ModelProto", model_name: Optional[str]=None):  
         if not ONNX_INSTALLED:
             raise Exception("The package 'onnx' is not installed. Please install it..")
 
         # In case of a keras model as input, convert it to an ONNX model
         
-        if isinstance(model,(onnx.onnx_ml_pb2.ModelProto)):
+        if isinstance(model,("onnx.onnx_ml_pb2.ModelProto")):
             self.onnx_model = model
             self.name = "casadi_model" if not isinstance(model_name, (str)) else model_name
         else:
