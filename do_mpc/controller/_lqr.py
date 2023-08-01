@@ -26,9 +26,15 @@ import numpy as np
 import warnings
 import pdb
 import do_mpc.data
-from scipy.linalg import solve_discrete_are
 from ..model import LinearModel, IteratedVariables
 from ._controllersettings import LQRSettings
+
+
+try:
+    from scipy.linalg import solve_discrete_are
+    SCIPY_INSTALLED = True
+except ImportError:
+    SCIPY_INSTALLED = False
 
 class LQR(IteratedVariables):
     """Linear Quadratic Regulator.
@@ -99,6 +105,9 @@ class LQR(IteratedVariables):
         model : Linear model
     """
     def __init__(self,model:LinearModel):
+        if not SCIPY_INSTALLED:
+            raise Exception("This class requires the package 'scipy' to be installed. Please install it.")
+        
         self.model = model
         IteratedVariables.__init__(self)
         

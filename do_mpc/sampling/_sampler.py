@@ -5,10 +5,15 @@ import inspect
 import numpy as np
 import pathlib
 import pdb
-import scipy.io as sio
 import copy
 from do_mpc.tools import load_pickle, save_pickle, printProgressBar
 from typing import Union,Callable
+
+try:
+    import scipy.io as sio
+    SCIPY_INSTALLED = True
+except ImportError:
+    SCIPY_INSTALLED = False
 
 class Sampler:
     """Generate samples based on a sampling plan.
@@ -188,6 +193,9 @@ class Sampler:
         """Private method. Saves the result for a single sample in the defined format.
         Considers the ``overwrite`` parameter to check if existing results should be overwritten.
         """
+        if not SCIPY_INSTALLED:
+            raise Exception("This method requires the package 'scipy' to be installed. Please install it.")
+        
         if not os.path.isfile(self.data_dir + save_name) or self.overwrite:
             if self.save_format == 'pickle':
                 save_pickle(self.data_dir + save_name, result)

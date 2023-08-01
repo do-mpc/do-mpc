@@ -5,7 +5,6 @@ import os
 import numpy as np
 import pathlib
 import pdb
-import scipy.io as sio
 import copy
 from do_mpc.tools import load_pickle, save_pickle
 import types
@@ -13,6 +12,12 @@ import logging
 from inspect import signature
 from typing import Union
 
+
+try:
+    import scipy.io as sio
+    SCIPY_INSTALLED = True
+except ImportError:
+    SCIPY_INSTALLED = False
 
 class DataHandler:
     """Post-processing data created from a sampling plan.
@@ -243,6 +248,9 @@ class DataHandler:
     def _load(self, sample_id):
         """ Private method: Load data generated from a sampling plan, either '.pkl' or '.mat'
         """
+        if not SCIPY_INSTALLED:
+            raise Exception("This method requires the package 'scipy' to be installed. Please install it.")
+        
         name = '{sample_name}_{id}'.format(sample_name=self.sample_name, id=sample_id)
 
         if self.save_format == 'pickle':

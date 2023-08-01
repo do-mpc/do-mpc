@@ -21,7 +21,6 @@
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-import scipy.sparse as sp_sparse
 import casadi as ca
 import casadi.tools as castools 
 from dataclasses import dataclass
@@ -32,6 +31,13 @@ from do_mpc.optimizer import Optimizer
 from .helper import NLPDifferentiatorSettings, NLPDifferentiatorStatus
 
 import logging
+
+
+try:
+    import scipy.sparse as sp_sparse
+    SCIPY_INSTALLED = True
+except ImportError:
+    SCIPY_INSTALLED = False
 
 __all__ = ['NLPDifferentiator', 'DoMPCDifferentiator']
 
@@ -112,6 +118,8 @@ class NLPDifferentiator:
 
     """
     def __init__(self, nlp: Dict, nlp_bounds: Dict, **kwargs):
+        if not SCIPY_INSTALLED:
+            raise Exception("This class requires the package 'scipy' to be installed. Please install it.")
 
         nlp_mandatory_keys = ['f', 'x', 'p', 'g']
         nlp_bounds_mandatory_keys = ['lbx', 'ubx', 'lbg', 'ubg']

@@ -24,10 +24,16 @@ from __future__ import annotations
 import numpy as np
 import pdb
 import warnings
-from scipy.signal import cont2discrete
 from . import Model
 from typing import Union
 import casadi.tools as castools
+
+
+try:
+    from scipy.signal import cont2discrete
+    SCIPY_INSTALLED = True
+except ImportError:
+    SCIPY_INSTALLED = False
 
 # Define what is included in the Sphinx documentation.
 __all__ = ['LinearModel']
@@ -263,6 +269,9 @@ class LinearModel(Model):
         Returns:
             Discretized linear model
         """
+        if not SCIPY_INSTALLED:
+            raise Exception("This method requires the package 'scipy' to be installed. Please install it.")
+        
         assert self.flags['setup'] == True, 'This method can be accessed only after the model is setup using LinearModel.setup().'
         assert self.model_type == 'continuous', 'Given model is already discrete.'
 
