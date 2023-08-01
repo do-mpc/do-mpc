@@ -29,8 +29,9 @@ from ._client import RTClient
 
 try:
     import asyncua.sync as opcua
+    ASYNCUA_INSTALLED = True
 except ImportError:
-    raise ImportError("The asyncua library is not installed. Please install it and try again.")
+    ASYNCUA_INSTALLED = False
 
 
 
@@ -61,6 +62,8 @@ class RTServer:
     '''
 
     def __init__(self, opts:ServerOpts)->None:
+        if not ASYNCUA_INSTALLED:
+            raise Exception("This class requires the package 'asyncua' to be installed. Please install it.")
        
         # The basic OPCUA server definition contains a name, address and a port numer
         self.name    = opts.name

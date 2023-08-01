@@ -27,8 +27,9 @@ from ._helper import Namespace, ClientOpts
 
 try:
     import asyncua.sync as opcua
+    ASYNCUA_INSTALLED = True
 except ImportError:
-    raise ImportError("The asyncua library is not installed. Please install it and try again.")
+    ASYNCUA_INSTALLED = False
 
 class RTClient:
     '''
@@ -61,6 +62,9 @@ class RTClient:
     '''
 
     def __init__(self, opts:ClientOpts, namespace:Namespace)->None:
+        if not ASYNCUA_INSTALLED:
+            raise Exception("This class requires the package 'asyncua' to be installed. Please install it.")
+        
         # Information for connection to server
         self.server_address = opts.address
         self.port           = opts.port
