@@ -4,7 +4,6 @@ import os
 import numpy as np
 import pathlib
 import pdb
-import scipy.io as sio
 import copy
 import itertools
 from do_mpc.tools import load_pickle, save_pickle

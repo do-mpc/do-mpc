@@ -21,7 +21,6 @@
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-import scipy.linalg as sp_linalg
 import scipy.sparse as sp_sparse
 import casadi as ca
 import casadi.tools as castools 
