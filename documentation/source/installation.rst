@@ -18,38 +18,55 @@ Requirements
 
 Option 1: **PIP**
 *****************
-Simply use **PIP** and install **do-mpc** from the terminal.
-This has the advantage that **do-mpc** is always in your Python path
-and can be used throughout your projects.
 
-1. Install **do-mpc**:
+1. Installation 
 
-::
+- Installation of core features:
 
-    pip install do-mpc
+.. code-block:: shell
 
-Tested on Windows and Linux (Ubuntu 19.04).
+    pip install do_mpc
+
+
+- Installation of additional features:
+
+.. code-block:: shell
+
+    pip install do-mpc[full]
+
+- Depending on your operating system you might have to execute the following to install the full version:
+
+.. code-block:: shell
+
+    pip install 'do-mpc[full]'
 
 **PIP** will also
-take care of dependencies and you are immediately ready to go.
+take care of dependencies and you are immediately ready to go. We usually recommend to install first the core features
+and only install the full version if the additional features are required. 
 
-Use this option if you plan to use **do-mpc** without altering the source code,
-e.g. write extensions.
 
 2. Get example documents:
 
-All resources can be obtained from our  `release notes`_ page.
-Please find the example files that match your currently installed **do-mpc** version
-in the respective section.
+To get started, we recommend to download the provided examples from our `Github repository`_.
+These example files might change with different versions of ``do_mpc`` and we try to bundle the respective examples with each release.
+Check our `release notes`_ page and find the example files that match your currently installed **do-mpc** version.
+
+You can check the installed version by importing ``do_mpc`` and typing:
+
+.. code-block:: python
+
+    print(do_mpc.__version__)
+
 
 .. _`release notes`: release_notes.html
+.. _`Github repository`: https://github.com/do-mpc/do-mpc/tree/master/examples
 
 Option 2: **Clone from Github**
 *******************************
 More experienced users are advised to clone or fork the most recent version of **do-mpc**
 from `GitHub <https://github.com/do-mpc/do-mpc>`_:
 
-::
+.. code-block:: shell
 
     git clone https://github.com/do-mpc/do-mpc.git
 
@@ -76,6 +93,14 @@ When installing CasADi via PIP or Anaconda
 (happens automatically when installing **do-mpc** via PIP),
 you obtain the pre-compiled CasADi package.
 To use MA27 (or other HSL solver in this setup) please follow these steps:
+
+Windows
+^^^^^^^
+
+We recommend using Windows Subsystem for Linux (`WSL`_). Follow the instructions for Linux after you have entered the Linux shell. 
+
+_`WSL`: https://learn.microsoft.com/en-us/windows/wsl/install
+
 
 Linux
 ^^^^^
