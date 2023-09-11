@@ -7,14 +7,6 @@ import importlib
 from typing import List, Dict, Tuple, Union, Callable, Any, Optional
 
 
-# Import optional packages
-
-ONNX_INSTALLED = False
-
-if importlib.util.find_spec("onnx"):
-    import onnx
-    ONNX_INSTALLED = True
-
 class ONNXConversion:
     """ Transform `ONNX model <https://onnx.ai>`_. 
     The transformation returns a CasADi expression of the model and can be used e.g. in the :py:class:`do_mpc.model.Model` class.
@@ -108,9 +100,6 @@ class ONNXConversion:
     """
     
     def __init__(self, model: onnx.onnx_ml_pb2.ModelProto, model_name: Optional[str]=None):  
-        if not ONNX_INSTALLED:
-            raise Exception("The package 'onnx' is not installed. Please install it..")
-
         # In case of a keras model as input, convert it to an ONNX model
         
         if isinstance(model,(onnx.onnx_ml_pb2.ModelProto)):
