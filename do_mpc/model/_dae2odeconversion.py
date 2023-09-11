@@ -20,37 +20,39 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
-
-from casadi import *
-from casadi.tools import *
 import numpy as np
 from . import Model
+import casadi.tools as castools
    
-def dae2odeconversion(model):
+def dae2odeconversion(model:Model)->Model:
     """Converts index-1 DAE system to ODE system.
         
     This method utilizes the differentiation method of converting index-1 DAE systems to ODE systems. This method
     cannot handle higher index DAE systems. The DAE system is as follows:
             
-        .. math::
-            \\dot{x} = f(x,u,z) \\\\
-                0 = g(x,u,z)
+    .. math::
+        \\dot{x} = f(x,u,z) \\\\
+            0 = g(x,u,z)
                 
     where :math:`x` is the states, :math:`u` is the input and :math:`z` is the algebraic states of the system.
     Differentiation method is as follows:
     
-        .. math::
-            \\dot{z} = -\\frac{\\partial g}{\\partial z}^{-1}\\frac{\\partial g}{\\partial x}f-\\frac{\\partial g}{\\partial z}^{-1}\\frac{\\partial g}{\\partial u}\\dot{u}
+    .. math::
+        \\dot{z} = -\\frac{\\partial g}{\\partial z}^{-1}\\frac{\\partial g}{\\partial x}f-\\frac{\\partial g}{\\partial z}^{-1}\\frac{\\partial g}{\\partial u}\\dot{u}
             
     Therefore the converted ODE system looks like:
 
-        .. math::
-            \\begin{pmatrix} \\dot{x} \\\\ \\dot{u} \\\\ \\dot{z} \\end{pmatrix} = \\begin{pmatrix} f(x,u,z) \\\\ q \\\\ g(x,u,z) \\end{pmatrix}
+    .. math::
+        \\begin{pmatrix} \\dot{x} \\\\ \\dot{u} \\\\ \\dot{z} \\end{pmatrix} = \\begin{pmatrix} f(x,u,z) \\\\ q \\\\ g(x,u,z) \\end{pmatrix}
             
     where :math:`\\dot{x},\\dot{u},\\dot{z}` are the states of the model and q is the input to the model. Similarly, it can be extended to discrete time systems.
     The dae to ode converted model assumes that converted algebraic states and states measurements are available.
-    :return: Converted ODE Model
-    :rtype: model.Model 
+    
+    Args:
+        model : Index-1 DAE model
+        
+    Returns:
+        Converted ODE Model
     """
     #Check whether model setup is done
     assert model.flags['setup'] == True, 'Run this function after original model is setup'
@@ -79,8 +81,8 @@ def dae2odeconversion(model):
     p_new = daeModel.p[model.p.keys()[1:]]
             
     #Converting rhs eq. with respect to variables of linear model of same name
-    rhs = model._rhs_fun(vertcat(*x_new),vertcat(*u_new),vertcat(*z_new),vertcat(*tvp_new),vertcat(*p_new),model.w)
-    rhs_new = substitute(rhs,model.w.cat,np.zeros(model.n_w).reshape(model.n_w,1))
+    rhs = model._rhs_fun(castools.vertcat(*x_new),castools.vertcat(*u_new),castools.vertcat(*z_new),castools.vertcat(*tvp_new),castools.vertcat(*p_new),model.w)
+    rhs_new = castools.substitute(rhs,model.w.cat,np.zeros(model.n_w).reshape(model.n_w,1))
     x_count = 0
     for i in range(np.size(model.x.keys())):
         if daeModel.x.keys()[i]+'_noise' in model.w.keys():
@@ -89,9 +91,9 @@ def dae2odeconversion(model):
         else:
             daeModel.set_rhs(model.x.keys()[i],rhs_new[x_count:x_count+model.x[model.x.keys()[i]].size()[0]])
             x_count += model.x[model.x.keys()[i]].size()[0]
-    alg = model._alg_fun(vertcat(*x_new),vertcat(*u_new),vertcat(*z_new),vertcat(*tvp_new),vertcat(*p_new),daeModel.w)
-    rhs_mod = substitute(rhs,model.w.cat,daeModel.w.cat)
-    z_next = -inv(jacobian(alg,vertcat(*z_new)))@jacobian(alg,vertcat(*x_new))@rhs_mod-inv(jacobian(alg,vertcat(*z_new)))@jacobian(alg,vertcat(*u_new))@q
+    alg = model._alg_fun(castools.vertcat(*x_new),castools.vertcat(*u_new),castools.vertcat(*z_new),castools.vertcat(*tvp_new),castools.vertcat(*p_new),daeModel.w)
+    rhs_mod = castools.substitute(rhs,model.w.cat,daeModel.w.cat)
+    z_next = -castools.inv(castools.jacobian(alg,castools.vertcat(*z_new)))@castools.jacobian(alg,castools.vertcat(*x_new))@rhs_mod-castools.inv(castools.jacobian(alg,castools.vertcat(*z_new)))@castools.jacobian(alg,castools.vertcat(*u_new))@q
     
     for j in range(np.size(model.u.keys())-1):
         daeModel.set_rhs(model.u.keys()[j+1],daeModel.u['q',j])

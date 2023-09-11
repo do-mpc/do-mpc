@@ -11,20 +11,20 @@ from do_mpc.tools import load_pickle, save_pickle
 import types
 import logging
 from inspect import signature
-
+from typing import Union
 
 
 class DataHandler:
     """Post-processing data created from a sampling plan.
-    Data (individual samples) were created with :py:class:`do_mpc.sampling.sampler.Sampler`.
-    The list of all samples originates from :py:class:`do_mpc.sampling.samplingplanner.SamplingPlanner` and is used to
+    Data (individual samples) were created with :py:class:`do_mpc.sampling.Sampler`.
+    The list of all samples originates from :py:class:`do_mpc.sampling.SamplingPlanner` and is used to
     initiate this class (``sampling_plan``).
 
     The class can be created with optional keyword arguments which are passed to :py:meth:`set_param`.
 
     **Configuration and retrieving processed data:**
 
-    1. Initiate the object with the ``sampling_plan`` originating from :py:class:`do_mpc.sampling.samplingplanner.SamplingPlanner`.
+    1. Initiate the object with the ``sampling_plan`` originating from :py:class:`do_mpc.sampling.SamplingPlanner`.
 
     2. Set parameters with :py:meth:`set_param`. Most importantly, the directory in which the individual samples are located should be passe with ``data_dir`` argument.
 
@@ -169,7 +169,10 @@ class DataHandler:
         return result_processed
 
 
-    def filter(self, input_filter=None, output_filter=None):
+    def filter(self, 
+               input_filter:Union[types.FunctionType,types.BuiltinFunctionType]=None, 
+               output_filter:Union[types.FunctionType,types.BuiltinFunctionType]=None
+               )->list:
         """ Filter data from the DataHandler. Filters can be applied to inputs or to results that were obtained with the post-processing functions.
         Filtering returns only a subset from the created samples based on arbitrary conditions.
 
@@ -194,17 +197,16 @@ class DataHandler:
             # Return all samples for which the computed value square < 5
             dh.filter(output_filter = lambda square: square < 5)
 
+        Args:
+            input_filter: Function to filter the data.
+            output_filter: Function to filter the data
 
+        Raises:
+            assertion: No post processing function is set
+            assertion: filter_fun must be either Function of BuiltinFunction_or_Method
 
-
-        :param filter_fun: Function  to filter the data.
-        :type filter_fun: Function or BuiltinFunction_or_Method
-
-        :raises assertion: No post processing function is set
-        :raises assertion: filter_fun must be either Function of BuiltinFunction_or_Method
-
-        :return: Returns the post processed samples that satisfy the filter
-        :rtype: list
+        Returns:
+            Returns the post processed samples that satisfy the filter
         """
         assert isinstance(input_filter, (types.FunctionType, types.BuiltinFunctionType, type(None))), 'input_filter must be either Function or BuiltinFunction_or_Method, you have {}'.format(type(input_filter))
         assert isinstance(output_filter, (types.FunctionType, types.BuiltinFunctionType, type(None))), 'output_filter must be either Function or BuiltinFunction_or_Method, you have {}'.format(type(output_filter))
@@ -260,7 +262,7 @@ class DataHandler:
         return result
 
 
-    def set_param(self, **kwargs):
+    def set_param(self, **kwargs)->None:
         """Set the parameters of the DataHandler.
 
         Parameters must be passed as pairs of valid keywords and respective argument.
@@ -270,16 +272,10 @@ class DataHandler:
 
             datahandler.set_param(overwrite = True)
 
-
-        :param data_dir: Directory where the data can be found (as defined in the :py:class:`do_mpc.sampling.sampler.Sampler`).
-        :type data_dir: bool
-
-        :param sample_name: Naming scheme for samples (as defined in the :py:class:`do_mpc.sampling.sampler.Sampler`).
-        :type sample_name: str
-
-        :save_format: Choose either ``pickle`` or ``mat`` (as defined in the :py:class:`do_mpc.sampling.sampler.Sampler`).
-        :type save_format: str
-
+        Args:
+            data_dir(bool): Directory where the data can be found (as defined in the :py:class:`do_mpc.sampling.Sampler`).
+            sample_name(str): Naming scheme for samples (as defined in the :py:class:`do_mpc.sampling.Sampler`).
+            save_format(str): Choose either ``pickle`` or ``mat`` (as defined in the :py:class:`do_mpc.sampling.Sampler`).
         """
         for key, value in kwargs.items():
             if not (key in self.data_fields):
@@ -288,7 +284,7 @@ class DataHandler:
                 setattr(self, key, value)
 
 
-    def set_post_processing(self, name, post_processing_function):
+    def set_post_processing(self, name:str, post_processing_function:Union[types.FunctionType,types.BuiltinFunctionType])->None:
         """Set a post processing function.
         The post processing function is applied to all loaded samples, e.g. with :py:meth:`__getitem__` or :py:meth:`filter`.
         Users can set an arbitrary amount of post processing functions by repeatedly calling this method.
@@ -299,11 +295,10 @@ class DataHandler:
 
         2. ``post_processing_function(sample_result)``
 
-        Where ``case_definition`` is a ``dict`` of all variables introduced in the :py:class:`do_mpc.sampling.samplingplanner.SamplingPlanner`
-        and ``sample_results`` is the result obtained from the function introduced with :py:class:`do_mpc.sampling.sampler.Sampler.set_sample_function`.
+        Where ``case_definition`` is a ``dict`` of all variables introduced in the :py:class:`do_mpc.sampling.SamplingPlanner`
+        and ``sample_results`` is the result obtained from the function introduced with :py:class:`do_mpc.sampling.Sampler.set_sample_function`.
 
-        .. note::
-
+        Note:
             Setting a post processing function with an already existing name will overwrite the previously set post processing function.
 
         **Example:**
@@ -342,13 +337,13 @@ class DataHandler:
             # Query all post-processed results with:
             dh[:]
 
-        :param name: Name of the output of the post-processing operation
-        :type name: string
-        :param post_processing_function: The post processing function to be evaluted
-        :type n_samples: Function or BuiltinFunction
+        Args:
+            name: Name of the output of the post-processing operation
+            post_processing_function: The post processing function to be evaluted
 
-        :raises assertion: name must be string
-        :raises assertion: post_processing_function must be either Function of BuiltinFunction
+        Raises:
+            assertion: name must be string
+            assertion: post_processing_function must be either Function of BuiltinFunction
         """
         assert isinstance(name, str), 'name must be str, you have {}'.format(type(name))
         assert isinstance(post_processing_function, (types.FunctionType, types.BuiltinFunctionType)), 'post_processing_function must be either Function or BuiltinFunction_or_Method, you have {}'.format(type(post_processing_function))

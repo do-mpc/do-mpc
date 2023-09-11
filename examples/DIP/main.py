@@ -77,7 +77,7 @@ Set initial state
 """
 
 if scenario == 1:
-    simulator.x0['theta'] = np.pi
+    simulator.x0['theta'] = .9*np.pi
     simulator.x0['pos'] = 0
 elif scenario == 2:
     simulator.x0['theta'] = 0.
@@ -91,6 +91,7 @@ mpc.x0 = x0
 estimator.x0 = x0
 
 mpc.set_initial_guess()
+z0 = simulator.init_algebraic_variables()
 
 """
 Setup graphic:

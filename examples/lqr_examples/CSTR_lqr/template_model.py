@@ -21,8 +21,7 @@
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-from casadi import *
-from casadi.tools import *
+import casadi as cas
 import pdb
 import sys
 import os
@@ -66,11 +65,11 @@ def template_model(symvar_type='SX'):
     Q_J = model.set_variable(var_type='_u', var_name='Q_J')
     
     # Auxiliary terms
-    r_1 = K0_1 * exp((-E_R_1)/((T_R)))*C_a
-    r_2 = K0_2 * exp((-E_R_2)/((T_R)))*C_b
+    r_1 = K0_1 * cas.exp((-E_R_1)/((T_R)))*C_a
+    r_2 = K0_2 * cas.exp((-E_R_2)/((T_R)))*C_b
 
     # Aux expression from auxiliary terms
-    r = vertcat(r_1, r_2)
+    r = cas.vertcat(r_1, r_2)
     model.set_expression(expr_name='r', expr=r)
     
     # Differential equations

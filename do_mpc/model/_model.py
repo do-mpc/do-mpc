@@ -22,11 +22,11 @@
 
 
 import numpy as np
-from casadi import *
-from casadi.tools import *
+#import casadi as cas
+import casadi.tools as castools
 import pdb
 from do_mpc.tools._casstructure import _SymVar
-
+from typing import Union,Tuple
 
 class Model:
     """The **do-mpc** model class. This class holds the full model description and is at the core of
@@ -51,14 +51,12 @@ class Model:
     The **do-mpc** model can be initiated with either ``SX`` or ``MX`` variable type.
     We refer to the CasADi documentation on the difference of these two types.
 
-    .. note::
-
+    Note:
         ``SX`` vs. ``MX`` in a nutshell: In general use ``SX`` variables (default).
         If your model consists of scalar operations ``SX`` variables will be beneficial.
         Your implementation will most likely only benefit from ``MX`` variables if you use large(r)-scale matrix-vector multiplications.
 
-    .. note::
-
+    Note:
         The option ``symvar_type`` will be inherited to all derived classes (e.g. :py:class:`do_mpc.simulator.Simulator`,
         :py:class:`do_mpc.controller.MPC` and :py:class:`do_mpc.estimator.Estimator`).
         All symbolic variables in these classes will be chosen respectively.
@@ -78,22 +76,19 @@ class Model:
 
     5. Call :py:func:`setup` to finalize the :py:class:`Model`. No further changes are possible afterwards.
 
-    .. note::
-
+    Note:
         All introduced model variables are accessible as **Attributes** of the :py:class:`Model`.
         Use these attributes to query to variables, e.g. to form the cost function in a seperate file for the MPC configuration.
 
-    :param model_type: Set if the model is ``discrete`` or ``continuous``.
-    :type model_type: str
-    :param symvar_type: Set if the model is configured with CasADi ``SX`` or ``MX`` variables.
-    :type symvar_type: str
+    Args:
+        model_type : Set if the model is ``discrete`` or ``continuous``.
+        symvar_type : Set if the model is configured with CasADi ``SX`` or ``MX`` variables.
 
-    :raises assertion: model_type must be string
-    :raises assertion: model_type must be either discrete or continuous
-
+    Raises:
+        assertion: model_type must be string
+        assertion: model_type must be either discrete or continuous
     """
-
-    def __init__(self, model_type=None, symvar_type='SX'):
+    def __init__(self, model_type:str=None, symvar_type:str='SX'):
         assert isinstance(model_type, str), 'model_type must be string, you have: {}'.format(type(model_type))
         assert model_type in ['discrete', 'continuous'], 'model_type must be either discrete or continuous, you have: {}'.format(model_type)
         assert symvar_type in ['SX', 'MX'], 'symvar_type must be either SX or MX, you have: {}'.format(symvar_type)
@@ -118,12 +113,12 @@ class Model:
         self._y =   {'name': ['default'], 'var': [self.sv.sym('default', (0,0))]}
 
         # Expressions:
-        self._aux_expression = [entry('default', expr=DM(0))]
+        self._aux_expression = [castools.entry('default', expr=castools.DM(0))]
         self._y_expression = []
 
 
         self.rhs_list = []
-        self.alg_list = [entry('default', expr=[])]
+        self.alg_list = [castools.entry('default', expr=[])]
 
         self.flags = {
             'setup': False,
@@ -133,8 +128,7 @@ class Model:
         """
         Returns the state of the :py:class:`Model` for pickling.
 
-        .. warning::
-
+        Warnings:
             The :py:class:`Model` class supports pickling only if:
 
             1. The model is configured with ``SX`` variables.
@@ -222,8 +216,7 @@ class Model:
         """ Dynamic states.
             CasADi symbolic structure, can be indexed with user-defined variable names.
 
-            .. note ::
-
+            Note:
                 Variables are introduced with :py:func:`Model.set_variable` Use this property only to query
                 variables.
 
@@ -246,8 +239,8 @@ class Model:
 
             * ``.labels()``
 
-
-            :raises assertion: Cannot set model variables directly Use set_variable instead.
+            Raises:
+                assertion: Cannot set model variables directly Use set_variable instead.
         """
         return self._getvar('_x')
 
@@ -260,8 +253,7 @@ class Model:
         """ Inputs.
             CasADi symbolic structure, can be indexed with user-defined variable names.
 
-            .. note ::
-
+            Note:
                 Variables are introduced with :py:func:`Model.set_variable` Use this property only to query
                 variables.
 
@@ -284,7 +276,8 @@ class Model:
 
             * ``.labels()``
 
-            :raises assertion: Cannot set model variables directly Use set_variable instead.
+            Raises:
+                assertion: Cannot set model variables directly Use set_variable instead.
         """
         return self._getvar('_u')
 
@@ -297,8 +290,7 @@ class Model:
         """ Algebraic states.
         CasADi symbolic structure, can be indexed with user-defined variable names.
 
-        .. note ::
-
+        Note:
             Variables are introduced with :py:func:`Model.set_variable` Use this property only to query
             variables.
 
@@ -321,8 +313,8 @@ class Model:
 
         * ``.labels()``
 
-
-        :raises assertion: Cannot set model variables directly Use set_variable instead.
+        Raises:
+            assertion: Cannot set model variables directly Use set_variable instead.
         """
         return self._getvar('_z')
 
@@ -335,8 +327,7 @@ class Model:
         """ Static parameters.
         CasADi symbolic structure, can be indexed with user-defined variable names.
 
-        .. note ::
-
+        Note:
             Variables are introduced with :py:func:`Model.set_variable` Use this property only to query
             variables.
 
@@ -359,8 +350,8 @@ class Model:
 
         * ``.labels()``
 
-
-        :raises assertion: Cannot set model variables directly Use set_variable instead.
+        Raises:
+            assertion: Cannot set model variables directly Use set_variable instead.
         """
         return self._getvar('_p')
 
@@ -373,8 +364,7 @@ class Model:
         """ Time-varying parameters.
             CasADi symbolic structure, can be indexed with user-defined variable names.
 
-            .. note ::
-
+            Note:
                 Variables are introduced with :py:func:`Model.set_variable` Use this property only to query
                 variables.
 
@@ -397,7 +387,8 @@ class Model:
 
             * ``.labels()``
 
-            :raises assertion: Cannot set model variables directly Use set_variable instead.
+            Raises:
+                assertion: Cannot set model variables directly Use set_variable instead.
         """
         return self._getvar('_tvp')
 
@@ -410,8 +401,7 @@ class Model:
         """ Measurements.
             CasADi symbolic structure, can be indexed with user-defined variable names.
 
-            .. note ::
-
+            Note:
                 Measured variables are introduced with :py:func:`Model.set_meas` Use this property only to query
                 variables.
 
@@ -434,7 +424,8 @@ class Model:
 
             * ``.labels()``
 
-            :raises assertion: Cannot set model variables directly Use set_meas instead.
+            Raises:
+                assertion: Cannot set model variables directly Use set_meas instead.
         """
         return self._getvar('_y')
 
@@ -447,8 +438,7 @@ class Model:
         """ Auxiliary expressions.
             CasADi symbolic structure, can be indexed with user-defined variable names.
 
-            .. note ::
-
+            Note:
                 Expressions are introduced with :py:func:`Model.set_expression` Use this property only to query
                 variables.
 
@@ -472,7 +462,8 @@ class Model:
 
             * ``.labels()``
 
-            :raises assertion: Cannot set aux directly Use set_expression instead.
+            Raises:
+                assertion: Cannot set aux directly Use set_expression instead.
         """
         return self._getvar('_aux_expression')
 
@@ -488,8 +479,7 @@ class Model:
             The process noise structure is created automatically, whenever the
             :py:func:`Model.set_rhs` method is called with the argument ``process_noise = True``.
 
-            .. note::
-
+            Note:
                 The process noise is used for the :py:class:`do_mpc.estimator.MHE` and
                 can be used to simulate a disturbed system in the :py:class:`do_mpc.simulator.Simulator`.
 
@@ -501,7 +491,8 @@ class Model:
 
             * ``.labels()``
 
-            :raises assertion: Cannot set w directly
+            Raises:
+                assertion: Cannot set w directly
         """
         return self._getvar('_w')
 
@@ -518,8 +509,7 @@ class Model:
             The measurement noise structure is created automatically, whenever the
             :py:func:`Model.set_meas` method is called with the argument ``meas_noise = True``.
 
-            .. note::
-
+            Note:
                 The measurement noise is used for the :py:class:`do_mpc.estimator.MHE` and
                 can be used to simulate a disturbed system in the :py:class:`do_mpc.simulator.Simulator`.
 
@@ -531,7 +521,8 @@ class Model:
 
             * ``.labels()``
 
-            :raises assertion: Cannot set v directly
+            Raises:
+                assertion: Cannot set v directly
         """
         return self._getvar('_v')
 
@@ -540,7 +531,7 @@ class Model:
         raise Exception('Cannot set measurement noise directly.')
 
 
-    def set_variable(self, var_type, var_name, shape=(1,1)):
+    def set_variable(self, var_type:str, var_name:str, shape:Union[int,Tuple]=(1,1))->Union[castools.SX,castools.MX]:
         """Introduce new variables to the model class. Define variable type, name and shape (optional).
 
         **Example:**
@@ -557,32 +548,34 @@ class Model:
             # Fixed parameters:
             alpha = model.set_variable(var_type='_p', var_name='alpha')
 
-        .. note:: ``var_type`` allows a shorthand notation e.g. ``_x`` which is equivalent to ``states``.
+        Note: 
+            ``var_type`` allows a shorthand notation e.g. ``_x`` which is equivalent to ``states``.
 
-        :param var_type: Declare the type of the variable. The following types are valid (long or short name is possible):
+        Args:
+            var_type : Declare the type of the variable.
+            var_name : Set a user-defined name for the parameter. The names are reused throughout do_mpc.
+            shape : Shape of the current variable (optional), defaults to ``1``. 
+               
+        The following types of **var_type** are valid (long or short name is possible):
 
-            ===========================  ===========  ============================
-            Long name                    short name   Remark
-            ===========================  ===========  ============================
-            ``states``                   ``_x``       Required
-            ``inputs``                   ``_u``       optional
-            ``algebraic``                ``_z``       Optional
-            ``parameter``                ``_p``       Optional
-            ``timevarying_parameter``    ``_tvp``     Optional
-            ===========================  ===========  ============================
-        :type var_type: string
-        :param var_name: Set a user-defined name for the parameter. The names are reused throughout do_mpc.
-        :type var_type: string
-        :param shape: Shape of the current variable (optional), defaults to ``1``.
-        :type shape: int or tuple of length 2.
+        ===========================  ===========  ============================
+        Long name                    short name   Remark
+        ===========================  ===========  ============================
+        ``states``                   ``_x``       Required
+        ``inputs``                   ``_u``       optional
+        ``algebraic``                ``_z``       Optional
+        ``parameter``                ``_p``       Optional
+        ``timevarying_parameter``    ``_tvp``     Optional
+        ===========================  ===========  ============================
 
-        :raises assertion: var_type must be string
-        :raises assertion: var_name must be string
-        :raises assertion: shape must be tuple or int
-        :raises assertion: Cannot call after :py:func:`setup`.
+        Raises:
+            assertion: **var_type** must be string
+            assertion: **var_name** must be string
+            assertion: **shape** must be tuple or int
+            assertion: Cannot call after :py:func:`setup`.
 
-        :return: Returns the newly created symbolic variable.
-        :rtype: casadi.SX
+        Returns:
+            Returns the newly created symbolic variable.
         """
         assert self.flags['setup'] == False, 'Cannot call .set_variable after setup.'
         assert isinstance(var_type, str), 'var_type must be str, you have: {}'.format(type(var_type))
@@ -611,7 +604,7 @@ class Model:
 
         return var
 
-    def set_expression(self, expr_name, expr):
+    def set_expression(self, expr_name:str, expr:Union[castools.SX,castools.MX])->Union[castools.SX,castools.MX]:
         """Introduce new expression to the model class. Expressions are not required but can be used
         to extract further information from the model.
         Expressions must be formulated with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
@@ -630,26 +623,26 @@ class Model:
             model.set_expression('x1x2', x_1*x_2)
 
         This new expression ``x1x2`` is then available in all **do-mpc** modules utilizing
-        this model instance. It can be set, e.g. as the cost function in :py:class:`do-mpc.controller.MPC`
+        this model instance. It can be set, e.g. as the cost function in :py:class:`do_mpc.controller.MPC`
         or simply used in a graphical representation of the simulated / controlled system.
 
-        :param expr_name: Arbitrary name for the given expression. Names are used for key word indexing.
-        :type expr_name: string
-        :param expr: CasADi SX or MX function depending on ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
-        :type expr: CasADi SX or MX
+        Args:
+            expr_name : Arbitrary name for the given expression. Names are used for key word indexing.
+            expr : CasADi SX or MX function depending on ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
 
-        :raises assertion: expr_name must be str
-        :raises assertion: expr must be a casadi SX or MX type
-        :raises assertion: Cannot call after :py:func:`setup`.
+        Raises:
+            assertion: expr_name must be str
+            assertion: expr must be a casadi SX or MX type
+            assertion: Cannot call after :py:func:`setup`.
 
-        :return: Returns the newly created expression. Expression can be used e.g. for the RHS.
-        :rtype: casadi.SX
+        Returns:
+            Returns the newly created expression. Expression can be used e.g. for the RHS.
         """
         assert self.flags['setup'] == False, 'Cannot call .set_expression after setup'
         assert isinstance(expr_name, str), 'expr_name must be str, you have: {}'.format(type(expr_name))
-        assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
+        assert isinstance(expr, (castools.SX, castools.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
 
-        self._aux_expression.append(entry(expr_name, expr = expr))
+        self._aux_expression.append(castools.entry(expr_name, expr = expr))
 
         # Create variable:
         var = self.sv.sym(expr_name, expr.shape)
@@ -658,7 +651,7 @@ class Model:
 
         return expr
 
-    def set_meas(self, meas_name, expr, meas_noise=True):
+    def set_meas(self, meas_name:str, expr:Union[castools.SX,castools.MX], meas_noise:bool=True)->Union[castools.SX,castools.MX]:
         """Introduce new measurable output to the model class.
 
         .. math::
@@ -680,13 +673,11 @@ class Model:
         Note that measurement noise is only meaningful for state-estimation and will not affect the controller.
         Furthermore, it can be set with each :py:class:`do_mpc.simulator.Simulator` call to obtain imperfect outputs.
 
-        .. note::
-
+        Note:
             For moving horizon estimation it is suggested to declare all inputs (``_u``) and e.g. a subset of states (``_x``) as
             measurable output. Some other MHE formulations treat inputs separately.
 
-        .. note::
-
+        Note:
             It is often suggested to deactivate measurement noise for "measured" inputs (``_u``).
             These can typically seen as certain variables.
 
@@ -704,23 +695,22 @@ class Model:
             model.set_meas('x_meas', x_meas)
             model.set_meas('u', u)
 
-        :param expr_name: Arbitrary name for the given expression. Names are used for key word indexing.
-        :type expr_name: string
-        :param expr: CasADi SX or MX function depending on ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
-        :type expr: CasADi SX or MX
-        :param meas_noise: Set if the measurement equation is disturbed by additive noise.
-        :type meas_noise: bool
+        Args:
+            meas_name : Arbitrary name for the given expression. Names are used for key word indexing.
+            expr : CasADi SX or MX function depending on ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
+            meas_noise : Set if the measurement equation is disturbed by additive noise.
 
-        :raises assertion: expr_name must be str
-        :raises assertion: expr must be a casadi SX or MX type
-        :raises assertion: Cannot call after :py:func:`setup`.
+        Raises:
+            assertion: expr_name must be str
+            assertion: expr must be a casadi SX or MX type
+            assertion: Cannot call after :py:func:`setup`.
 
-        :return: Returns the newly created measurement expression.
-        :rtype: casadi.SX
+        Returns:
+            Returns the newly created measurement expression.
         """
         assert self.flags['setup'] == False, 'Cannot call .set_meas after setup'
         assert isinstance(meas_name, str), 'meas_name must be str, you have: {}'.format(type(meas_name))
-        assert isinstance(expr, (casadi.SX, casadi.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
+        assert isinstance(expr, (castools.SX, castools.MX)), 'expr must be a casadi SX or MX type, you have:{}'.format(type(expr))
         assert isinstance(meas_noise, bool), 'meas_noise must be of type boolean. You have: {}'.format(type(meas_noise))
 
         # Create a new process noise variable and add it to the rhs equation.
@@ -731,7 +721,7 @@ class Model:
             self._v['var'].append(var)
             expr += var
 
-        self._y_expression.append(entry(meas_name, expr = expr))
+        self._y_expression.append(castools.entry(meas_name, expr = expr))
 
         # Create variable:
         var = self.sv.sym(meas_name, expr.shape)
@@ -740,7 +730,7 @@ class Model:
 
         return expr
 
-    def set_rhs(self, var_name, expr, process_noise=False):
+    def set_rhs(self, var_name:str, expr:Union[castools.SX,castools.MX], process_noise:bool=False)->None:
         """Formulate the right hand side (rhs) of the ODE:
 
         .. math::
@@ -774,40 +764,35 @@ class Model:
         This is  meaningful for the :py:class:`do_mpc.estimator.MHE` (See :py:func:`do_mpc.estimator.MHE.set_default_objective` for more details).
         Furthermore, it can be set with each :py:class:`do_mpc.simulator.Simulator` call to obtain imperfect (realistic) simulation results.
 
+        Args:
+            var_name : Reference to previously introduced state names (with :py:func:`Model.set_variable`)
+            expr : CasADi SX or MX function depending on ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
+            process_noise : Make the respective state variable non-deterministic.
 
-        :param var_name: Reference to previously introduced state names (with :py:func:`Model.set_variable`)
-        :type var_name: string
-        :param expr: CasADi SX or MX function depending on ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
-        :type expr: CasADi SX or MX
-        :param process_noise: (optional) Make the respective state variable non-deterministic.
-        :type process_noise: boolean
-
-        :raises assertion: var_name must be str
-        :raises assertion: expr must be a casadi SX or MX type
-        :raises assertion: var_name must refer to the previously defined states
-        :raises assertion: Cannot call after :py:func`setup`.
-
-        :return: None
-        :rtype: None
+        Raises:
+            assertion: var_name must be str
+            assertion: expr must be a casadi SX or MX type
+            assertion: var_name must refer to the previously defined states
+            assertion: Cannot call after :py:func`setup`.
         """
         assert self.flags['setup'] == False, 'Cannot call .set_rhs after .setup.'
         assert isinstance(var_name, str), 'var_name must be str, you have: {}'.format(type(var_name))
-        assert isinstance(expr, (casadi.SX, casadi.MX, casadi.DM)), 'expr must be a casadi SX, MX or DM type, you have:{}'.format(type(expr))
+        assert isinstance(expr, (castools.SX, castools.MX, castools.DM)), 'expr must be a casadi SX, MX or DM type, you have:{}'.format(type(expr))
         assert var_name in self._x['name'], 'var_name must refer to the previously defined states ({}). You have: {}'.format(self._x['name'], var_name)
 
         # Create a new process noise variable and add it to the rhs equation.
         if process_noise:
             if self.symvar_type == 'MX':
-                var = MX.sym(var_name+'_noise', expr.shape[0])
+                var = castools.MX.sym(var_name+'_noise', expr.shape[0])
             else:
-                var = SX.sym(var_name+'_noise', expr.shape[0])
+                var = castools.SX.sym(var_name+'_noise', expr.shape[0])
 
             self._w['name'].append(var_name + '_noise')
             self._w['var'].append(var)
             expr += var
         self.rhs_list.extend([{'var_name': var_name, 'expr': expr}])
 
-    def set_alg(self, expr_name, expr):
+    def set_alg(self, expr_name:str, expr:Union[castools.SX,castools.MX])->None:
         """ Introduce new algebraic equation to model.
 
         For the continous time model, the expression must be formulated as
@@ -823,26 +808,23 @@ class Model:
 
            0 = g(x_k,u_k,z_k,p_k,p_{\\text{tv},k})
 
-        .. note::
-
+        Note:
             For the introduced algebraic variables :math:`z \in \mathbb{R}^{n_z}`
             it is required to introduce exactly :math:`n_z` algebraic equations.
             Otherwise :py:meth:`setup` will throw an error message.
 
-        :param expr_name: Name of the introduced expression
-        :type expr_name: string
-        :param expr: CasADi SX or MX function depending on ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
-        :type expr: CasADi SX or MX
-
+        Args:
+            expr_name : Name of the introduced expression
+            expr : CasADi SX or MX function depending on ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
         """
         assert self.flags['setup'] == False, 'Cannot call .set_alg after .setup.'
         assert isinstance(expr_name, str), 'expr_name must be str, you have: {}'.format(type(expr_name))
-        assert isinstance(expr, (casadi.SX, casadi.MX, casadi.DM)), 'expr must be a casadi SX, MX or DM type, you have:{}'.format(type(expr))
+        assert isinstance(expr, (castools.SX, castools.MX, castools.DM)), 'expr must be a casadi SX, MX or DM type, you have:{}'.format(type(expr))
 
-        self.alg_list.append(entry(expr_name, expr = expr))
+        self.alg_list.append(castools.entry(expr_name, expr = expr))
 
 
-    def _convert2struct(self, var_dict):
+    def _convert2struct(self, var_dict:dict)->Union[castools.structure3.SXStruct,castools.structure3.MXStruct]:
         """Helper function for :py:func:`setup`. Not part of the public API.
         This method is used to convert the attributes:
 
@@ -861,15 +843,18 @@ class Model:
         For the symbolic variable type ``MX`` it is impossible to first create symbolic variables and then combine them into a structure (``struct_symMX``).
         We thus create symbolic variables, then create a structure holding similar variables and the substitute these newly introduced variables in all expressions.
 
-        :param var_dict: Attributes that are configured with :py:func:`set_variable` (e.g. ``self._x``). These attributes are of type ``dict`` with the keys ``name`` and ``var``
-        :type var_dict: dict
+        Args:
+            var_dict : Attributes that are configured with :py:func:`set_variable` (e.g. ``self._x``). These attributes are of type ``dict`` with the keys ``name`` and ``var``
+        
+        Returns:
+            CasADi structure
         """
         result_struct =  self.sv.sym_struct([
-            entry(name, shape = var.shape) for var, name in zip(var_dict['var'], var_dict['name'])
+            castools.entry(name, shape = var.shape) for var, name in zip(var_dict['var'], var_dict['name'])
         ])
         return result_struct
 
-    def _substitute_struct_vars(self, var_dict_list, sym_struct_list, expr):
+    def _substitute_struct_vars(self, var_dict_list:list, sym_struct_list:list, expr:Union[castools.structure3.SXStruct,castools.structure3.MXStruct]):
         """Helper function for :py:func:`setup`. Not part of the public API.
         This method is used to substitute the newly introduced structured variables with :py:func:`_convert2struct`
         into the expressions that define the model (e.g. ``_rhs``).
@@ -879,12 +864,10 @@ class Model:
         For the symbolic variable type ``MX`` it is impossible to first create symbolic variables and then combine them into a structure (``struct_symMX``).
         We thus create symbolic variables, then create a structure holding similar variables and the substitute these newly introduced variables in all expressions.
 
-        :param var_dict_list: List of attributes that are configured with :py:func:`set_variable` (e.g. ``self._x``). These attributes are of type ``dict`` with the keys ``name`` and ``var``
-        :type var_dict_list: list
-        :param sym_struct_list: List of the same attributes converted into structures with :py:func:`_convert2struct`.
-        :type sym_struct_list: list
-        :param expr: Casadi structured expr in which the variables from ``var_dict_list`` are substituted with those from ``sym_struct_list``.
-        :type expr: struct_SX or struct_MX
+        Args:
+            var_dict_list : List of attributes that are configured with :py:func:`set_variable` (e.g. ``self._x``). These attributes are of type ``dict`` with the keys ``name`` and ``var``
+            sym_dict_list : List of the same attributes converted into structures with :py:func:`_convert2struct`.
+            expr: Casadi structured expr in which the variables from ``var_dict_list`` are substituted with those from ``sym_struct_list``.
         """
         assert len(var_dict_list)==len(sym_struct_list)
 
@@ -893,7 +876,7 @@ class Model:
             assert var_dict['name'] == sym_struct.keys()
 
             for var, name in zip(var_dict['var'], var_dict['name']):
-                subs = substitute(subs, var, sym_struct[name])
+                subs = castools.substitute(subs, var, sym_struct[name])
 
         if self.symvar_type == 'MX':
             expr = expr(subs)
@@ -928,7 +911,6 @@ class Model:
 
         This is a bit of a HACKY solution and might require fixing if CasADi is changing its API.
         """
-
         for var_dict, sym_struct in zip(var_dict_list, sym_struct_list):
             assert var_dict['name'] == sym_struct.keys()
 
@@ -936,25 +918,20 @@ class Model:
                 var.__dict__['this'] = sym_struct[name].__dict__['this']
 
 
-    def setup(self):
+    def setup(self)->None:
         """Setup method must be called to finalize the modelling process.
         All required model variables must be declared.
         The right hand side expression for ``_x`` must have been set with :py:func:`set_rhs`.
 
         Sets default measurement function (state feedback) if :py:func:`set_meas` was not called.
 
-        .. warning::
-
+        Warnings:
             After calling :py:func:`setup`, the model is locked and no further variables,
             expressions etc. can be set.
 
-        :raises assertion: Definition of right hand side (rhs) is incomplete
-
-        :return: None
-        :rtype: None
+        Raises:
+            assertion: Definition of right hand side (rhs) is incomplete
         """
-
-
         # Set all states as measurements if set_meas was not called by user.
         if not self._y_expression:
             for name, var in zip(self._x['name'], self._x['var']):
@@ -1012,34 +989,34 @@ class Model:
         self._y = _y
         self._aux = _aux
         
-        A_lin_expr = jacobian(self._rhs,self._x)
-        B_lin_expr = jacobian(self._rhs,self._u)
-        C_lin_expr = jacobian(self._y_expression,self._x)
-        D_lin_expr = jacobian(self._y_expression,self._u)
+        A_lin_expr = castools.jacobian(self._rhs,self._x)
+        B_lin_expr = castools.jacobian(self._rhs,self._u)
+        C_lin_expr = castools.jacobian(self._y_expression,self._x)
+        D_lin_expr = castools.jacobian(self._y_expression,self._u)
 
         # Declare functions for the right hand side and the aux_expressions.
-        self._rhs_fun = Function('rhs_fun',
+        self._rhs_fun = castools.Function('rhs_fun',
                                  [_x, _u, _z, _tvp, _p, _w], [self._rhs],
                                  ["_x", "_u", "_z", "_tvp", "_p", "_w"], ["_rhs"])
-        self._alg_fun = Function('alg_fun',
+        self._alg_fun = castools.Function('alg_fun',
                                  [_x, _u, _z, _tvp, _p, _w], [self._alg],
                                  ["_x", "_u", "_z", "_tvp", "_p", "_w"], ["_alg"])
-        self._aux_expression_fun = Function('aux_expression_fun',
+        self._aux_expression_fun = castools.Function('aux_expression_fun',
                                             [_x, _u, _z, _tvp, _p], [self._aux_expression],
                                             ["_x", "_u", "_z", "_tvp", "_p"], ["_aux_expression"])
-        self._meas_fun = Function('meas_fun',
+        self._meas_fun = castools.Function('meas_fun',
                                   [_x, _u, _z, _tvp, _p, _v], [self._y_expression],
                                   ["_x", "_u", "_z", "_tvp", "_p", "_v"], ["_y_expression"])
-        self.A_fun = Function('A_fun',
+        self.A_fun = castools.Function('A_fun',
                               [_x, _u, _z, _tvp, _p, _w],[A_lin_expr],
                               ["_x", "_u", "_z", "_tvp", "_p", "_w"],["A_lin_expr"])
-        self.B_fun = Function('B_fun',
+        self.B_fun = castools.Function('B_fun',
                               [_x, _u, _z, _tvp, _p, _w],[B_lin_expr],
                               ["_x", "_u", "_z", "_tvp", "_p", "_w"],["B_lin_expr"])
-        self.C_fun = Function('C_fun',
+        self.C_fun = castools.Function('C_fun',
                               [_x, _u, _z, _tvp, _p, _v],[C_lin_expr],
                               ["_x", "_u", "_z", "_tvp", "_p", "_v"],["C_lin_expr"])
-        self.D_fun = Function('D_fun',
+        self.D_fun = castools.Function('D_fun',
                               [_x, _u, _z, _tvp, _p, _v],[D_lin_expr],
                               ["_x", "_u", "_z", "_tvp", "_p", "_v"],["D_lin_expr"]) 
 
@@ -1065,8 +1042,6 @@ class Model:
         self.flags['setup'] = True
 
 
-
-    
     @staticmethod
     def _transfer_variables(old_model, new_model, transfer=['_x', '_u', '_tvp', '_p']):
         """Private and static method to transfer variables from old model to new model.
@@ -1096,31 +1071,27 @@ class Model:
             new_model.set_expression(key, expr_struct[key])          
         
     
-    def get_linear_system_matrices(self, xss=None, uss=None, z=None, tvp=None,p=None):
+    def get_linear_system_matrices(self, 
+                                   xss:np.ndarray=None, 
+                                   uss:np.ndarray=None, 
+                                   z:np.ndarray=None, 
+                                   tvp:np.ndarray=None,
+                                   p:np.ndarray=None
+                                   )->Union[Tuple[castools.SX,castools.SX,castools.SX,castools.SX],Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray]]:
         """
         Returns the matrix quadrupel :math:`(A,B,C,D)` of the linearized system around the operating point (``xss,uss,z,tvp,p,w,v``).
         All arguments are optional in which case the matrices might still be symbolic. 
         If the matrices are not symbolic, they are returned as numpy arrays.
         
-        :param xss: Steady state state (optional)
-        :type xss: numpy.ndarray
-        :param uss: Steady state input (optional)
-        :type uss: numpy.ndarray
-        :param z: steady state algebraic states (optional)
-        :type z: numpy.ndarray
-        :param tvp: time varying parameters set point (optional)
-        :type tvp: numpy.ndarray
-        :param p: parameters set point (optional)
-        :type p: numpy.ndarray
+        Args:
+            xss : Steady state state
+            uss : Steady state input
+            z : Steady state algebraic states
+            tvp : time varying parameters set point
+            p : parameters set point
         
-        :return: A - State matrix
-        :rtype: numpy.ndarray / CasADi SX
-        :return: B - Input matrix
-        :rtype: numpy.ndarray / CasADi SX
-        :return: C - Output matrix
-        :rtype: numpy.ndarray / CasADi SX
-        :return: D - Feedforward matrix
-        :rtype: numpy.ndarray / CasADi SX
+        Returns:
+            State matrix, Input matrix, Output matrix, Feedforward matrix
         """
         if self.symvar_type == 'MX':
             raise ValueError("get_linear_system_matrices requires symvar_type SX")
@@ -1144,14 +1115,14 @@ class Model:
         # Constant matrices are converted to numpy arrays.
         A = self.A_fun(xss, uss, z, tvp, p, w)
         if A.is_constant():
-            A = DM(A).full()
+            A = castools.DM(A).full()
         B = self.B_fun(xss, uss, z, tvp, p, w)
         if B.is_constant():
-            B = DM(B).full()
+            B = castools.DM(B).full()
         C = self.C_fun(xss, uss, z, tvp, p, v)
         if C.is_constant():
-            C = DM(C).full()
+            C = castools.DM(C).full()
         D = self.D_fun(xss, uss, z, tvp, p, v)
         if D.is_constant():
-            D = DM(D).full()
+            D = castools.DM(D).full()
         return A,B,C,D

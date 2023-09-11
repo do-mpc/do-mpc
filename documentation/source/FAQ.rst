@@ -234,3 +234,24 @@ Both the MPC controller and MHE estimator support this feature, which can be con
 	mpc.set_nl_cons('cons_name', expression, upper_bound, soft_constraint=True)
 
 See the full feature documentation here: :py:mod:`do_mpc.optimizer.Optimizer.set_nl_cons`
+
+
+Silence IPOPT
+#############
+
+IPOPT is the default solver for the :py:class:`do_mpc.controller.MPC` controller and :py:class:`do_mpc.estimator.MHE` estimator.
+While we generally **recommend to have a look at the solver output**, to check for feasibility issues,
+it may be useful to silence IPOPT in some cases.
+
+This can be achieved conveniently over the :py:class:`do_mpc.controller.MPCSettings` and :py:class:`do_mpc.estimator.MHESettings` 
+which are stored as the attribute ``settings``, e.g.
+
+::
+
+    # for the MPC
+
+    mpc.settings.supress_ipopt_output()
+
+    # or for the MHE
+
+    mhe.settings.supress_ipopt_output()
