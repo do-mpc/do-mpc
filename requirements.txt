@@ -1,8 +1,4 @@
-onnx>=1.13.0
-ipykernel
 casadi>=3.6.0
 scipy
 numpy
 matplotlib
-packaging
-asyncua

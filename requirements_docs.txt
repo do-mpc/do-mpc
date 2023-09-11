@@ -1,5 +1,5 @@
 
--r ../requirements.txt
+-r requirements_full.txt
 sphinx
 sphinx-book-theme
 sphinx-copybutton

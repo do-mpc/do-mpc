@@ -26,4 +26,4 @@ formats: all
 # https://docs.readthedocs.io/en/stable/guides/reproducible-builds.html
 python:
   install:
-    - requirements: documentation/docs_requirements.txt
+    - requirements: requirements_docs.txt
