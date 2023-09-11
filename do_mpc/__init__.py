@@ -71,6 +71,23 @@ The core modules are used to create the **do-mpc** control loop (click on elemen
     }
 """
 
+from packaging import version
+import warnings
+import importlib
+
+# Check if optional toollboxes were installed (pip install do_mpc[full])
+if importlib.util.find_spec("onnx"):
+    import onnx
+    __ONNX_INSTALLED__ = True
+else:
+    __ONNX_INSTALLED__ = False
+
+if importlib.util.find_spec("asyncua"):
+    import asyncua
+    __ASYNCUA_INSTALLED__ = True
+else:
+    __ASYNCUA_INSTALLED__ = False
+
 from . import tools
 from . import model
 from . import optimizer
@@ -87,10 +104,6 @@ from . import opcua
 
 from ._version import __version__
 
-import pdb
-
-from packaging import version
-import warnings
 
 import casadi
 

@@ -1,0 +1,11 @@
+
+-r requirements_full.txt
+sphinx
+sphinx-book-theme
+sphinx-copybutton
+sphinx-autodoc-typehints
+graphviz
+myst-parser
+pygments
+nbsphinx
+docutils

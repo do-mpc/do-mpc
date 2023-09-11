@@ -1,17 +1,4 @@
-onnx>=1.13.0
-sphinx
-ipykernel
-nbsphinx
-pygments
-docutils
-sphinx-book-theme
-sphinx-copybutton
-sphinx-autodoc-typehints
-graphviz
 casadi>=3.6.0
 scipy
 numpy
 matplotlib
-myst-parser
-packaging
-asyncua
