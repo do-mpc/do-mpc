@@ -352,7 +352,7 @@ class ONNXOperations:
         """
 
         attr_dict = {
-            k.name: k.i for k in attribute
+            k.name: k.i if k.type == 2 else k.f for k in attribute
         }
 
         A = args[0]
