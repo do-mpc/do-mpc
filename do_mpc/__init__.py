@@ -78,15 +78,15 @@ import importlib
 # Check if optional toollboxes were installed (pip install do_mpc[full])
 if importlib.util.find_spec("onnx"):
     import onnx
-    ONNX_INSTALLED = True
+    __ONNX_INSTALLED__ = True
 else:
-    ONNX_INSTALLED = False
+    __ONNX_INSTALLED__ = False
 
 if importlib.util.find_spec("asyncua"):
     import asyncua
-    ASYNCUA_INSTALLED = True
+    __ASYNCUA_INSTALLED__ = True
 else:
-    ASYNCUA_INSTALLED = False
+    __ASYNCUA_INSTALLED__ = False
 
 from . import tools
 from . import model
