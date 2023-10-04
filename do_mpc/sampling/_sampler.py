@@ -162,7 +162,7 @@ class Sampler:
             sample_function: Function to create each sample of the sampling plan.
         """
         assert isinstance(sample_function, (types.FunctionType, types.BuiltinFunctionType)), 'sample_function must be a function'
-        dset = set(inspect.getargspec(sample_function).args) - set(self.sampling_vars)
+        dset = set(inspect.getfullargspec(sample_function).args) - set(self.sampling_vars)
         assert len(dset) == 0, 'sample_function must only contain keyword arguments that appear as sample vars in the sampling_plan. You have the unknown arguments: {}'.format(dset)
 
         self.sample_function = sample_function
