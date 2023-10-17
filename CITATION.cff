@@ -1,0 +1,110 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: do-mpc
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - orcid: 'https://orcid.org/0000-0003-3490-1256'
+    given-names: Felix
+    family-names: Fiedler
+    email: felix.fiedler@tu-dortmund.de
+    affiliation: >-
+      Chair of Process Automation Systems, TU Dortmund
+      University
+  - given-names: 'Benjamin '
+    family-names: Karg
+    email: benjamin.karg@tu-dortmund.de
+    affiliation: >-
+      Chair of Process Automation Systems, TU Dortmund
+      University
+    orcid: 'https://orcid.org/0000-0002-9779-3101'
+  - given-names: Lukas
+    family-names: Lüken
+    email: lukas.lueken@tu-dortmund.de
+    affiliation: >-
+      Chair of Process Automation Systems, TU Dortmund
+      University
+    orcid: 'https://orcid.org/0009-0004-5599-8282'
+  - given-names: Dean
+    family-names: Brandner
+    email: dean.brandner@tu-dortmund.de
+    affiliation: >-
+      Chair of Process Automation Systems, TU Dortmund
+      University
+    orcid: 'https://orcid.org/0000-0003-1500-7064'
+  - given-names: Moritz
+    family-names: Heinlein
+    email: moritz.heinlein@tu-dortmund.de
+    affiliation: >-
+      Chair of Process Automation Systems, TU Dortmund
+      University
+    orcid: 'https://orcid.org/0000-0002-2476-5919'
+  - given-names: Felix
+    family-names: Brabender
+    email: felix.brabender@tu-dortmund.de
+    affiliation: >-
+      Chair of Process Automation Systems, TU Dortmund
+      University
+    orcid: 'https://orcid.org/0009-0007-0737-5998'
+  - given-names: Sergio
+    family-names: Lucia
+    email: sergio.lucia@tu-dortmund.de
+    affiliation: >-
+      Chair of Process Automation Systems, TU Dortmund
+      University
+    orcid: 'https://orcid.org/0000-0002-3347-5593'
+identifiers:
+  - type: doi
+    value: 10.1016/j.conengprac.2023.105676
+    description: The DOI of the encompassing paper.
+repository-code: 'https://github.com/do-mpc/do-mpc'
+url: 'https://www.do-mpc.com/en/latest/index.html'
+abstract: >-
+  do-mpc is a comprehensive open-source toolbox for robust
+  model predictive control (MPC) and moving horizon
+  estimation (MHE). do-mpc enables the efficient formulation
+  and solution of control and estimation problems for
+  nonlinear systems, including tools to deal with
+  uncertainty and time discretization. The modular structure
+  of do-mpc contains simulation, estimation and control
+  components that can be easily extended and combined to fit
+  many different applications.
+keywords:
+  - Nonlinear model predictive control
+  - Learning-based control
+  - Robust control
+license: LGPL-3.0
+preferred-citation:
+  type: article
+  authors:
+  - family-names: "Fiedler"
+    given-names: "Felix"
+    orcid: "https://orcid.org/0000-0003-3490-1256"
+  - family-names: "Karg"
+    given-names: "Benjamin "
+    orcid: "https://orcid.org/0000-0002-9779-3101"
+  - family-names: "Lüken"
+    given-names: "Lukas"
+    orcid: "https://orcid.org/0009-0004-5599-8282"
+  - family-names: "Brandner"
+    given-names: "Dean"
+    orcid: "https://orcid.org/0000-0003-1500-7064"
+  - family-names: "Heinlein"
+    given-names: "Moritz"
+    orcid: "https://orcid.org/0000-0002-2476-5919"
+  - family-names: "Brabender"
+    given-names: "Felix"
+    orcid: "https://orcid.org/0009-0007-0737-5998"
+  - family-names: "Sergio"
+    given-names: "Lucia"
+    orcid: "https://orcid.org/0000-0002-3347-5593"
+  doi: "10.1016/j.conengprac.2023.105676"
+  journal: "Control Engineering Practice"
+  month: 11
+  title: "do-mpc: Towards FAIR nonlinear and robust model predictive control"
+  volume: 140
+  year: 2023
