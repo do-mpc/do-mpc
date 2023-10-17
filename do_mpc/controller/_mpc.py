@@ -181,7 +181,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         All necessary parameters of the mpc formulation.
 
         This is a core attribute of the MPC class. It is used to set and change parameters when setting up the controller
-        by accessing an instance of :py:class:`MPCSettings`.
+        by accessing an instance of :py:class:`MPCSettings`. 
         
         Example to change settings:
 
