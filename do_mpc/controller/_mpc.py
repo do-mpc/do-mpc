@@ -187,7 +187,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         ::
 
-            MPC.settings.n_horizon = 20
+            MPC.settings.n_horizon = 15
 
         Note:     
             Settings cannot be updated after calling :py:meth:`do_mpc.controller.MPC.setup`.
