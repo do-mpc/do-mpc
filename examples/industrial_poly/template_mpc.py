@@ -68,6 +68,7 @@ def template_mpc(model, silence_solver = False):
     mpc.bounds['lower','_x','Tout_AWT'] = 288.0
     mpc.bounds['lower','_x','accum_monom'] = 0.0
 
+    mpc.bounds['upper','_x','T_R'] = 363.15 + temp_range
     mpc.bounds['upper','_x','T_S'] = 400.0
     mpc.bounds['upper','_x','Tout_M'] = 400.0
     mpc.bounds['upper','_x','T_EK'] = 400.0
