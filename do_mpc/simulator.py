@@ -31,6 +31,7 @@ import pdb
 import do_mpc
 from typing import Union,Callable
 from dataclasses import dataclass
+from typing import Dict
 
 
 # Define what is included in the Sphinx documentation.
@@ -80,6 +81,12 @@ class ContinousSimulatorSettings(SimulatorSettings):
 
     integration_tool: str = 'cvodes'
     """Integration tool to be used. Options are 'cvodes' and 'idas'"""
+
+    integration_opts: Dict = {}
+    """Dictionary with options for the CasADi integrator call. Used tu update the opts dict in :py:func:`setup`.
+    
+    All options are listed `here <https://casadi.sourceforge.net/api/html/db/d3d/classcasadi_1_1Integrator.html>`_."""
+
 
 
 class Simulator(do_mpc.model.IteratedVariables):
@@ -241,6 +248,7 @@ class Simulator(do_mpc.model.IteratedVariables):
                 'abstol': self.settings.abstol,
                 'reltol': self.settings.reltol,
             }
+            opts.update(self.settings.integration_opts)
 
             if do_mpc.CASADI_LEGACY_MODE:
                 opts['tf'] = self.settings.t_step

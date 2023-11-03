@@ -49,8 +49,8 @@ def template_mpc(model, silence_solver = False):
 
 
     mterm = model.aux['cost']
-    lterm = model.aux['cost'] # terminal cost
-
+    lterm = model.aux['cost'] 
+    
     mpc.set_objective(mterm=mterm, lterm=lterm)
     mpc.set_rterm(u=1e-4)
 
