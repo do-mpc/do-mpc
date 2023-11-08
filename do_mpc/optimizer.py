@@ -24,6 +24,7 @@
 Shared tools for optimization-based estimation (MHE) and control (MPC).
 """
 import numpy as np
+import casadi
 import casadi.tools as castools
 import pdb
 import do_mpc
@@ -36,7 +37,7 @@ class Optimizer:
     This class establishes the jointly used attributes, methods and properties.
 
     Warnings:
-        The ``Optimizer`` base class can not be used independently. The methods and properties are 
+        The ``Optimizer`` base class can not be used independently. The methods and properties are
         inherited to :py:class:`do_mpc.estimator.MHE` and :py:class:`do_mpc.controller.MPC`.
     """
     def __init__(self):
@@ -220,7 +221,7 @@ class Optimizer:
         This is a more advanced method of setting bounds on optimization variables of the MPC/MHE problem.
         Users with less experience are advised to use :py:attr:`bounds` instead.
 
-        The attribute returns a nested structure that can be indexed using powerindexing. Please refer to :py:attr:`opt_x` for more details. 
+        The attribute returns a nested structure that can be indexed using powerindexing. Please refer to :py:attr:`opt_x` for more details.
 
         Note:
             The attribute automatically considers the scaling variables when setting the bounds. See :py:attr:`scaling` for more details.
@@ -228,16 +229,16 @@ class Optimizer:
         Note:
             Modifications must be done after calling :py:meth:`prepare_nlp` or :py:meth:`setup` respectively.
         """
-        return self._lb_opt_x[ind] 
+        return self._lb_opt_x[ind]
 
     @lb_opt_x.setter
     def lb_opt_x(self, ind, val):
         self._lb_opt_x[ind] = val
-        # Get canonical index 
+        # Get canonical index
         cind = self._lb_opt_x.f[ind]
         # Modify the newly set values by considering the scaling variables. This requires the canonical index.
         self._lb_opt_x.master[cind] = self._lb_opt_x.master[cind]/self.opt_x_scaling.master[cind]
-        
+
 
 
     @do_mpc.tools.IndexedProperty
@@ -246,7 +247,7 @@ class Optimizer:
         This is a more advanced method of setting bounds on optimization variables of the MPC/MHE problem.
         Users with less experience are advised to use :py:attr:`bounds` instead.
 
-        The attribute returns a nested structure that can be indexed using powerindexing. Please refer to :py:attr:`opt_x` for more details. 
+        The attribute returns a nested structure that can be indexed using powerindexing. Please refer to :py:attr:`opt_x` for more details.
 
         Note:
             The attribute automatically considers the scaling variables when setting the bounds. See :py:attr:`scaling` for more details.
@@ -480,12 +481,12 @@ class Optimizer:
 
         self.data.init_storage()
 
-    def set_nl_cons(self, 
-                    expr_name:str, 
-                    expr:Union[castools.SX,castools.MX], 
-                    ub:float=np.inf, 
-                    soft_constraint:bool=False, 
-                    penalty_term_cons:int=1, 
+    def set_nl_cons(self,
+                    expr_name:str,
+                    expr:Union[castools.SX,castools.MX],
+                    ub:float=np.inf,
+                    soft_constraint:bool=False,
+                    penalty_term_cons:int=1,
                     maximum_violation:float=np.inf)->Union[castools.SX,castools.MX]:
         """Introduce new constraint to the class. Further constraints are optional.
         Expressions must be formulated with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``.
@@ -681,13 +682,13 @@ class Optimizer:
         If an existing compilation with the name ``libname`` is found, it is used. **This can be dangerous, if the NLP has changed**
         (user tweaked the cost function, the model etc.).
 
-        Warnings: 
+        Warnings:
             This feature is experimental and currently only supported on Linux and MacOS.
 
         **What happens here?**
-        
+
         1. The NLP is written to a C-file (``cname``)
-        
+
         2. The C-File (``cname``) is compiled. The custom compiler uses:
 
         ::
@@ -698,7 +699,7 @@ class Optimizer:
 
         ::
 
-            self.S = nlpsol('solver_compiled', 'ipopt', f'{libname}', self.nlpsol_opts)      
+            self.S = casadi.nlpsol('solver_compiled', 'ipopt', f'{libname}', self.nlpsol_opts)
 
         Args:
             overwrite: If True, the existing compiled NLP will be overwritten.
@@ -725,7 +726,7 @@ class Optimizer:
             subprocess.Popen(compiler_command, shell=True).wait()
 
         # Overwrite solver object with loaded nlp:
-        self.S = nlpsol('solver_compiled', 'ipopt', libname, self.settings.nlpsol_opts)
+        self.S = casadi.nlpsol('solver_compiled', 'ipopt', libname, self.settings.nlpsol_opts)
         print('Using compiled NLP solver.')
 
     def solve(self)->None:
@@ -1051,7 +1052,7 @@ class Optimizer:
             Only AFTER calling :py:meth:`prepare_nlp` the previously mentionned attributes
             :py:attr:`nlp_obj`, :py:attr:`nlp_cons`, :py:attr:`nlp_cons_lb`, :py:attr:`nlp_cons_ub`
             become available.
-        
+
         Returns:
             None
         """
