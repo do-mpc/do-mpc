@@ -28,6 +28,7 @@ import itertools
 import time
 import warnings
 from do_mpc.tools import IndexedProperty
+from do_mpc.tools._casstructure import _SymVar
 from typing import Union, Callable, Optional
 from dataclasses import asdict
 import do_mpc
@@ -38,17 +39,17 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
     .. versionadded:: >v4.5.1
 
-        New interface to _settings. The class has an attribute ``_settings`` which is an instance of :py:class:`MPCSettings` (please see this documentation for a list of available _settings).
+        New interface to settings. The class has a property called ``settings`` which accesses an instance of :py:class:`MPCSettings` (please see this documentation for a list of available settings).
         Settings are now chosen as:
 
         ::
 
-            mpc._settings.n_horizon = 20
+            mpc.settings.n_horizon = 20
         
-        Previously, _settings were passed to :py:meth:`set_param`. This method is still available and wraps the new interface.
+        Previously, settings were passed to :py:meth:`set_param`. This method is still available and wraps the new interface.
         The new method has important advantages:
         
-        1. The ``mpc._settings`` attribute can be printed to see the current configuration.
+        1. The ``mpc.settings`` attribute can be printed to see the current configuration.
 
         2. Context help is available in most IDEs (e.g. VS Code) to see the available _settings, the type and a description.
 
@@ -67,7 +68,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
     Configuring and setting up the MPC controller involves the following steps:
 
-    1. Configure the MPC controller with :py:class:`MPCSettings`. The MPC instance has the attribute ``_settings`` which is an instance of :py:class:`MPCSettings`. 
+    1. Configure the MPC controller with :py:class:`MPCSettings`. The MPC instance has the attribute ``settings`` which is an instance of :py:class:`MPCSettings`. 
 
     2. Set the objective of the control problem with :py:func:`set_objective` and :py:func:`set_rterm`
 
@@ -157,6 +158,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         self._x_terminal_ub = model._x(np.inf)
 
         self.rterm_factor = self.model._u(0.0)
+        self.u_prev = self.copy_struct(self.model.u)
 
         # Initialize structure to hold the optimial solution and initial guess:
         self._opt_x_num = None
@@ -169,6 +171,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         # Flags are checked when calling .setup.
         self.flags.update({
             'set_objective': False,
+            'rterm_fun': False,
             'set_rterm': False,
             'set_tvp_fun': False,
             'set_p_fun': False,
@@ -578,7 +581,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         self.flags['set_objective'] = True
 
-    def set_rterm(self, **kwargs)->None:
+    def set_rterm(self, rterm:Union[castools.SX,castools.MX]=None, **kwargs)->None:
         """Set the penality factor for the inputs. Call this function with keyword argument refering to the input names in
         :py:class:`model` and the penalty factor as the respective value.
 
@@ -616,15 +619,85 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         and :math:`r_{F_{\\text{flow}}}=10`.
 
         Note:
+            As of version 4.6.3, set_rterm can be called with a user-defined penalty that overrides the default quadratic penalty term.
+            Note that the inputs of the previous calculation step are stored in the mpc class and cannot be called from the model, see example.
+            ``u_prev`` is generated automatically when the :py:class:`MPC` class is initialized.
+
+        Args:
+            rterm: Penalty term on input change - **scalar** symbolic expression with respect to ``_x``, ``_u``, ``_u_prev``, ``_u_prev``, ``_tvp``, ``_p``
+
+        **Example:**
+
+        ::
+            # in model definition:
+            Q_heat = model.set_variable(var_type='_u', var_name='Q_heat')
+            F_flow = model.set_variable(var_type='_u', var_name='F_flow')
+
+            ...
+            # in MPC configuration:
+            rterm = (model.u['Q_heat'] - mpc.u_prev['Q_heat'])**2 + (model.u['F_flow'] - mpc.u_prev['F_flow'])**2
+            
+            MPC.set_rterm(rterm)
+
+        Note:
             For :math:`k=0` we obtain :math:`u_{-1}` from the previous solution.
         """
         assert self.flags['setup'] == False, 'Cannot call .set_rterm after .setup().'
 
+        # User defined penalty term
+        if rterm is not None:
+            # Check if rterm is valid:
+            assert rterm.shape == (1,1), 'rterm must have shape=(1,1). You have {}'.format(rterm.shape)
+            
+            if not isinstance(rterm, (castools.DM, castools.SX, castools.MX)):
+                raise Exception('mterm must be of type casadi.DM, casadi.SX or casadi.MX. You have: {}.'.format(type(rterm)))
+            
+            _u_prev = self.u_prev
+            _x, _u, _z, _tvp, _p = self.model['x','u','z','tvp','p']
+            self.rterm_fun = castools.Function('rterm', [_x, _u, _u_prev, _z, _tvp, _p], [rterm])
+
+            self.flags['rterm_fun'] = True
+        
+        # Default quadratic penalty term
+        else:     
+            for key, val in kwargs.items():
+                assert key in self.model._u.keys(), 'Must pass keywords that refer to input names defined in model. Valid is: {}. You have: {}'.format(self.model._u.keys(), key)
+                assert isinstance(val, (int, float, np.ndarray)), 'Value for {} must be int, float or numpy.ndarray. You have: {}'.format(key, type(val))
+                self.rterm_factor[key] = val
+
         self.flags['set_rterm'] = True
-        for key, val in kwargs.items():
-            assert key in self.model._u.keys(), 'Must pass keywords that refer to input names defined in model. Valid is: {}. You have: {}'.format(self.model._u.keys(), key)
-            assert isinstance(val, (int, float, np.ndarray)), 'Value for {} must be int, float or numpy.ndarray. You have: {}'.format(key, type(val))
-            self.rterm_factor[key] = val
+
+    def copy_struct(self, original_struct):
+        """
+        Create a copy of a given CasADi struct.
+        This method is called within :py:func:`__init__` to copy the struct holding the system inputs.
+        The copied struct is an identical copy of the input-struct and used in :py:func:`set_rterm` as a symbolic variable for past inputs.
+
+        Args:
+            original_struct: A CasADi struct (either SXStruct or MXStruct).
+
+        Returns:
+            A new CasADi struct with the same structure and variable names as the original.
+        """
+        struct_type = type(original_struct)
+
+        if struct_type == castools.struct_symSX:
+            sv = _SymVar('SX')
+        elif struct_type == castools.struct_symMX:
+            sv = _SymVar('MX')
+        else:
+            raise ValueError("Input is not a valid CasADi struct")
+
+        var_dict = {
+            'name': [name for name in original_struct.keys()],
+            'var': [original_struct[name] for name in original_struct.keys()]
+        }
+
+        new_struct = sv.sym_struct([
+            castools.entry(name, shape=var.shape) for var, name in zip(var_dict['var'], var_dict['name'])
+        ])
+
+        return new_struct
 
     def get_p_template(self, n_combinations:int)->None:
         """Obtain output template for :py:func:`set_p_fun`.
@@ -1166,10 +1239,20 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                                                          opt_p['_p', current_scenario])
 
                     # U regularization:
-                    if k == 0:
-                        obj += self.rterm_factor.cat.T@((opt_x['_u', 0, s_u]-opt_p['_u_prev']/self._u_scaling)**2)
-                    else:
-                        obj += self.rterm_factor.cat.T@((opt_x['_u', k, s_u]-opt_x['_u', k-1, parent_scenario[k][s_u]])**2)
+                    # For user defined penalty term
+                    if self.flags['rterm_fun'] == True:
+                        if k==0:
+                            obj += self.rterm_fun(opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s_u], opt_p['_u_prev']/self._u_scaling,
+                                                     opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
+                        else:
+                            obj += self.rterm_fun(opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s_u], opt_x['_u', k-1, parent_scenario[k][s_u]],
+                                                     opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
+                    # Default penalty term
+                    if self.flags['rterm_fun'] == False:
+                        if k == 0:
+                            obj += self.rterm_factor.cat.T@((opt_x['_u', 0, s_u]-opt_p['_u_prev']/self._u_scaling)**2)
+                        else:
+                            obj += self.rterm_factor.cat.T@((opt_x['_u', k, s_u]-opt_x['_u', k-1, parent_scenario[k][s_u]])**2)
 
                     # Calculate the auxiliary expressions for the current scenario:
                     opt_aux['_aux', k, s] = self.model._aux_expression_fun(
