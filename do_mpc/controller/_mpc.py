@@ -629,6 +629,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         **Example:**
 
         ::
+
             # in model definition:
             Q_heat = model.set_variable(var_type='_u', var_name='Q_heat')
             F_flow = model.set_variable(var_type='_u', var_name='F_flow')
@@ -636,7 +637,6 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             ...
             # in MPC configuration:
             rterm = (model.u['Q_heat'] - mpc.u_prev['Q_heat'])**2 + (model.u['F_flow'] - mpc.u_prev['F_flow'])**2
-            
             MPC.set_rterm(rterm)
 
         Note:
@@ -670,14 +670,14 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     def copy_struct(self, original_struct):
         """
         Create a copy of a given CasADi struct.
-        This method is called within :py:func:`__init__` to copy the struct holding the system inputs.
-        The copied struct is an identical copy of the input-struct and used in :py:func:`set_rterm` as a symbolic variable for past inputs.
+        This method is called during initialization to copy the struct containing the system inputs ``u``.
+        The copied structure is an identical copy of the input structure and is used in :py:func:`set_rterm` as a symbolic variable for past inputs.
 
         Args:
             original_struct: A CasADi struct (either SXStruct or MXStruct).
 
         Returns:
-            A new CasADi struct with the same structure and variable names as the original.
+            A new CasADi struct with the same structure and entry names as the original.
         """
         struct_type = type(original_struct)
 
