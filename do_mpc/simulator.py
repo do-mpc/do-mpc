@@ -73,6 +73,18 @@ class ContinousSimulatorSettings(SimulatorSettings):
 
         simulator = do_mpc.simulator.Simulator(model)
         simulator.settings.t_step = 0.5
+    
+
+    Note:     
+            As version 4.6.3, additional CasADI integrator options can be accessed as can be seen in the example below:
+
+    **Example**:
+
+    ::
+
+        simulator = do_mpc.simulator.Simulator(model)
+        simulator.settings.integration_opts = {'gather_stats':True, 'print_stats': True, 'verbose':False}
+
     """
     
     abstol: float = 1e-10
