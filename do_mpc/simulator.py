@@ -28,9 +28,11 @@ Simulate continous-time ODE/DAE or discrete-time dynamic systems.
 import numpy as np
 import casadi.tools as castools
 import pdb
+import warnings
 import do_mpc
 from typing import Union,Callable
 from dataclasses import dataclass
+from typing import Dict
 
 
 # Define what is included in the Sphinx documentation.
@@ -58,6 +60,7 @@ class SimulatorSettings:
         if self.t_step is None:
             raise ValueError("t_step must be set")
 
+
 class ContinousSimulatorSettings(SimulatorSettings):
     """Settings for :py:class:`Simulator` for continous-time systems.
     
@@ -70,6 +73,18 @@ class ContinousSimulatorSettings(SimulatorSettings):
 
         simulator = do_mpc.simulator.Simulator(model)
         simulator.settings.t_step = 0.5
+    
+
+    Note:     
+            As version 4.6.3, additional CasADI integrator options can be accessed as can be seen in the example below:
+
+    **Example**:
+
+    ::
+
+        simulator = do_mpc.simulator.Simulator(model)
+        simulator.settings.integration_opts = {'gather_stats':True, 'print_stats': True, 'verbose':False}
+
     """
     
     abstol: float = 1e-10
@@ -80,6 +95,12 @@ class ContinousSimulatorSettings(SimulatorSettings):
 
     integration_tool: str = 'cvodes'
     """Integration tool to be used. Options are 'cvodes' and 'idas'"""
+
+    integration_opts: Dict = {}
+    """Dictionary with options for the CasADi integrator call. Used tu update the opts dict in :py:func:`setup`.
+    
+    All options are listed `here <https://casadi.sourceforge.net/api/html/db/d3d/classcasadi_1_1Integrator.html>`_."""
+
 
 
 class Simulator(do_mpc.model.IteratedVariables):
@@ -137,9 +158,9 @@ class Simulator(do_mpc.model.IteratedVariables):
         self.data = do_mpc.data.Data(model)
 
         if self.model.model_type == 'continuous':
-            self.settings = ContinousSimulatorSettings()
+            self._settings = ContinousSimulatorSettings()
         elif self.model.model_type == 'discrete':
-            self.settings = SimulatorSettings()
+            self._settings = SimulatorSettings()
 
         self.flags = {
             'set_tvp_fun': False,
@@ -147,6 +168,31 @@ class Simulator(do_mpc.model.IteratedVariables):
             'setup': False,
             'first_step': True,
         }
+
+    @property
+    def settings(self):
+        '''
+        All necessary parameters for the simulator.
+
+        This is a core attribute of the Simulator class. It is used to set and change parameters when setting up the simulator
+        by accessing an instance of :py:class:`SimulatorSettings` or :py:class:`ContinousSimulatorSettings`. 
+        
+        Example to change settings:
+
+        ::
+
+            simulator.settings.t_step = 0.5
+
+        Note:     
+            Settings cannot be updated after calling :py:meth:`do_mpc.simulator.setup`.
+
+        For a detailed list of all available parameters see :py:class:`SimulatorSettings` or :py:class:`ContinousSimulatorSettings`. 
+        '''
+        return self._settings
+    
+    @settings.setter
+    def settings(self, val):
+        warnings.warn('Cannot change the settings attribute')
 
 
     def reset_history(self)->None:
@@ -175,7 +221,7 @@ class Simulator(do_mpc.model.IteratedVariables):
             def p_fun(t): return _p
             self.set_p_fun(p_fun)
 
-        self.settings.check_for_mandatory_settings()
+        self._settings.check_for_mandatory_settings()
 
 
     def setup(self)->None:
@@ -236,19 +282,23 @@ class Simulator(do_mpc.model.IteratedVariables):
                 'alg': alg,
             }
 
-            # Set the integrator options
-            opts = {
-                'abstol': self.settings.abstol,
-                'reltol': self.settings.reltol,
-            }
+            # Set the integrator options, note that 'abstol' and 'reltol' are not needed for collocation
+            if self._settings.integration_tool != 'collocation':
+                opts = {
+                    'abstol': self._settings.abstol,
+                    'reltol': self._settings.reltol,
+                }
+
+            # Add further options for the CasADi integrator call defined by the user 
+            opts.update(self._settings.integration_opts)
 
             if do_mpc.CASADI_LEGACY_MODE:
-                opts['tf'] = self.settings.t_step
-                self.simulator = castools.integrator('simulator', self.settings.integration_tool, dae, opts)
+                opts['tf'] = self._settings.t_step
+                self.simulator = castools.integrator('simulator', self._settings.integration_tool, dae, opts)
             else:
                 # Build the simulator
                 t0 = 0.0
-                self.simulator = castools.integrator('simulator', self.settings.integration_tool, dae, t0, self.settings.t_step, opts)
+                self.simulator = castools.integrator('simulator', self._settings.integration_tool, dae, t0, self._settings.t_step, opts)
 
         sim_aux = self.model._aux_expression_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'])
         # Create function to caculate all auxiliary expressions:
@@ -284,8 +334,8 @@ class Simulator(do_mpc.model.IteratedVariables):
         assert self.flags['setup'] == False, 'Setting parameters after setup is prohibited.'
 
         for key, value in kwargs.items():
-            if hasattr(self.settings, key):
-                    setattr(self.settings, key, value)
+            if hasattr(self._settings, key):
+                    setattr(self._settings, key, value)
             else:
                 print('Warning: Key {} does not exist for Simulator.'.format(key))
 
@@ -648,7 +698,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         self._x0.master = x_next
         self._z0.master = z0
         self._u0.master = u0
-        self._t0 = self._t0 + self.settings.t_step 
+        self._t0 = self._t0 + self._settings.t_step 
 
         self.flags['first_step'] = False
 
