@@ -288,6 +288,8 @@ class Simulator(do_mpc.model.IteratedVariables):
                     'abstol': self._settings.abstol,
                     'reltol': self._settings.reltol,
                 }
+            else:
+                opts = {}
 
             # Add further options for the CasADi integrator call defined by the user 
             opts.update(self._settings.integration_opts)
