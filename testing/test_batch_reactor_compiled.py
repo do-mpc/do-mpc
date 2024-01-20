@@ -56,49 +56,32 @@ class TestBatchReactor(unittest.TestCase):
 
     def test_compiled_vs_not_compiled(self):
         start_time = time.time()
-        self.batch_reactor(is_compiled=True)
+        self.validate_batch_reactor(is_compiled=True)
         end_time = time.time()
         compiled_time = end_time - start_time
 
         start_time = time.time()
-        self.batch_reactor(is_compiled=False)
+        self.validate_batch_reactor(is_compiled=False)
         end_time = time.time()
         not_compiled_time = end_time - start_time
 
         self.assertLess(compiled_time, not_compiled_time)
 
-    def batch_reactor(self, symvar_type="MX", is_compiled=False):
-        """
-        Get configured do-mpc modules:
-        """
-
-        model = self.template_model.template_model(symvar_type)
-        mpc = self.template_mpc.template_mpc(model, silence_solver=True)
-        simulator = self.template_simulator.template_simulator(model)
-        estimator = do_mpc.estimator.StateFeedback(model)
-
+    def validate_batch_reactor(self, is_compiled=True):
         """
         Set initial state
         """
-
         X_s_0 = 1.0 # This is the initial concentration inside the tank [mol/l]
         S_s_0 = 0.5 # This is the controlled variable [mol/l]
         P_s_0 = 0.0 #[C]
         V_s_0 = 120.0 #[C]
         x0 = np.array([X_s_0, S_s_0, P_s_0, V_s_0])
 
-        mpc.x0 = x0
-        simulator.x0 = x0
-        estimator.x0 = x0
-
-        mpc.set_initial_guess()
-
         """
-        Compile the model:
+        Set up the MPC, Simulator and Estimator:
         """
 
-        if is_compiled:
-            mpc.compile_nlp()
+        mpc, simulator, estimator = self.set_up_batch_reactor(x0, symvar_type="MX", is_compiled=is_compiled)
 
         """
         Run some steps:
@@ -149,6 +132,31 @@ class TestBatchReactor(unittest.TestCase):
             do_mpc.data.save_results([mpc, simulator], 'test_save', overwrite=True)
         except:
             raise Exception()
+
+    def set_up_batch_reactor(self, x0, symvar_type="MX", is_compiled=False):
+        """
+        Get configured do-mpc modules:
+        """
+
+        model = self.template_model.template_model(symvar_type)
+        mpc = self.template_mpc.template_mpc(model, silence_solver=True)
+        simulator = self.template_simulator.template_simulator(model)
+        estimator = do_mpc.estimator.StateFeedback(model)
+
+        mpc.x0 = x0
+        simulator.x0 = x0
+        estimator.x0 = x0
+
+        mpc.set_initial_guess()
+
+        """
+        Compile the model:
+        """
+
+        if is_compiled:
+            mpc.compile_nlp()
+
+        return mpc, simulator, estimator
 
 
 if __name__ == '__main__':
