@@ -54,35 +54,36 @@ class TestBatchReactor(unittest.TestCase):
         self.template_simulator = reload(template_simulator)
         sys.path = default_path
 
-    def test_compiled_vs_not_compiled(self):
-        start_time = time.time()
-        self.validate_batch_reactor(is_compiled=True)
-        end_time = time.time()
-        compiled_time = end_time - start_time
-
-        start_time = time.time()
-        self.validate_batch_reactor(is_compiled=False)
-        end_time = time.time()
-        not_compiled_time = end_time - start_time
-
-        self.assertLess(compiled_time, not_compiled_time)
-
-    def validate_batch_reactor(self, is_compiled=True):
         """
-        Set initial state
+        Set initial state and params
         """
         X_s_0 = 1.0 # This is the initial concentration inside the tank [mol/l]
         S_s_0 = 0.5 # This is the controlled variable [mol/l]
         P_s_0 = 0.0 #[C]
         V_s_0 = 120.0 #[C]
-        x0 = np.array([X_s_0, S_s_0, P_s_0, V_s_0])
+        self.x0 = np.array([X_s_0, S_s_0, P_s_0, V_s_0])
 
+    def test_compiled_vs_not_compiled(self):
         """
         Set up the MPC, Simulator and Estimator:
         """
+        mpc_comp, simulator_comp, estimator_comp = self.set_up_batch_reactor(self.x0, symvar_type="MX", is_compiled=True)
 
-        mpc, simulator, estimator = self.set_up_batch_reactor(x0, symvar_type="MX", is_compiled=is_compiled)
+        start_time = time.time()
+        self.validate_batch_reactor(x0=self.x0, mpc=mpc_comp, simulator=simulator_comp, estimator=estimator_comp)
+        end_time = time.time()
+        compiled_time = end_time - start_time
 
+        # Not complied case
+        mpc, simulator, estimator = self.set_up_batch_reactor(self.x0, symvar_type="MX", is_compiled=False)
+        start_time = time.time()
+        self.validate_batch_reactor(x0=self.x0, mpc=mpc, simulator=simulator, estimator=estimator)
+        end_time = time.time()
+        not_compiled_time = end_time - start_time
+
+        self.assertLess(compiled_time, not_compiled_time)
+
+    def validate_batch_reactor(self, x0, mpc, simulator, estimator):
         """
         Run some steps:
         """
