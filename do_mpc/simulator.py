@@ -703,4 +703,3 @@ class Simulator(do_mpc.model.IteratedVariables):
         self.flags['first_step'] = False
 
         return y_next.full()
-

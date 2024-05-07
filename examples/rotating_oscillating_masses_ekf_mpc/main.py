@@ -20,7 +20,6 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
-#%%
 import numpy as np
 import matplotlib.pyplot as plt
 from casadi import *
@@ -29,7 +28,6 @@ import pdb
 import sys
 import time
 import os
-
 rel_do_mpc_path = os.path.join('..','..')
 sys.path.append(rel_do_mpc_path)
 import do_mpc
@@ -46,12 +44,15 @@ Get configured do-mpc modules:
 from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator
-from template_mhe import template_mhe
+from examples.rotating_oscillating_masses_ekf_mpc.template_ekf import template_ekf
 
 model = template_model()
 mpc = template_mpc(model)
 simulator = template_simulator(model)
-mhe = template_mhe(model)
+#mhe = template_mhe(model)
+
+# setting up estimator
+ekf = template_ekf(model=model)
 
 
 """
@@ -65,12 +66,12 @@ x0 = np.zeros(model.n_x)
 
 mpc.x0 = x0
 simulator.x0 = x0_true
-mhe.x0 = x0
-mhe.p_est0 = 1e-4
+ekf.x0 = x0
+#estimator.p_est0 = 1e-4
 
 # Set initial guess for MHE/MPC based on initial state.
 mpc.set_initial_guess()
-mhe.set_initial_guess()
+ekf.set_initial_guess()
 
 """
 Setup graphic:
@@ -80,7 +81,7 @@ color = plt.rcParams['axes.prop_cycle'].by_key()['color']
 fig, ax = plt.subplots(5,1, sharex=True, figsize=(10, 9))
 
 mpc_plot = do_mpc.graphics.Graphics(mpc.data)
-mhe_plot = do_mpc.graphics.Graphics(mhe.data)
+#mhe_plot = do_mpc.graphics.Graphics(mhe.data)
 sim_plot = do_mpc.graphics.Graphics(simulator.data)
 
 ax[0].set_title('controlled position:')
@@ -105,17 +106,17 @@ mpc_plot.add_line('_u', 'phi_m_set', ax[2])
 
 ax[3].set_title('Estimated angular velocity:')
 sim_plot.add_line('_x', 'dphi', ax[3])
-mhe_plot.add_line('_x', 'dphi', ax[3])
+#mhe_plot.add_line('_x', 'dphi', ax[3])
 
 
 ax[4].set_title('Estimated parameters:')
 sim_plot.add_line('_p', 'Theta_1', ax[4])
-mhe_plot.add_line('_p', 'Theta_1', ax[4])
+#mhe_plot.add_line('_p', 'Theta_1', ax[4])
 
-for mhe_line_i, sim_line_i in zip(mhe_plot.result_lines.full, sim_plot.result_lines.full):
-    mhe_line_i.set_color(sim_line_i.get_color())
-    sim_line_i.set_alpha(0.5)
-    sim_line_i.set_linewidth(5)
+#for mhe_line_i, sim_line_i in zip(mhe_plot.result_lines.full, sim_plot.result_lines.full):
+#    mhe_line_i.set_color(sim_line_i.get_color())
+#    sim_line_i.set_alpha(0.5)
+#    sim_line_i.set_linewidth(5)
 
 ax[0].set_ylabel('disc \n angle [rad]')
 ax[1].set_ylabel('disc \n angle [rad]')
@@ -133,24 +134,24 @@ plt.ion()
 """
 Run MPC main loop:
 """
-
+#%%
 for k in range(200):
     u0 = mpc.make_step(x0)
     # Simulate with process and measurement noise
 
-    #y_next = simulator.make_step(u0, v0=1e-2*np.random.randn(model.n_v,1), w0=1e-2*np.random.randn(model.n_v,1))
     y_next = simulator.make_step(u0, v0=1e-2*np.random.randn(model.n_v,1))
-    print('shape of y_next:', y_next.shape)
-    x0 = mhe.make_step(y_next)
+    #x0 = mhe.make_step(y_next)
+    x0 = ekf.make_step(y_next = y_next, u_next = u0, simulator = simulator)
+
 
     if show_animation:
         mpc_plot.plot_results()
         mpc_plot.plot_predictions()
-        mhe_plot.plot_results()
+        #mhe_plot.plot_results()
         sim_plot.plot_results()
 
         mpc_plot.reset_axes()
-        mhe_plot.reset_axes()
+        #mhe_plot.reset_axes()
         sim_plot.reset_axes()
         plt.show()
         plt.pause(0.01)
@@ -158,8 +159,7 @@ for k in range(200):
 
 
 input('Press any key to exit.')
-#%%
+
 # Store results:
 if store_results:
-    do_mpc.data.save_results([mpc, mhe, simulator], 'rot_oscillating_masses')
-#%%
+    do_mpc.data.save_results([mpc, ekf, simulator], 'rot_oscillating_masses')

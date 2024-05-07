@@ -35,6 +35,7 @@ import do_mpc
 from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator
+from template_ekf import template_ekf
 
 
 """ User settings: """
@@ -89,9 +90,9 @@ Run MPC main loop:
 
 for k in range(50):
     u0 = mpc.make_step(x0)
-    y_next = simulator.make_step(u0)
+    y_next = simulator.make_step(u0, v0 = 0.001*np.random.randn(model.n_v,1))
     #x0 = estimator.make_step(y_next)
-    x0 = estimator.make_step(y_next = y_next, u_next = u0, simulator = simulator)
+    x0 = estimator.make_step(y_next = y_next, u_next = u0)
 
     if show_animation:
         graphics.plot_results(t_ind=k)
