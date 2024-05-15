@@ -46,6 +46,7 @@ class EKF(Estimator):
         self.settings = EstimatorSettings()
         
         # Stores the variances of state(s) and measurement(s)
+        # TODO: make Q and R changable by tvp
         self.Q = Q
         self.R = R
 
@@ -293,7 +294,8 @@ class EKF(Estimator):
         print('Shape:', D.shape) if debug_flag else None
 
 
-        # Observability 
+        # Observability
+        # TODO: Dont check for obeserv.
         assert self.check_obsevability(A,C), 'System is not observable. EKF failed!'
 
         # Apriori
@@ -313,6 +315,7 @@ class EKF(Estimator):
         L = self.P0 @ C.T @ ca.inv_minor(C @ self.P0 @ C.T + self.R)
 
         # Aposteriori
+        # TODO: replace simulator by model._rhs() or model._measfun or how its called. (apriori is done by _rhs() and posteriori is done with the _measfun)
         if non_linear_simulation:
             self.simulator._t0 = t0
             self.simulator.x0 = x_apriori
