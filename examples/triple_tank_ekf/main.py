@@ -45,7 +45,7 @@ simulator_ekf.set_initial_guess()
 
 ekf.set_initial_guess()
 
-default_plot = True
+default_plot = False
 alternate_default_plot = True
 
 if default_plot:
@@ -104,7 +104,7 @@ for k in range(N_sim):
     x_hat_data.append(x0)
 
 
-    if show_animation & default_plot & alternate_default_plot is False:
+    if show_animation & default_plot is True & alternate_default_plot is False:
         #mpc_plot.plot_results()
         #mpc_plot.plot_predictions()
         ekf_plot.plot_results()

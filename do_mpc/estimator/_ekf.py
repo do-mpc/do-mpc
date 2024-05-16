@@ -46,6 +46,7 @@ class EKF(Estimator):
         self.settings = EstimatorSettings()
         
         # Stores the variances of state(s) and measurement(s)
+        # TODO: make Q and R changable by tvp (AT MAKE_STEP)
         self.Q = Q
         self.R = R
 
@@ -183,7 +184,8 @@ class EKF(Estimator):
         print('Shape:', D.shape) if debug_flag else None
 
 
-        # Observability 
+        # Observability
+        # TODO: Dont check for obeserv.
         assert self.check_obsevability(A,C), 'System is not observable. EKF failed!'
 
         # Apriori
@@ -204,6 +206,7 @@ class EKF(Estimator):
         self.simulator.x0 = x_apriori
         y_aposteriori = self.simulator.make_step(u0=u_next)
         x0 = self.x0 + L @ (y_next - y_aposteriori)
+        #x0 = self.x0 + L @ (y_next - y_apriori)
         
 
         # Updated error covariance
