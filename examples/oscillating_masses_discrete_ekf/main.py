@@ -50,14 +50,8 @@ mpc = template_mpc(model)
 simulator = template_simulator(model)
 #estimator = do_mpc.estimator.StateFeedback(model)
 
-# setting up model variances with a generic value
-q = 1e-3 * np.ones(model.x.shape)
-r = 1e-3 * np.ones(model.y.shape)
-Q = np.diag(q.flatten())
-R = np.diag(r.flatten())
-
 # setting up estimator
-estimator = do_mpc.estimator.EKF(model=model, Q=Q, R=R)
+estimator = template_ekf(model)
 
 
 

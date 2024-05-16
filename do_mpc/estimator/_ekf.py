@@ -126,130 +126,20 @@ class EKF(Estimator):
         self.simulator.x0 = self.x0
         self.simulator.set_initial_guess()
 
-
         # changing flag
         self.flags['set_initial_guess'] = True
 
         # return
         return None
 
-    def make_step_old(self, y_next, u_next, debug_flag = False, simulate_flag = True):
-        
-        # exp
-        t0 = self._t0
-        tvp0 = self.tvp_fun(t0)
-        p0 = self.p_fun(t0)
-
-        #self.opt_p_num['_p_est_prev'] = p_est0
-        #self.opt_p_num['_p_set'] = p_set0
-        #self.opt_p_num['_tvp'] = tvp0['_tvp']
-
-        #self.solve()
-
-
-        #print("Iternation No:", self.counter)
-        self.counter += 1
-        print() if debug_flag else None
-        print() if debug_flag else None
-        print('#######Iteration number####### : ', self.counter) if debug_flag else None
-
-        # checks to ensure proper usage
-        assert self.flags['setup'] == True, 'EKF was not setup yet. Please call EKF.setup().'
-        assert self.flags['set_initial_guess'] == True, 'Initial guess was not provided. Please call EKF.set_initial_guess().'
-        assert self.flags['simulator_setup'] == True, 'EKF Simulator was not setup. Please call EKF.simulator_setup().'
-
-
-        # Measurement update / Correction
-        # needs to be checked
-        #A,B,C,D = self.model.get_linear_system_matrices(xss = self.x_ekf, uss = u_next, z = self.model.z, tvp = self.model.tvp, p = self.model.p)
-        #A,B,C,D = self.model.get_linear_system_matrices(xss = self.x_ekf, uss = u_next, z = simulator.sim_z_num['_z'].full(), tvp = simulator.sim_p_num['_tvp'].full(), p = simulator.sim_p_num['_p'].full())
-        #print(type(self.tvp_fun))
-        #print(type(self.p_fun))
-        #A,B,C,D = self.model.get_linear_system_matrices(xss = self.x_ekf, uss = u_next, z = simulator.sim_z_num['_z'].full(), tvp = self.tvp_fun, p = self.p_fun)
-
-        print('Apriori state : ', self.x_ekf) if debug_flag else None
-        print('Apriori state type: ', type(self.x_ekf)) if debug_flag else None
-        print('Apriori state shape : ', self.x_ekf.shape) if debug_flag else None
-
-        A,B,C,D = self.model.get_linear_system_matrices(xss = self.x_ekf, uss = u_next, p = p0, tvp=tvp0)
-
-        #A = ca.DM(A).full()
-        #B = ca.DM(B).full()
-        #C = ca.DM(C).full()
-        #D = ca.DM(D).full()
-        print('system matrix: A', A) if debug_flag else None
-        print('input matrix: B', B) if debug_flag else None
-        print('measurement matrix C: ', B) if debug_flag else None
-        print('output disturbance matrix D: ', B) if debug_flag else None
-
-        # Observability 
-        assert self.check_obsevability(A,C), 'System not observable. EKF failed!'
-
-        # Optimal Kalman gain
-        denominator = C @ self.P0 @ C.T + self.R
-        print('denominator: ', denominator) if debug_flag else None
-        L = self.P0 @ C.T @ ca.inv_minor(denominator)
-        print('Kalman gain: ', L) if debug_flag else None
-        
-        # Updating observer with Kalman filter (Aposteriori)
-        if simulate_flag is False:
-            x_ekf_current = self.x_ekf + L @ (y_next - C @ self.x_ekf)
-        else:
-            y_make_step = self.simulator.make_step(u_next, v0=0*np.random.randn(self.model.n_v,1))
-            x_ekf_current = self.x_ekf + L @ (y_next - y_make_step)
-            #self.simulator.x0 = x_ekf_current
-
-        # remove
-        #x_ekf_current = self.x_ekf + L @ (y_next - C @ self.x_ekf)
-
-
-        self.x_ekf = x_ekf_current
-        print('Aposteriori state (observed state): ', x_ekf_current) if debug_flag else None
-
-        # Updating error covariance matrix aposteriori
-        self.P0 = (np.eye(self.model.n_x) - L @ C) @ self.P0
-        print('Error covariance matrix : ', self.P0) if debug_flag else None
-
-        # Prediction (Apriori)
-        if simulate_flag is False:
-            #self.x_ekf = ca.DM((A@self.x_ekf) + (B@u_next)).full()
-            self.x_ekf = (A@self.x_ekf) + (B@u_next)
-        else:
-            # remove
-            #y_make_step = self.simulator.make_step(u_next, v0=0*np.random.randn(self.model.n_v,1))
-            self.x_ekf = self.simulator.data._x[-1].reshape((-1,1))
-        print('Apriori state : ', self.x_ekf) if debug_flag else None
-
-        
-
-        # Updating error covariance matrix of apriori
-        self.P0 = ca.DM(A @ self.P0 @ A.T + self.Q).full()
-        print('Updated error covariance matrix : ', self.P0) if debug_flag else None
-
-
-        # Update data object:
-        self.data.update(_x = x_ekf_current)
-        self.data.update(_u = u_next)
-        self.data.update(_z = self.simulator.sim_z_num['_z'].full())
-        self.data.update(_p = p_set0)
-        self.data.update(_tvp = tvp0['_tvp', -1])
-        self.data.update(_time = t0)
-        #self.data.update(_aux = self.aux0)
-
-        # return
-        return x_ekf_current
-    
-    def make_step(self, y_next, u_next, debug_flag = False, non_linear_simulation = True):
+    def make_step(self, y_next, u_next, debug_flag = False):
         
         # storing values temporarily
         t0 = self._t0
         tvp0 = self.tvp_fun(t0)
         p0 = self.p_fun(t0)
-        if non_linear_simulation:
-            x0 = self.x0
-        else:
-            x0 = ca.DM(self.x0).full()
-
+        x0 = self.x0
+        
         # checks to ensure proper usage
         assert self.flags['setup'] == True, 'EKF was not setup yet. Please call EKF.setup().'
         assert self.flags['set_initial_guess'] == True, 'Initial guess was not provided. Please call EKF.set_initial_guess().'
@@ -297,14 +187,11 @@ class EKF(Estimator):
         assert self.check_obsevability(A,C), 'System is not observable. EKF failed!'
 
         # Apriori
-        if non_linear_simulation:
-            self.simulator.x0 = x0
-            y_apriori = self.simulator.make_step(u0 = u_next)
-            t0 = self.simulator._t0
-            x_apriori = self.simulator.data._x[-1]
-        else:
-            x_apriori = (A@x0) + (B@u_next)
-
+        self.simulator.x0 = x0
+        y_apriori = self.simulator.make_step(u0 = u_next)
+        t0 = self.simulator._t0
+        x_apriori = self.simulator.data._x[-1]
+        
 
         # Preddiction covariance
         self.P0 = A @ self.P0 @ A.T + self.Q
@@ -313,13 +200,11 @@ class EKF(Estimator):
         L = self.P0 @ C.T @ ca.inv_minor(C @ self.P0 @ C.T + self.R)
 
         # Aposteriori
-        if non_linear_simulation:
-            self.simulator._t0 = t0
-            self.simulator.x0 = x_apriori
-            y_aposteriori = self.simulator.make_step(u0=u_next)
-            x0 = self.x0 + L @ (y_next - y_aposteriori)
-        else:
-            x0 = self.x0 + L @ (y_next - (C @ x0 + D @ u_next))
+        self.simulator._t0 = t0
+        self.simulator.x0 = x_apriori
+        y_aposteriori = self.simulator.make_step(u0=u_next)
+        x0 = self.x0 + L @ (y_next - y_aposteriori)
+        
 
         # Updated error covariance
         self.P0 = (np.eye(self.model.n_x) - L @ C) @ self.P0

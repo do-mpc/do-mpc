@@ -65,9 +65,11 @@ def template_ekf(model):
     # P_y is listed in the time-varying parameters and must be set.
     # This is more of a proof of concept (P_y is not actually changing over time).
     # We therefore do the following:
+    
     tvp_template = ekf.get_tvp_template()
-    tvp_template['_tvp', :, 'phi_2_set'] = np.diag(np.array([0]))
-    tvp_template['_tvp', :, 'P_v'] = np.diag(np.array([1,1,1,20,20]))
+    #tvp_template['_tvp', :, 'phi_2_set'] = np.diag(np.array([0]))
+    #tvp_template['_tvp', :, 'P_v'] = np.diag(np.array([1,1,1,20,20]))
+    
     # Typically, the values would be reset at each call of tvp_fun.
     # Here we just return the fixed values:
     def tvp_fun_ekf(t_now):
