@@ -281,7 +281,7 @@ class Simulator(do_mpc.model.IteratedVariables):
                 'ode': xdot,
                 'alg': alg,
             }
-
+            opts = {}
             # Set the integrator options, note that 'abstol' and 'reltol' are not needed for collocation
             if self._settings.integration_tool != 'collocation':
                 opts = {
