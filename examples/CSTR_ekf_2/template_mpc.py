@@ -93,9 +93,6 @@ def template_mpc(model, silence_solver=False):
 
     mpc.set_uncertainty_values(alpha = alpha_var, beta = beta_var)
 
-    # suppresses ipopt outputs (not recomended)
-    mpc.settings.supress_ipopt_output()
-
     mpc.setup()
 
     return mpc

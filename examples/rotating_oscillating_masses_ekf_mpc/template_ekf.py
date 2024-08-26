@@ -40,16 +40,18 @@ def template_ekf(model):
     
 
     # setting up model variances with a generic value
-    q = 1e-3 * np.ones(model.x.shape)
-    r = 1e-3 * np.ones(model.y.shape)
-    Q = np.diag(q.flatten())
-    R = np.diag(r.flatten())
+    #q = 1e-3 * np.ones(model.x.shape)
+    #r = 1e-3 * np.ones(model.y.shape)
+    #Q = np.diag(q.flatten())
+    #R = np.diag(r.flatten())
 
     # inti
-    ekf = do_mpc.estimator.EKF(model=model, Q=Q, R=R)
+    ekf = do_mpc.estimator.EKF(model=model)
 
     # disc setup
-    ekf.settings.n_horizon = 20
+    #ekf.settings.n_horizon = 20
+    # time step
+    ekf.settings.t_step = 0.1
 
     # all parameters must be passed:
     p_template_mhe = ekf.get_p_template()
@@ -77,6 +79,6 @@ def template_ekf(model):
     ekf.set_tvp_fun(tvp_fun_ekf)
 
 
-    
+    ekf.setup()
 
     return ekf

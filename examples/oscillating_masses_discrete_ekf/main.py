@@ -39,8 +39,9 @@ from template_ekf import template_ekf
 
 
 """ User settings: """
-show_animation = True
+show_animation = False
 store_results = False
+show_plot =False
 
 """
 Get configured do-mpc modules:
@@ -53,6 +54,12 @@ simulator = template_simulator(model)
 # setting up estimator
 estimator = template_ekf(model)
 
+
+# setting up model variances with a generic value
+q = 1 * np.ones(model.x.shape)
+r = 0.01 * np.ones(model.y.shape)
+Q = np.diag(q.flatten())
+R = np.diag(r.flatten())
 
 
 """
@@ -74,29 +81,54 @@ estimator.set_initial_guess()
 """
 Setup graphic:
 """
-
-fig, ax, graphics = do_mpc.graphics.default_plot(mpc.data)
-plt.ion()
+if show_plot:
+    fig, ax, graphics = do_mpc.graphics.default_plot(mpc.data)
+    plt.ion()
 
 """
 Run MPC main loop:
 """
-
+x_data = []
+x_hat_data = [x0]
 for k in range(50):
     u0 = mpc.make_step(x0)
-    y_next = simulator.make_step(u0, v0 = 0.001*np.random.randn(model.n_v,1))
+    #y_next = simulator.make_step(u0, v0 = 0.001*np.random.randn(model.n_v,1))
+    y_next = simulator.make_step(u0, v0=0.01 * np.random.randn(model.n_v, 1))
     #x0 = estimator.make_step(y_next)
-    x0 = estimator.make_step(y_next = y_next, u_next = u0)
+    x0 = estimator.make_step(y_next = y_next, u_next = u0, Q_k = Q, R_k = R)
 
-    if show_animation:
+    x_data.append(simulator.data._x[-1].reshape((-1, 1)))
+    x_hat_data.append(x0)
+
+    if show_animation and show_plot:
         graphics.plot_results(t_ind=k)
         graphics.plot_predictions(t_ind=k)
         graphics.reset_axes()
         plt.show()
         plt.pause(0.01)
 
-input('Press any key to exit.')
+#input('Press any key to exit.')
 
 # Store results:
 if store_results:
     do_mpc.data.save_results([mpc, simulator], 'oscillating_masses')
+
+
+def visualize(x_data, x_hat_data):
+    fig, ax = plt.subplots(model.n_x)
+    fig.suptitle('EKF Observer')
+
+    for i in range(model.n_x):
+        ax[i].plot(x_data[i, :], label='real state')
+        ax[i].plot(x_hat_data[i, :],"r--", label='estimated state')
+        ax[i].set_xticklabels([])
+
+    ax[-1].set_xlabel('time_steps')
+    fig.legend()
+    plt.show()
+
+    input('Press any key to exit.')
+
+x_data = np.concatenate(x_data, axis=1)
+x_hat_data = np.concatenate(x_hat_data, axis=1)
+visualize(x_data, x_hat_data)

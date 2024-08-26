@@ -98,7 +98,7 @@ for k in range(N_sim):
     #print('shape of y_next:', y_next.shape)
     
     #x0 = mhe.make_step(y_next)
-    x0 = ekf.make_step(y_next = y_next, u_next = u0)
+    x0 = ekf.make_step(y_next = y_next, u_next = u0, Q_k=Q, R_k=R)
 
     x_data.append(simulator.data._x[-1].reshape((-1,1)))
     x_hat_data.append(x0)
@@ -140,7 +140,7 @@ if default_plot is False:
     visualize(x_data, x_hat_data)
 
 
-input('Press any key to exit.')
+#input('Press any key to exit.')
 
 # Store results:
 if store_results:

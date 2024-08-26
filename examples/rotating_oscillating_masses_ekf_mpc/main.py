@@ -76,6 +76,7 @@ ekf.set_initial_guess()
 """
 Setup graphic:
 """
+"""
 color = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
 fig, ax = plt.subplots(5,1, sharex=True, figsize=(10, 9))
@@ -130,20 +131,32 @@ for ax_i in ax:
 
 fig.tight_layout()
 plt.ion()
+"""
+# ekf
+q = 0 * np.ones(model.x.shape)
+r = 1e-2 * np.ones(model.y.shape)
+Q = np.diag(q.flatten())
+R = np.diag(r.flatten())
 
 """
 Run MPC main loop:
 """
+
+x_data = []
+x_hat_data = [x0.reshape((-1, 1))]
 #%%
-for k in range(200):
+for k in range(50):
     u0 = mpc.make_step(x0)
     # Simulate with process and measurement noise
 
-    y_next = simulator.make_step(u0, v0=1e-2*np.random.randn(model.n_v,1))
+    y_next = simulator.make_step(u0, v0=1*np.random.randn(model.n_v,1))
     #x0 = mhe.make_step(y_next)
-    x0 = ekf.make_step(y_next = y_next, u_next = u0, simulator = simulator)
+    x0 = ekf.make_step(y_next = y_next, u_next = u0, Q_k=Q, R_k=R)
 
+    x_data.append(simulator.data._x[-1].reshape((-1, 1)))
+    x_hat_data.append(x0.reshape((-1, 1)))
 
+    """
     if show_animation:
         mpc_plot.plot_results()
         mpc_plot.plot_predictions()
@@ -155,11 +168,31 @@ for k in range(200):
         sim_plot.reset_axes()
         plt.show()
         plt.pause(0.01)
+    """
 
 
-
-input('Press any key to exit.')
+#input('Press any key to exit.')
 
 # Store results:
 if store_results:
     do_mpc.data.save_results([mpc, ekf, simulator], 'rot_oscillating_masses')
+
+
+def visualize(x_data, x_hat_data):
+    fig, ax = plt.subplots(model.n_x)
+    fig.suptitle('EKF Observer')
+
+    for i in range(model.n_x):
+        ax[i].plot(x_data[i, :], label='real state')
+        ax[i].plot(x_hat_data[i, :],"r--", label='estimated state')
+        ax[i].set_xticklabels([])
+
+    ax[-1].set_xlabel('time_steps')
+    fig.legend()
+    plt.show()
+
+    input('Press any key to exit.')
+
+x_data = np.concatenate(x_data, axis=1)
+x_hat_data = np.concatenate(x_hat_data, axis=1)
+visualize(x_data, x_hat_data)

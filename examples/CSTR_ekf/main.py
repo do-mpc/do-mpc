@@ -40,25 +40,29 @@ import time
 from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator
+from template_ekf import template_ekf
 
 """ User settings: """
-show_animation = True
+show_animation = False
 store_results = False
+plot_flag = False       # for mpc only
 
 
 model = template_model()
 mpc = template_mpc(model)
 simulator = template_simulator(model)
 #estimator = do_mpc.estimator.StateFeedback(model)
+ekf = template_ekf(model)
 
-# setting up model variances
-q = 1e-3 * np.ones(model.x.shape)
-r = 1e-3 * np.ones(model.y.shape)
+# setting up model variances with a generic value
+#tmp = 1
+#q = 1e-3 * np.ones(model.n_x)
+q = 0 * np.ones(model.n_x)
+#r = 1e-2 * np.ones(model.n_y)
+r = 1000 * np.ones(model.n_y)
+
 Q = np.diag(q.flatten())
 R = np.diag(r.flatten())
-
-# setting up estimator
-estimator = do_mpc.estimator.EKF(model=model, Q=Q, R=R)
 
 # Set the initial state of mpc and simulator:
 C_a_0 = 0.8 # This is the initial concentration inside the tank [mol/l]
@@ -69,43 +73,46 @@ x0 = np.array([C_a_0, C_b_0, T_R_0, T_K_0]).reshape(-1,1)
 
 mpc.x0 = x0
 simulator.x0 = x0
-estimator.x0 = x0
+ekf.x0 = x0
 
 mpc.set_initial_guess()
-estimator.set_initial_guess() # remove input argument
+ekf.set_initial_guess()
+
+if plot_flag:
+    # Initialize graphic:
+    graphics = do_mpc.graphics.Graphics(mpc.data)
 
 
-# Initialize graphic:
-graphics = do_mpc.graphics.Graphics(mpc.data)
+    fig, ax = plt.subplots(5, sharex=True)
+    # Configure plot:
+    graphics.add_line(var_type='_x', var_name='C_a', axis=ax[0])
+    graphics.add_line(var_type='_x', var_name='C_b', axis=ax[0])
+    graphics.add_line(var_type='_x', var_name='T_R', axis=ax[1])
+    graphics.add_line(var_type='_x', var_name='T_K', axis=ax[1])
+    graphics.add_line(var_type='_aux', var_name='T_dif', axis=ax[2])
+    graphics.add_line(var_type='_u', var_name='Q_dot', axis=ax[3])
+    graphics.add_line(var_type='_u', var_name='F', axis=ax[4])
+    ax[0].set_ylabel('c [mol/l]')
+    ax[1].set_ylabel('T [K]')
+    ax[2].set_ylabel('$\Delta$ T [K]')
+    ax[3].set_ylabel('Q [kW]')
+    ax[4].set_ylabel('Flow [l/h]')
+    ax[4].set_xlabel('time [h]')
+    # Update properties for all prediction lines:
+    for line_i in graphics.pred_lines.full:
+        line_i.set_linewidth(1)
 
+    label_lines = graphics.result_lines['_x', 'C_a']+graphics.result_lines['_x', 'C_b']
+    ax[0].legend(label_lines, ['C_a', 'C_b'])
+    label_lines = graphics.result_lines['_x', 'T_R']+graphics.result_lines['_x', 'T_K']
+    ax[1].legend(label_lines, ['T_R', 'T_K'])
 
-fig, ax = plt.subplots(5, sharex=True)
-# Configure plot:
-graphics.add_line(var_type='_x', var_name='C_a', axis=ax[0])
-graphics.add_line(var_type='_x', var_name='C_b', axis=ax[0])
-graphics.add_line(var_type='_x', var_name='T_R', axis=ax[1])
-graphics.add_line(var_type='_x', var_name='T_K', axis=ax[1])
-graphics.add_line(var_type='_aux', var_name='T_dif', axis=ax[2])
-graphics.add_line(var_type='_u', var_name='Q_dot', axis=ax[3])
-graphics.add_line(var_type='_u', var_name='F', axis=ax[4])
-ax[0].set_ylabel('c [mol/l]')
-ax[1].set_ylabel('T [K]')
-ax[2].set_ylabel('$\Delta$ T [K]')
-ax[3].set_ylabel('Q [kW]')
-ax[4].set_ylabel('Flow [l/h]')
-ax[4].set_xlabel('time [h]')
-# Update properties for all prediction lines:
-for line_i in graphics.pred_lines.full:
-    line_i.set_linewidth(1)
+    fig.align_ylabels()
+    fig.tight_layout()
+    plt.ion()
 
-label_lines = graphics.result_lines['_x', 'C_a']+graphics.result_lines['_x', 'C_b']
-ax[0].legend(label_lines, ['C_a', 'C_b'])
-label_lines = graphics.result_lines['_x', 'T_R']+graphics.result_lines['_x', 'T_K']
-ax[1].legend(label_lines, ['T_R', 'T_K'])
-
-fig.align_ylabels()
-fig.tight_layout()
-plt.ion()
+x_data = []
+x_hat_data = [x0]
 
 timer = Timer()
 
@@ -113,11 +120,15 @@ for k in range(50):
     timer.tic()
     u0 = mpc.make_step(x0)
     timer.toc()
-    y_next = simulator.make_step(u0)
-    print("From main, type of y_next", type(y_next))
-    x0 = estimator.make_step(y_next = y_next, u_next = u0, simulator = simulator)
+    #y_next = simulator.make_step(u0, v0=0.001*np.random.randn(model.n_v,1))
+    y_next = simulator.make_step(u0, v0=10*np.random.randn(model.n_v,1))
+    #x0 = estimator.make_step(y_next)
+    x0 = ekf.make_step(y_next = y_next, u_next = u0, Q_k=Q, R_k=R)
 
-    if show_animation:
+    x_data.append(simulator.data._x[-1].reshape((-1,1)))
+    x_hat_data.append(x0)
+
+    if show_animation and plot_flag:
         graphics.plot_results(t_ind=k)
         graphics.plot_predictions(t_ind=k)
         graphics.reset_axes()
@@ -125,10 +136,30 @@ for k in range(50):
         plt.pause(0.01)
 
 timer.info()
-timer.hist()
+#timer.hist()
 
-input('Press any key to exit.')
+
 
 # Store results:
 if store_results:
     do_mpc.data.save_results([mpc, simulator], 'CSTR_robust_MPC')
+
+def visualize(x_data, x_hat_data):
+    fig, ax = plt.subplots(model.n_x)
+    fig.suptitle('EKF Observer')
+
+    for i in range(model.n_x):
+        ax[i].plot(x_data[i, :], label='real state')
+        ax[i].plot(x_hat_data[i, :],"r--", label='estimated state')
+        ax[i].set_xticklabels([])
+
+    ax[-1].set_xlabel('time_steps')
+    fig.legend()
+    plt.show()
+
+    #input('Press any key to exit.')
+
+x_data = np.concatenate(x_data, axis=1)
+x_hat_data = np.concatenate(x_hat_data, axis=1)
+visualize(x_data, x_hat_data)
+

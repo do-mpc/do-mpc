@@ -16,14 +16,8 @@ def template_ekf(model):
     --------------------------------------------------------------------------
     """
 
-    # setting up model variances with a generic value
-    q = 1e-5 * np.ones(model.x.shape)
-    r = 0.001 * np.ones(model.y.shape)
-    Q = np.diag(q.flatten())
-    R = np.diag(r.flatten())
-
     # init
-    ekf = do_mpc.estimator.EKF(model=model, Q=Q, R=R)
+    ekf = do_mpc.estimator.EKF(model=model)
 
     # time step
     ekf.settings.t_step = 0.5
