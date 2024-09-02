@@ -74,6 +74,7 @@ x0 = np.array([C_a_0, C_b_0, T_R_0, T_K_0]).reshape(-1,1)
 mpc.x0 = x0
 simulator.x0 = x0
 ekf.x0 = x0
+#ekf.P0 = np.ones((1,1))
 
 mpc.set_initial_guess()
 ekf.set_initial_guess()

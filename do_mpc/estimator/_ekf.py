@@ -61,9 +61,11 @@ class EKF(Estimator):
         }
 
     def _check_validity(self):
+
         # tvp_fun must be set, if tvp are defined in model.
         if self.flags['set_tvp_fun'] == False and self.model._tvp.size > 0:
             raise Exception('You have not supplied a function to obtain the time-varying parameters defined in model. Use .set_tvp_fun() prior to setup.')
+        
         # p_fun must be set, if p are defined in model.
         if self.flags['set_p_fun'] == False and self.model._p.size > 0:
             raise Exception('You have not supplied a function to obtain the parameters defined in model. Use .set_p_fun() prior to setup.')
@@ -82,8 +84,14 @@ class EKF(Estimator):
         return None
     
     def setup(self):
+        """Sets up the EKF and finalizes the EKF configuration.
+        Only after the setup, the :py:func:`make_step` method becomes available.
 
-        assert self.model._alg.shape[0] == 0, 'EKF with Algebraic states not ready for use.'
+        Raises:
+            assertion: number of algebraic equations must be zero
+        """
+
+        assert self.model._alg.shape[0] == 0, 'EKF with algebraic equations not ready for use!'
 
         # extracting model information
         x, u, z, tvp, p, w = self.model['x', 'u', 'z', 'tvp', 'p', 'w']
@@ -120,13 +128,7 @@ class EKF(Estimator):
             # covariance integration equation
             dP_dt = (A @ P) + (P @ A.T) + Q
 
-            # setting up dict
-            #combined_ode = {'x': ca.vertcat(x, P.reshape((-1, 1))),
-            #                'ode': ca.vertcat(f, dP_dt.reshape((-1, 1))),
-            #                'p': ca.vertcat(u, tvp, p, Q.reshape((-1, 1)))}
-
-            # look: line 275 in simulator.py
-
+            # setting up dae
             dae ={
                 'x': ca.vertcat(x, P.reshape((-1, 1))),
                 'z': z,
@@ -136,9 +138,7 @@ class EKF(Estimator):
                 'alg': alg,
             }
 
-            #x0, u_next, z0, tvp0, p0, w0, v0
-            #x0, u_next, z0, tvp0, p0, w0
-
+            # setting up the state covariance integrator
             self.x_p_integrator = ca.integrator('x_integrator', 'idas', dae, opts)
 
         # setting up integrator for model.model_type = 'discrete'
@@ -156,7 +156,13 @@ class EKF(Estimator):
         # setting up counter
         self.counter = 0
 
-        # generating flags
+        # initialiasing a default covariance matrix
+        self.P0 = np.eye((self.model.n_x))
+
+        # initialising a default algebraic initial state
+        self.z0 = np.zeros((self.model.n_z))
+
+        # updating flags
         self.flags.update({
             'setup': True,
         })
@@ -165,146 +171,103 @@ class EKF(Estimator):
         return None
 
     def set_initial_guess(self):
+        """Initial guess for DAE variables.
+        Use the current class attribute :py:attr:`z0` to create the initial guess for the DAE algebraic equations.
+
+        The simulator uses "warmstarting" to solve the continous/discrete DAE system by using the previously computed
+        algebraic states as an initial guess. Thus, this method is typically only invoked once.
+
+        Warnings:
+            If no initial values for :py:attr:`z0` were supplied during setup, they default to zero.
+            If no initial values for :py:attr:`P0` were supplied during setup, they default to a unit matrix.
+        """
 
         # checks to ensure proper usage
         assert self.flags['setup'] == True, 'EKF was not setup yet. Please call EKF.setup().'
+        assert self.P0.shape == (self.model.n_x, self.model.n_x), 'P0 needs to be of the shape: (n_x, n_x).'
 
-        # set initial value
+        # set initial value for state
         self.x0 = ca.DM(self.x0).full()
 
-        # Covariance Matrix of initial error
-        #self.P0 = self.Q
-
-        # setting initial guess for simulator
-        #self.simulator.x0 = self.x0
-        #self.simulator.set_initial_guess()
-
-        # changing flag
+        # updating flag
         self.flags['set_initial_guess'] = True
 
         # return
         return None
 
-    def make_step(self, y_next, u_next, Q_k, R_k, debug_flag = True, force_discrete = False):
+    def make_step(self, y_next, u_next, Q_k, R_k):
+        """Main method of the EKF class during control runtime. This method is called at each timestep
+        and computes the next state estimates :py:obj:`x0`. The method returns the resulting states.
+
+        The initial state :py:attr:`x0` is stored as a class attribute. Use this attribute :py:attr:`x0` to change the initial state, by calling
+        :py:func:`set_initial_guess`.
+
+        Args:
+            y_next: Current measurement of system.
+            u_next: Current input to the system.
+            Q_k: Current process noise covariance.
+            R_k: Current mesusrement noise covariance.
+
+        Returns:
+            x0
+        """
 
         # checks to ensure proper usage
         assert self.flags['setup'] == True, 'EKF was not setup yet. Please call EKF.setup().'
         assert self.flags[
                    'set_initial_guess'] == True, 'Initial guess was not provided. Please call EKF.set_initial_guess().'
 
+        if self.flags['first_step']:
+            self.flags.update({
+            'first_step': False,
+            })
 
-
-        #x, u, z, tvp, p, w = self.model['x', 'u', 'z', 'tvp', 'p', 'w']
-        # storing values temporarily
+        # init
         t0 = self._t0
         tvp0 = self.tvp_fun(t0)
         p0 = self.p_fun(t0)
         x0 = ca.DM(self.x0).full()
         z0 = self.z0
         v0 = np.zeros((self.model.n_y, 1))
-        #w0 = np.zeros((0, 1))
         w0 = self.model['w'](0)
 
+        # counter and timer calculation
         self.counter += 1
         self._t0 += self.settings.t_step
 
-        # Linearisation
-        #A, B, C, D = self.model.get_linear_system_matrices(xss=x0, uss=u_next, p=p0, tvp=tvp0)
-
-        #A_k = self.model.A_fun(x0, u_next, z0, tvp0, p0, w0)
-        #B_k = self.model.B_fun(x0, u_next, z0, tvp0, p0, w0)
-        #C_k = self.model.C_fun(x0, u_next, z0, tvp0, p0, v0)
-        #D_k = self.model.D_fun(x0, u_next, z0, tvp0, p0, v0)
-
+        # Linearised system matrices
         A_k = self.A_fun(x0, u_next, p0, tvp0)
         B_k = self.B_fun(x0, u_next, p0, tvp0)
         C_k = self.C_fun(x0, u_next, p0, tvp0)
         D_k = self.D_fun(x0, u_next, p0, tvp0)
 
-        if self.flags['first_step']:
-            #self.P0 = Q_k
-            self.P0 = np.eye((self.model.n_x))
-            z0 = np.zeros((self.model.n_z))
-
-            self.flags.update({
-            'first_step': False,
-            })
-
-        # Debug printouts
-        print() if debug_flag else None
-        print() if debug_flag else None
-        print('#######Iteration number####### : ', self.counter) if debug_flag else None
-
-        print('Predicted state (aposteriori) : ', x0) if debug_flag else None
-        print('Predicted state (aposteriori) type: ', type(x0)) if debug_flag else None
-        print('Predicted state (aposteriori) shape : ', x0.shape) if debug_flag else None
-
-        print('Input : ', u_next) if debug_flag else None
-        print('Input type: ', type(u_next)) if debug_flag else None
-        print('Input shape : ', u_next.shape) if debug_flag else None
-
-        print() if debug_flag else None
-        print('system matrix: A') if debug_flag else None
-        print(A_k) if debug_flag else None
-        print('Shape:', A_k.shape) if debug_flag else None
-
-        print() if debug_flag else None
-        print('input matrix: B') if debug_flag else None
-        print(B_k) if debug_flag else None
-        print('Shape:', B_k.shape) if debug_flag else None
-
-        print() if debug_flag else None
-        print('measurement matrix: C') if debug_flag else None
-        print(C_k) if debug_flag else None
-        print('Shape:', C_k.shape) if debug_flag else None
-
-        print() if debug_flag else None
-        print('output disturbance matrix: D') if debug_flag else None
-        print(D_k) if debug_flag else None
-        print('Shape:', D_k.shape) if debug_flag else None
-
-
-
         # Apriori and Prediction covariance
-        if self.model.model_type is 'continuous' and force_discrete is False:
+        if self.model.model_type is 'continuous':
             initial_cond_x = ca.vertcat(self.x0, self.P0.reshape((-1,1)))
-            initial_cond_z = z0
-            initial_cond_0 = {
-                'x0': initial_cond_x,
-                'z0': initial_cond_z
-            }
-            sol = self.x_p_integrator(x0=initial_cond_x, p=ca.vertcat(u_next, tvp0, p0, Q_k.reshape((-1, 1))))
-            #sol = self.x_p_integrator(x0=initial_cond_0, p=ca.vertcat(u_next, z0, tvp0, p0, w0, Q_k.reshape((-1, 1))))
-            #u, z, tvp, p, w, Q.reshape((-1, 1))
+            initial_guess_z = z0
+            sol = self.x_p_integrator(x0 = initial_cond_x, z0 = initial_guess_z, p=ca.vertcat(u_next, tvp0, p0, Q_k.reshape((-1, 1))))
             x_apriori = sol['xf'].full()[0:self.model.n_x]
             self.P0 = sol['xf'].full()[self.model.n_x:].reshape((self.model.n_x, self.model.n_x))
             y_apriori = self.h_fun(x_apriori, u_next, p0, tvp0, v0)
 
-            print('Continious error preddiction covariance : ', self.P0) if debug_flag else None
-
         else:
             if self.model.n_z > 0: # Solve DAE only when it exists ...
-                #x, p, tvp, u, w
                 r = self.discrete_dae_solver(x0 = z0, ubg = 0, lbg = 0, p=castools.vertcat(x0, p0, tvp0, u_next, w0))
-                #sim_z_num.master = r['x']
                 z0 = r['x']
+            
             x_apriori = self.model._rhs_fun(x0, u_next, z0, tvp0, p0, w0)
             y_apriori = self.model._meas_fun(x_apriori, u_next, z0, tvp0, p0, v0)
 
             self.P0 = A_k @ self.P0 @ A_k.T + Q_k
-            print('Discrete error preddiction covariance : ', self.P0) if debug_flag else None
 
         # Kalman gain
         L = self.P0 @ C_k.T @ ca.inv_minor(C_k @ self.P0 @ C_k.T + R_k)
-        print('Kalman gain : ', L) if debug_flag else None
 
         # Aposteriori
         x0 = x_apriori + L @ (y_next - y_apriori)
-        print('Aposteriori : ', x0) if debug_flag else None
 
         # Updated error covariance
         self.P0 = (np.eye(self.model.n_x) - L @ C_k) @ self.P0
-        print('Updated error preddiction covariance : ', self.P0) if debug_flag else None
 
         # store current state
         self.x0 = ca.DM(x0).full()
