@@ -1,4 +1,4 @@
 casadi>=3.6.0
 scipy
-numpy
+numpy<2.0.0
 matplotlib
