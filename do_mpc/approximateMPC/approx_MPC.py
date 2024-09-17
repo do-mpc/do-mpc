@@ -161,6 +161,7 @@ class ApproxMPC(torch.nn.Module):
         return y_batch
     
     # approximate MPC step method for use in closed loop
+    @torch.no_grad()
     def make_step(self,x,clip_to_bounds=True):
         """Make one step with the approximate MPC.
         Args:
@@ -174,8 +175,8 @@ class ApproxMPC(torch.nn.Module):
         if not isinstance(x,torch.Tensor):
             x = torch.tensor(x,dtype=self.torch_data_type)
 
-        with torch.no_grad():
-            y = self.net(x)
+        # forward pass
+        y = self.net(x)
     
         # Clip outputs to satisfy input constraints of MPC
         if clip_to_bounds:
@@ -422,7 +423,37 @@ class ApproxMPC(torch.nn.Module):
 
 # Main - for test driven development
 if __name__ == "__main__":
-    print("test")
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    torch.set_default_device(device)
+
+    n_in = 10
+    n_out = 10
+    n_hidden_layers=2
+    n_neurons=500
+    act_fn='relu'
+    output_act_fn='linear'
+    
+    # init NN
+    net = FeedforwardNN(n_in, n_out, n_hidden_layers, n_neurons, act_fn, output_act_fn)
+
+    # count params
+    n_params = net.count_params()
+    print("Number of parameters: ", n_params)
+
+    # approx mpc
+    approx_mpc = ApproxMPC(net)
+
+    # dummy input
+    x = torch.rand(n_in, device=device)
+
+    # forward pass
+    y = approx_mpc(x)
+    print("Output: ", y)
+
+    # make step
+    y = approx_mpc.make_step(x,clip_to_bounds=False)
+    print("Output: ", y)
 
 
 # todo list
