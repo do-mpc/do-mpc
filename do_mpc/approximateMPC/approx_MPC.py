@@ -61,7 +61,7 @@ class FeedforwardNN(torch.nn.Module):
     
     @torch.no_grad()
     def count_params(self):
-        n_params = sum(param.numel() for param in self.parameters())
+        n_params = sum(param.numel() for param in self.parameters() if param.requires_grad)
         return n_params
 
 
