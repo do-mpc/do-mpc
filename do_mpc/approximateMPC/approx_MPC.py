@@ -1,12 +1,12 @@
 # Imports
-import json
+# import json
 # from dataclasses import dataclass, asdict
 # from typing import Tuple
 import torch
 # import numpy as np
 from pathlib import Path
 # import pandas as pd
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 
 # Functions
@@ -81,6 +81,13 @@ class ApproxMPC(torch.nn.Module):
         super().__init__()
         self.net = net
         self.torch_data_type = torch.float32
+        self.lb_u = None # lower bound of control actions
+        self.ub_u = None # upper bound of control actions
+
+        self.x_shift = torch.tensor(0.0) # shift of input data (min-max or standard scaling)
+        self.x_range = torch.tensor(1.0) # range of input data (min-max or standard scaling)
+        self.y_shift = torch.tensor(0.0) # shift of output data (min-max or standard scaling)
+        self.y_range = torch.tensor(1.0) # range of output data (min-max or standard scaling)
 
         self._set_device()
 
@@ -106,8 +113,7 @@ class ApproxMPC(torch.nn.Module):
         Returns:
             x_scaled (torch.Tensor): Scaled inputs.
         """
-        # TODO: Implement scaling
-        x_scaled = x
+        x_scaled = (x-self.x_shift)/self.x_range
         return x_scaled
     
     def rescale_outputs(self,y_scaled):
@@ -119,8 +125,7 @@ class ApproxMPC(torch.nn.Module):
         Returns:
             y (torch.Tensor): Rescaled outputs.
         """
-        # TODO: Implement scaling
-        y = y_scaled
+        y = y_scaled*self.y_range+self.y_shift
         return y
     
     def clip_control_actions(self,y):
@@ -489,3 +494,8 @@ class ApproxMPC():
 # Main - for test driven development
 if __name__ == "__main__":
     print("test")
+
+
+# todo list
+# TODO: Implement scaling
+# TODO: Decide on reasonable input and output names 
