@@ -36,9 +36,9 @@ import matplotlib.pyplot as plt
 import pickle
 import time
 import matplotlib
-import torch
+#import torch
 
-from do_mpc.approximateMPC.approx_MPC import ApproxMPC, ApproxMPCSettings
+#from do_mpc.approximateMPC.approx_MPC import ApproxMPC, ApproxMPCSettings
 #from do_mpc.approximateMPC import data_sampling
 #from do_mpc.approximateMPC import approx_mpc_training
 from template_model import template_model
@@ -66,8 +66,8 @@ mpc.x0 = x0
 simulator.x0 = x0
 
 mpc.set_initial_guess()
-approxmpcsettings = ApproxMPCSettings(n_in=mpc.n_u,n_out=mpc.n_y,lb_u=mpc.bounds['lower']['u'],ub_u=mpc.bounds['upper']['u'])
-approx_mpc=ApproxMPC(approxmpcsettings)
+#approxmpcsettings = ApproxMPCSettings(n_in=mpc.n_u,n_out=mpc.n_y,lb_u=mpc.bounds['lower']['u'],ub_u=mpc.bounds['upper']['u'])
+#approx_mpc=ApproxMPC(approxmpcsettings)
 
 # Initialize graphic:
 graphics = do_mpc.graphics.Graphics(mpc.data)
