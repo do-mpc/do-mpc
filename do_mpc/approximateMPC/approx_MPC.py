@@ -152,7 +152,12 @@ class ApproxMPC(torch.nn.Module):
 
         # Clip outputs to satisfy input constraints of MPC
         if clip_outputs:
-            y = torch.clamp(y,self.settings.lb_u,self.settings.ub_u)
+            if self.lb_u is not None:
+                y = torch.max(y,self.lb_u)
+            if self.ub_u is not None:
+                y = torch.min(y,self.ub_u)
+            if self.lb_u is None and self.ub_u is None:
+                raise ValueError("No output constraints defined. Clipping not possible.")
         return y.cpu().numpy()
 
 
