@@ -1210,7 +1210,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                         # Ensure nonlinear constraints on all collocation points
                         for i in range(n_total_coll_points):
                             nl_cons_k = self._nl_cons_fun(
-                                opt_x_unscaled['_x', k, s, i], opt_x_unscaled['_u', k, s_u], opt_x_unscaled['_z', k, s, i],
+                                opt_x_unscaled['_x', k, s, i], opt_x_unscaled['_u', k, s_u], opt_x_unscaled['_z', k, s, i], # TODO: should be k+1
                                 opt_p['_tvp', k], opt_p['_p', current_scenario], opt_x_unscaled['_eps', k_eps, s])
                             cons.append(nl_cons_k)
                             cons_lb.append(self._nl_cons_lb)

@@ -1146,7 +1146,7 @@ class MHE(Optimizer, Estimator):
                 # Ensure nonlinear constraints on all collocation points
                 for i in range(n_total_coll_points):
                     nl_cons_k = self._nl_cons_fun(
-                        opt_x_unscaled['_x', k, i], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, i],
+                        opt_x_unscaled['_x', k+1, i], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, i],
                         opt_p['_tvp', k], opt_x['_p_est'], opt_p['_p_set'], opt_x_unscaled['_eps', k_eps])
                     cons.append(nl_cons_k)
                     cons_lb.append(self._nl_cons_lb)

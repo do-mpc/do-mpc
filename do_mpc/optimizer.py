@@ -837,7 +837,8 @@ class Optimizer:
             n_z = self.model.n_z # Number of algebraic variables
             n_w = self.model.n_w # Number of disturbances
             n_tvp = self.model.n_tvp # Number of time-varying parameters
-            n_total_coll_points = (deg + 1) * ni # (Number of collocation points + 1 at the beginning of the finite interval) * number of finite elements
+            n_total_coll_points = (deg + 1) * ni # (Number of collocation points
+            # + 1 at the beginning of the finite interval) * number of finite elements
 
             # Choose collocation points
             if coll == 'legendre':    # Legendre collocation points
