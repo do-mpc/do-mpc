@@ -69,88 +69,86 @@ class FeedforwardNN(torch.nn.Module):
         return x
   
 
+# # %%
+# def plot_history(history):
+#     history["total_epochs"] = [idx for idx, epoch in enumerate(history["epochs"])]
 
+#     fig, ax = plt.subplots(1,1)
+#     ax.plot(history["total_epochs"],history["train_loss"],label="train loss")
+#     ax.plot(history["total_epochs"],history["val_loss"],label="val loss")
+#     ax.set_xlabel("Total Epochs")
+#     ax.set_ylabel("Loss")
+#     ax.set_yscale("log")
+#     ax.legend()
+#     # set ticks for total epochs as int
+#     ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
+#     # set x_lim to total epochs
+#     ax.set_xlim([0,history["total_epochs"][-1]])
+#     # grid
+#     ax.grid(True)
 
-# %%
-def plot_history(history):
-    history["total_epochs"] = [idx for idx, epoch in enumerate(history["epochs"])]
+#     return fig, ax
 
-    fig, ax = plt.subplots(1,1)
-    ax.plot(history["total_epochs"],history["train_loss"],label="train loss")
-    ax.plot(history["total_epochs"],history["val_loss"],label="val loss")
-    ax.set_xlabel("Total Epochs")
-    ax.set_ylabel("Loss")
-    ax.set_yscale("log")
-    ax.legend()
-    # set ticks for total epochs as int
-    ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
-    # set x_lim to total epochs
-    ax.set_xlim([0,history["total_epochs"][-1]])
-    # grid
-    ax.grid(True)
+# @dataclass
+# class ApproxMPCSettings:
+#     """Settings for the approximate MPC.
 
-    return fig, ax
+#     """
+#     # dimensions
+#     n_in: int = 3
+#     n_out: int = 1
 
-@dataclass
-class ApproxMPCSettings:
-    """Settings for the approximate MPC.
+#     # NN architecture
+#     n_layers: int = 2
+#     n_neurons: int = 200
+#     act_fn: str = 'relu'
 
-    """
-    # dimensions
-    n_in: int = 3
-    n_out: int = 1
-
-    # NN architecture
-    n_layers: int = 2
-    n_neurons: int = 200
-    act_fn: str = 'relu'
-
-    # Input variables
-    input_vars: Tuple = ("x1_0","x2_0","u_prev")
-    output_vars: Tuple = ("u0")
+#     # Input variables
+#     input_vars: Tuple = ("x1_0","x2_0","u_prev")
+#     output_vars: Tuple = ("u0")
     
-    # Scaling
-    scaling_mode: str = "bounds"
+#     # Scaling
+#     scaling_mode: str = "bounds"
 
-    # Bounds
-    lb_x1: float = -10.0
-    ub_x1: float = 10.0
-    lb_x2: float = -10.0
-    ub_x2: float = 10.0
-    lb_u: float = -2.0
-    ub_u: float = 2.0
+#     # Bounds
+#     lb_x1: float = -10.0
+#     ub_x1: float = 10.0
+#     lb_x2: float = -10.0
+#     ub_x2: float = 10.0
+#     lb_u: float = -2.0
+#     ub_u: float = 2.0
 
-    def to_dict(self):
-        return asdict(self)
+#     def to_dict(self):
+#         return asdict(self)
     
-    # function to save settings after initialization as json
-    def save_settings(self, folder_path=None, file_name="approx_MPC_settings"):
-        settings_dict = self.to_dict()
-        # make all tensors to np arrays to lists
-        for k,v in settings_dict.items():
-            if isinstance(v,torch.Tensor):
-                settings_dict[k] = v.cpu().numpy().tolist()
-        if folder_path is None:
-            save_pth = Path(file_name+".json")
-        else:
-            save_pth = Path(folder_path,file_name+".json")        
-        with open(save_pth,"w") as f:
-            json.dump(settings_dict,f,indent=4)
-        print("settings saved to: ", save_pth)
+#     # function to save settings after initialization as json
+#     def save_settings(self, folder_path=None, file_name="approx_MPC_settings"):
+#         settings_dict = self.to_dict()
+#         # make all tensors to np arrays to lists
+#         for k,v in settings_dict.items():
+#             if isinstance(v,torch.Tensor):
+#                 settings_dict[k] = v.cpu().numpy().tolist()
+#         if folder_path is None:
+#             save_pth = Path(file_name+".json")
+#         else:
+#             save_pth = Path(folder_path,file_name+".json")        
+#         with open(save_pth,"w") as f:
+#             json.dump(settings_dict,f,indent=4)
+#         print("settings saved to: ", save_pth)
 
-    @classmethod
-    def from_dict(cls, settings_dict):
-        return cls(**settings_dict)
+#     @classmethod
+#     def from_dict(cls, settings_dict):
+#         return cls(**settings_dict)
     
-    @classmethod
-    def from_json(cls, folder_pth=None, file_name="approx_MPC_settings"):
-        if folder_pth is None:
-            load_pth = Path(file_name+".json")
-        else:
-            load_pth = Path(folder_pth,file_name+".json")
-        with open(load_pth,"r") as f:
-            settings_dict = json.load(f)
-        return cls.from_dict(settings_dict)
+#     @classmethod
+#     def from_json(cls, folder_pth=None, file_name="approx_MPC_settings"):
+#         if folder_pth is None:
+#             load_pth = Path(file_name+".json")
+#         else:
+#             load_pth = Path(folder_pth,file_name+".json")
+#         with open(load_pth,"r") as f:
+#             settings_dict = json.load(f)
+#         return cls.from_dict(settings_dict)
 
 
 # approx. mpc class
@@ -379,3 +377,9 @@ class ApproxMPC():
                 if verbose:
                     print("Val loss: ",history["val_loss"][-1])
         return history
+    
+
+
+# Main - for test driven development
+if __name__ == "__main__":
+    print("test")
