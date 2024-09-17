@@ -123,6 +123,23 @@ class ApproxMPC(torch.nn.Module):
         y = y_scaled
         return y
     
+    def clip_control_actions(self,y):
+        """Clip (rescaled) outputs of net to satisfy input (control) constraints.
+
+        Args:
+            y (torch.Tensor): Outputs.
+
+        Returns:
+            y (torch.Tensor): Clipped outputs.
+        """
+        if self.lb_u is not None:
+            y = torch.max(y,self.lb_u)
+        if self.ub_u is not None:
+            y = torch.min(y,self.ub_u)
+        if self.lb_u is None and self.ub_u is None:
+            raise ValueError("No output constraints defined. Clipping not possible.")
+        return y
+
     # Predict (Batch)
     @torch.no_grad()
     def predict(self,x_batch):
@@ -132,11 +149,11 @@ class ApproxMPC(torch.nn.Module):
         return y_batch
     
     # approximate MPC step method for use in closed loop
-    def make_step(self,x,clip_outputs=True):
+    def make_step(self,x,clip_to_bounds=True):
         """Make one step with the approximate MPC.
         Args:
             x (torch.tensor): Input tensor of shape (n_in,).
-            clip_outputs (bool, optional): Whether to clip the outputs. Defaults to True.
+            clip_to_bounds (bool, optional): Whether to clip the control actions. Defaults to True.
         Returns:
             np.array: Array of shape (n_out,).
         """
@@ -151,13 +168,8 @@ class ApproxMPC(torch.nn.Module):
             y = self.rescale_outputs(y_scaled)
 
         # Clip outputs to satisfy input constraints of MPC
-        if clip_outputs:
-            if self.lb_u is not None:
-                y = torch.max(y,self.lb_u)
-            if self.ub_u is not None:
-                y = torch.min(y,self.ub_u)
-            if self.lb_u is None and self.ub_u is None:
-                raise ValueError("No output constraints defined. Clipping not possible.")
+        if clip_to_bounds:
+            y = self.clip_control_actions(y)
         return y.cpu().numpy()
 
 
