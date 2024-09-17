@@ -8,27 +8,6 @@ from pathlib import Path
 # import pandas as pd
 # import matplotlib.pyplot as plt
 
-
-# Functions
-def get_activation_layer(act_fn):
-    if act_fn == 'relu':
-        return torch.nn.ReLU()
-    elif act_fn == 'tanh':
-        return torch.nn.Tanh()
-    elif act_fn == 'leaky_relu':
-        return torch.nn.LeakyReLU()
-    elif act_fn == 'sigmoid':
-        return torch.nn.Sigmoid()
-    else:
-        raise ValueError("Activation function not implemented.")
-
-
-@torch.no_grad()
-def count_params(net):
-    n_params = sum([param.numel() for param in net.parameters()])
-    return n_params
-
-
 # Feedforward NN
 class FeedforwardNN(torch.nn.Module):
     """Feedforward Neural Network model.
@@ -54,19 +33,37 @@ class FeedforwardNN(torch.nn.Module):
         for i in range(self.n_layers):
             if i == 0:
                 self.layers.append(torch.nn.Linear(n_in, n_neurons))
-                self.layers.append(get_activation_layer(act_fn))
+                self.layers.append(self._get_activation_layer(act_fn))
             elif i == self.n_layers - 1:
                 self.layers.append(torch.nn.Linear(n_neurons, n_out))
                 if output_act_fn != 'linear':
-                    self.layers.append(get_activation_layer(output_act_fn))
+                    self.layers.append(self._get_activation_layer(output_act_fn))
             else:
                 self.layers.append(torch.nn.Linear(n_neurons, n_neurons))
-                self.layers.append(get_activation_layer(act_fn))
+                self.layers.append(self._get_activation_layer(act_fn))
+
+    def _get_activation_layer(self,act_fn):
+        if act_fn == 'relu':
+            return torch.nn.ReLU()
+        elif act_fn == 'tanh':
+            return torch.nn.Tanh()
+        elif act_fn == 'leaky_relu':
+            return torch.nn.LeakyReLU()
+        elif act_fn == 'sigmoid':
+            return torch.nn.Sigmoid()
+        else:
+            raise ValueError("Activation function not implemented.")
 
     def forward(self, x):
         for i, layer in enumerate(self.layers):
             x = layer(x)
         return x
+    
+    @torch.no_grad()
+    def count_params(self):
+        n_params = sum(param.numel() for param in self.parameters())
+        return n_params
+
 
 
 # Approximate MPC
