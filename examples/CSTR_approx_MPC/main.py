@@ -31,7 +31,7 @@ rel_do_mpc_path = os.path.join('..','..')
 sys.path.append(rel_do_mpc_path)
 import do_mpc
 from do_mpc.tools import Timer
-
+from pathlib import Path
 import matplotlib.pyplot as plt
 import pickle
 import time
@@ -39,7 +39,7 @@ import matplotlib
 #import torch
 
 #from do_mpc.approximateMPC.approx_MPC import ApproxMPC, ApproxMPCSettings
-#from do_mpc.approximateMPC import data_sampling
+from do_mpc.approximateMPC import sampling
 #from do_mpc.approximateMPC import approx_mpc_training
 from template_model import template_model
 from template_mpc import template_mpc
@@ -51,7 +51,7 @@ store_results = False
 matplotlib.use('TkAgg')
 
 model = template_model()
-mpc = template_mpc(model)
+mpc = template_mpc(model,silence_solver=True)
 simulator = template_simulator(model)
 estimator = do_mpc.estimator.StateFeedback(model)
 
@@ -66,6 +66,23 @@ mpc.x0 = x0
 simulator.x0 = x0
 
 mpc.set_initial_guess()
+lbx = np.array([[0.1], [0.1], [50], [50]])
+ubx = np.array([[2], [2], [140], [140]])
+lbu = np.array([[5], [-8500]])
+ubu = np.array([[100], [0]])
+n_samples=2000
+#file_pth = Path(__file__).parent.resolve()
+data_dir = './sampling'
+#data_dir = file_pth.joinpath(data_dir)
+sampling.approx_mpc_sampling_plan_box(n_samples=n_samples,lbx=lbx,ubx=ubx,lbu=lbu,ubu=ubu)
+def gen_x0():
+    x0 = np.random.uniform(lbx, ubx)
+    return x0
+def gen_u_prev():
+    u_prev = np.random.uniform(lbu, ubu)
+    return u_prev
+sampling.approx_mpc_sampling_plan_func(n_samples=n_samples,gen_x0=gen_x0,gen_u_prev=gen_u_prev)
+sampling.approx_mpc_open_loop_sampling(mpc,n_samples=n_samples)
 #approxmpcsettings = ApproxMPCSettings(n_in=mpc.n_u,n_out=mpc.n_y,lb_u=mpc.bounds['lower']['u'],ub_u=mpc.bounds['upper']['u'])
 #approx_mpc=ApproxMPC(approxmpcsettings)
 
