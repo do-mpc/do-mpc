@@ -4,9 +4,9 @@
 # from typing import Tuple
 import torch
 # import numpy as np
-from pathlib import Path
+# from pathlib import Path
 # import pandas as pd
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 # Feedforward NN
 class FeedforwardNN(torch.nn.Module):
@@ -190,7 +190,103 @@ class ApproxMPC(torch.nn.Module):
             raise ValueError("step_return_type must be either 'numpy' or 'torch'.")
         return y
 
+# Trainer Class
+class Trainer():
+    def __init__(self,approx_mpc):
+        self.approx_mpc = approx_mpc
+        # logging
+        self.history = {"epoch": []}
+        self.dir = None
 
+    def log_value(self,val,key):
+        if torch.is_tensor(val):
+           val = val.detach().cpu().item()        
+        assert isinstance(val,(int,float)), "Value must be a scalar."
+        if not key in self.history.keys():
+            self.history[key] = []
+        self.history[key].append(val)
+
+    def print_last_entry(self,keys=["epoch,train_loss"]):
+        assert isinstance(keys,list), "Keys must be a list."
+        for key in keys:
+            # check wether keys are in history
+            assert key in self.history.keys(), "Key not in history."
+            print(key,": ",self.history[key][-1])
+
+    def visualize_history(self,key,log_scaling=False,save_fig=False):
+        fig, ax = plt.subplots()
+        ax.plot(self.history[key],label=key)
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel(key)
+        ax.set_title(key)
+        if log_scaling:
+            ax.set_yscale('log')
+        ax.legend()
+        fig.show()
+        if save_fig:
+            assert self.dir is not None, "exp_pth must be provided."
+            plt.savefig(self.dir.joinpath(key + ".png"))
+        return fig, ax            
+
+    def train_step(self,optim,x,y):
+        optim.zero_grad()            
+        y_pred = self.approx_mpc(x)            
+        loss = torch.nn.functional.mse_loss(y_pred,y)            
+        loss.backward()            
+        optim.step()            
+        return loss.item()
+    
+    def train_epoch(self,optim,train_loader):
+        train_loss = 0.0
+        # Training Steps
+        for idx_train_batch, batch in enumerate(train_loader):
+            x, y = batch
+            loss = self.train_step(optim,x,y)         
+            train_loss += loss
+        n_train_steps = idx_train_batch+1
+        train_loss = train_loss/n_train_steps
+        return train_loss
+
+    def validation_step(self,x,y):
+        with torch.no_grad():
+            y_pred = self.approx_mpc(x)
+            loss = torch.nn.functional.mse_loss(y_pred,y)
+        return loss.item()
+    
+    def validation_epoch(self,val_loader):
+        val_loss = 0.0
+        for idx_val_batch, batch in enumerate(val_loader):
+            x_val, y_val = batch
+            loss = self.validation_step(x_val,y_val)
+            val_loss += loss
+        n_val_steps = idx_val_batch+1
+        val_loss = val_loss/n_val_steps
+        return val_loss
+
+    def train(self,N_epochs,optim,train_loader,val_loader=None,print_frequency=10):
+        for epoch in range(N_epochs):
+            # Training
+            train_loss = self.train_epoch(optim,train_loader)
+            
+            # Logging
+            self.log_value(epoch,"epoch")
+            self.log_value(train_loss.item(),"loss")
+            self.log_value(optim.param_groups[0]["lr"],"lr")
+            print_keys = ["epoch","train_loss"]
+
+            # Validation
+            if val_loader is not None:
+                val_loss = self.validation_epoch(val_loader)
+                self.log_value(val_loss.item(),"val_loss")
+                print_keys.append("val_loss")
+
+            # Print
+            if (epoch+1) % print_frequency == 0:
+                self.print_last_entry(keys=print_keys)
+                print("-------------------------------")
+            
+        return self.history
+    
 
 # # approx. mpc class
 # class ApproxMPC():
