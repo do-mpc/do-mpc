@@ -1,7 +1,4 @@
 """
-Date: 2023-09-27
-Author: Lukas Lüken
-
 Pytorch script to load some data and train a feedforward neural network to approximate the MPC controller.
 """
 # %% Imports
@@ -14,9 +11,8 @@ import json
 # Setup
 seed = 0
 torch.manual_seed(seed)
-# np.random.seed(seed)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-torch_data_type = torch.float64
+torch_data_type = torch.float32
 torch.set_default_dtype(torch_data_type)   
 file_pth = Path(__file__).parent.resolve()
 print("Filepath: ",file_pth)
