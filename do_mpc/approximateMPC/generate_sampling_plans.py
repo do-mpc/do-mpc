@@ -1,10 +1,4 @@
-"""
-Date: 2023-10-19
-Author: Lukas Lüken
 
-Script to generate the sampling plans for the nonlinear double integrator nmpc.
-
-"""
 # %% Imports
 import do_mpc
 import numpy as np
