@@ -65,7 +65,6 @@ class FeedforwardNN(torch.nn.Module):
         return n_params
 
 
-
 # Approximate MPC
 class ApproxMPC(torch.nn.Module):
     """Approximate MPC class with Neural Network embedded.
@@ -99,7 +98,12 @@ class ApproxMPC(torch.nn.Module):
         self.net.to(device)
 
     def forward(self, x):
-        return self.net(x)
+        """Forward pass of the neural network with input scaling and output rescaling.
+        """
+        x_scaled = self.scale_inputs(x)
+        y_scaled = self.net(x_scaled)
+        y = self.rescale_outputs(y_scaled)
+        return y
     
     def scale_inputs(self,x):
         """Scale inputs.
@@ -165,10 +169,8 @@ class ApproxMPC(torch.nn.Module):
             x = torch.tensor(x,dtype=self.torch_data_type)
 
         with torch.no_grad():
-            x_scaled = self.scale_inputs(x)
-            y_scaled = self.net(x_scaled)
-            y = self.rescale_outputs(y_scaled)
-
+            y = self.net(x)
+    
         # Clip outputs to satisfy input constraints of MPC
         if clip_to_bounds:
             y = self.clip_control_actions(y)
