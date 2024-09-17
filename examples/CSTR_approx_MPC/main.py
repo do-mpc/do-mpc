@@ -40,7 +40,7 @@ import matplotlib
 
 #from do_mpc.approximateMPC.approx_MPC import ApproxMPC, ApproxMPCSettings
 from do_mpc.approximateMPC.sampling import Sampler
-from do_mpc.approximateMPC.approx_MPC import ApproxMPC, Trainer,FeedforwardNN
+#from do_mpc.approximateMPC.approx_MPC import ApproxMPC, Trainer,FeedforwardNN
 #from do_mpc.approximateMPC import approx_mpc_training
 from template_model import template_model
 from template_mpc import template_mpc
@@ -75,13 +75,13 @@ n_samples=10
 #file_pth = Path(__file__).parent.resolve()
 data_dir = './sampling'
 #data_dir = file_pth.joinpath(data_dir)
-net=FeedforwardNN(n_in=mpc.model.n_x+mpc.model.n_u,n_out=mpc.model.n_u)
-approx_mpc = ApproxMPC(net)
+#net=FeedforwardNN(n_in=mpc.model.n_x+mpc.model.n_u,n_out=mpc.model.n_u)
+#approx_mpc = ApproxMPC(net)
 sampler=Sampler()
-trainer=Trainer(approx_mpc)
+#trainer=Trainer(approx_mpc)
 sampler.default_sampling(mpc,n_samples,lbx,ubx,lbu,ubu)
-x=np.stack((x0,u0))
-y=approx_mpc.make_step(x)
+#x=np.stack((x0,u0))
+#y=approx_mpc.make_step(x)
 
 
 # Initialize graphic:
