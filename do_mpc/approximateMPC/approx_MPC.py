@@ -67,7 +67,96 @@ class FeedforwardNN(torch.nn.Module):
         for i, layer in enumerate(self.layers):
             x = layer(x)
         return x
-  
+
+
+# Approximate MPC
+class ApproxMPC(torch.nn.Module):
+    """Approximate MPC class with Neural Network embedded.
+
+    Args:
+        net (torch.nn.Module): Neural Network.
+    """
+
+    def __init__(self, net):
+        super().__init__()
+        self.net = net
+        self.torch_data_type = torch.float32
+
+        self._set_device()
+
+        print("----------------------------------")
+        print(self)
+        print("----------------------------------")
+
+    def _set_device(self,device=None):
+        if device is None:
+            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = device
+        self.net.to(device)
+
+    def forward(self, x):
+        return self.net(x)
+    
+    def scale_inputs(self,x):
+        """Scale inputs.
+
+        Args:
+            x (torch.Tensor): Inputs.
+
+        Returns:
+            x_scaled (torch.Tensor): Scaled inputs.
+        """
+        # TODO: Implement scaling
+        x_scaled = x
+        return x_scaled
+    
+    def rescale_outputs(self,y_scaled):
+        """Rescale outputs.
+
+        Args:
+            y_scaled (torch.Tensor): Scaled outputs.
+
+        Returns:
+            y (torch.Tensor): Rescaled outputs.
+        """
+        # TODO: Implement scaling
+        y = y_scaled
+        return y
+    
+    # Predict (Batch)
+    @torch.no_grad()
+    def predict(self,x_batch):
+        x_batch_scaled = self.scale_inputs(x_batch)
+        y_batch_scaled = self.net(x_batch_scaled)
+        y_batch = self.rescale_outputs(y_batch_scaled)
+        return y_batch
+    
+    # approximate MPC step method for use in closed loop
+    def make_step(self,x,clip_outputs=True):
+        """Make one step with the approximate MPC.
+        Args:
+            x (torch.tensor): Input tensor of shape (n_in,).
+            clip_outputs (bool, optional): Whether to clip the outputs. Defaults to True.
+        Returns:
+            np.array: Array of shape (n_out,).
+        """
+
+        # Check if inputs are tensors
+        if not isinstance(x,torch.Tensor):
+            x = torch.tensor(x,dtype=self.torch_data_type)
+
+        with torch.no_grad():
+            x_scaled = self.scale_inputs(x)
+            y_scaled = self.net(x_scaled)
+            y = self.rescale_outputs(y_scaled)
+
+        # Clip outputs to satisfy input constraints of MPC
+        if clip_outputs:
+            y = torch.clamp(y,self.settings.lb_u,self.settings.ub_u)
+        return y.cpu().numpy()
+
+
+
 
 # # %%
 # def plot_history(history):
