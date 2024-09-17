@@ -77,6 +77,7 @@ class ApproxMPC(torch.nn.Module):
         super().__init__()
         self.net = net
         self.torch_data_type = torch.float32
+        self.step_return_type = "numpy" # "torch" or "numpy"
         self.lb_u = None # lower bound of control actions
         self.ub_u = None # upper bound of control actions
 
@@ -172,7 +173,14 @@ class ApproxMPC(torch.nn.Module):
         # Clip outputs to satisfy input constraints of MPC
         if clip_to_bounds:
             y = self.clip_control_actions(y)
-        return y.cpu().numpy()
+    
+        if self.step_return_type == "numpy":
+            y = y.cpu().numpy()
+        elif self.step_return_type == "torch":
+            y = y
+        else:
+            raise ValueError("step_return_type must be either 'numpy' or 'torch'.")
+        return y
 
 
 
