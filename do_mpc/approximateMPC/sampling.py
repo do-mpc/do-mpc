@@ -13,6 +13,13 @@ import pickle as pkl
 class Sampler:
     def __init__(self):
         pass
+    def default_sampling(self,mpc,n_samples,lbx,ubx,lbu,ubu):
+        #lbx,ubx,lbu,ubu=self.boxes_from_mpc(mpc)
+        self.approx_mpc_sampling_plan_box(n_samples,lbx,ubx,lbu,ubu)
+        self.approx_mpc_open_loop_sampling(mpc,n_samples)
+    def boxes_from_mpc(self,mpc):
+        pass
+
     def approx_mpc_sampling_plan_box(self,n_samples,lbx,ubx,lbu,ubu,data_dir='./sampling',overwrite=True):
         # Samples
         data_dir=Path(data_dir)
@@ -106,7 +113,7 @@ class Sampler:
 
     #####################################################
     # %% MPC
-    def approx_mpc_open_loop_sampling(self,mpc,data_dir='./sampling',n_samples=2000,overwrite_sampler=True):
+    def approx_mpc_open_loop_sampling(self,mpc,n_samples,data_dir='./sampling',overwrite_sampler=True):
         # %% Config
         #####################################################
         suffix='_n'+str(n_samples)

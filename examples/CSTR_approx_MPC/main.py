@@ -40,6 +40,7 @@ import matplotlib
 
 #from do_mpc.approximateMPC.approx_MPC import ApproxMPC, ApproxMPCSettings
 from do_mpc.approximateMPC.sampling import Sampler
+from do_mpc.approximateMPC.approx_MPC import ApproxMPC, Trainer,FeedforwardNN
 #from do_mpc.approximateMPC import approx_mpc_training
 from template_model import template_model
 from template_mpc import template_mpc
@@ -61,7 +62,7 @@ C_b_0 = 0.5 # This is the controlled variable [mol/l]
 T_R_0 = 134.14 #[C]
 T_K_0 = 130.0 #[C]
 x0 = np.array([C_a_0, C_b_0, T_R_0, T_K_0]).reshape(-1,1)
-
+u0=np.array([[0],[0]])
 mpc.x0 = x0
 simulator.x0 = x0
 
@@ -74,18 +75,14 @@ n_samples=10
 #file_pth = Path(__file__).parent.resolve()
 data_dir = './sampling'
 #data_dir = file_pth.joinpath(data_dir)
+net=FeedforwardNN(n_in=mpc.model.n_x+mpc.model.n_u,n_out=mpc.model.n_u)
+approx_mpc = ApproxMPC(net)
 sampler=Sampler()
-sampler.approx_mpc_sampling_plan_box(n_samples=n_samples,lbx=lbx,ubx=ubx,lbu=lbu,ubu=ubu)
-def gen_x0():
-    x0 = np.random.uniform(lbx, ubx)
-    return x0
-def gen_u_prev():
-    u_prev = np.random.uniform(lbu, ubu)
-    return u_prev
-sampler.approx_mpc_sampling_plan_func(n_samples=n_samples,gen_x0=gen_x0,gen_u_prev=gen_u_prev)
-sampler.approx_mpc_open_loop_sampling(mpc,n_samples=n_samples)
-#approxmpcsettings = ApproxMPCSettings(n_in=mpc.n_u,n_out=mpc.n_y,lb_u=mpc.bounds['lower']['u'],ub_u=mpc.bounds['upper']['u'])
-#approx_mpc=ApproxMPC(approxmpcsettings)
+trainer=Trainer(approx_mpc)
+sampler.default_sampling(mpc,n_samples,lbx,ubx,lbu,ubu)
+x=np.stack((x0,u0))
+y=approx_mpc.make_step(x)
+
 
 # Initialize graphic:
 graphics = do_mpc.graphics.Graphics(mpc.data)
