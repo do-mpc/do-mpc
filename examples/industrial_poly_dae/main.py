@@ -36,7 +36,8 @@ import pickle
 import time
 
 
-from template_model import template_model
+from template_model_ode import template_model as template_model_for_MPC
+from template_model_dae import template_model as template_model_for_simulator
 from template_mpc import template_mpc
 from template_simulator import template_simulator
 
@@ -49,10 +50,11 @@ store_results = False
 Get configured do-mpc modules:
 """
 
-model = template_model()
-mpc = template_mpc(model)
-simulator = template_simulator(model)
-estimator = do_mpc.estimator.StateFeedback(model)
+model_ode = template_model_for_MPC()
+model_dae = template_model_for_simulator()
+mpc = template_mpc(model_ode)
+simulator = template_simulator(model_dae)
+estimator = do_mpc.estimator.StateFeedback(model_ode)
 
 # Set the initial state of the controller and simulator:
 delH_R_real = 950.0
@@ -71,10 +73,18 @@ x0['Tout_M'] = 90.0 + 273.15
 x0['T_EK'] = 35.0 + 273.15
 x0['Tout_AWT'] = 35.0 + 273.15
 x0['accum_monom'] = 300.0
-x0['T_adiab'] = x0['m_A']*delH_R_real/((x0['m_W'] + x0['m_A'] + x0['m_P']) * c_pR) + x0['T_R']
+
+z0 = simulator.init_algebraic_variables()
+
 
 # Finally, the controller gets the same initial state.
-mpc.x0 = x0
+for key in x0.keys():
+    mpc.x0[key] = x0[key]
+for key in z0.keys():
+    if key in ["default"]:
+        continue
+    mpc.x0[key] = z0[key]
+
 
 # Which is used to set the initial guess:
 mpc.set_initial_guess()
@@ -88,7 +98,7 @@ plt.ion()
 # Configure plot:
 graphics.add_line(var_type='_x', var_name='T_R', axis=ax[0])
 graphics.add_line(var_type='_x', var_name='accum_monom', axis=ax[1])
-graphics.add_line(var_type="_x", var_name="T_adiab", axis=ax[2])
+graphics.add_line(var_type="_x", var_name='T_adiab', axis=ax[2])
 graphics.add_line(var_type='_u', var_name='m_dot_f', axis=ax[3])
 graphics.add_line(var_type='_u', var_name='T_in_M', axis=ax[4])
 graphics.add_line(var_type='_u', var_name='T_in_EK', axis=ax[5])
@@ -104,6 +114,7 @@ ax[5].set_xlabel('time')
 fig.align_ylabels()
 plt.ion()
 
+x0 = simulator.model._meas_fun(x0, 0, z0, simulator.tvp_fun(0), simulator.p_fun(0), simulator.model.v(0))
 for k in range(100):
     u0 = mpc.make_step(x0)
     y_next = simulator.make_step(u0)
