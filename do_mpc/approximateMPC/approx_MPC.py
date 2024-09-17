@@ -1,11 +1,3 @@
-"""
-Date: 2023-09-27
-Author: Lukas Lüken
-
-This module bundles the functionalities necessary to implement an approximate. MPC, i.e. the approximation of a model predictive control by neural networks in pytorch. This includes the architecture of the neural networks, the storage of model weights and scaling factors as well as model parameters and the loading of these models based on the stored data. Also functionalities for the use of these approx. MPC in a closed-loop like the "make_step" function are included.
-
-"""
-
 # %% Imports
 import json
 from dataclasses import dataclass, asdict
@@ -107,7 +99,7 @@ class ApproxMPC():
     def __init__(self,settings):
         self.settings = settings
 
-        self.torch_data_type = torch.float64
+        self.torch_data_type = torch.float32
 
         # initialize neural network
         self.init_ann()
@@ -309,7 +301,6 @@ class ApproxMPC():
         if history is None:
             history = {"epochs": [], "train_loss": [], "val_loss": []}
         for epoch in range(N_epochs):
-            
             # Training
             train_loss = self.train_epoch(optim,train_loader)
             history["epochs"].append(epoch)
