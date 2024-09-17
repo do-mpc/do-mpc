@@ -149,9 +149,7 @@ class ApproxMPC(torch.nn.Module):
     # Predict (Batch)
     @torch.no_grad()
     def predict(self,x_batch):
-        x_batch_scaled = self.scale_inputs(x_batch)
-        y_batch_scaled = self.net(x_batch_scaled)
-        y_batch = self.rescale_outputs(y_batch_scaled)
+        y_batch = self.net(x_batch)
         return y_batch
     
     # approximate MPC step method for use in closed loop
