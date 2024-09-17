@@ -996,10 +996,11 @@ class Optimizer:
         nk = self.settings.n_horizon
         n_robust = self.settings.n_robust
         # Build auxiliary variables that code the structure of the tree
-        # Number of branches
+        # Number of branches scenarios are split into at each stage
         n_branches = [self.n_combinations if k < n_robust else 1 for k in range(nk)]
         # Calculate the number of scenarios (nodes at each stage)
         n_scenarios = [self.n_combinations**min(k, n_robust) for k in range(nk + 1)]
+        
         # Scenaro tree structure
         child_scenario = -1 * np.ones((nk, n_scenarios[-1], n_branches[0])).astype(int)
         parent_scenario = -1 * np.ones((nk + 1, n_scenarios[-1])).astype(int)
@@ -1027,11 +1028,11 @@ class Optimizer:
                     branch_offset[k][s] = s % n_branches[0]
 
         self.scenario_tree = {
-            'structure_scenario': structure_scenario,
-            'n_branches': n_branches,
-            'n_scenarios': n_scenarios,
-            'parent_scenario': parent_scenario,
-            'branch_offset': branch_offset
+            'structure_scenario': structure_scenario,   # the nth column of structure_scenario provides the indices of the branches containing the nth scenario in each timestep
+            'n_branches': n_branches,                   # number of branches each scenario is split into in each timestep
+            'n_scenarios': n_scenarios,                 # number of scenarios evaluated in each timestep
+            'parent_scenario': parent_scenario,         # contains indices of parent scenarios. Each row considers a time step and elements at -1 consider scenarios that are not yet created at the respecive step
+            'branch_offset': branch_offset              # branch_offset is used for selection of parameters for each scenario once the tree is fully branched
         }
         return n_branches, n_scenarios, child_scenario, parent_scenario, branch_offset
 
