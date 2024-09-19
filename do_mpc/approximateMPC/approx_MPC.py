@@ -3,10 +3,13 @@
 # from dataclasses import dataclass, asdict
 # from typing import Tuple
 import torch
-# import numpy as np
-# from pathlib import Path
+from torch.utils.data import DataLoader,random_split,TensorDataset
+import torch.optim as optim
+#import numpy as np
+from pathlib import Path
 # import pandas as pd
 import matplotlib.pyplot as plt
+import pickle as pkl
 
 # Feedforward NN
 class FeedforwardNN(torch.nn.Module):
@@ -104,6 +107,11 @@ class ApproxMPC(torch.nn.Module):
         self.x_range = self.x_range.to(device)
         self.y_shift = self.y_shift.to(device)
         self.y_range = self.y_range.to(device)
+    def shift_from_box(self,lbu,ubu,lbx,ubx):
+        self.x_shift = torch.tensor(lbx)
+        self.x_range = torch.tensor(ubx-lbx)
+        self.y_shift = torch.tensor(lbu)
+        self.y_range = torch.tensor(ubu-lbu)
 
     def forward(self, x):
         """Forward pass of the neural network with input scaling and output rescaling.
@@ -123,6 +131,7 @@ class ApproxMPC(torch.nn.Module):
             x_scaled (torch.Tensor): Scaled inputs.
         """
         x_scaled = (x-self.x_shift)/self.x_range
+        x_scaled=x_scaled.type(self.torch_data_type)
         return x_scaled
     
     def rescale_outputs(self,y_scaled):
@@ -183,7 +192,7 @@ class ApproxMPC(torch.nn.Module):
             y = self.clip_control_actions(y)
     
         if self.step_return_type == "numpy":
-            y = y.cpu().numpy()
+            y = y.cpu().numpy().reshape((-1,1))
         elif self.step_return_type == "torch":
             y = y
         else:
@@ -198,6 +207,24 @@ class Trainer():
         self.history = {"epoch": []}
         self.dir = None
 
+    def load_data(self,data_dir,n_samples,val=0.2,batch_size=1000,shuffle=True,learning_rate=1e-3):
+        data_dir=Path(data_dir)
+        data_dir=data_dir.joinpath('data_n'+str(n_samples)+'_opt.pkl')
+        with open(data_dir,'rb') as f:
+            dataset = pkl.load(f)
+        x0= torch.tensor(dataset['x0'],dtype=self.approx_mpc.torch_data_type).reshape(n_samples, -1)
+        u_prev=torch.tensor(dataset['u_prev'],dtype=self.approx_mpc.torch_data_type).reshape(n_samples, -1)
+        u0=torch.tensor(dataset['u0'],dtype=self.approx_mpc.torch_data_type).reshape(n_samples, -1)
+        x=torch.cat((x0, u_prev), dim=1)
+        data=TensorDataset(x,u0)
+        training_data,val_data=random_split(data,[1-val,val])
+        train_dataloader = DataLoader(training_data, batch_size=batch_size, shuffle=shuffle)
+        test_dataloader = DataLoader(val_data, batch_size=batch_size, shuffle=shuffle)
+        optimizer = optim.Adam(self.approx_mpc.net.parameters(), lr=learning_rate)
+        return train_dataloader,test_dataloader,optimizer
+    def default_training(self,data_dir,n_samples,n_epochs):
+        train_dataloader,test_dataloader,optimizer=self.load_data(data_dir,n_samples)
+        self.train(n_epochs,optimizer,train_dataloader,test_dataloader)
     def log_value(self,val,key):
         if torch.is_tensor(val):
            val = val.detach().cpu().item()        
@@ -270,14 +297,14 @@ class Trainer():
             
             # Logging
             self.log_value(epoch,"epoch")
-            self.log_value(train_loss.item(),"loss")
+            self.log_value(train_loss,"train_loss")
             self.log_value(optim.param_groups[0]["lr"],"lr")
             print_keys = ["epoch","train_loss"]
 
             # Validation
             if val_loader is not None:
                 val_loss = self.validation_epoch(val_loader)
-                self.log_value(val_loss.item(),"val_loss")
+                self.log_value(val_loss,"val_loss")
                 print_keys.append("val_loss")
 
             # Print

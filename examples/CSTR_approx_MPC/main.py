@@ -36,12 +36,12 @@ import matplotlib.pyplot as plt
 import pickle
 import time
 import matplotlib
-#import torch
+import torch
 
-#from do_mpc.approximateMPC.approx_MPC import ApproxMPC, ApproxMPCSettings
+
 from do_mpc.approximateMPC.sampling import Sampler
-#from do_mpc.approximateMPC.approx_MPC import ApproxMPC, Trainer,FeedforwardNN
-#from do_mpc.approximateMPC import approx_mpc_training
+from do_mpc.approximateMPC.approx_MPC import ApproxMPC, Trainer,FeedforwardNN
+
 from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator
@@ -71,21 +71,25 @@ lbx = np.array([[0.1], [0.1], [50], [50]])
 ubx = np.array([[2], [2], [140], [140]])
 lbu = np.array([[5], [-8500]])
 ubu = np.array([[100], [0]])
-n_samples=10
-#file_pth = Path(__file__).parent.resolve()
+lb=np.concatenate((lbx,lbu),axis=0)
+ub=np.concatenate((ubx,ubu),axis=0)
+n_samples=10000
+
 data_dir = './sampling'
-#data_dir = file_pth.joinpath(data_dir)
-#net=FeedforwardNN(n_in=mpc.model.n_x+mpc.model.n_u,n_out=mpc.model.n_u)
-#approx_mpc = ApproxMPC(net)
+
+net=FeedforwardNN(n_in=mpc.model.n_x+mpc.model.n_u,n_out=mpc.model.n_u)
+approx_mpc = ApproxMPC(net)
 sampler=Sampler()
-#trainer=Trainer(approx_mpc)
-sampler.default_sampling(mpc,n_samples,lbx,ubx,lbu,ubu)
-#x=np.stack((x0,u0))
-#y=approx_mpc.make_step(x)
+approx_mpc.shift_from_box(lbu.T,ubu.T,lb.T,ub.T)
+trainer=Trainer(approx_mpc)
+#n_opt=sampler.default_sampling(mpc,n_samples,lbx,ubx,lbu,ubu)
+n_opt=7180
+n_epochs=1000
+trainer.default_training(data_dir,n_opt,n_epochs)
 
-
+#approx_mpc._save_to_state_dict('approx_mpc.pth')
 # Initialize graphic:
-graphics = do_mpc.graphics.Graphics(mpc.data)
+graphics = do_mpc.graphics.Graphics(simulator.data)
 
 
 fig, ax = plt.subplots(5, sharex=True)
@@ -120,14 +124,16 @@ timer = Timer()
 
 for k in range(50):
     timer.tic()
-    u0 = mpc.make_step(x0)
+    x = np.concatenate((x0,u0),axis=0).squeeze()
+    u0 = approx_mpc.make_step(x,clip_to_bounds=False)
+    #u0 = mpc.make_step(x0)
     timer.toc()
     y_next = simulator.make_step(u0)
     x0 = estimator.make_step(y_next)
 
     if show_animation:
         graphics.plot_results(t_ind=k)
-        graphics.plot_predictions(t_ind=k)
+        #graphics.plot_predictions(t_ind=k)
         graphics.reset_axes()
         plt.show()
         plt.pause(0.01)
