@@ -59,6 +59,9 @@ e = np.ones([model.n_x,1])
 x0 = np.random.uniform(-3*e,3*e) # Values between +3 and +3 for all states
 mpc.x0 = x0
 simulator.x0 = x0
+simulator.z0 = np.ones((model.n_x,1))
+simulator.set_initial_guess()
+simulator.init_algebraic_variables()
 estimator.x0 = x0
 
 # Use initial state to set the initial guess.
