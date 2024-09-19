@@ -42,9 +42,6 @@ def template_simulator(model):
 
     simulator.set_param(t_step = 0.5)
 
-    simulator.scaling["_x", "x"] = np.ones(simulator.scaling["_x", "x"].shape) * 10
-    simulator.scaling["_z", "x_next"] = np.ones(simulator.scaling["_z", "x_next"].shape) * 10
-    
-
     simulator.setup()
+
     return simulator
