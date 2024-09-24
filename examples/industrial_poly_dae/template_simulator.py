@@ -34,17 +34,34 @@ import do_mpc
 def template_simulator(model):
     """
     --------------------------------------------------------------------------
-    template_optimizer: tuning parameters
+    template_simulator: tuning parameters
     --------------------------------------------------------------------------
     """
     simulator = do_mpc.simulator.Simulator(model)
 
+    params_simulator = {
+        'integration_tool': 'idas',
+        'abstol': 1e-10,
+        'reltol': 1e-10,
+        't_step': 50.0/3600.0
+    }
 
-    simulator.set_param(t_step = 0.5)
+    simulator.set_param(**params_simulator)
 
-    simulator.scaling["_x", "x"] = np.ones(simulator.scaling["_x", "x"].shape) * 10
-    simulator.scaling["_z", "x_next"] = np.ones(simulator.scaling["_z", "x_next"].shape) * 10
-    
+    p_num = simulator.get_p_template()
+    p_num['delH_R'] = 950
+    p_num['k_0'] = 7
+    def p_fun(t_now):
+        return p_num
+    simulator.set_p_fun(p_fun)
+
+    simulator.scaling["_x", "m_W"] = 10
+    simulator.scaling["_x", "m_A"] = 10
+    simulator.scaling["_x", "m_P"] = 10
+    simulator.scaling["_x", "accum_monom"] = 10
+
+    simulator.scaling["_z", "T_adiab"] = 100
 
     simulator.setup()
+
     return simulator
