@@ -609,7 +609,7 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         z0 = castools.vertcat(self.z0) / self._z_scaling
         x0 = castools.vertcat(self.x0) / self._x_scaling
-        p0 = castools.vertcat(self.p_fun(self.t0), self.tvp_fun(self.t0), self.u0, x0)
+        p0 = castools.vertcat(x0, self.u0, self.p_fun(self.t0), self.tvp_fun(self.t0))
 
         if self.model.model_type == 'discrete':
             res = self.discrete_dae_solver(x0 = z0, ubg = 0, lbg = 0, p=p0)
@@ -622,7 +622,7 @@ class Simulator(do_mpc.model.IteratedVariables):
             nlp['x'] = castools.vertcat(self.sim_z["_z"])
             nlp['f'] = cost
             nlp['g'] = castools.vertcat(self.dae["alg"])
-            nlp['p'] = castools.vertcat(self.sim_p["_p"], self.sim_p["_tvp"], self.sim_p["_u"], self.sim_x["_x"])
+            nlp['p'] = castools.vertcat(self.sim_x["_x"], self.sim_p)
 
             suppress_ipopt =  {'ipopt.print_level':0, 'ipopt.sb': 'yes', 'print_time':0}
 
@@ -693,9 +693,9 @@ class Simulator(do_mpc.model.IteratedVariables):
         
         # Update all numerical values in the sim_x_num and sim_z_num structures
         self.sim_x_num.master = x_new
-        self.sim_x_num_unscaled.master = x_new * self._x_scaling
+        self.sim_x_num_unscaled.master = x_new * self._x_scaling.cat
         self.sim_z_num.master = z_new
-        self.sim_z_num_unscaled.master = z_new * self._z_scaling
+        self.sim_z_num_unscaled.master = z_new * self._z_scaling.cat
 
         # There may be made an error here. sim_p_num fits to values in time step
         # k + 1 (new). However, the values are actually the p values for step
