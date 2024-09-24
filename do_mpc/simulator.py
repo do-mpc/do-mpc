@@ -695,7 +695,8 @@ class Simulator(do_mpc.model.IteratedVariables):
         self.sim_x_num.master = x_new
         self.sim_x_num_unscaled.master = x_new * self._x_scaling.cat
         self.sim_z_num.master = z_new
-        self.sim_z_num_unscaled.master = z_new * self._z_scaling.cat
+        if z_new.shape[0] > 0:
+            self.sim_z_num_unscaled.master = z_new * self._z_scaling.cat
 
         # There may be made an error here. sim_p_num fits to values in time step
         # k + 1 (new). However, the values are actually the p values for step
