@@ -142,13 +142,13 @@ class EKF(Estimator):
             self.x_p_integrator = ca.integrator('x_integrator', 'idas', dae, opts)
 
         # setting up integrator for model.model_type = 'discrete'
-        elif self.model.model_type == 'discrete':
-            if self.model.n_z > 0:
+        #elif self.model.model_type == 'discrete':
+        #    if self.model.n_z > 0:
                 # Build the DAE function
                 #nlp = {'x': sim_z['_z'], 'p': castools.vertcat(sim_x['_x'], sim_p), 'f': castools.DM(0), 'g': alg}
-                nlp = {'x': z, 'p': castools.vertcat(x, p, tvp, u, w), 'f': castools.DM(0), 'g': alg}
+        #        nlp = {'x': z, 'p': castools.vertcat(x, p, tvp, u, w), 'f': castools.DM(0), 'g': alg}
 
-                self.discrete_dae_solver = castools.nlpsol('dae_roots', 'ipopt', nlp)
+        #        self.discrete_dae_solver = castools.nlpsol('dae_roots', 'ipopt', nlp)
 
         # only for continious case:
         self._check_validity()
@@ -251,9 +251,10 @@ class EKF(Estimator):
             y_apriori = self.h_fun(x_apriori, u_next, p0, tvp0, v0)
 
         else:
-            if self.model.n_z > 0: # Solve DAE only when it exists ...
-                r = self.discrete_dae_solver(x0 = z0, ubg = 0, lbg = 0, p=castools.vertcat(x0, p0, tvp0, u_next, w0))
-                z0 = r['x']
+            #if self.model.n_z > 0: # Solve DAE only when it exists ...
+            #    r = self.discrete_dae_solver(x0 = z0, ubg = 0, lbg = 0, p=castools.vertcat(x0, p0, tvp0, u_next, w0))
+            #    z0 = r['x']
+
             
             x_apriori = self.model._rhs_fun(x0, u_next, z0, tvp0, p0, w0)
             y_apriori = self.model._meas_fun(x_apriori, u_next, z0, tvp0, p0, v0)
