@@ -570,7 +570,9 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         # We assume that the unscaled z0 is provided by the user. Hence, we have to scale it before we can use it in the DAE solver.
         self.sim_x_num["_x"] = self._x0.cat / self._x_scaling
+        self.sim_x_num_unscaled["_x"] = self._x0.cat
         self.sim_z_num['_z'] = self._z0.cat / self._z_scaling
+        self.sim_z_num_unscaled['_z'] = self._z0.cat
 
     def init_algebraic_variables(self) -> np.ndarray:
         """Initializes the algebraic variables. 
@@ -702,7 +704,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         # There may be made an error here. sim_p_num fits to values in time step
         # k + 1 (new). However, the values are actually the p values for step
         # k (now).
-        aux_new = self.sim_aux_expression_fun(self.sim_x_num_unscaled, self.sim_z_num_unscaled, sim_p_num)
+        aux_new = self.sim_aux_expression_fun(self.sim_x_num, self.sim_z_num, sim_p_num)
 
         self.sim_aux_num.master = aux_new
 
@@ -763,6 +765,7 @@ class Simulator(do_mpc.model.IteratedVariables):
         x0 = self._x0
 
         z0 = self.sim_z_num['_z']
+        z0_unscaled = self.sim_z_num_unscaled["_z"]
         self.sim_x_num['_x'] = x0.cat / self._x_scaling
         self.sim_p_num['_u'] = u0
         self.sim_p_num['_p'] = p0
@@ -771,7 +774,7 @@ class Simulator(do_mpc.model.IteratedVariables):
 
         if self.flags['first_step']:
             # Remember to plug in the unscaled (physical) version of x and z
-            aux0 = self.sim_aux_expression_fun(x0, z0, self.sim_p_num)
+            aux0 = self.sim_aux_expression_fun(self.sim_x_num["_x"], self.sim_z_num["_z"], self.sim_p_num)
         else:
             # .master is chosen so that a copy is created of the variables.
             aux0 = self.sim_aux_num.master
@@ -781,16 +784,13 @@ class Simulator(do_mpc.model.IteratedVariables):
         # Call measurement function
         x_next_unscaled = x_next * self._x_scaling.cat
         z_next_unscaled = z_next * self._z_scaling.cat
-        # if z_next.shape[0] > 0:
-            
-        # else:
-        #     z_next_unscaled = z_next
+
         y_next = self.model._meas_fun(x_next_unscaled, u0, z_next_unscaled, tvp0, p0, v0)
 
         # Update data object
-        self.data.update(_x = x_next_unscaled)
+        self.data.update(_x = x0.cat)
         self.data.update(_u = u0)
-        self.data.update(_z = z_next_unscaled)
+        self.data.update(_z = z0_unscaled)
         self.data.update(_tvp = tvp0)
         self.data.update(_p = p0)
         self.data.update(_y = y_next)
