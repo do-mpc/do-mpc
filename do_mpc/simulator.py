@@ -497,7 +497,11 @@ class Simulator(do_mpc.model.IteratedVariables):
         """
         assert self.flags['setup'] == True, 'Simulator was not setup yet. Please call Simulator.setup().'
 
-        self.sim_z_num['_z'] = self._z0.cat
+        # We assume that the unscaled z0 is provided by the user. Hence, we have to scale it before we can use it in the DAE solver.
+        self.sim_x_num["_x"] = self._x0.cat / self._x_scaling
+        self.sim_x_num_unscaled["_x"] = self._x0.cat
+        self.sim_z_num['_z'] = self._z0.cat / self._z_scaling
+        self.sim_z_num_unscaled['_z'] = self._z0.cat
 
     def init_algebraic_variables(self) -> np.ndarray:
         """Initializes the algebraic variables. 
@@ -594,10 +598,16 @@ class Simulator(do_mpc.model.IteratedVariables):
         sim_p_num = self.sim_p_num
 
         if self.model.model_type == 'discrete':
-            if self.model.n_z > 0: # Solve DAE only when it exists ...
-                r = self.discrete_dae_solver(x0 = sim_z_num, ubg = 0, lbg = 0, p=castools.vertcat(sim_x_num,sim_p_num))
-                sim_z_num.master = r['x']
+            if self.model.n_z > 0: # Solve DAE when it exists...
+                r = self.discrete_dae_solver(x0 = sim_z_num, ubg = 0, lbg = 0, p=castools.vertcat(sim_x_num, sim_p_num))
+                sim_z_num["_z"] = r['x']
             x_new = self.simulator(sim_x_num, sim_z_num, sim_p_num)
+            # NOTE: This z_new actually satisfies the AE before the integration takes place, so g(x_k, u_k, z_new, p_k) = 0.
+            # If you would like to have the z_new satisfying the AE after the integration, you need to call the DAE solver again, so g(x_new, u_k, z_new, p_k) = 0.
+            # Further, be careful because while x_new remains the starting point for the next integration, u_{k+1} will change and hence also z_new, so g(x_new, u_{k+1}, z_new, p_{k+1}) = 0.
+            z_new = sim_z_num.cat
+
+
         elif self.model.model_type == 'continuous':
             r = self.simulator(x0 = sim_x_num, z0 = sim_z_num, p = sim_p_num)
             x_new = r['xf']
@@ -605,10 +615,14 @@ class Simulator(do_mpc.model.IteratedVariables):
             sim_z_num.master = z_new
         else:
             raise ValueError(f'Model type {self.model.model_type} is not supported.')
-        # There may be made an error here. sim_p_num fits to values in time step
-        # k + 1 (new). However, the values are actually the p values for step
-        # k (now).
-        aux_new = self.sim_aux_expression_fun(x_new, sim_z_num, sim_p_num)
+        
+        # Update all numerical values in the sim_x_num and sim_z_num structures
+        self.sim_x_num.master = x_new
+        self.sim_x_num_unscaled.master = x_new * self._x_scaling.cat
+        self.sim_z_num.master = z_new
+        self.sim_z_num_unscaled.master = z_new * self._z_scaling.cat
+
+        aux_new = self.sim_aux_expression_fun(self.sim_x_num, self.sim_z_num, sim_p_num)
 
         self.sim_aux_num.master = aux_new
 
@@ -669,14 +683,15 @@ class Simulator(do_mpc.model.IteratedVariables):
         x0 = self._x0
 
         z0 = self.sim_z_num['_z']
-        self.sim_x_num['_x'] = x0
+        z0_unscaled = self.sim_z_num_unscaled["_z"]
+        self.sim_x_num['_x'] = x0.cat / self._x_scaling
         self.sim_p_num['_u'] = u0
         self.sim_p_num['_p'] = p0
         self.sim_p_num['_tvp'] = tvp0
         self.sim_p_num['_w'] = w0
 
         if self.flags['first_step']:
-            aux0 = self.sim_aux_expression_fun(x0, z0, self.sim_p_num)
+            aux0 = self.sim_aux_expression_fun(self.sim_x_num["_x"], self.sim_z_num["_z"], self.sim_p_num)
         else:
             # .master is chosen so that a copy is created of the variables.
             aux0 = self.sim_aux_num.master
@@ -684,12 +699,15 @@ class Simulator(do_mpc.model.IteratedVariables):
         x_next = self.simulate()
 
         # Call measurement function
-        z_next = self.sim_z_num['_z']
-        y_next = self.model._meas_fun(x_next, u0, z_next, tvp0, p0, v0)
+        x_next_unscaled = x_next * self._x_scaling.cat
+        z_next_unscaled = z_next * self._z_scaling.cat
 
-        self.data.update(_x = x0)
+        y_next = self.model._meas_fun(x_next_unscaled, u0, z_next_unscaled, tvp0, p0, v0)
+
+        # Update data object
+        self.data.update(_x = x0.cat)
         self.data.update(_u = u0)
-        self.data.update(_z = z0)
+        self.data.update(_z = z0_unscaled)
         self.data.update(_tvp = tvp0)
         self.data.update(_p = p0)
         self.data.update(_y = y_next)
