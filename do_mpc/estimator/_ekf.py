@@ -27,10 +27,7 @@ from typing import Union
 import casadi as ca
 import casadi.tools as castools
 from typing import Callable
-from ..simulator import Simulator
 from ._estimatorsettings import EstimatorSettings
-from ..model import Model
-
 
 
 class EKF(Estimator):
@@ -45,11 +42,6 @@ class EKF(Estimator):
         # init
         Estimator.__init__(self, model)
         self.settings = EstimatorSettings()
-        
-        # Stores the variances of state(s) and measurement(s)
-        # TODO: make Q and R changable by tvp (AT MAKE_STEP)
-        #self.Q = Q
-        #self.R = R
 
         # generating flags
         self.flags = {
@@ -140,15 +132,6 @@ class EKF(Estimator):
 
             # setting up the state covariance integrator
             self.x_p_integrator = ca.integrator('x_integrator', 'idas', dae, opts)
-
-        # setting up integrator for model.model_type = 'discrete'
-        #elif self.model.model_type == 'discrete':
-        #    if self.model.n_z > 0:
-                # Build the DAE function
-                #nlp = {'x': sim_z['_z'], 'p': castools.vertcat(sim_x['_x'], sim_p), 'f': castools.DM(0), 'g': alg}
-        #        nlp = {'x': z, 'p': castools.vertcat(x, p, tvp, u, w), 'f': castools.DM(0), 'g': alg}
-
-        #        self.discrete_dae_solver = castools.nlpsol('dae_roots', 'ipopt', nlp)
 
         # only for continious case:
         self._check_validity()
@@ -250,12 +233,7 @@ class EKF(Estimator):
             self.P0 = sol['xf'].full()[self.model.n_x:].reshape((self.model.n_x, self.model.n_x))
             y_apriori = self.h_fun(x_apriori, u_next, p0, tvp0, v0)
 
-        else:
-            #if self.model.n_z > 0: # Solve DAE only when it exists ...
-            #    r = self.discrete_dae_solver(x0 = z0, ubg = 0, lbg = 0, p=castools.vertcat(x0, p0, tvp0, u_next, w0))
-            #    z0 = r['x']
-
-            
+        else:            
             x_apriori = self.model._rhs_fun(x0, u_next, z0, tvp0, p0, w0)
             y_apriori = self.model._meas_fun(x_apriori, u_next, z0, tvp0, p0, v0)
 
@@ -277,11 +255,9 @@ class EKF(Estimator):
         # Update data object:
         self.data.update(_x = ca.DM(x0).full())
         self.data.update(_u = u_next)
-        #self.data.update(_z = self.simulator.sim_z_num['_z'].full())
         self.data.update(_p = p0)
         self.data.update(_tvp = tvp0)
         self.data.update(_time = t0)
-        #self.data.update(_aux = self.simulator.data._z[-1])
 
         # return
         return ca.DM(x0).full()
