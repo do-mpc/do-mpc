@@ -82,12 +82,13 @@ approx_mpc = ApproxMPC(net)
 sampler=Sampler()
 approx_mpc.shift_from_box(lbu.T,ubu.T,lb.T,ub.T)
 trainer=Trainer(approx_mpc)
-#n_opt=sampler.default_sampling(mpc,n_samples,lbx,ubx,lbu,ubu)
-n_opt=7180
-n_epochs=1000
-trainer.default_training(data_dir,n_opt,n_epochs)
+sampler.default_sampling(mpc,n_samples,lbx,ubx,lbu,ubu)
+#n_opt=7180
+n_epochs=2000
+trainer.default_training(data_dir,n_samples,n_epochs,)
+approx_mpc.save_to_state_dict('approx_mpc.pth')
+approx_mpc.load_from_state_dict('approx_mpc.pth')
 
-#approx_mpc._save_to_state_dict('approx_mpc.pth')
 # Initialize graphic:
 graphics = do_mpc.graphics.Graphics(simulator.data)
 

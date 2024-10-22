@@ -60,8 +60,8 @@ def template_mpc(model, silence_solver=False):
     mpc.scaling['_u', 'Q_dot'] = 2000
     mpc.scaling['_u', 'F'] = 100
 
-    mterm = (model.x['C_b'] - 0.6)**2
-    lterm = (model.x['C_b'] - 0.6)**2
+    mterm = (model.x['C_b'] - 0.6)**2+(model.x['C_a'] - 0.7)**2
+    lterm = (model.x['C_b'] - 0.6)**2+(model.x['C_a'] - 0.7)**2
 
     mpc.set_objective(mterm=mterm, lterm=lterm)
 

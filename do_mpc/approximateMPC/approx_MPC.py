@@ -116,9 +116,9 @@ class ApproxMPC(torch.nn.Module):
     def forward(self, x):
         """Forward pass of the neural network with input scaling and output rescaling.
         """
-        x_scaled = self.scale_inputs(x)
-        y_scaled = self.net(x_scaled)
-        y = self.rescale_outputs(y_scaled)
+        #x_scaled = self.scale_inputs(x)
+        y = self.net(x)
+        #y = self.rescale_outputs(y_scaled)
         return y
     
     def scale_inputs(self,x):
@@ -185,7 +185,9 @@ class ApproxMPC(torch.nn.Module):
             x = torch.tensor(x,dtype=self.torch_data_type)
 
         # forward pass
-        y = self.net(x)
+        x_scaled = self.scale_inputs(x)
+        y_scaled = self.net(x_scaled)
+        y = self.rescale_outputs(y_scaled)
     
         # Clip outputs to satisfy input constraints of MPC
         if clip_to_bounds:
@@ -198,6 +200,10 @@ class ApproxMPC(torch.nn.Module):
         else:
             raise ValueError("step_return_type must be either 'numpy' or 'torch'.")
         return y
+    def save_to_state_dict(self,directory="model.pth"):
+        torch.save(self.net.state_dict(),directory)
+    def load_from_state_dict(self,directory="model.pth"):
+        self.net.load_state_dict(torch.load(directory))
 
 # Trainer Class
 class Trainer():
@@ -206,17 +212,30 @@ class Trainer():
         # logging
         self.history = {"epoch": []}
         self.dir = None
+    def scale_dataset(self,x,u0):
+        x_shift = self.approx_mpc.x_shift#torch.tensor(lbx)
+        x_range = self.approx_mpc.x_range#torch.tensor(ubx - lbx)
+        y_shift = self.approx_mpc.y_shift#torch.tensor(lbu)
+        y_range = self.approx_mpc.y_range#torch.tensor(ubu - lbu)
+        x_scaled = (x - x_shift) /x_range
+        #u_prev_scaled = (u_prev - y_shift.T) / y_range.T
+        u0_scaled = (u0 - y_shift) / y_range
+        x_scaled=x_scaled.type(self.approx_mpc.torch_data_type)
+        u0_scaled=u0_scaled.type(self.approx_mpc.torch_data_type)
+        return x_scaled,u0_scaled
 
     def load_data(self,data_dir,n_samples,val=0.2,batch_size=1000,shuffle=True,learning_rate=1e-3):
         data_dir=Path(data_dir)
         data_dir=data_dir.joinpath('data_n'+str(n_samples)+'_opt.pkl')
         with open(data_dir,'rb') as f:
             dataset = pkl.load(f)
-        x0= torch.tensor(dataset['x0'],dtype=self.approx_mpc.torch_data_type).reshape(n_samples, -1)
-        u_prev=torch.tensor(dataset['u_prev'],dtype=self.approx_mpc.torch_data_type).reshape(n_samples, -1)
-        u0=torch.tensor(dataset['u0'],dtype=self.approx_mpc.torch_data_type).reshape(n_samples, -1)
+        n_data=len(dataset['x0'])
+        x0= torch.tensor(dataset['x0'],dtype=self.approx_mpc.torch_data_type).reshape(n_data, -1)
+        u_prev=torch.tensor(dataset['u_prev'],dtype=self.approx_mpc.torch_data_type).reshape(n_data, -1)
+        u0=torch.tensor(dataset['u0'],dtype=self.approx_mpc.torch_data_type).reshape(n_data, -1)
         x=torch.cat((x0, u_prev), dim=1)
-        data=TensorDataset(x,u0)
+        x_scaled, u0_scaled = self.scale_dataset(x, u0)
+        data=TensorDataset(x_scaled,u0_scaled)
         training_data,val_data=random_split(data,[1-val,val])
         train_dataloader = DataLoader(training_data, batch_size=batch_size, shuffle=shuffle)
         test_dataloader = DataLoader(val_data, batch_size=batch_size, shuffle=shuffle)

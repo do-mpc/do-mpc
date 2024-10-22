@@ -16,8 +16,8 @@ class Sampler:
     def default_sampling(self,mpc,n_samples,lbx,ubx,lbu,ubu):
         #lbx,ubx,lbu,ubu=self.boxes_from_mpc(mpc)
         self.approx_mpc_sampling_plan_box(n_samples,lbx,ubx,lbu,ubu)
-        n_opt=self.approx_mpc_open_loop_sampling(mpc,n_samples)
-        return n_opt
+        self.approx_mpc_open_loop_sampling(mpc,n_samples)
+
     def boxes_from_mpc(self,mpc):
         pass
 
@@ -230,14 +230,14 @@ class Sampler:
         # else:
         #     df.to_pickle(str(data_dir) +'/' + data_file_name + '_n{}'.format(n_data) + '_all' + '.pkl')
 
+        df = pd.DataFrame(dh[:])
+        n_data = df.shape[0]
+        df.to_pickle(str(data_dir) + '/' + data_file_name + '_n{}'.format(n_data) + '_all' + '.pkl')
         # %% Save
         # Filter opt and Save
         df = pd.DataFrame(dh.filter(output_filter = lambda status: status==True))
         n_data_opt = df.shape[0]
-        df.to_pickle(str(data_dir) +'/' + data_file_name + '_n{}'.format(n_data_opt) + '_opt' + '.pkl')
+        df.to_pickle(str(data_dir) +'/' + data_file_name + '_n{}'.format(n_data) + '_opt' + '.pkl')
 
         # Save all
-        df = pd.DataFrame(dh[:])
-        n_data = df.shape[0]
-        df.to_pickle(str(data_dir) +'/' + data_file_name + '_n{}'.format(n_data) + '_all' + '.pkl')
-        return n_data_opt
+
