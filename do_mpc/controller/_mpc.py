@@ -1088,7 +1088,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     def _prepare_nlp(self)->None:
         """Internal method. See detailed documentation with optimizer.prepare_nlp
         """
-        self._settings.check_for_mandatory_settings()
+        self._settings.are_settings_valid(raise_error=True)
         nl_cons_input = self.model['x', 'u', 'z', 'tvp', 'p']
         self._setup_nl_cons(nl_cons_input)
         self._check_validity()
@@ -1178,6 +1178,10 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         # For all control intervals
         for k in range(self._settings.n_horizon):
+            if (self._settings.n_control_horizon is not None and k >= self._settings.n_control_horizon):
+                k_u = self._settings.n_control_horizon - 1
+            else:
+                k_u = k
             # For all scenarios (grows exponentially with n_robust)
             for s in range(n_scenarios[k]):
                 # For all childen nodes of each node at stage k, discretize the model equations
@@ -1204,6 +1208,14 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                     cons.append(xf_ksb - opt_x['_x', k+1, child_scenario[k][s][b], -1])
                     cons_lb.append(np.zeros((self.model.n_x, 1)))
                     cons_ub.append(np.zeros((self.model.n_x, 1)))
+                    
+                    if k != k_u:
+                        # Add constraints to keep the control input constant.
+                        current_u = opt_x['_u', k, s_u]
+                        n_current_u = current_u.shape[0]
+                        cons.append(current_u - opt_x['_u', k_u, s_u])
+                        cons_lb.append(np.zeros((n_current_u, 1)))
+                        cons_ub.append(np.zeros((n_current_u, 1)))
 
                     k_eps = min(k, n_eps-1)
                     if self._settings.nl_cons_check_colloc_points:
