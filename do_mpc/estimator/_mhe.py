@@ -1123,7 +1123,12 @@ class MHE(Optimizer, Estimator):
                                    _p, opt_x['_w', k])
 
             # Compute current measurement
-            yk_calc = self.model._meas_fun(opt_x_unscaled['_x', k+1, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, 0],
+            # Note, when using an algebraic variable `z` in the measurement function,
+            # this is only exact for the Radau collocation scheme,
+            # because the Radau scheme has a collocation point at the end of the interval.
+            # For other schemes, this is only an approximation,
+            # because the algebraic variable is not defined at the end of the interval but only close to it.
+            yk_calc = self.model._meas_fun(opt_x_unscaled['_x', k+1, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1],
                 opt_p['_tvp', k], _p, opt_x_unscaled['_v', k])
 
             # Add the collocation equations
