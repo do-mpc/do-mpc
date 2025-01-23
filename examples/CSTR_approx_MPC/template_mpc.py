@@ -42,7 +42,10 @@ def template_mpc(model, silence_solver=False):
 
     # Set settings of MPC:
     mpc.settings.n_horizon = 20
-    mpc.settings.n_robust = 1
+
+    #mpc.settings.n_robust = 1
+    mpc.settings.n_robust = 0
+
     mpc.settings.open_loop = 0
     mpc.settings.t_step = 0.005
     mpc.settings.state_discretization = 'collocation'

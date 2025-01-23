@@ -639,6 +639,7 @@ class Simulator(do_mpc.model.IteratedVariables):
             y_next
         """
         # Generate dummy input if system is autnomous
+
         if u0 is None:
             assert self.model.n_u == 0, 'No input u0 provided. Please provide an input u0.'
             u0 = self.model._u(0)

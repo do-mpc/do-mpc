@@ -20,34 +20,27 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
-import numpy as np
-import matplotlib.pyplot as plt
-from casadi import *
 from casadi.tools import *
-import pdb
 import sys
 import os
 rel_do_mpc_path = os.path.join('..','..')
 sys.path.append(rel_do_mpc_path)
 import do_mpc
 from do_mpc.tools import Timer
-from pathlib import Path
 import matplotlib.pyplot as plt
-import pickle
-import time
 import matplotlib
-import torch
 
 
-from do_mpc.approximateMPC.sampling import Sampler
-from do_mpc.approximateMPC.approx_MPC import ApproxMPC, Trainer,FeedforwardNN
+from do_mpc.approximateMPC import Sampler
+from do_mpc.approximateMPC import ApproxMPC, Trainer
 
 from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator
 
+
 """ User settings: """
-show_animation = True
+show_animation = False
 store_results = False
 matplotlib.use('TkAgg')
 
@@ -63,37 +56,63 @@ T_R_0 = 134.14 #[C]
 T_K_0 = 130.0 #[C]
 x0 = np.array([C_a_0, C_b_0, T_R_0, T_K_0]).reshape(-1,1)
 u0=np.array([[0],[0]])
+
+# pushing to class
 mpc.x0 = x0
 simulator.x0 = x0
-
 mpc.set_initial_guess()
-lbx = np.array([[0.1], [0.1], [50], [50]])
-ubx = np.array([[2], [2], [140], [140]])
-lbu = np.array([[5], [-8500]])
-ubu = np.array([[100], [0]])
-lb=np.concatenate((lbx,lbu),axis=0)
-ub=np.concatenate((ubx,ubu),axis=0)
-n_samples=10000
+simulator.set_initial_guess()
 
+
+# approximate mpc
+approx_mpc = ApproxMPC(mpc)
+#approx_mpc.settings.device='cuda'
+#approx_mpc.settings.n_neurons = 10
+approx_mpc.setup()
+
+
+# sampler
+n_samples = 10
 data_dir = './sampling'
+# sampler init
+sampler = Sampler(approx_mpc)
+#sampler.simulator_settings.t_step = 1
+#sampler.simulator.t_step = 1
+sampler.settings.closed_loop_flag = True
+sampler.settings.n_samples = n_samples
+sampler.settings.trajectory_length = 5
+sampler.setup()
+#
+sampler.default_sampling()
 
-net=FeedforwardNN(n_in=mpc.model.n_x+mpc.model.n_u,n_out=mpc.model.n_u)
-approx_mpc = ApproxMPC(net)
-sampler=Sampler()
-approx_mpc.shift_from_box(lbu.T,ubu.T,lb.T,ub.T)
-trainer=Trainer(approx_mpc)
-sampler.default_sampling(mpc,n_samples,lbx,ubx,lbu,ubu)
-#n_opt=7180
-n_epochs=2000
-trainer.default_training(data_dir,n_samples,n_epochs,)
+
+# trainer
+trainer = Trainer(approx_mpc)
+n_epochs = 2000
+# default training scheme
+trainer.settings.n_samples = n_samples
+trainer.settings.n_epochs = n_epochs
+trainer.settings.scheduler_flag = True
+trainer.scheduler_settings.cooldown = 0
+trainer.settings.show_fig =True
+trainer.settings.save_fig = True
+trainer.setup()
+trainer.default_training()
+# remove
+#trainer.setup(data_dir, n_samples, n_epochs, scheduler_flag=True)
+
+
+# saving data
 approx_mpc.save_to_state_dict('approx_mpc.pth')
 approx_mpc.load_from_state_dict('approx_mpc.pth')
+# appx mpc end
 
 # Initialize graphic:
 graphics = do_mpc.graphics.Graphics(simulator.data)
 
-
+# plot
 fig, ax = plt.subplots(5, sharex=True)
+
 # Configure plot:
 graphics.add_line(var_type='_x', var_name='C_a', axis=ax[0])
 graphics.add_line(var_type='_x', var_name='C_b', axis=ax[0])
@@ -125,9 +144,11 @@ timer = Timer()
 
 for k in range(50):
     timer.tic()
-    x = np.concatenate((x0,u0),axis=0).squeeze()
-    u0 = approx_mpc.make_step(x,clip_to_bounds=False)
+
+    # put this inside appx_mpc
+    u0 = approx_mpc.make_step(x0, clip_to_bounds=False)
     #u0 = mpc.make_step(x0)
+
     timer.toc()
     y_next = simulator.make_step(u0)
     x0 = estimator.make_step(y_next)
@@ -139,9 +160,9 @@ for k in range(50):
         plt.show()
         plt.pause(0.01)
 
-timer.info()
-timer.hist()
-
+#timer.info()
+#timer.hist()
+#trainer.visualize_history(keys=['train_loss', 'val_loss', 'lr'])
 input('Press any key to exit.')
 
 # Store results:
