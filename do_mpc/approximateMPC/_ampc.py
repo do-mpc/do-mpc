@@ -1,0 +1,365 @@
+
+#
+#   This file is part of do-mpc
+#
+#   do-mpc: An environment for the easy, modular and efficient implementation of
+#        robust nonlinear model predictive control
+#
+#   Copyright (c) 2014-2019 Sergio Lucia, Alexandru Tatulea-Codrean
+#                        TU Dortmund. All rights reserved
+#
+#   do-mpc is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Lesser General Public License as
+#   published by the Free Software Foundation, either version 3
+#   of the License, or (at your option) any later version.
+#
+#   do-mpc is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU Lesser General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
+
+# Imports
+import warnings
+import torch
+import numpy as np
+import casadi as ca
+from ._ampcsettings import ApproximateMPCSettings
+
+# Feedforward NN
+class FeedforwardNN(torch.nn.Module):
+    """Feedforward Neural Network model.
+
+    Args:
+        n_in (int): Number of input features.
+        n_out (int): Number of output features.
+        n_hidden_layers (int): Number of hidden layers.
+        n_neurons (int): Number of neurons in each hidden layer.
+        act_fn (str): Activation function.
+        output_act_fn (str): Output activation function.
+    """
+    def __init__(self, n_in, n_out, n_hidden_layers, n_neurons, act_fn, output_act_fn):
+        super().__init__()
+        assert n_hidden_layers >= 0, "Number of hidden layers must be >= 0."
+        self.n_in = n_in
+        self.n_out = n_out
+        self.n_layers = n_hidden_layers+1
+        self.n_neurons = n_neurons
+        self.act_fn = act_fn
+        self.output_act_fn = output_act_fn
+        self.layers = torch.nn.ModuleList()
+        for i in range(self.n_layers):
+            if i == 0:
+                self.layers.append(torch.nn.Linear(n_in, n_neurons))
+                self.layers.append(self._get_activation_layer(act_fn))
+            elif i == self.n_layers - 1:
+                self.layers.append(torch.nn.Linear(n_neurons, n_out))
+                if output_act_fn != 'linear':
+                    self.layers.append(self._get_activation_layer(output_act_fn))
+            else:
+                self.layers.append(torch.nn.Linear(n_neurons, n_neurons))
+                self.layers.append(self._get_activation_layer(act_fn))
+
+    def _get_activation_layer(self,act_fn):
+        if act_fn == 'relu':
+            return torch.nn.ReLU()
+        elif act_fn == 'tanh':
+            return torch.nn.Tanh()
+        elif act_fn == 'leaky_relu':
+            return torch.nn.LeakyReLU()
+        elif act_fn == 'sigmoid':
+            return torch.nn.Sigmoid()
+        else:
+            raise ValueError("Activation function not implemented.")
+
+    def forward(self, x):
+        for i, layer in enumerate(self.layers):
+            x = layer(x)
+        return x
+    
+    @torch.no_grad()
+    def count_params(self):
+        n_params = sum(param.numel() for param in self.parameters() if param.requires_grad)
+        return n_params
+
+
+# Approximate MPC
+class ApproxMPC(torch.nn.Module):
+    """Approximate MPC class with Neural Network embedded.
+
+    Args:
+        net (torch.nn.Module): Neural Network.
+    """
+
+    def __init__(self, mpc):
+
+        # initiates torch.nn.Module
+        super().__init__()
+
+        # storage
+        self._settings = ApproximateMPCSettings()
+        self.mpc = mpc
+
+        # flags
+        # flags
+        self.flags = {
+            'setup': False,
+        }
+
+        return None
+
+    @property
+    def settings(self):
+        '''
+        All necessary parameters of the mpc formulation.
+
+        This is a core attribute of the ApproxMPC class. It is used to set and change parameters when setting up the controller
+        by accessing an instance of :py:class:`MPCSettings`.
+
+        Example to change settings:
+
+        ::
+
+            MPC.settings.n_horizon = 15
+
+        Note:
+            Settings cannot be updated after calling :py:meth:`do_mpc.controller.MPC.setup`.
+
+        For a detailed list of all available parameters see :py:class:`MPCSettings`.
+        '''
+        return self._settings
+
+    @settings.setter
+    def settings(self, val):
+        warnings.warn('Cannot change the settings attribute')
+
+    def setup(self):
+        assert self.flags['setup'] is False, "Setup can only be once."
+        self.flags.update({
+            'setup': True,
+        })
+        # sets the device
+        self._set_device()
+
+        # ampc initilisation
+        if self.mpc.flags['set_rterm']:
+            self.net = FeedforwardNN(n_in=self.mpc.model.n_x + self.mpc.model.n_u, n_out=self.mpc.model.n_u,
+                                     n_hidden_layers=self.settings.n_hidden_layers, n_neurons=self.settings.n_neurons,
+                                     act_fn=self.settings.act_fn, output_act_fn=self.settings.act_fn)
+        else:
+            self.net = FeedforwardNN(n_in=self.mpc.model.n_x, n_out=self.mpc.model.n_u)
+
+        # Default settings
+        self.torch_data_type = torch.float32
+        self.step_return_type = "numpy"  # "torch" or "numpy"
+
+        # TODO: get scaling and constraints from mpc object
+        self.lb_u = None  # lower bound of control actions
+        self.ub_u = None  # upper bound of control actions
+        self.x_shift = torch.tensor(0.0)  # shift of input data (min-max or standard scaling)
+        self.x_range = torch.tensor(1.0)  # range of input data (min-max or standard scaling)
+        self.y_shift = torch.tensor(0.0)  # shift of output data (min-max or standard scaling)
+        self.y_range = torch.tensor(1.0)  # range of output data (min-max or standard scaling)
+
+        self.lbx = ca.DM(self.mpc._x_lb).full().T
+        self.ubx = ca.DM(self.mpc._x_ub).full().T
+        self.lbu = ca.DM(self.mpc._u_lb).full().T
+        self.ubu = ca.DM(self.mpc._u_ub).full().T
+
+        # storing initial guess
+        self.x0 = self.mpc.x0
+        self.u0 = self.mpc.u0
+
+        print("----------------------------------")
+        print(self)
+        print("----------------------------------")
+
+        # setup box constraints
+        self.shift_from_box()
+
+        # setup ends
+        return None
+
+
+    def _set_device(self):
+
+        # auto choose gpu if gpu is available
+        if self.settings.device == 'auto':
+            self.settings.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+        # torch default device is set
+        self.torch_device = torch.device(self.settings.device)
+        torch.set_default_device(self.torch_device)
+
+        #self.device = device
+        #self.net.to(device)
+        #self.x_shift = self.x_shift.to(device)
+        #self.x_range = self.x_range.to(device)
+        #self.y_shift = self.y_shift.to(device)
+        #self.y_range = self.y_range.to(device)
+
+        return None
+
+
+    def shift_from_box(self):
+        if self.mpc.flags['set_rterm']:
+            lb = np.concatenate((self.lbx, self.lbu), axis=1)
+            ub = np.concatenate((self.ubx, self.ubu), axis=1)
+        else:
+            lb = self.lbx
+            ub = self.ubx
+        self.x_shift = torch.tensor(lb)
+        self.x_range = torch.tensor(ub-lb)
+        self.y_shift = torch.tensor(self.lbu)
+        self.y_range = torch.tensor(self.ubu-self.lbu)
+
+        return None
+
+
+    def forward(self, x):
+        """Forward pass of the neural network with input scaling and output rescaling.
+        """
+        #x_scaled = self.scale_inputs(x)
+        y = self.net(x)
+        #y = self.rescale_outputs(y_scaled)
+        return y
+    
+    def scale_inputs(self,x):
+        """Scale inputs.
+
+        Args:
+            x (torch.Tensor): Inputs.
+
+        Returns:
+            x_scaled (torch.Tensor): Scaled inputs.
+        """
+        x_scaled = (x-self.x_shift)/self.x_range
+        x_scaled=x_scaled.type(self.torch_data_type)
+        return x_scaled
+    
+    def rescale_outputs(self,y_scaled):
+        """Rescale outputs.
+
+        Args:
+            y_scaled (torch.Tensor): Scaled outputs.
+
+        Returns:
+            y (torch.Tensor): Rescaled outputs.
+        """
+        y = y_scaled*self.y_range+self.y_shift
+        return y
+    
+    def clip_control_actions(self,y):
+        """Clip (rescaled) outputs of net to satisfy input (control) constraints.
+
+        Args:
+            y (torch.Tensor): Outputs.
+
+        Returns:
+            y (torch.Tensor): Clipped outputs.
+        """
+        if self.lb_u is not None:
+            y = torch.max(y,self.lb_u)
+        if self.ub_u is not None:
+            y = torch.min(y,self.ub_u)
+        if self.lb_u is None and self.ub_u is None:
+            raise ValueError("No output constraints defined. Clipping not possible.")
+        return y
+
+    # Predict (Batch)
+    @torch.no_grad()
+    def predict(self,x_batch):
+        y_batch = self.net(x_batch)
+        return y_batch
+    
+    # approximate MPC step method for use in closed loop
+    @torch.no_grad()
+    def make_step(self, x, u_prev=None, clip_to_bounds=True):
+        """Make one step with the approximate MPC.
+        Args:
+            x (torch.tensor): Input tensor of shape (n_in,).
+            clip_to_bounds (bool, optional): Whether to clip the control actions. Defaults to True.
+        Returns:
+            np.array: Array of shape (n_out,).
+        """
+
+        # put asserting errors for shapes of x0 and u0
+
+        # taking optional input if provided
+        if u_prev is not None:
+            self.u0 = u_prev
+
+        if self.mpc.flags['set_rterm']:
+            x = np.concatenate((x, ca.DM(self.u0).full()), axis=0).squeeze()
+
+        # Check if inputs are tensors
+        if not isinstance(x,torch.Tensor):
+            if self.mpc.flags['set_rterm']:
+                x = torch.tensor(x,dtype=self.torch_data_type).reshape((-1,self.mpc.model.n_x + self.mpc.model.n_u))
+            else:
+                x = torch.tensor(x, dtype=self.torch_data_type).reshape((-1, self.mpc.model.n_x))
+        # forward pass
+        x_scaled = self.scale_inputs(x)
+        y_scaled = self.net(x_scaled)
+        y = self.rescale_outputs(y_scaled)
+    
+        # Clip outputs to satisfy input constraints of MPC
+        if clip_to_bounds:
+            y = self.clip_control_actions(y)
+    
+        if self.step_return_type == "numpy":
+            y = y.cpu().numpy().reshape((-1,1))
+        elif self.step_return_type == "torch":
+            y = y
+        else:
+            raise ValueError("step_return_type must be either 'numpy' or 'torch'.")
+
+        # storing
+        self.u0 = y
+
+        return y
+    def save_to_state_dict(self,directory="model.pth"):
+        torch.save(self.net.state_dict(),directory)
+    def load_from_state_dict(self,directory="model.pth"):
+        self.net.load_state_dict(torch.load(directory))
+
+# Main - for test driven development
+if __name__ == "__main__":
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    torch.set_default_device(device)
+
+    n_in = 10
+    n_out = 10
+    n_hidden_layers=2
+    n_neurons=500
+    act_fn='relu'
+    output_act_fn='linear'
+    
+    # init NN
+    net = FeedforwardNN(n_in, n_out, n_hidden_layers, n_neurons, act_fn, output_act_fn)
+
+    # count params
+    n_params = net.count_params()
+    print("Number of parameters: ", n_params)
+
+    # approx mpc
+    approx_mpc = ApproxMPC(net)
+
+    # dummy input
+    x = torch.rand(n_in, device=device)
+
+    # forward pass
+    y = approx_mpc(x)
+    print("Output: ", y)
+
+    # make step
+    y = approx_mpc.make_step(x,clip_to_bounds=False)
+    print("Output: ", y)
+
+
+# todo list
+# TODO: Implement scaling
+# TODO: Decide on reasonable input and output names 
