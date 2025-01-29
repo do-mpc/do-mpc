@@ -116,13 +116,13 @@ class TrainerSettings:
     learning_rate: float = 1e-3
     """fill"""
 
-    show_fig = False
+    show_fig = True
     """fill"""
 
-    save_fig = False
+    save_fig = True
     """fill"""
 
-    log_scaling = False
+    save_history = True
     """fill"""
 
     def check_for_mandatory_settings(self):

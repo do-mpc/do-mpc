@@ -55,7 +55,7 @@ C_b_0 = 0.5 # This is the controlled variable [mol/l]
 T_R_0 = 134.14 #[C]
 T_K_0 = 130.0 #[C]
 x0 = np.array([C_a_0, C_b_0, T_R_0, T_K_0]).reshape(-1,1)
-u0=np.array([[0],[0]])
+#u0=np.array([[0],[0]])
 
 # pushing to class
 mpc.x0 = x0
@@ -73,7 +73,7 @@ approx_mpc.setup()
 
 # sampler
 n_samples = 10
-data_dir = './sampling'
+#data_dir = './sampling'
 # sampler init
 sampler = Sampler(approx_mpc)
 #sampler.simulator_settings.t_step = 1
