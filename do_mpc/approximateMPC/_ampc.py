@@ -147,7 +147,7 @@ class ApproxMPC(torch.nn.Module):
         if self.mpc.flags['set_rterm']:
             self.net = FeedforwardNN(n_in=self.mpc.model.n_x + self.mpc.model.n_u, n_out=self.mpc.model.n_u,
                                      n_hidden_layers=self.settings.n_hidden_layers, n_neurons=self.settings.n_neurons,
-                                     act_fn=self.settings.act_fn, output_act_fn=self.settings.act_fn)
+                                     act_fn=self.settings.act_fn, output_act_fn=self.settings.output_act_fn)
         else:
             self.net = FeedforwardNN(n_in=self.mpc.model.n_x, n_out=self.mpc.model.n_u)
 

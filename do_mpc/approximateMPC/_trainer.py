@@ -135,6 +135,7 @@ class Trainer():
 
         data_dir = Path(data_dir)
         data_dir = data_dir.joinpath('data_n' + str(n_samples) + '_opt.pkl')
+        print(f'Path from trainer to sampled files\n {data_dir}')
         with open(data_dir, 'rb') as f:
             dataset = pkl.load(f)
 
@@ -209,6 +210,7 @@ class Trainer():
         ax[1].plot(self.history["epoch"], self.history["train_loss"], label='Training Loss')
         ax[1].plot(self.history["epoch"], self.history["val_loss"], label='Validation Loss')
         ax[1].set_ylabel('Losses')
+        ax[1].set_yscale('log')
         ax[1].legend()
 
         # adding x axis label

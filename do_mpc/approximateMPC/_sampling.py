@@ -14,16 +14,16 @@ from ._ampcsettings import SamplerSettings
 # %% Config
 #####################################################
 class Sampler:
-    def __init__(self, appx_mpc):
+    def __init__(self, mpc):
 
         # storage
-        self.appx_mpc = appx_mpc
+        self.mpc = mpc
 
         # settings
         self._settings = SamplerSettings()
 
         # init simulator
-        self.simulator = do_mpc.simulator.Simulator(self.appx_mpc.mpc.model)
+        self.simulator = do_mpc.simulator.Simulator(self.mpc.model)
 
         # flags
         self.flags = {
@@ -41,15 +41,15 @@ class Sampler:
         self._settings.check_for_mandatory_settings()
 
         # init
-        self.lbx = ca.DM(self.appx_mpc.mpc._x_lb).full()
-        self.ubx = ca.DM(self.appx_mpc.mpc._x_ub).full()
-        self.lbu = ca.DM(self.appx_mpc.mpc._u_lb).full()
-        self.ubu = ca.DM(self.appx_mpc.mpc._u_ub).full()
+        self.lbx = ca.DM(self.mpc._x_lb).full()
+        self.ubx = ca.DM(self.mpc._x_ub).full()
+        self.lbu = ca.DM(self.mpc._u_lb).full()
+        self.ubu = ca.DM(self.mpc._u_ub).full()
 
         # extra setup for closed loop
         if self.settings.closed_loop_flag:
             self.setup_simulator()
-            self.estimator = do_mpc.estimator.StateFeedback(model= self.appx_mpc.mpc.model)
+            self.estimator = do_mpc.estimator.StateFeedback(model= self.mpc.model)
 
         # end of setup
         return None
@@ -72,16 +72,16 @@ class Sampler:
 
     def setup_simulator(self):
         # assert to prevent robust mpc from executing
-        assert self.appx_mpc.mpc.settings.n_robust == 0, 'Sampler with robust mpc not implemented yet.'
+        assert self.mpc.settings.n_robust == 0, 'Sampler with robust mpc not implemented yet.'
 
         # extracting t_step from mpc
-        self.simulator.settings.t_step = self.appx_mpc.mpc.settings.t_step
+        self.simulator.settings.t_step = self.mpc.settings.t_step
 
         # extracting tvp from the mpc class
-        self.simulator.set_tvp_fun(self.appx_mpc.mpc.tvp_fun)
+        self.simulator.set_tvp_fun(self.mpc.tvp_fun)
 
         # extracting p from the mpc class
-        self.simulator.set_p_fun(self.appx_mpc.mpc.p_fun)
+        self.simulator.set_p_fun(self.mpc.p_fun)
 
         # simulator setup
         self.simulator.setup()
@@ -158,7 +158,7 @@ class Sampler:
         overwrite_sampler = self.settings.overwrite_sampler
 
         n_samples = self.settings.n_samples
-        mpc = self.appx_mpc.mpc
+        mpc = self.mpc
 
         # %% Config
         #####################################################
@@ -257,24 +257,7 @@ class Sampler:
         dh.set_post_processing('t_make_step', lambda x: x[1]["t_make_step"])
         dh.set_post_processing('t_wall', lambda x: x[1]["t_wall_total"])
         dh.set_post_processing('iter_count', lambda x: x[1]["iter_count"])
-        #dh.set_post_processing('n_samples', lambda x: x[1]["iter_count"])
-        #if return_full_mpc_data == True:
-        #    dh.set_post_processing('z_num', lambda x: x[2])
-        #    dh.set_post_processing('p_num', lambda x: x[3])
-        #    dh.set_post_processing('mpc_data', lambda x: x[4])
 
-        # if filter_success_runs:
-        #     df = pd.DataFrame(dh.filter(output_filter = lambda status: status==True))
-        # else:
-        #     df = pd.DataFrame(dh[:])
-
-        # n_data = df.shape[0]
-
-        # # %% Save
-        # if filter_success_runs:
-        #     df.to_pickle(str(data_dir) +'/' + data_file_name + '_n{}'.format(n_data) + '_opt' + '.pkl')
-        # else:
-        #     df.to_pickle(str(data_dir) +'/' + data_file_name + '_n{}'.format(n_data) + '_all' + '.pkl')
 
         df = pd.DataFrame(dh[:])
         n_data = df.shape[0]
@@ -286,13 +269,14 @@ class Sampler:
         df.to_pickle(str(data_dir) +'/' + data_file_name + '_n{}'.format(n_data) + '_opt' + '.pkl')
 
         # Save all
+        return  None
 
 
     def approx_mpc_closed_loop_sampling(self):
         # %% Config
         #####################################################
         n_samples = self.settings.n_samples
-        mpc = self.appx_mpc.mpc
+        mpc = self.mpc
         trajectory_length = self.settings.trajectory_length
         overwrite_sampler = self.settings.overwrite_sampler
 
@@ -333,7 +317,7 @@ class Sampler:
             mpc.x0 = x0
             mpc.u0 = u_prev
             #u_prev_total = np.zeros((10, 2))
-            u_prev_total = np.zeros((trajectory_length, self.appx_mpc.mpc.model.n_u))
+            u_prev_total = np.zeros((trajectory_length, self.mpc.model.n_u))
             mpc.set_initial_guess()
 
             #mpc.set_tvp_fun(tvp_fun)
@@ -354,7 +338,7 @@ class Sampler:
             u_prev_curr = u_prev
             # run the closed loop for 150 steps
             for k in range(trajectory_length):
-                u_prev_total[k] = u_prev_curr.reshape((2,))
+                u_prev_total[k] = u_prev_curr.reshape((self.mpc.model.n_u,))
                 u0 = mpc.make_step(x0)
                 u_prev_curr = u0
                 if mpc.solver_stats["success"] == False:

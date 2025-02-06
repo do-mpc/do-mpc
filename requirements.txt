@@ -4,5 +4,3 @@ numpy<2.0.0
 matplotlib
 pandas
 torch
-torchaudio
-torchvision
