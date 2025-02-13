@@ -101,6 +101,8 @@ class TrainerSettings:
     data_dir: 'str' = os.path.join('.', 'sampling')
     """Location where sampled data is stored"""
 
+    results_dir: 'str' = os.path.join('.', 'training')
+
     scheduler_flag: bool = False
     """Decides whether the scheduler stops training after adequately completing training"""
 
@@ -116,13 +118,16 @@ class TrainerSettings:
     learning_rate: float = 1e-3
     """fill"""
 
-    show_fig = True
+    show_fig: bool = True
     """fill"""
 
-    save_fig = True
+    save_fig: bool = True
     """fill"""
 
-    save_history = True
+    save_history: bool = True
+    """fill"""
+
+    print_frequency: int = 10
     """fill"""
 
     def check_for_mandatory_settings(self):
@@ -157,10 +162,10 @@ class TrainerSchedulerSettings:
     threshold_mode: str = 'rel'
     """4"""
 
-    cooldown: float = 0
+    cooldown: float = 2
     """5"""
 
-    min_lr: float = 0
+    min_lr: float = 1e-9
     """6"""
 
     eps: float = 0

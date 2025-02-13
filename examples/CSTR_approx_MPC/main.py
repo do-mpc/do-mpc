@@ -40,13 +40,11 @@ from template_simulator import template_simulator
 
 from matplotlib import rcParams
 
-# plot setup
-rcParams['axes.grid'] = True
-rcParams['font.size'] = 18
+
 
 
 """ User settings: """
-show_animation = False
+show_animation = True
 store_results = False
 matplotlib.use('TkAgg')
 
@@ -61,10 +59,11 @@ C_b_0 = 0.5 # This is the controlled variable [mol/l]
 T_R_0 = 134.14 #[C]
 T_K_0 = 130.0 #[C]
 x0 = np.array([C_a_0, C_b_0, T_R_0, T_K_0]).reshape(-1,1)
-
+u0= np.array([5.0, 0.0]).reshape(-1,1)
 # pushing to class
 mpc.x0 = x0
 simulator.x0 = x0
+mpc.u0=u0
 mpc.set_initial_guess()
 simulator.set_initial_guess()
 
@@ -77,50 +76,77 @@ approx_mpc.setup()
 
 
 # sampler
-n_samples = 100
+n_samples = 10000
 sampler = Sampler(mpc)
 sampler.settings.closed_loop_flag = False
-sampler.settings.trajectory_length = 5
 sampler.settings.n_samples = n_samples
-sampler.settings.data_dir = './sampled_data'
 sampler.setup()
-sampler.default_sampling()
+
+#sampler.default_sampling()
 
 
 # trainer
 trainer = Trainer(approx_mpc)
 trainer.settings.n_samples = n_samples
-trainer.settings.n_epochs = 1000
-trainer.settings.scheduler_flag = True
-trainer.scheduler_settings.cooldown = 0
-trainer.scheduler_settings.patience = 10
-trainer.settings.show_fig =True
-trainer.settings.save_fig = True
-trainer.settings.save_history = True
-trainer.settings.data_dir = './sampled_data'
+trainer.settings.n_epochs = 10
+
 trainer.setup()
 trainer.default_training()
 
 
 # saving data
-approx_mpc.save_to_state_dict('approx_mpc.pth')
+#approx_mpc.save_to_state_dict('approx_mpc.pth')
 approx_mpc.load_from_state_dict('approx_mpc.pth')
 # appx mpc end
+graphics = do_mpc.graphics.Graphics(simulator.data)
 
-for k in range(50):
+
+fig, ax = plt.subplots(5, sharex=True)
+# Configure plot:
+graphics.add_line(var_type='_x', var_name='C_a', axis=ax[0])
+graphics.add_line(var_type='_x', var_name='C_b', axis=ax[0])
+graphics.add_line(var_type='_x', var_name='T_R', axis=ax[1])
+graphics.add_line(var_type='_x', var_name='T_K', axis=ax[1])
+graphics.add_line(var_type='_aux', var_name='T_dif', axis=ax[2])
+graphics.add_line(var_type='_u', var_name='Q_dot', axis=ax[3])
+graphics.add_line(var_type='_u', var_name='F', axis=ax[4])
+ax[0].set_ylabel('c [mol/l]')
+ax[1].set_ylabel('T [K]')
+ax[2].set_ylabel('$\Delta$ T [K]')
+ax[3].set_ylabel('Q [kW]')
+ax[4].set_ylabel('Flow [l/h]')
+ax[4].set_xlabel('time [h]')
+# Update properties for all prediction lines:
+for line_i in graphics.pred_lines.full:
+    line_i.set_linewidth(1)
+
+label_lines = graphics.result_lines['_x', 'C_a']+graphics.result_lines['_x', 'C_b']
+ax[0].legend(label_lines, ['C_a', 'C_b'])
+label_lines = graphics.result_lines['_x', 'T_R']+graphics.result_lines['_x', 'T_K']
+ax[1].legend(label_lines, ['T_R', 'T_K'])
+
+fig.align_ylabels()
+fig.tight_layout()
+plt.ion()
+
+timer = Timer()
+for k in range(200):
+    timer.tic()
     u0 = approx_mpc.make_step(x0, clip_to_bounds=False)
+    timer.toc()
     y_next = simulator.make_step(u0)
     x0 = estimator.make_step(y_next)
 
-# generate plot of profile
-fig, ax, graphics = do_mpc.graphics.default_plot(simulator.data, figsize=(16,9))
-graphics.plot_results()
-graphics.reset_axes()
-plt.show()
+    if show_animation:
+        graphics.plot_results(t_ind=k)
+        graphics.reset_axes()
+        plt.show()
+        plt.pause(0.01)
 
+timer.info()
 # end
 input('Press any key to exit.')
 
 # Store results:
 if store_results:
-    do_mpc.data.save_results([mpc, simulator], 'CSTR_robust_MPC')
+    do_mpc.data.save_results([simulator], 'CSTR_MPC')

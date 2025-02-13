@@ -33,7 +33,7 @@ import matplotlib.pyplot as plt
 import json
 from ._ampcsettings import TrainerSettings
 from ._ampcsettings import TrainerSchedulerSettings
-
+import pathlib
 #plt.ion()
 
 class Trainer():
@@ -195,42 +195,45 @@ class Trainer():
             assert key in self.history.keys(), "Key not in history."
             print(key, ": ", self.history[key][-1])
 
-    def visualize_history(self):
-
-        # setting up plot
-        fig, ax = plt.subplots(2, figsize=(8, 3 * 2))
-        fig.suptitle('Training History')
-
-        # plotting learning rate
-        ax[0].plot(self.history["epoch"], self.history["lr"], label= 'Learning Rate')
-        ax[0].set_yscale('log')
-        ax[0].set_ylabel('Learning Rate')
-
-        # plotting losses
-        ax[1].plot(self.history["epoch"], self.history["train_loss"], label='Training Loss')
-        ax[1].plot(self.history["epoch"], self.history["val_loss"], label='Validation Loss')
-        ax[1].set_ylabel('Losses')
-        ax[1].set_yscale('log')
-        ax[1].legend()
-
-        # adding x axis label
-        ax[-1].set_xlabel('epoch')
-
-        if self.settings.show_fig:
-            plt.show()
-            
-        if self.settings.save_fig:
-            assert self.settings.data_dir is not None, "exp_pth must be provided."
-            fig.savefig(Path(self.settings.data_dir).joinpath("training_history.png"))
-
+    def visualize_and_store_history(self):
+        pathlib.Path(self.settings.results_dir).joinpath("results_n_"+str(self.settings.n_samples)).mkdir(parents=True, exist_ok=True)
         if self.settings.save_history:
             assert self.settings.data_dir is not None, "exp_pth must be provided."
 
-            file_path = Path(self.settings.data_dir).joinpath("training_history.json")
+            file_path = Path(self.settings.results_dir).joinpath("results_n_"+str(self.settings.n_samples),"training_history.json")
 
             # Save to a JSON file
             with open(file_path, "w") as json_file:
                 json.dump(self.history, json_file, indent=4)
+        # setting up plot
+        if self.settings.save_fig or self.settings.show_fig:
+            fig, ax = plt.subplots(2, figsize=(8, 3 * 2))
+            fig.suptitle('Training History')
+
+            # plotting learning rate
+            ax[0].plot(self.history["epoch"], self.history["lr"], label= 'Learning Rate')
+            ax[0].set_yscale('log')
+            ax[0].set_ylabel('Learning Rate')
+
+            # plotting losses
+            ax[1].plot(self.history["epoch"], self.history["train_loss"], label='Training Loss')
+            ax[1].plot(self.history["epoch"], self.history["val_loss"], label='Validation Loss')
+            ax[1].set_ylabel('Losses')
+            ax[1].set_yscale('log')
+            ax[1].legend()
+
+            # adding x axis label
+            ax[-1].set_xlabel('epoch')
+
+            if self.settings.show_fig:
+                plt.show()
+
+            if self.settings.save_fig:
+                assert self.settings.data_dir is not None, "exp_pth must be provided."
+                fig.savefig(Path(self.settings.results_dir).joinpath("results_n_"+str(self.settings.n_samples),"training_history.png"))
+            plt.close(fig)
+
+
 
         return None
 
@@ -269,7 +272,7 @@ class Trainer():
         val_loss = val_loss / n_val_steps
         return val_loss
 
-    def default_training(self, print_frequency=10 ):
+    def default_training(self):
 
         n_epochs = self.settings.n_epochs
         train_dataloader, test_dataloader, optimizer = self.load_data()
@@ -292,7 +295,7 @@ class Trainer():
                 print_keys.append("val_loss")
 
             # Print
-            if (epoch + 1) % print_frequency == 0:
+            if (epoch + 1) % self.settings.print_frequency == 0:
                 self.print_last_entry(keys=print_keys)
                 print("-------------------------------")
 
@@ -306,7 +309,7 @@ class Trainer():
 
         # put visualise history
         if self.settings.show_fig or self.settings.save_fig or self.settings.save_history:
-            self.visualize_history()
+            self.visualize_and_store_history()
 
         # end
         return None
