@@ -1,4 +1,3 @@
-
 #
 #   This file is part of do-mpc
 #
@@ -37,6 +36,46 @@ from ._ampcsettings import TrainerSchedulerSettings
 #plt.ion()
 
 class Trainer():
+    """Trainer class for training the ApproxMPC.
+
+    The Trainer class is used to train the ApproxMPC. The training data is loaded from the data directory and the
+    training is done using the training data.
+
+    **Configuration and setup:**
+
+    Configuring and setting up the Trainer controller involves the following steps:
+
+    1. Configure the Trainer controller with :py:class:`TrainerSettings` and :py:class:`TrainerSchedulerSettings`. The ApproxMPC instance has the attribute ``settings`` and ``scheduler_settings`` which is an instance of :py:class:`TrainerSettings` and :py:class:`TrainerSchedulerSettings` respectively.
+
+    2. To finalize the class configuration :py:meth:`setup` may be called. This method sets up the Trainer.
+
+    **Usage:**
+
+    The Trainer can be used to sample the data by calling the :py:meth:`default_training` method. This method starts training the ApproxMPC with the provided configuration.
+
+    **Example:**
+
+    **Example:**
+
+    ::
+
+        # Create an MPC instance
+        mpc = do_mpc.controller.MPC(...)
+        mpc.setup()
+
+        # trainer
+        trainer = Trainer(approx_mpc)
+        trainer.settings.n_samples = 1000
+        trainer.settings.scheduler_flag = True
+        trainer.scheduler_settings.cooldown = 0
+        trainer.scheduler_settings.patience = 10
+        trainer.setup()
+        trainer.default_training()
+
+    Args:
+        approx_mpc (do_mpc.approximateMPC.ApproxMPC): The ApproxMPC object to be trained.
+
+    """
     def __init__(self, approx_mpc):
 
         # storage
@@ -54,6 +93,11 @@ class Trainer():
         return None
 
     def setup(self):
+        """_summary_
+
+        Returns:
+            _type_: _description_
+        """
         assert self.flags['setup'] is False, "Setup can only be once."
         self.flags.update({
             'setup': True,

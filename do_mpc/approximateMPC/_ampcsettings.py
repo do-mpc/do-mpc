@@ -20,14 +20,14 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
-#import data class decorator
+# imports
 from dataclasses import dataclass
 import os
 @dataclass
 class ApproximateMPCSettings:
-    """Settings for :py:class:`do_mpc.approximateMPC`.
+    """Settings for :py:class:`do_mpc.approximateMPC.ApproxMPC`.
 
-    This class contains the mandaory settings for Approximate MPC int :py:class:`do_mpc.approximateMPC`.
+    This class contains the mandaory settings for Approximate MPC int :py:class:`do_mpc.approximateMPC.ApproxMPC`.
     This class creates an instance of type :py:class:`ApproximateMPCSettings` and adds it to its class attributes.
     """
     n_hidden_layers: int = 3
@@ -43,14 +43,14 @@ class ApproximateMPCSettings:
     """Output type"""
 
     device: str = 'auto'
-    """Type of device used. Can be auto, cuda or cpu"""
+    """Type of device used. Can be `auto`, `cuda` or `cpu`"""
 
 @dataclass
 class SamplerSettings:
-    """Settings for :py:class:`do_mpc.approximateMPC`.
+    """Settings for :py:class:`do_mpc.approximateMPC.Sampler`.
 
-    This class contains the mandaory settings for Approximate MPC int :py:class:`do_mpc.approximateMPC`.
-    This class creates an instance of type :py:class:`ApproximateMPCSettings` and adds it to its class attributes.
+    This class contains the mandaory settings for Approximate MPC int :py:class:`do_mpc.approximateMPC.Sampler`.
+    This class creates an instance of type :py:class:`SamplerSettings` and adds it to its class attributes.
     """
 
     n_samples: int = None
@@ -72,7 +72,7 @@ class SamplerSettings:
     # def init for simulator settings
 
     def check_for_mandatory_settings(self):
-        """Method to assert the necessary settings required to design :py:class:`do_mpc.controller`
+        """Method to assert the necessary settings required to design :py:class:`do_mpc.approximateMPC.Sampler`
         """
         if self.n_samples is None:
             raise ValueError("n_samples must be set")
@@ -85,10 +85,10 @@ class SamplerSettings:
 
 @dataclass
 class TrainerSettings:
-    """Settings for :py:class:`do_mpc.approximateMPC`.
+    """Settings for :py:class:`do_mpc.approximateMPC.Trainer`.
 
-    This class contains the mandaory settings for Approximate MPC int :py:class:`do_mpc.approximateMPC`.
-    This class creates an instance of type :py:class:`ApproximateMPCSettings` and adds it to its class attributes.
+    This class contains the mandaory settings for Approximate MPC int :py:class:`do_mpc.approximateMPC.Trainer`.
+    This class creates an instance of type :py:class:`TrainerSettings` and adds it to its class attributes.
     """
 
     n_samples: int = None
@@ -99,34 +99,34 @@ class TrainerSettings:
 
     # variables with default values
     data_dir: 'str' = os.path.join('.', 'sampling')
-    """Location where sampled data is stored"""
+    """Location where sampled data is read from"""
 
     scheduler_flag: bool = False
-    """Decides whether the scheduler stops training after adequately completing training"""
+    """Decides whether the scheduler adapts the leraning rate"""
 
     val: float = 0.2
     """fill"""
 
     batch_size: int = 1000
-    """fill"""
+    """Batch size for training"""
 
     shuffle: bool =True
-    """fill"""
+    """Shuffle the data before training or not"""
 
     learning_rate: float = 1e-3
-    """fill"""
+    """Default learning rate fro training"""
 
     show_fig = True
-    """fill"""
+    """Display training performance ater training"""
 
     save_fig = True
-    """fill"""
+    """Save training performance ater training as a .png file"""
 
     save_history = True
-    """fill"""
+    """Save training performance ater training as a .json file"""
 
     def check_for_mandatory_settings(self):
-        """Method to assert the necessary settings required to design :py:class:`do_mpc.controller`
+        """Method to assert the necessary settings required to design :py:class:`do_mpc.approximateMPC.Trainer`
         """
         if self.n_samples is None:
             raise ValueError("n_samples must be set")
@@ -136,32 +136,32 @@ class TrainerSettings:
 
 @dataclass
 class TrainerSchedulerSettings:
-    """Settings for :py:class:`do_mpc.approximateMPC`.
+    """Settings for :py:class:`do_mpc.approximateMPC.Trainer`.
 
-    This class contains the mandaory settings for Approximate MPC int :py:class:`do_mpc.approximateMPC`.
-    This class creates an instance of type :py:class:`ApproximateMPCSettings` and adds it to its class attributes.
+    This class contains the mandaory settings for Approximate MPC int :py:class:`do_mpc.approximateMPC.Trainer`.
+    This class creates an instance of type :py:class:`TrainerSchedulerSettings` and adds it to its class attributes.
     """
 
     mode: str = 'min'
-    """0"""
+    """One of min, max. In min mode, lr will be reduced when the quantity monitored has stopped decreasing; in max mode it will be reduced when the quantity monitored has stopped increasing. Default: ‘min’."""
 
     factor: float = 0.1
-    """1"""
+    """Factor by which the learning rate will be reduced. new_lr = lr * factor. Default: 0.1."""
 
     patience: float = 10
-    """2"""
+    """ The number of allowed epochs with no improvement after which the learning rate will be reduced. Default: 10."""
 
-    threshold: float = 1e-5
-    """3"""
+    threshold: float = 1e-4
+    """Threshold for measuring the new optimum, to only focus on significant changes. Default: 1e-4."""
 
     threshold_mode: str = 'rel'
-    """4"""
+    """One of rel, abs. In rel mode, dynamic_threshold = best * ( 1 + threshold ) in ‘max’ mode or best * ( 1 - threshold ) in min mode. In abs mode, dynamic_threshold = best + threshold in max mode or best - threshold in min mode. Default: ‘rel’."""
 
     cooldown: float = 0
-    """5"""
+    """ Number of epochs to wait before resuming normal operation after lr has been reduced. Default: 0."""
 
     min_lr: float = 0
-    """6"""
+    """A scalar or a list of scalars. A lower bound on the learning rate of all param groups or each group respectively. Default: 0."""
 
-    eps: float = 0
-    """7"""
+    eps: float = 1e-8
+    """Minimal decay applied to lr. If the difference between new and old lr is smaller than eps, the update is ignored. Default: 1e-8."""

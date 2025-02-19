@@ -29,6 +29,7 @@ import do_mpc
 from do_mpc.tools import Timer
 import matplotlib.pyplot as plt
 import matplotlib
+from matplotlib.animation import FuncAnimation, ImageMagickWriter
 
 
 from do_mpc.approximateMPC import Sampler
@@ -46,8 +47,9 @@ rcParams['font.size'] = 18
 
 
 """ User settings: """
-show_animation = False
+show_animation = True
 store_results = False
+create_gif = False
 matplotlib.use('TkAgg')
 
 model = template_model()
@@ -79,7 +81,7 @@ approx_mpc.setup()
 # sampler
 n_samples = 100
 sampler = Sampler(mpc)
-sampler.settings.closed_loop_flag = False
+sampler.settings.closed_loop_flag = True
 sampler.settings.trajectory_length = 5
 sampler.settings.n_samples = n_samples
 sampler.settings.data_dir = './sampled_data'
@@ -107,16 +109,105 @@ approx_mpc.save_to_state_dict('approx_mpc.pth')
 approx_mpc.load_from_state_dict('approx_mpc.pth')
 # appx mpc end
 
+# Initialize graphic:
+graphics = do_mpc.graphics.Graphics(simulator.data)
+
+
+fig, ax = plt.subplots(5, sharex=True)
+# Configure plot:
+graphics.add_line(var_type='_x', var_name='C_a', axis=ax[0])
+graphics.add_line(var_type='_x', var_name='C_b', axis=ax[0])
+graphics.add_line(var_type='_x', var_name='T_R', axis=ax[1])
+graphics.add_line(var_type='_x', var_name='T_K', axis=ax[1])
+graphics.add_line(var_type='_aux', var_name='T_dif', axis=ax[2])
+graphics.add_line(var_type='_u', var_name='Q_dot', axis=ax[3])
+graphics.add_line(var_type='_u', var_name='F', axis=ax[4])
+ax[0].set_ylabel('c [mol/l]')
+ax[1].set_ylabel('T [K]')
+ax[2].set_ylabel('$\Delta$ T [K]')
+ax[3].set_ylabel('Q [kW]')
+ax[4].set_ylabel('Flow [l/h]')
+ax[4].set_xlabel('time [h]')
+# Update properties for all prediction lines:
+#for line_i in graphics.pred_lines.full:
+#    line_i.set_linewidth(1)
+
+#label_lines = graphics.result_lines['_x', 'C_a']+graphics.result_lines['_x', 'C_b']
+#ax[0].legend(label_lines, ['C_a', 'C_b'])
+#label_lines = graphics.result_lines['_x', 'T_R']+graphics.result_lines['_x', 'T_K']
+#ax[1].legend(label_lines, ['T_R', 'T_K'])
+
+fig.align_ylabels()
+fig.tight_layout()
+plt.ion()
+
+
 for k in range(50):
     u0 = approx_mpc.make_step(x0, clip_to_bounds=False)
     y_next = simulator.make_step(u0)
     x0 = estimator.make_step(y_next)
 
+    if show_animation:
+        graphics.plot_results(t_ind=k)
+        #graphics.plot_predictions(t_ind=k)
+        graphics.reset_axes()
+        plt.show()
+        plt.pause(0.01)
+
 # generate plot of profile
-fig, ax, graphics = do_mpc.graphics.default_plot(simulator.data, figsize=(16,9))
-graphics.plot_results()
-graphics.reset_axes()
-plt.show()
+if create_gif:
+    sim_graphics = do_mpc.graphics.Graphics(simulator.data)
+
+    fig, ax = plt.subplots(5, sharex=True, figsize=(16,12))
+    # Configure plot:
+    sim_graphics.add_line(var_type='_x', var_name='C_a', axis=ax[0])
+    sim_graphics.add_line(var_type='_x', var_name='C_b', axis=ax[0])
+    sim_graphics.add_line(var_type='_x', var_name='T_R', axis=ax[1])
+    sim_graphics.add_line(var_type='_x', var_name='T_K', axis=ax[1])
+    sim_graphics.add_line(var_type='_aux', var_name='T_dif', axis=ax[2])
+    sim_graphics.add_line(var_type='_u', var_name='Q_dot', axis=ax[3])
+    sim_graphics.add_line(var_type='_u', var_name='F', axis=ax[4])
+    ax[0].set_ylabel('c [mol/l]')
+    ax[1].set_ylabel('T [K]')
+    ax[2].set_ylabel('$\Delta$ T [K]')
+    ax[3].set_ylabel('Q [kW]')
+    ax[4].set_ylabel('Flow [l/h]')
+    ax[4].set_xlabel('time [h]')
+
+    # Update properties for all prediction lines:
+    #for line_i in sim_graphics.pred_lines.full:
+    #    line_i.set_linewidth(2)
+    ## Highlight nominal case:
+    #for line_i in np.sum(sim_graphics.pred_lines['_x', :, :,0]):
+    #    line_i.set_linewidth(5)
+    #for line_i in np.sum(sim_graphics.pred_lines['_u', :, :,0]):
+    #    line_i.set_linewidth(5)
+    #for line_i in np.sum(sim_graphics.pred_lines['_aux', :, :,0]):
+    #    line_i.set_linewidth(5)
+
+    # Add labels
+    label_lines = sim_graphics.result_lines['_x', 'C_a']+sim_graphics.result_lines['_x', 'C_b']
+    ax[0].legend(label_lines, ['C_a', 'C_b'])
+    label_lines = sim_graphics.result_lines['_x', 'T_R']+sim_graphics.result_lines['_x', 'T_K']
+    ax[1].legend(label_lines, ['T_R', 'T_K'])
+
+    fig.align_ylabels()
+
+    def update(t_ind):
+        print('Writing frame: {}.'.format(t_ind), end='\r')
+        sim_graphics.plot_results(t_ind=t_ind)
+        #sim_graphics.plot_predictions(t_ind=t_ind)
+        sim_graphics.reset_axes()
+        lines = sim_graphics.result_lines.full
+        return lines
+
+    n_steps = sim_graphics.data['_time'].shape[0]
+
+
+    anim = FuncAnimation(fig, update, frames=n_steps, blit=True)
+
+    gif_writer = ImageMagickWriter(fps=5)
+    anim.save('anim_appx.gif', writer=gif_writer)
 
 # end
 input('Press any key to exit.')
