@@ -78,6 +78,7 @@ def template_mpc(model, silence_solver=False):
     mpc.bounds['upper', '_x', 'C_a'] = 2
     mpc.bounds['upper', '_x', 'C_b'] = 2
     mpc.bounds['upper', '_x', 'T_K'] = 140
+    mpc.bounds['upper', '_x', 'T_R'] = 140
 
     mpc.bounds['lower', '_u', 'F'] = 5
     mpc.bounds['lower', '_u', 'Q_dot'] = -8500

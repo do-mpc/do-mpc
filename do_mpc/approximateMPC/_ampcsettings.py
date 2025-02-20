@@ -101,6 +101,8 @@ class TrainerSettings:
     data_dir: 'str' = os.path.join('.', 'sampling')
     """Location where sampled data is read from"""
 
+    results_dir: 'str' = os.path.join('.', 'training')
+
     scheduler_flag: bool = False
     """Decides whether the scheduler adapts the leraning rate"""
 
@@ -116,14 +118,17 @@ class TrainerSettings:
     learning_rate: float = 1e-3
     """Default learning rate fro training"""
 
-    show_fig = True
+    show_fig: bool = True
     """Display training performance ater training"""
 
-    save_fig = True
+    save_fig: bool = True
     """Save training performance ater training as a .png file"""
 
-    save_history = True
+    save_history: bool = True
     """Save training performance ater training as a .json file"""
+
+    print_frequency: int = 10
+    """fill"""
 
     def check_for_mandatory_settings(self):
         """Method to assert the necessary settings required to design :py:class:`do_mpc.approximateMPC.Trainer`
@@ -157,11 +162,12 @@ class TrainerSchedulerSettings:
     threshold_mode: str = 'rel'
     """One of rel, abs. In rel mode, dynamic_threshold = best * ( 1 + threshold ) in ‘max’ mode or best * ( 1 - threshold ) in min mode. In abs mode, dynamic_threshold = best + threshold in max mode or best - threshold in min mode. Default: ‘rel’."""
 
-    cooldown: float = 0
-    """ Number of epochs to wait before resuming normal operation after lr has been reduced. Default: 0."""
 
-    min_lr: float = 0
-    """A scalar or a list of scalars. A lower bound on the learning rate of all param groups or each group respectively. Default: 0."""
+    cooldown: float = 2
+    """Number of epochs to wait before resuming normal operation after lr has been reduced. Default: 2."""
+
+    min_lr: float = 1e-9
+    """A scalar or a list of scalars. A lower bound on the learning rate of all param groups or each group respectively. Default: 1e-9."""
 
     eps: float = 1e-8
     """Minimal decay applied to lr. If the difference between new and old lr is smaller than eps, the update is ignored. Default: 1e-8."""
