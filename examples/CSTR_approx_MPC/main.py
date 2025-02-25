@@ -93,12 +93,12 @@ trainer.settings.n_samples = n_samples
 trainer.settings.n_epochs = 10
 
 trainer.setup()
-trainer.default_training()
+#trainer.default_training()
 
 
 # saving data
 #approx_mpc.save_to_state_dict('approx_mpc.pth')
-approx_mpc.load_from_state_dict('approx_mpc.pth')
+#approx_mpc.load_from_state_dict('approx_mpc.pth')
 # appx mpc end
 graphics = do_mpc.graphics.Graphics(simulator.data)
 
@@ -135,7 +135,7 @@ plt.ion()
 timer = Timer()
 for k in range(200):
     timer.tic()
-    u0 = approx_mpc.make_step(x0, clip_to_bounds=False)
+    u0 = approx_mpc.make_step(x0, clip_to_bounds=True)
     timer.toc()
     y_next = simulator.make_step(u0)
     x0 = estimator.make_step(y_next)

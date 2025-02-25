@@ -230,10 +230,10 @@ class ApproxMPC(torch.nn.Module):
         self.y_shift = torch.tensor(0.0)  # shift of output data (min-max or standard scaling)
         self.y_range = torch.tensor(1.0)  # range of output data (min-max or standard scaling)
 
-        self.lbx = ca.DM(self.mpc._x_lb).full().T
-        self.ubx = ca.DM(self.mpc._x_ub).full().T
-        self.lbu = ca.DM(self.mpc._u_lb).full().T
-        self.ubu = ca.DM(self.mpc._u_ub).full().T
+        self.lbx = torch.tensor(ca.DM(self.mpc._x_lb).full().T)
+        self.ubx = torch.tensor(ca.DM(self.mpc._x_ub).full().T)
+        self.lbu = torch.tensor(ca.DM(self.mpc._u_lb).full().T)
+        self.ubu = torch.tensor(ca.DM(self.mpc._u_ub).full().T)
 
         # storing initial guess
         self.x0 = self.mpc.x0
@@ -275,15 +275,15 @@ class ApproxMPC(torch.nn.Module):
             None
         """
         if self.mpc.flags['set_rterm']:
-            lb = np.concatenate((self.lbx, self.lbu), axis=1)
-            ub = np.concatenate((self.ubx, self.ubu), axis=1)
+            lb = torch.concatenate((self.lbx, self.lbu), axis=1)
+            ub = torch.concatenate((self.ubx, self.ubu), axis=1)
         else:
             lb = self.lbx
             ub = self.ubx
         self.x_shift = torch.tensor(lb)
-        self.x_range = torch.tensor(ub-lb)
+        self.x_range = torch.tensor(ub - lb)
         self.y_shift = torch.tensor(self.lbu)
-        self.y_range = torch.tensor(self.ubu-self.lbu)
+        self.y_range = torch.tensor(self.ubu - self.lbu)
 
         return None
 
@@ -336,11 +336,11 @@ class ApproxMPC(torch.nn.Module):
         Returns:
             y (torch.Tensor): Clipped outputs.
         """
-        if self.lb_u is not None:
-            y = torch.max(y,self.lb_u)
-        if self.ub_u is not None:
-            y = torch.min(y,self.ub_u)
-        if self.lb_u is None and self.ub_u is None:
+        if self.lbu is not None:
+            y = torch.max(y, self.lbu)
+        if self.ubu is not None:
+            y = torch.min(y, self.ubu)
+        if self.lbu is None and self.ubu is None:
             raise ValueError("No output constraints defined. Clipping not possible.")
         return y
 
