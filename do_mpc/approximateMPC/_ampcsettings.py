@@ -23,6 +23,8 @@
 # imports
 from dataclasses import dataclass
 import os
+
+
 @dataclass
 class ApproximateMPCSettings:
     """Settings for :py:class:`do_mpc.approximateMPC.ApproxMPC`.
@@ -30,20 +32,22 @@ class ApproximateMPCSettings:
     This class contains the mandaory settings for Approximate MPC int :py:class:`do_mpc.approximateMPC.ApproxMPC`.
     This class creates an instance of type :py:class:`ApproximateMPCSettings` and adds it to its class attributes.
     """
+
     n_hidden_layers: int = 3
     """Number of hidden layers"""
 
     n_neurons: int = 50
     """Number of neurons per hidden layer"""
 
-    act_fn: str = 'relu'
+    act_fn: str = "relu"
     """Activation function used after each layer"""
 
-    output_act_fn: str = 'linear'
+    output_act_fn: str = "linear"
     """Output type"""
 
-    device: str = 'auto'
+    device: str = "auto"
     """Type of device used. Can be `auto`, `cuda` or `cpu`"""
+
 
 @dataclass
 class SamplerSettings:
@@ -63,7 +67,7 @@ class SamplerSettings:
     closed_loop_flag: bool = False
     """Decides whether the closed loop or open loop sampling is done"""
 
-    data_dir: 'str' = os.path.join('.', 'sampling')
+    data_dir: "str" = os.path.join(".", "sampling")
     """Location where sampled data is stored"""
 
     overwrite_sampler: bool = True
@@ -72,16 +76,18 @@ class SamplerSettings:
     # def init for simulator settings
 
     def check_for_mandatory_settings(self):
-        """Method to assert the necessary settings required to design :py:class:`do_mpc.approximateMPC.Sampler`
-        """
+        """Method to assert the necessary settings required to design :py:class:`do_mpc.approximateMPC.Sampler`"""
         if self.n_samples is None:
             raise ValueError("n_samples must be set")
 
         if self.closed_loop_flag is True and self.trajectory_length == None:
-            raise ValueError("Since closed_loop_flag is True, trajectory_length must be set")
+            raise ValueError(
+                "Since closed_loop_flag is True, trajectory_length must be set"
+            )
 
         # end of function
-        return  None
+        return None
+
 
 @dataclass
 class TrainerSettings:
@@ -98,10 +104,10 @@ class TrainerSettings:
     """Number of epochs for training"""
 
     # variables with default values
-    data_dir: 'str' = os.path.join('.', 'sampling')
+    data_dir: "str" = os.path.join(".", "sampling")
     """Location where sampled data is read from"""
 
-    results_dir: 'str' = os.path.join('.', 'training')
+    results_dir: "str" = os.path.join(".", "training")
 
     scheduler_flag: bool = False
     """Decides whether the scheduler adapts the leraning rate"""
@@ -112,7 +118,7 @@ class TrainerSettings:
     batch_size: int = 1000
     """Batch size for training"""
 
-    shuffle: bool =True
+    shuffle: bool = True
     """Shuffle the data before training or not"""
 
     learning_rate: float = 1e-3
@@ -131,13 +137,13 @@ class TrainerSettings:
     """fill"""
 
     def check_for_mandatory_settings(self):
-        """Method to assert the necessary settings required to design :py:class:`do_mpc.approximateMPC.Trainer`
-        """
+        """Method to assert the necessary settings required to design :py:class:`do_mpc.approximateMPC.Trainer`"""
         if self.n_samples is None:
             raise ValueError("n_samples must be set")
 
         if self.n_epochs is None:
             raise ValueError("n_epochs must be set")
+
 
 @dataclass
 class TrainerSchedulerSettings:
@@ -147,7 +153,7 @@ class TrainerSchedulerSettings:
     This class creates an instance of type :py:class:`TrainerSchedulerSettings` and adds it to its class attributes.
     """
 
-    mode: str = 'min'
+    mode: str = "min"
     """One of min, max. In min mode, lr will be reduced when the quantity monitored has stopped decreasing; in max mode it will be reduced when the quantity monitored has stopped increasing. Default: ‘min’."""
 
     factor: float = 0.1
@@ -159,9 +165,8 @@ class TrainerSchedulerSettings:
     threshold: float = 1e-4
     """Threshold for measuring the new optimum, to only focus on significant changes. Default: 1e-4."""
 
-    threshold_mode: str = 'rel'
+    threshold_mode: str = "rel"
     """One of rel, abs. In rel mode, dynamic_threshold = best * ( 1 + threshold ) in ‘max’ mode or best * ( 1 - threshold ) in min mode. In abs mode, dynamic_threshold = best + threshold in max mode or best - threshold in min mode. Default: ‘rel’."""
-
 
     cooldown: float = 2
     """Number of epochs to wait before resuming normal operation after lr has been reduced. Default: 2."""

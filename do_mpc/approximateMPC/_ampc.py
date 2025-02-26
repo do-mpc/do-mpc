@@ -1,4 +1,3 @@
-
 #
 #   This file is part of do-mpc
 #
@@ -28,6 +27,7 @@ import numpy as np
 import casadi as ca
 from ._ampcsettings import ApproximateMPCSettings
 
+
 # Feedforward NN
 class FeedforwardNN(torch.nn.Module):
     """Feedforward Neural Network.
@@ -42,12 +42,13 @@ class FeedforwardNN(torch.nn.Module):
         act_fn (str): Activation function.
         output_act_fn (str): Output activation function.
     """
+
     def __init__(self, n_in, n_out, n_hidden_layers, n_neurons, act_fn, output_act_fn):
         super().__init__()
         assert n_hidden_layers >= 0, "Number of hidden layers must be >= 0."
         self.n_in = n_in
         self.n_out = n_out
-        self.n_layers = n_hidden_layers+1
+        self.n_layers = n_hidden_layers + 1
         self.n_neurons = n_neurons
         self.act_fn = act_fn
         self.output_act_fn = output_act_fn
@@ -58,13 +59,13 @@ class FeedforwardNN(torch.nn.Module):
                 self.layers.append(self._get_activation_layer(act_fn))
             elif i == self.n_layers - 1:
                 self.layers.append(torch.nn.Linear(n_neurons, n_out))
-                if output_act_fn != 'linear':
+                if output_act_fn != "linear":
                     self.layers.append(self._get_activation_layer(output_act_fn))
             else:
                 self.layers.append(torch.nn.Linear(n_neurons, n_neurons))
                 self.layers.append(self._get_activation_layer(act_fn))
 
-    def _get_activation_layer(self,act_fn):
+    def _get_activation_layer(self, act_fn):
         """Gets the pytorch activation layer.
 
         Args:
@@ -73,13 +74,13 @@ class FeedforwardNN(torch.nn.Module):
         Returns:
             torch.nn.Module: Activation layer.
         """
-        if act_fn == 'relu':
+        if act_fn == "relu":
             return torch.nn.ReLU()
-        elif act_fn == 'tanh':
+        elif act_fn == "tanh":
             return torch.nn.Tanh()
-        elif act_fn == 'leaky_relu':
+        elif act_fn == "leaky_relu":
             return torch.nn.LeakyReLU()
-        elif act_fn == 'sigmoid':
+        elif act_fn == "sigmoid":
             return torch.nn.Sigmoid()
         else:
             raise ValueError("Activation function not implemented.")
@@ -96,7 +97,7 @@ class FeedforwardNN(torch.nn.Module):
         for i, layer in enumerate(self.layers):
             x = layer(x)
         return x
-    
+
     @torch.no_grad()
     def count_params(self):
         """Count the number of parameters in the neural network.
@@ -104,7 +105,9 @@ class FeedforwardNN(torch.nn.Module):
         Returns:
             int: Number of parameters.
         """
-        n_params = sum(param.numel() for param in self.parameters() if param.requires_grad)
+        n_params = sum(
+            param.numel() for param in self.parameters() if param.requires_grad
+        )
         return n_params
 
 
@@ -145,14 +148,13 @@ class ApproxMPC(torch.nn.Module):
         for k in range(N):
             x = get_current_state()
             u = ampc.make_step(x)
-    
-            
+
+
     Args:
         mpc (do_mpc.controller.MPC): MPC instance to be approximated by the neural network.
     """
 
     def __init__(self, mpc):
-
         # initiates torch.nn.Module
         super().__init__()
 
@@ -162,14 +164,14 @@ class ApproxMPC(torch.nn.Module):
 
         # flags
         self.flags = {
-            'setup': False,
+            "setup": False,
         }
 
         return None
 
     @property
     def settings(self):
-        '''
+        """
         All necessary parameters of the mpc formulation.
 
         This is a core attribute of the ApproxMPC class. It is used to set and change parameters when setting up the controller
@@ -185,7 +187,7 @@ class ApproxMPC(torch.nn.Module):
             Settings cannot be updated after calling :py:meth:`do_mpc.controller.ApproxMPC.setup`.
 
         For a detailed list of all available parameters see :py:class:`ApproximateMPCSettings`.
-        '''
+        """
         return self._settings
 
     @settings.setter
@@ -195,7 +197,7 @@ class ApproxMPC(torch.nn.Module):
         Args:
             val (_type_): _description_
         """
-        warnings.warn('Cannot change the settings attribute')
+        warnings.warn("Cannot change the settings attribute")
 
     def setup(self):
         """_summary_
@@ -203,18 +205,25 @@ class ApproxMPC(torch.nn.Module):
         Returns:
             _type_: _description_
         """
-        assert self.flags['setup'] is False, "Setup can only be once."
-        self.flags.update({
-            'setup': True,
-        })
+        assert self.flags["setup"] is False, "Setup can only be once."
+        self.flags.update(
+            {
+                "setup": True,
+            }
+        )
         # sets the device
         self._set_device()
 
         # ampc initilisation
-        if self.mpc.flags['set_rterm']:
-            self.net = FeedforwardNN(n_in=self.mpc.model.n_x + self.mpc.model.n_u, n_out=self.mpc.model.n_u,
-                                     n_hidden_layers=self.settings.n_hidden_layers, n_neurons=self.settings.n_neurons,
-                                     act_fn=self.settings.act_fn, output_act_fn=self.settings.output_act_fn)
+        if self.mpc.flags["set_rterm"]:
+            self.net = FeedforwardNN(
+                n_in=self.mpc.model.n_x + self.mpc.model.n_u,
+                n_out=self.mpc.model.n_u,
+                n_hidden_layers=self.settings.n_hidden_layers,
+                n_neurons=self.settings.n_neurons,
+                act_fn=self.settings.act_fn,
+                output_act_fn=self.settings.output_act_fn,
+            )
         else:
             self.net = FeedforwardNN(n_in=self.mpc.model.n_x, n_out=self.mpc.model.n_u)
 
@@ -225,10 +234,18 @@ class ApproxMPC(torch.nn.Module):
         # TODO: get scaling and constraints from mpc object
         self.lb_u = None  # lower bound of control actions
         self.ub_u = None  # upper bound of control actions
-        self.x_shift = torch.tensor(0.0)  # shift of input data (min-max or standard scaling)
-        self.x_range = torch.tensor(1.0)  # range of input data (min-max or standard scaling)
-        self.y_shift = torch.tensor(0.0)  # shift of output data (min-max or standard scaling)
-        self.y_range = torch.tensor(1.0)  # range of output data (min-max or standard scaling)
+        self.x_shift = torch.tensor(
+            0.0
+        )  # shift of input data (min-max or standard scaling)
+        self.x_range = torch.tensor(
+            1.0
+        )  # range of input data (min-max or standard scaling)
+        self.y_shift = torch.tensor(
+            0.0
+        )  # shift of output data (min-max or standard scaling)
+        self.y_range = torch.tensor(
+            1.0
+        )  # range of output data (min-max or standard scaling)
 
         self.lbx = torch.tensor(ca.DM(self.mpc._x_lb).full().T)
         self.ubx = torch.tensor(ca.DM(self.mpc._x_ub).full().T)
@@ -249,7 +266,6 @@ class ApproxMPC(torch.nn.Module):
         # setup ends
         return None
 
-
     def _set_device(self):
         """Sets the device for the neural network.
 
@@ -258,8 +274,8 @@ class ApproxMPC(torch.nn.Module):
         """
 
         # auto choose gpu if gpu is available
-        if self.settings.device == 'auto':
-            self.settings.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        if self.settings.device == "auto":
+            self.settings.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # torch default device is set
         self.torch_device = torch.device(self.settings.device)
@@ -267,14 +283,13 @@ class ApproxMPC(torch.nn.Module):
 
         return None
 
-
     def shift_from_box(self):
         """Shifts and scales the input and output data based on the box constraints.
 
         Returns:
             None
         """
-        if self.mpc.flags['set_rterm']:
+        if self.mpc.flags["set_rterm"]:
             lb = torch.concatenate((self.lbx, self.lbu), axis=1)
             ub = torch.concatenate((self.ubx, self.ubu), axis=1)
         else:
@@ -287,7 +302,6 @@ class ApproxMPC(torch.nn.Module):
 
         return None
 
-
     def forward(self, x):
         """Forward pass of the neural network.
 
@@ -297,12 +311,12 @@ class ApproxMPC(torch.nn.Module):
         Returns:
             torch.Tensor: Output tensor.
         """
-        #x_scaled = self.scale_inputs(x)
+        # x_scaled = self.scale_inputs(x)
         y = self.net(x)
-        #y = self.rescale_outputs(y_scaled)
+        # y = self.rescale_outputs(y_scaled)
         return y
-    
-    def scale_inputs(self,x):
+
+    def scale_inputs(self, x):
         """Scales inputs
 
         Args:
@@ -311,11 +325,11 @@ class ApproxMPC(torch.nn.Module):
         Returns:
             x_scaled (torch.Tensor): Scaled inputs.
         """
-        x_scaled = (x-self.x_shift)/self.x_range
-        x_scaled=x_scaled.type(self.torch_data_type)
+        x_scaled = (x - self.x_shift) / self.x_range
+        x_scaled = x_scaled.type(self.torch_data_type)
         return x_scaled
-    
-    def rescale_outputs(self,y_scaled):
+
+    def rescale_outputs(self, y_scaled):
         """Rescale outputs.
 
         Args:
@@ -324,10 +338,10 @@ class ApproxMPC(torch.nn.Module):
         Returns:
             y (torch.Tensor): Rescaled outputs.
         """
-        y = y_scaled*self.y_range+self.y_shift
+        y = y_scaled * self.y_range + self.y_shift
         return y
-    
-    def clip_control_actions(self,y):
+
+    def clip_control_actions(self, y):
         """Clip (rescaled) outputs of net to satisfy input (control) constraints.
 
         Args:
@@ -346,7 +360,7 @@ class ApproxMPC(torch.nn.Module):
 
     # Predict (Batch)
     @torch.no_grad()
-    def predict(self,x_batch):
+    def predict(self, x_batch):
         """Predicts the output of the neural network for a batch of inputs.
 
         Args:
@@ -357,7 +371,7 @@ class ApproxMPC(torch.nn.Module):
         """
         y_batch = self.net(x_batch)
         return y_batch
-    
+
     # approximate MPC step method for use in closed loop
     @torch.no_grad()
     def make_step(self, x, u_prev=None, clip_to_bounds=True):
@@ -375,26 +389,30 @@ class ApproxMPC(torch.nn.Module):
         if u_prev is not None:
             self.u0 = u_prev
 
-        if self.mpc.flags['set_rterm']:
+        if self.mpc.flags["set_rterm"]:
             x = np.concatenate((x, ca.DM(self.u0).full()), axis=0).squeeze()
 
         # Check if inputs are tensors
-        if not isinstance(x,torch.Tensor):
-            if self.mpc.flags['set_rterm']:
-                x = torch.tensor(x,dtype=self.torch_data_type).reshape((-1,self.mpc.model.n_x + self.mpc.model.n_u))
+        if not isinstance(x, torch.Tensor):
+            if self.mpc.flags["set_rterm"]:
+                x = torch.tensor(x, dtype=self.torch_data_type).reshape(
+                    (-1, self.mpc.model.n_x + self.mpc.model.n_u)
+                )
             else:
-                x = torch.tensor(x, dtype=self.torch_data_type).reshape((-1, self.mpc.model.n_x))
+                x = torch.tensor(x, dtype=self.torch_data_type).reshape(
+                    (-1, self.mpc.model.n_x)
+                )
         # forward pass
         x_scaled = self.scale_inputs(x)
         y_scaled = self.net(x_scaled)
         y = self.rescale_outputs(y_scaled)
-    
+
         # Clip outputs to satisfy input constraints of MPC
         if clip_to_bounds:
             y = self.clip_control_actions(y)
-    
+
         if self.step_return_type == "numpy":
-            y = y.cpu().numpy().reshape((-1,1))
+            y = y.cpu().numpy().reshape((-1, 1))
         elif self.step_return_type == "torch":
             y = y
         else:
@@ -404,16 +422,16 @@ class ApproxMPC(torch.nn.Module):
         self.u0 = y
 
         return y
-    def save_to_state_dict(self,directory="model.pth"):
+
+    def save_to_state_dict(self, directory="model.pth"):
         """Save the neural network to a state dictionary.
 
         Args:
             directory (str, optional): Directory to save the model. Defaults to "model.pth".
         """
-        torch.save(self.net.state_dict(),directory)
-    
-    
-    def load_from_state_dict(self,directory="model.pth"):
+        torch.save(self.net.state_dict(), directory)
+
+    def load_from_state_dict(self, directory="model.pth"):
         """Load the neural network from a state dictionary.
 
         Args:

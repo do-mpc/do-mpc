@@ -27,6 +27,7 @@ import do_mpc
 from pathlib import Path
 
 import pandas as pd
+
 # import time
 from timeit import default_timer as timer
 import pickle as pkl
@@ -77,8 +78,8 @@ class Sampler:
     Args:
         mpc (do_mpc.controller.MPC): The MPC class which is sampled.
     """
-    def __init__(self, mpc):
 
+    def __init__(self, mpc):
         # storage
         self.mpc = mpc
 
@@ -90,10 +91,9 @@ class Sampler:
 
         # flags
         self.flags = {
-            'setup': False,
+            "setup": False,
         }
         return None
-
 
     def setup(self):
         """Setup the Sampler class.
@@ -108,10 +108,12 @@ class Sampler:
         None
         """
 
-        assert self.flags['setup'] is False, "Setup can only be once."
-        self.flags.update({
-            'setup': True,
-        })
+        assert self.flags["setup"] is False, "Setup can only be once."
+        self.flags.update(
+            {
+                "setup": True,
+            }
+        )
 
         # mandatory check for sanity
         self._settings.check_for_mandatory_settings()
@@ -125,11 +127,10 @@ class Sampler:
         # extra setup for closed loop
         if self.settings.closed_loop_flag:
             self.setup_simulator()
-            self.estimator = do_mpc.estimator.StateFeedback(model= self.mpc.model)
+            self.estimator = do_mpc.estimator.StateFeedback(model=self.mpc.model)
 
         # end of setup
         return None
-
 
     @property
     def settings(self):
@@ -144,7 +145,6 @@ class Sampler:
         """
         return self._settings
 
-
     @settings.setter
     def settings(self, val):
         """Sampler settings.
@@ -156,8 +156,7 @@ class Sampler:
         UserWarning
             Cannot change the settings attribute.
         """
-        warnings.warn('Cannot change the settings attribute')
-
+        warnings.warn("Cannot change the settings attribute")
 
     @property
     def simulator_settings(self):
@@ -172,7 +171,6 @@ class Sampler:
         """
         return self.simulator.settings
 
-
     @simulator_settings.setter
     def simulator_settings(self, val):
         """Simulator settings.
@@ -184,8 +182,7 @@ class Sampler:
         UserWarning
             Cannot change the simulatro settings attribute.
         """
-        warnings.warn('Cannot change the simulatro settings attribute')
-
+        warnings.warn("Cannot change the simulatro settings attribute")
 
     def setup_simulator(self):
         """Setup the Simulator.
@@ -197,7 +194,9 @@ class Sampler:
         None
         """
         # assert to prevent robust mpc from executing
-        assert self.mpc.settings.n_robust == 0, 'Sampler with robust mpc not implemented yet.'
+        assert self.mpc.settings.n_robust == 0, (
+            "Sampler with robust mpc not implemented yet."
+        )
 
         # extracting t_step from mpc
         self.simulator.settings.t_step = self.mpc.settings.t_step
@@ -213,7 +212,6 @@ class Sampler:
 
         # end
         return None
-
 
     def default_sampling(self):
         """Default sampling method.
@@ -233,7 +231,6 @@ class Sampler:
             self.approx_mpc_open_loop_sampling()
 
         return None
-    
 
     def approx_mpc_sampling_plan_box(self):
         """Generate sampling plan for the ApproxMPC.
@@ -248,8 +245,8 @@ class Sampler:
         overwrite = self.settings.overwrite_sampler
 
         # Samples
-        data_dir=Path(self.settings.data_dir)
-        sampling_plan_name = 'sampling_plan' + '_n' + str(self.settings.n_samples)
+        data_dir = Path(self.settings.data_dir)
+        sampling_plan_name = "sampling_plan" + "_n" + str(self.settings.n_samples)
         id_precision = np.ceil(np.log10(self.settings.n_samples)).astype(int)
 
         def gen_x0():
@@ -260,17 +257,19 @@ class Sampler:
             u_prev = np.random.uniform(self.lbu, self.ubu)
             return u_prev
 
-        assert self.settings.n_samples <= 10 ** (id_precision + 1), "Not enough ID-digits to save samples"
+        assert self.settings.n_samples <= 10 ** (id_precision + 1), (
+            "Not enough ID-digits to save samples"
+        )
 
         # Initialize sampling planner
         sp = do_mpc.sampling.SamplingPlanner()
         sp.set_param(overwrite=overwrite)
         sp.set_param(id_precision=id_precision)
-        sp.data_dir = data_dir.__str__()+"/"
+        sp.data_dir = data_dir.__str__() + "/"
 
         # Set sampling vars
-        sp.set_sampling_var('x0', gen_x0)
-        sp.set_sampling_var('u_prev', gen_u_prev)
+        sp.set_sampling_var("x0", gen_x0)
+        sp.set_sampling_var("u_prev", gen_u_prev)
 
         # Generate sampling plan
         plan = sp.gen_sampling_plan(n_samples=self.settings.n_samples)
@@ -280,7 +279,6 @@ class Sampler:
 
         # end of fucntion
         return None
-
 
     def approx_mpc_open_loop_sampling(self):
         """Open loop sampling for the ApproxMPC.
@@ -296,18 +294,18 @@ class Sampler:
         n_samples = self.settings.n_samples
         mpc = self.mpc
 
-        suffix='_n'+str(n_samples)
-        sampling_plan_name = 'sampling_plan'
-        sample_name = 'sample'
-        data_dir=Path(self.settings.data_dir)
+        suffix = "_n" + str(n_samples)
+        sampling_plan_name = "sampling_plan"
+        sample_name = "sample"
+        data_dir = Path(self.settings.data_dir)
 
         # How are samples named? (DEFAULT)
         sampling_plan_name = sampling_plan_name + suffix  # 'sampling_plan'+suffix
 
-        samples_dir = data_dir.joinpath('samples' + suffix)
+        samples_dir = data_dir.joinpath("samples" + suffix)
 
         # Data
-        data_file_name = 'data'
+        data_file_name = "data"
 
         # Sampling functions
         def run_mpc_one_step(x0, u_prev):
@@ -321,7 +319,7 @@ class Sampler:
             end = timer()
 
             stats = {}
-            stats["t_make_step"] = end-start
+            stats["t_make_step"] = end - start
             stats["success"] = mpc.solver_stats["success"]
             stats["iter_count"] = mpc.solver_stats["iter_count"]
 
@@ -337,11 +335,11 @@ class Sampler:
             return run_mpc_one_step(x0, u_prev)
 
         # Import sampling plan
-        with open(data_dir.joinpath(sampling_plan_name+'.pkl'),'rb') as f:
+        with open(data_dir.joinpath(sampling_plan_name + ".pkl"), "rb") as f:
             plan = pkl.load(f)
 
         sampler = do_mpc.sampling.Sampler(plan)
-        sampler.data_dir = str(samples_dir)+'/'
+        sampler.data_dir = str(samples_dir) + "/"
         sampler.set_param(overwrite=overwrite_sampler)
         sampler.set_param(sample_name=sample_name)
 
@@ -352,26 +350,39 @@ class Sampler:
         # Data Handling
         dh = do_mpc.sampling.DataHandler(plan)
 
-        dh.data_dir = str(samples_dir)+'/'
-        dh.set_param(sample_name = sample_name)
-        dh.set_post_processing('u0', lambda x: x[0])
-        dh.set_post_processing('status', lambda x: x[1]["success"])
-        dh.set_post_processing('t_make_step', lambda x: x[1]["t_make_step"])
-        dh.set_post_processing('t_wall', lambda x: x[1]["t_wall_total"])
-        dh.set_post_processing('iter_count', lambda x: x[1]["iter_count"])
+        dh.data_dir = str(samples_dir) + "/"
+        dh.set_param(sample_name=sample_name)
+        dh.set_post_processing("u0", lambda x: x[0])
+        dh.set_post_processing("status", lambda x: x[1]["success"])
+        dh.set_post_processing("t_make_step", lambda x: x[1]["t_make_step"])
+        dh.set_post_processing("t_wall", lambda x: x[1]["t_wall_total"])
+        dh.set_post_processing("iter_count", lambda x: x[1]["iter_count"])
 
         df = pd.DataFrame(dh[:])
         n_data = df.shape[0]
-        df.to_pickle(str(data_dir) + '/' + data_file_name + '_n{}'.format(n_data) + '_all' + '.pkl')
+        df.to_pickle(
+            str(data_dir)
+            + "/"
+            + data_file_name
+            + "_n{}".format(n_data)
+            + "_all"
+            + ".pkl"
+        )
 
         # Save
-        df = pd.DataFrame(dh.filter(output_filter = lambda status: status==True))
+        df = pd.DataFrame(dh.filter(output_filter=lambda status: status == True))
         n_data_opt = df.shape[0]
-        df.to_pickle(str(data_dir) +'/' + data_file_name + '_n{}'.format(n_data) + '_opt' + '.pkl')
+        df.to_pickle(
+            str(data_dir)
+            + "/"
+            + data_file_name
+            + "_n{}".format(n_data)
+            + "_opt"
+            + ".pkl"
+        )
 
         # Save all
-        return  None
-
+        return None
 
     def approx_mpc_closed_loop_sampling(self):
         """Closed loop sampling for the ApproxMPC.
@@ -388,20 +399,19 @@ class Sampler:
         trajectory_length = self.settings.trajectory_length
         overwrite_sampler = self.settings.overwrite_sampler
 
-
-        suffix = '_n' + str(n_samples)
-        sampling_plan_name = 'sampling_plan'
-        sample_name = 'sample'
+        suffix = "_n" + str(n_samples)
+        sampling_plan_name = "sampling_plan"
+        sample_name = "sample"
         data_dir = Path(self.settings.data_dir)
 
         sampling_plan_name = sampling_plan_name + suffix  # 'sampling_plan'+suffix
 
         # overwrite_sampler = False
-        samples_dir = data_dir.joinpath('samples' + suffix)
+        samples_dir = data_dir.joinpath("samples" + suffix)
         # samples_dir = data_dir+'samples' + suffix
 
         # Data
-        data_file_name = 'data'
+        data_file_name = "data"
 
         # Sampling functions
         def run_mpc_closed_loop(x0, u_prev):
@@ -451,12 +461,12 @@ class Sampler:
             return run_mpc_closed_loop(x0, u_prev)
 
         # Sampling Plan
-        with open(data_dir.joinpath(sampling_plan_name + '.pkl'), 'rb') as f:
+        with open(data_dir.joinpath(sampling_plan_name + ".pkl"), "rb") as f:
             plan = pkl.load(f)
 
         # Sampler
         sampler = do_mpc.sampling.Sampler(plan)
-        sampler.data_dir = str(samples_dir) + '/'
+        sampler.data_dir = str(samples_dir) + "/"
         sampler.set_param(overwrite=overwrite_sampler)
         sampler.set_param(sample_name=sample_name)
 
@@ -468,24 +478,37 @@ class Sampler:
         # Data Handling
         dh = do_mpc.sampling.DataHandler(plan)
 
-        dh.data_dir = str(samples_dir) + '/'
+        dh.data_dir = str(samples_dir) + "/"
         dh.set_param(sample_name=sample_name)
-        dh.set_post_processing('u0', lambda x: x[0]['_u'])
-        dh.set_post_processing('x0', lambda x: x[0]['_x'])
-        dh.set_post_processing('u_prev', lambda x: x[2])
-        dh.set_post_processing('status', lambda x: x[1]["success"])
-        dh.set_post_processing('t_make_step', lambda x: x[1]["t_make_step"])
-        dh.set_post_processing('t_wall', lambda x: x[1]["t_wall_total"])
-        dh.set_post_processing('iter_count', lambda x: x[1]["iter_count"])
+        dh.set_post_processing("u0", lambda x: x[0]["_u"])
+        dh.set_post_processing("x0", lambda x: x[0]["_x"])
+        dh.set_post_processing("u_prev", lambda x: x[2])
+        dh.set_post_processing("status", lambda x: x[1]["success"])
+        dh.set_post_processing("t_make_step", lambda x: x[1]["t_make_step"])
+        dh.set_post_processing("t_wall", lambda x: x[1]["t_wall_total"])
+        dh.set_post_processing("iter_count", lambda x: x[1]["iter_count"])
         df = pd.DataFrame(dh[:])
         n_data = df.shape[0]
-        df.to_pickle(str(data_dir) + '/' + data_file_name + '_n{}'.format(n_data) + '_all' + '.pkl')
-        
+        df.to_pickle(
+            str(data_dir)
+            + "/"
+            + data_file_name
+            + "_n{}".format(n_data)
+            + "_all"
+            + ".pkl"
+        )
+
         # Save
         df = pd.DataFrame(dh.filter(output_filter=lambda status: status == True))
         n_data_opt = df.shape[0]
-        df.to_pickle(str(data_dir) + '/' + data_file_name + '_n{}'.format(n_data) + '_opt' + '.pkl')
+        df.to_pickle(
+            str(data_dir)
+            + "/"
+            + data_file_name
+            + "_n{}".format(n_data)
+            + "_opt"
+            + ".pkl"
+        )
 
         # end of function
         return None
-    

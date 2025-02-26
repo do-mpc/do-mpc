@@ -25,7 +25,7 @@
 import warnings
 import torch
 import torch.optim as optim
-from torch.utils.data import DataLoader,random_split,TensorDataset
+from torch.utils.data import DataLoader, random_split, TensorDataset
 from pathlib import Path
 import pickle as pkl
 import matplotlib.pyplot as plt
@@ -33,9 +33,10 @@ import json
 from ._ampcsettings import TrainerSettings
 from ._ampcsettings import TrainerSchedulerSettings
 import pathlib
-#plt.ion()
+# plt.ion()
 
-class Trainer():
+
+class Trainer:
     """Trainer class for training the ApproxMPC.
 
     The Trainer class is used to train the ApproxMPC. The training data is loaded from the data directory and the
@@ -76,8 +77,8 @@ class Trainer():
         approx_mpc (do_mpc.approximateMPC.ApproxMPC): The ApproxMPC object to be trained.
 
     """
-    def __init__(self, approx_mpc):
 
+    def __init__(self, approx_mpc):
         # storage
         self.approx_mpc = approx_mpc
 
@@ -87,7 +88,7 @@ class Trainer():
 
         # flags
         self.flags = {
-            'setup': False,
+            "setup": False,
         }
 
         return None
@@ -98,11 +99,13 @@ class Trainer():
         Returns:
             _type_: _description_
         """
-        assert self.flags['setup'] is False, "Setup can only be once."
-        self.flags.update({
-            'setup': True,
-        })
-        #checks for mandatory variables
+        assert self.flags["setup"] is False, "Setup can only be once."
+        self.flags.update(
+            {
+                "setup": True,
+            }
+        )
+        # checks for mandatory variables
         self._settings.check_for_mandatory_settings()
 
         # sets device
@@ -122,7 +125,7 @@ class Trainer():
 
     @settings.setter
     def settings(self, val):
-        warnings.warn('Cannot change the settings attribute')
+        warnings.warn("Cannot change the settings attribute")
 
     @property
     def scheduler_settings(self):
@@ -130,7 +133,7 @@ class Trainer():
 
     @scheduler_settings.setter
     def scheduler_settings(self, val):
-        warnings.warn('Cannot change the scheduler_settings attribute')
+        warnings.warn("Cannot change the scheduler_settings attribute")
 
     def scale_dataset(self, x, u0):
         x_shift = self.approx_mpc.x_shift  # torch.tensor(lbx)
@@ -146,7 +149,6 @@ class Trainer():
 
     # def load_data(self,data_dir,n_samples, val=0.2,batch_size=1000,shuffle=True,learning_rate=1e-3):
     def load_data(self):
-
         data_dir = self.settings.data_dir
         n_samples = self.settings.n_samples
         val = self.settings.val
@@ -154,37 +156,33 @@ class Trainer():
         shuffle = self.settings.shuffle
         learning_rate = self.settings.learning_rate
 
-        #self.dir = Path()
+        # self.dir = Path()
         self.hyperparameters = {}
-        self.hyperparameters['data_dir'] = self.settings.data_dir
-        self.hyperparameters['n_samples'] = self.settings.n_samples
-        self.hyperparameters['scheduler_flag'] = self.settings.scheduler_flag
-        self.hyperparameters['lr_reduce_factor'] = self.scheduler_settings.factor
-        self.hyperparameters['lr_scheduler_patience'] = self.scheduler_settings.patience
-        self.hyperparameters['lr_scheduler_cooldown'] = self.scheduler_settings.cooldown
-        self.hyperparameters['min_lr'] = self.scheduler_settings.min_lr
-        self.hyperparameters['val'] = val
-        self.hyperparameters['batch_size'] = batch_size
-        self.hyperparameters['shuffle'] = shuffle
-        self.hyperparameters['learning_rate'] = learning_rate
+        self.hyperparameters["data_dir"] = self.settings.data_dir
+        self.hyperparameters["n_samples"] = self.settings.n_samples
+        self.hyperparameters["scheduler_flag"] = self.settings.scheduler_flag
+        self.hyperparameters["lr_reduce_factor"] = self.scheduler_settings.factor
+        self.hyperparameters["lr_scheduler_patience"] = self.scheduler_settings.patience
+        self.hyperparameters["lr_scheduler_cooldown"] = self.scheduler_settings.cooldown
+        self.hyperparameters["min_lr"] = self.scheduler_settings.min_lr
+        self.hyperparameters["val"] = val
+        self.hyperparameters["batch_size"] = batch_size
+        self.hyperparameters["shuffle"] = shuffle
+        self.hyperparameters["learning_rate"] = learning_rate
 
         # saving hyperparameters as a json
 
         json_dir = Path(data_dir)
-        json_dir = json_dir.joinpath('hyperparameters' + str(n_samples) + '.json')
+        json_dir = json_dir.joinpath("hyperparameters" + str(n_samples) + ".json")
 
-        with open(json_dir, 'w') as f:
+        with open(json_dir, "w") as f:
             json.dump(self.hyperparameters, f, indent=4)
 
-
         data_dir = Path(data_dir)
-        data_dir = data_dir.joinpath('data_n' + str(n_samples) + '_opt.pkl')
-        print(f'Path from trainer to sampled files\n {data_dir}')
-        with open(data_dir, 'rb') as f:
+        data_dir = data_dir.joinpath("data_n" + str(n_samples) + "_opt.pkl")
+        print(f"Path from trainer to sampled files\n {data_dir}")
+        with open(data_dir, "rb") as f:
             dataset = pkl.load(f)
-
-
-
 
         # take n_data from
         # n_data=len(dataset['x0']) * 10 # fixed for 10 trajectory len
@@ -192,37 +190,51 @@ class Trainer():
         # x0= torch.tensor(dataset['x0'],dtype=self.approx_mpc.torch_data_type).reshape(n_data, -1)
         # u0=torch.tensor(dataset['u0'],dtype=self.approx_mpc.torch_data_type).reshape(n_data, -1)
 
-        x0 = torch.tensor(dataset['x0'], dtype=self.approx_mpc.torch_data_type).reshape(-1,
-                                                                                        self.approx_mpc.mpc.model.n_x)
-        u0 = torch.tensor(dataset['u0'], dtype=self.approx_mpc.torch_data_type).reshape(-1,
-                                                                                        self.approx_mpc.mpc.model.n_u)
+        x0 = torch.tensor(dataset["x0"], dtype=self.approx_mpc.torch_data_type).reshape(
+            -1, self.approx_mpc.mpc.model.n_x
+        )
+        u0 = torch.tensor(dataset["u0"], dtype=self.approx_mpc.torch_data_type).reshape(
+            -1, self.approx_mpc.mpc.model.n_u
+        )
 
-        if self.approx_mpc.mpc.flags['set_rterm']:
+        if self.approx_mpc.mpc.flags["set_rterm"]:
             # u_prev = torch.tensor(dataset['u_prev'], dtype=self.approx_mpc.torch_data_type).reshape(n_data, -1)
-            u_prev = torch.tensor(dataset['u_prev'], dtype=self.approx_mpc.torch_data_type).reshape(-1,
-                                                                                                    self.approx_mpc.mpc.model.n_u)
+            u_prev = torch.tensor(
+                dataset["u_prev"], dtype=self.approx_mpc.torch_data_type
+            ).reshape(-1, self.approx_mpc.mpc.model.n_u)
             x = torch.cat((x0, u_prev), dim=1)
         else:
             x = x0
 
         x_scaled, u0_scaled = self.scale_dataset(x, u0)
         data = TensorDataset(x_scaled, u0_scaled)
-        training_data, val_data = random_split(data, [1 - val, val], generator=self.generator)
-        train_dataloader = DataLoader(training_data, batch_size=batch_size, shuffle=shuffle, generator=self.generator)
-        test_dataloader = DataLoader(val_data, batch_size=batch_size, shuffle=shuffle, generator=self.generator)
+        training_data, val_data = random_split(
+            data, [1 - val, val], generator=self.generator
+        )
+        train_dataloader = DataLoader(
+            training_data,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            generator=self.generator,
+        )
+        test_dataloader = DataLoader(
+            val_data, batch_size=batch_size, shuffle=shuffle, generator=self.generator
+        )
         optimizer = optim.Adam(self.approx_mpc.net.parameters(), lr=learning_rate)
 
         if self.settings.scheduler_flag:
-            self.lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode=self.scheduler_settings.mode,
-                                                                           factor=self.scheduler_settings.factor,
-                                                                           patience=self.scheduler_settings.patience,
-                                                                           threshold=self.scheduler_settings.threshold,
-                                                                           threshold_mode=self.scheduler_settings.threshold_mode,
-                                                                           cooldown=self.scheduler_settings.cooldown,
-                                                                           min_lr=self.scheduler_settings.min_lr,
-                                                                           eps=self.scheduler_settings.eps)
+            self.lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer,
+                mode=self.scheduler_settings.mode,
+                factor=self.scheduler_settings.factor,
+                patience=self.scheduler_settings.patience,
+                threshold=self.scheduler_settings.threshold,
+                threshold_mode=self.scheduler_settings.threshold_mode,
+                cooldown=self.scheduler_settings.cooldown,
+                min_lr=self.scheduler_settings.min_lr,
+                eps=self.scheduler_settings.eps,
+            )
         return train_dataloader, test_dataloader, optimizer
-
 
     def log_value(self, val, key):
         if torch.is_tensor(val):
@@ -240,11 +252,15 @@ class Trainer():
             print(key, ": ", self.history[key][-1])
 
     def visualize_and_store_history(self):
-        pathlib.Path(self.settings.results_dir).joinpath("results_n_"+str(self.settings.n_samples)).mkdir(parents=True, exist_ok=True)
+        pathlib.Path(self.settings.results_dir).joinpath(
+            "results_n_" + str(self.settings.n_samples)
+        ).mkdir(parents=True, exist_ok=True)
         if self.settings.save_history:
             assert self.settings.data_dir is not None, "exp_pth must be provided."
 
-            file_path = Path(self.settings.results_dir).joinpath("results_n_"+str(self.settings.n_samples),"training_history.json")
+            file_path = Path(self.settings.results_dir).joinpath(
+                "results_n_" + str(self.settings.n_samples), "training_history.json"
+            )
 
             # Save to a JSON file
             with open(file_path, "w") as json_file:
@@ -252,32 +268,39 @@ class Trainer():
         # setting up plot
         if self.settings.save_fig or self.settings.show_fig:
             fig, ax = plt.subplots(2, figsize=(8, 3 * 2))
-            fig.suptitle('Training History')
+            fig.suptitle("Training History")
 
             # plotting learning rate
-            ax[0].plot(self.history["epoch"], self.history["lr"], label= 'Learning Rate')
-            ax[0].set_yscale('log')
-            ax[0].set_ylabel('Learning Rate')
+            ax[0].plot(self.history["epoch"], self.history["lr"], label="Learning Rate")
+            ax[0].set_yscale("log")
+            ax[0].set_ylabel("Learning Rate")
 
             # plotting losses
-            ax[1].plot(self.history["epoch"], self.history["train_loss"], label='Training Loss')
-            ax[1].plot(self.history["epoch"], self.history["val_loss"], label='Validation Loss')
-            ax[1].set_ylabel('Losses')
-            ax[1].set_yscale('log')
+            ax[1].plot(
+                self.history["epoch"], self.history["train_loss"], label="Training Loss"
+            )
+            ax[1].plot(
+                self.history["epoch"], self.history["val_loss"], label="Validation Loss"
+            )
+            ax[1].set_ylabel("Losses")
+            ax[1].set_yscale("log")
             ax[1].legend()
 
             # adding x axis label
-            ax[-1].set_xlabel('epoch')
+            ax[-1].set_xlabel("epoch")
 
             if self.settings.show_fig:
                 plt.show()
 
             if self.settings.save_fig:
                 assert self.settings.data_dir is not None, "exp_pth must be provided."
-                fig.savefig(Path(self.settings.results_dir).joinpath("results_n_"+str(self.settings.n_samples),"training_history.png"))
+                fig.savefig(
+                    Path(self.settings.results_dir).joinpath(
+                        "results_n_" + str(self.settings.n_samples),
+                        "training_history.png",
+                    )
+                )
             plt.close(fig)
-
-
 
         return None
 
@@ -317,10 +340,8 @@ class Trainer():
         return val_loss
 
     def default_training(self):
-
         n_epochs = self.settings.n_epochs
         train_dataloader, test_dataloader, optimizer = self.load_data()
-
 
         for epoch in range(n_epochs):
             # Training
@@ -352,7 +373,11 @@ class Trainer():
                     break
 
         # put visualise history
-        if self.settings.show_fig or self.settings.save_fig or self.settings.save_history:
+        if (
+            self.settings.show_fig
+            or self.settings.save_fig
+            or self.settings.save_history
+        ):
             self.visualize_and_store_history()
 
         # end
