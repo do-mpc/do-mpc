@@ -3,4 +3,4 @@ scipy
 numpy<2.0.0
 matplotlib
 pandas
-torch
+torch>2.0.0
