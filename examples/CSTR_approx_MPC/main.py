@@ -74,13 +74,13 @@ approx_mpc.setup()
 
 
 # sampler
-n_samples = 10000
+n_samples = 100
 sampler = Sampler(mpc)
 sampler.settings.closed_loop_flag = False
 sampler.settings.n_samples = n_samples
 sampler.setup()
 
-# sampler.default_sampling()
+sampler.default_sampling()
 
 
 # trainer
@@ -89,7 +89,7 @@ trainer.settings.n_samples = n_samples
 trainer.settings.n_epochs = 10
 
 trainer.setup()
-# trainer.default_training()
+trainer.default_training()
 
 
 # saving data

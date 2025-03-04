@@ -38,9 +38,9 @@ from ._ampcsettings import SamplerSettings
 class Sampler:
     """Class to sample data for the ApproxMPC.
 
-    This class rnadomly samples the MPC to generate data. This data can furthur be used to train the ApproxMPC.
+    .. versionadded:: >v4.6.0.
 
-    .. versionadded:: >v4.5.
+    This class rnadomly samples the MPC to generate data. This data can furthur be used to train the ApproxMPC.
 
     Configuring and setting up the Sampler involves the following steps:
 
@@ -100,12 +100,11 @@ class Sampler:
 
         This method sets up the MPC, and the Simulator if needed.
 
-        .. note::
+        Note:
             This method should be called before calling any other method.
 
-        Returns
-        -------
-        None
+        Returns:
+            None: None
         """
 
         assert self.flags["setup"] is False, "Setup can only be once."
@@ -135,27 +134,15 @@ class Sampler:
     @property
     def settings(self):
         """Sampler settings.
-
         This attribute is an instance of :py:class:`SamplerSettings`. It is used to configure the Sampler.
 
-        Returns
-        -------
-        SamplerSettings
-            The settings for the Sampler.
+        Returns:
+            SamplerSettings: The settings for the Sampler.
         """
         return self._settings
 
     @settings.setter
     def settings(self, val):
-        """Sampler settings.
-
-        This attribute is an instance of :py:class:`SamplerSettings`. It is used to configure the Sampler.
-
-        Raises
-        ------
-        UserWarning
-            Cannot change the settings attribute.
-        """
         warnings.warn("Cannot change the settings attribute")
 
     @property
@@ -164,24 +151,14 @@ class Sampler:
 
         This attribute is an instance of :py:class:`do_mpc.simulator.SimulatorSettings`. It is used to configure the Simulator.
 
-        Returns
-        -------
-        do_mpc.simulator.SimulatorSettings
-            The settings for the Simulator.
+        Returns:
+            do_mpc.simulator.SimulatorSettings: The settings for the Simulator.
         """
+
         return self.simulator.settings
 
     @simulator_settings.setter
     def simulator_settings(self, val):
-        """Simulator settings.
-
-        This attribute is an instance of :py:class:`do_mpc.simulator.SimulatorSettings`. It is used to configure the Simulator.
-
-        Raises
-        ------
-        UserWarning
-            Cannot change the simulatro settings attribute.
-        """
         warnings.warn("Cannot change the simulatro settings attribute")
 
     def setup_simulator(self):
@@ -189,9 +166,11 @@ class Sampler:
 
         This function is only used when the `closed_loop_flag` is set to True. It sets up the Simulator for the closed loop sampling.
 
-        Returns
-        -------
-        None
+        Warnings:
+            Ensure that mpc.settings.n_robust == 0, when closed_loop_flag is set to True. Currently the Sampler does not support robust mpc.
+
+        Returns:
+            None: None
         """
         # assert to prevent robust mpc from executing
         assert self.mpc.settings.n_robust == 0, (
@@ -218,9 +197,8 @@ class Sampler:
 
         This method is used to sample data for the ApproxMPC. The method generates data based on the user settings.
 
-        Returns
-        -------
-        None
+        Returns:
+            None: None
         """
 
         self.approx_mpc_sampling_plan_box()
@@ -237,9 +215,8 @@ class Sampler:
 
         This method generates a sampling plan for the ApproxMPC. The sampling plan is saved in the data directory.
 
-        Returns
-        -------
-        None
+        Returns:
+            None: None
         """
 
         overwrite = self.settings.overwrite_sampler
@@ -285,9 +262,8 @@ class Sampler:
 
         This method generates open loop samples for the ApproxMPC. The samples are saved in the data directory.
 
-        Returns
-        -------
-        None
+        Returns:
+            None: None
         """
         overwrite_sampler = self.settings.overwrite_sampler
 
@@ -389,9 +365,8 @@ class Sampler:
 
         This method generates closed loop samples for the ApproxMPC. The samples are saved in the data directory.
 
-        Returns
-        -------
-        None
+        Returns:
+            None: None
         """
 
         n_samples = self.settings.n_samples

@@ -39,6 +39,8 @@ import pathlib
 class Trainer:
     """Trainer class for training the ApproxMPC.
 
+    .. versionadded:: >v4.6.0
+
     The Trainer class is used to train the ApproxMPC. The training data is loaded from the data directory and the
     training is done using the training data.
 
@@ -53,8 +55,6 @@ class Trainer:
     **Usage:**
 
     The Trainer can be used to sample the data by calling the :py:meth:`default_training` method. This method starts training the ApproxMPC with the provided configuration.
-
-    **Example:**
 
     **Example:**
 
@@ -94,10 +94,12 @@ class Trainer:
         return None
 
     def setup(self):
-        """_summary_
+        """Sets up the Trainer.
+
+        This method sets up the Trainer. This method must be called before training the ApproxMPC.
 
         Returns:
-            _type_: _description_
+            None: None
         """
         assert self.flags["setup"] is False, "Setup can only be once."
         self.flags.update(
@@ -121,6 +123,22 @@ class Trainer:
 
     @property
     def settings(self):
+        """The settings attribute.
+
+        The settings attribute is an instance of :py:class:`TrainerSettings` and is used to configure the Trainer.
+
+        Example to change settings:
+
+        ::
+
+            trainer.settings.n_samples = 1000
+        
+        Note:     
+            Settings cannot be updated after calling :py:meth:`do_mpc.approximateMPC.Trainer.setup`.
+
+        Returns:
+            TrainerSettings: Contains the configurable settings of the trainer.
+        """
         return self._settings
 
     @settings.setter
@@ -129,6 +147,22 @@ class Trainer:
 
     @property
     def scheduler_settings(self):
+        """The settings attribute.
+
+        The settings attribute is an instance of :py:class:`TrainerSchedulerSettings` and is used to configure the Scheduler for the Trainer.
+
+        Example to change settings:
+
+        ::
+
+            trainer.scheduler_settings.cooldown = 0
+        
+        Note:     
+            Settings cannot be updated after calling :py:meth:`do_mpc.approximateMPC.Trainer.setup`.
+
+        Returns:
+            TrainerSettings: Contains the configurable settings of the scheduler.
+        """
         return self._sc_settings
 
     @scheduler_settings.setter
@@ -136,6 +170,15 @@ class Trainer:
         warnings.warn("Cannot change the scheduler_settings attribute")
 
     def scale_dataset(self, x, u0):
+        """Scales the dataset.
+
+        Args:
+            x (torch.tensor): States for the sysetm.
+            u0 (torch.tensor): Inputs of the system.
+
+        Returns:
+            (torch.tensor, torch.tensor): _description_
+        """
         x_shift = self.approx_mpc.x_shift  # torch.tensor(lbx)
         x_range = self.approx_mpc.x_range  # torch.tensor(ubx - lbx)
         y_shift = self.approx_mpc.y_shift  # torch.tensor(lbu)
@@ -147,8 +190,13 @@ class Trainer:
         u0_scaled = u0_scaled.type(self.approx_mpc.torch_data_type)
         return x_scaled, u0_scaled
 
-    # def load_data(self,data_dir,n_samples, val=0.2,batch_size=1000,shuffle=True,learning_rate=1e-3):
+
     def load_data(self):
+        """This function loads the data from the data directory and returns the relevant data loaders and the optimizer.
+
+        Returns:
+            (torch.utils.data.dataloader.DataLoader, torch.utils.data.dataloader.DataLoader, torch.optim.adam.Adam): Returns the relevant data loaders and the optimizer.
+        """
         data_dir = self.settings.data_dir
         n_samples = self.settings.n_samples
         val = self.settings.val
@@ -183,12 +231,6 @@ class Trainer:
         print(f"Path from trainer to sampled files\n {data_dir}")
         with open(data_dir, "rb") as f:
             dataset = pkl.load(f)
-
-        # take n_data from
-        # n_data=len(dataset['x0']) * 10 # fixed for 10 trajectory len
-        # n_data = len(dataset['x0'])
-        # x0= torch.tensor(dataset['x0'],dtype=self.approx_mpc.torch_data_type).reshape(n_data, -1)
-        # u0=torch.tensor(dataset['u0'],dtype=self.approx_mpc.torch_data_type).reshape(n_data, -1)
 
         x0 = torch.tensor(dataset["x0"], dtype=self.approx_mpc.torch_data_type).reshape(
             -1, self.approx_mpc.mpc.model.n_x
@@ -237,6 +279,13 @@ class Trainer:
         return train_dataloader, test_dataloader, optimizer
 
     def log_value(self, val, key):
+        """This method logs the value of the key in the history.
+        The key cold be either of 'epoch', 'train_loss', 'val_loss', 'lr'.
+
+        Args:
+            val (int): Contains the value to be logged.
+            key (str): Contains the key to which the value belongs.
+        """
         if torch.is_tensor(val):
             val = val.detach().cpu().item()
         assert isinstance(val, (int, float)), "Value must be a scalar."
@@ -245,6 +294,12 @@ class Trainer:
         self.history[key].append(val)
 
     def print_last_entry(self, keys=["epoch,train_loss"]):
+        """This method prints the last entry of the history.
+        The keys to be printed can be provided as a list. Possible entries can be 'epoch', 'train_loss', 'val_loss', 'lr'.
+
+        Args:
+            keys (list, optional): Store the keys. Possible entries are 'epoch', 'train_loss', 'val_loss', 'lr'.. Defaults to ["epoch,train_loss"].
+        """
         assert isinstance(keys, list), "Keys must be a list."
         for key in keys:
             # check wether keys are in history
@@ -252,6 +307,11 @@ class Trainer:
             print(key, ": ", self.history[key][-1])
 
     def visualize_and_store_history(self):
+        """This method visualizes and stores the history of the training.
+
+        Returns:
+            None: None
+        """
         pathlib.Path(self.settings.results_dir).joinpath(
             "results_n_" + str(self.settings.n_samples)
         ).mkdir(parents=True, exist_ok=True)
@@ -305,6 +365,16 @@ class Trainer:
         return None
 
     def train_step(self, optim, x, y):
+        """This method computes the fowrad pass and the backward pass of the class and returns the loss.
+
+        Args:
+            optim (torch.optim.adam.Adam): Contains the optimiser chosen for the backward pass.
+            x (torch.Tensor): This contains the states of the system.
+            y (torch.Tensor): This contains the evaluated input of the system. When properly trained, this shoul be same a the output of the mpc class.
+
+        Returns:
+            float: Scalar value contianing the mean summed squared error of the predicted output from the actual output.
+        """
         optim.zero_grad()
         y_pred = self.approx_mpc(x)
         loss = torch.nn.functional.mse_loss(y_pred, y)
@@ -313,6 +383,15 @@ class Trainer:
         return loss.item()
 
     def train_epoch(self, optim, train_loader):
+        """This method calculates the training loss avaraged over all epoch, with the training data.
+
+        Args:
+            optim (torch.optim.adam.Adam): Contains the optimiser chosen for the backward pass.
+            train_loader (torch.utils.data.dataloader.DataLoader): This DataLoader contains the training data.
+
+        Returns:
+            float: Scalar value contianing the mean summed squared error of the predicted output from the actual output, avaraged over all the epochs.
+        """
         train_loss = 0.0
         # Training Steps
         for idx_train_batch, batch in enumerate(train_loader):
@@ -324,12 +403,29 @@ class Trainer:
         return train_loss
 
     def validation_step(self, x, y):
+        """This method calculates the loss with validation data.
+
+        Args:
+            x (torch.Tensor): This contains the states of the system.
+            y (torch.Tensor): This contains the evaluated input of the system. When properly trained, this shoul be same a the output of the mpc class.
+
+        Returns:
+            float: _description_
+        """
         with torch.no_grad():
             y_pred = self.approx_mpc(x)
             loss = torch.nn.functional.mse_loss(y_pred, y)
         return loss.item()
 
     def validation_epoch(self, val_loader):
+        """This method calculates the loss with validation data averaged over all epochs.
+
+        Args:
+            val_loader (torch.utils.data.dataloader.DataLoader): This DataLoader contains the validation data.
+
+        Returns:
+            float: Scalar value contianing the mean summed squared error of the predicted output from the actual output, avaraged over all the epochs.
+        """
         val_loss = 0.0
         for idx_val_batch, batch in enumerate(val_loader):
             x_val, y_val = batch
@@ -340,6 +436,13 @@ class Trainer:
         return val_loss
 
     def default_training(self):
+        """This method handles the training of the ApproxMPC class.
+        Data loaded from the data directory is used to train and validate the ApproxMPC class. 
+        Training performance is stored and subsequently plotted and saves depending on the settings chosen during the setup.
+
+        Returns:
+            None: None
+        """
         n_epochs = self.settings.n_epochs
         train_dataloader, test_dataloader, optimizer = self.load_data()
 

@@ -32,7 +32,7 @@ from ._ampcsettings import ApproximateMPCSettings
 class FeedforwardNN(torch.nn.Module):
     """Feedforward Neural Network.
 
-    .. versionadded:: >v4.5.1
+    .. versionadded:: >v4.6.0
 
     Args:
         n_in (int): Number of input neurons.
@@ -192,18 +192,15 @@ class ApproxMPC(torch.nn.Module):
 
     @settings.setter
     def settings(self, val):
-        """Cannot change the settings attribute.
-
-        Args:
-            val (_type_): _description_
-        """
         warnings.warn("Cannot change the settings attribute")
 
     def setup(self):
-        """_summary_
+        """Setup the ApproxMPC controller.
+
+        Internally, this method sets the device, initializes the neural network, and sets the box constraints.
 
         Returns:
-            _type_: _description_
+            None: None
         """
         assert self.flags["setup"] is False, "Setup can only be once."
         self.flags.update(
@@ -268,6 +265,7 @@ class ApproxMPC(torch.nn.Module):
 
     def _set_device(self):
         """Sets the device for the neural network.
+        Available options for the are 'auto', 'cuda', and 'cpu'.
 
         Returns:
             None
