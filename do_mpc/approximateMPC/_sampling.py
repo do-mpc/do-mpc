@@ -40,7 +40,7 @@ class Sampler:
 
     .. versionadded:: >v4.6.0.
 
-    This class rnadomly samples the MPC to generate data. This data can furthur be used to train the ApproxMPC.
+    This class randomly samples the MPC to generate data. This data can further be used to train the ApproxMPC.
 
     Configuring and setting up the Sampler involves the following steps:
 
@@ -159,7 +159,7 @@ class Sampler:
 
     @simulator_settings.setter
     def simulator_settings(self, val):
-        warnings.warn("Cannot change the simulatro settings attribute")
+        warnings.warn("Cannot change the simulator_settings attribute")
 
     def setup_simulator(self):
         """Setup the Simulator.

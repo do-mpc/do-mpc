@@ -173,7 +173,7 @@ class Trainer:
         """Scales the dataset.
 
         Args:
-            x (torch.tensor): States for the sysetm.
+            x (torch.tensor): States for the system.
             u0 (torch.tensor): Inputs of the system.
 
         Returns:
@@ -365,15 +365,15 @@ class Trainer:
         return None
 
     def train_step(self, optim, x, y):
-        """This method computes the fowrad pass and the backward pass of the class and returns the loss.
+        """This method computes the forward pass and the backward pass of the class and returns the loss.
 
         Args:
-            optim (torch.optim.adam.Adam): Contains the optimiser chosen for the backward pass.
+            optim (torch.optim.adam.Adam): Contains the optimizer chosen for the backward pass.
             x (torch.Tensor): This contains the states of the system.
-            y (torch.Tensor): This contains the evaluated input of the system. When properly trained, this shoul be same a the output of the mpc class.
+            y (torch.Tensor): This contains the evaluated input of the system. When properly trained, this should be same a the output of the mpc class.
 
         Returns:
-            float: Scalar value contianing the mean summed squared error of the predicted output from the actual output.
+            float: Scalar value containing the mean summed squared error of the predicted output from the actual output.
         """
         optim.zero_grad()
         y_pred = self.approx_mpc(x)
@@ -383,14 +383,14 @@ class Trainer:
         return loss.item()
 
     def train_epoch(self, optim, train_loader):
-        """This method calculates the training loss avaraged over all epoch, with the training data.
+        """This method calculates the training loss averaged over all epoch, with the training data.
 
         Args:
-            optim (torch.optim.adam.Adam): Contains the optimiser chosen for the backward pass.
+            optim (torch.optim.adam.Adam): Contains the optimizer chosen for the backward pass.
             train_loader (torch.utils.data.dataloader.DataLoader): This DataLoader contains the training data.
 
         Returns:
-            float: Scalar value contianing the mean summed squared error of the predicted output from the actual output, avaraged over all the epochs.
+            float: Scalar value containing the mean summed squared error of the predicted output from the actual output, averaged over all the epochs.
         """
         train_loss = 0.0
         # Training Steps
@@ -407,7 +407,7 @@ class Trainer:
 
         Args:
             x (torch.Tensor): This contains the states of the system.
-            y (torch.Tensor): This contains the evaluated input of the system. When properly trained, this shoul be same a the output of the mpc class.
+            y (torch.Tensor): This contains the evaluated input of the system. When properly trained, this should be same a the output of the mpc class.
 
         Returns:
             float: _description_
@@ -424,7 +424,7 @@ class Trainer:
             val_loader (torch.utils.data.dataloader.DataLoader): This DataLoader contains the validation data.
 
         Returns:
-            float: Scalar value contianing the mean summed squared error of the predicted output from the actual output, avaraged over all the epochs.
+            float: Scalar value containing the mean summed squared error of the predicted output from the actual output, averaged over all the epochs.
         """
         val_loss = 0.0
         for idx_val_batch, batch in enumerate(val_loader):
@@ -475,7 +475,7 @@ class Trainer:
                 if optimizer.param_groups[0]["lr"] <= 1e-8:
                     break
 
-        # put visualise history
+        # put visualize history
         if (
             self.settings.show_fig
             or self.settings.save_fig

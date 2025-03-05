@@ -74,7 +74,7 @@ approx_mpc.setup()
 
 
 # sampler
-n_samples = 100
+n_samples = 10000
 sampler = Sampler(mpc)
 sampler.settings.closed_loop_flag = False
 sampler.settings.n_samples = n_samples

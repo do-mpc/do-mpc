@@ -29,7 +29,7 @@ import os
 class ApproximateMPCSettings:
     """Settings for :py:class:`do_mpc.approximateMPC.ApproxMPC`.
 
-    This class contains the mandaory settings for Approximate MPC int :py:class:`do_mpc.approximateMPC.ApproxMPC`.
+    This class contains the mandatory settings for Approximate MPC int :py:class:`do_mpc.approximateMPC.ApproxMPC`.
     This class creates an instance of type :py:class:`ApproximateMPCSettings` and adds it to its class attributes.
     """
 
@@ -53,7 +53,7 @@ class ApproximateMPCSettings:
 class SamplerSettings:
     """Settings for :py:class:`do_mpc.approximateMPC.Sampler`.
 
-    This class contains the mandaory settings for Approximate MPC int :py:class:`do_mpc.approximateMPC.Sampler`.
+    This class contains the mandatory settings for Approximate MPC int :py:class:`do_mpc.approximateMPC.Sampler`.
     This class creates an instance of type :py:class:`SamplerSettings` and adds it to its class attributes.
     """
 
@@ -93,7 +93,7 @@ class SamplerSettings:
 class TrainerSettings:
     """Settings for :py:class:`do_mpc.approximateMPC.Trainer`.
 
-    This class contains the mandaory settings for Approximate MPC int :py:class:`do_mpc.approximateMPC.Trainer`.
+    This class contains the mandatory settings for Approximate MPC int :py:class:`do_mpc.approximateMPC.Trainer`.
     This class creates an instance of type :py:class:`TrainerSettings` and adds it to its class attributes.
     """
 
@@ -110,7 +110,7 @@ class TrainerSettings:
     results_dir: "str" = os.path.join(".", "training")
 
     scheduler_flag: bool = False
-    """Decides whether the scheduler adapts the leraning rate"""
+    """Decides whether the scheduler adapts the learning rate"""
 
     val: float = 0.2
     """fill"""
@@ -125,13 +125,13 @@ class TrainerSettings:
     """Default learning rate fro training"""
 
     show_fig: bool = True
-    """Display training performance ater training"""
+    """Display training performance after training"""
 
     save_fig: bool = True
-    """Save training performance ater training as a .png file"""
+    """Save training performance after training as a .png file"""
 
     save_history: bool = True
-    """Save training performance ater training as a .json file"""
+    """Save training performance after training as a .json file"""
 
     print_frequency: int = 10
     """fill"""
@@ -149,7 +149,7 @@ class TrainerSettings:
 class TrainerSchedulerSettings:
     """Settings for :py:class:`do_mpc.approximateMPC.Trainer`.
 
-    This class contains the mandaory settings for Approximate MPC int :py:class:`do_mpc.approximateMPC.Trainer`.
+    This class contains the mandatory settings for Approximate MPC int :py:class:`do_mpc.approximateMPC.Trainer`.
     This class creates an instance of type :py:class:`TrainerSchedulerSettings` and adds it to its class attributes.
     """
 
