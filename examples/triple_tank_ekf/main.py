@@ -145,18 +145,3 @@ if default_plot is False:
 # Store results:
 if store_results:
     do_mpc.data.save_results([ekf, simulator], 'rot_oscillating_masses')
-print('Individual Simulator data:')
-print('Type:', type(simulator.data._x[-1]))
-print('Shape:', simulator.data._x[-1].shape)
-
-print('Individual EKF data:')
-print('Type:', type(ekf.data._x[-1]))
-print('Shape:', ekf.data._x[-1].shape)
-
-print('Simulator data:')
-print('Type:', type(simulator.data._x))
-print('Shape:', simulator.data._x.shape)
-
-print('EKF data:')
-print('Type:', type(ekf.data._x))
-print('Shape:', ekf.data._x.shape)

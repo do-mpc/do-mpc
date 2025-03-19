@@ -3,7 +3,7 @@
   <component name="Black">
     <option name="sdkName" value="ekf" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="do_mpc" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="ekf" project-jdk-type="Python SDK" />
   <component name="PyCharmProfessionalAdvertiser">
     <option name="shown" value="true" />
   </component>
