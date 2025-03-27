@@ -22,6 +22,8 @@ dependencies:
   - myst-parser
   - packaging
   - asyncua
+  - pandas
+  - torch
 
   # install with:
   # conda env create --prefix ./.venv -f .conda.yml  
