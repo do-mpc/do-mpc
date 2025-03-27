@@ -59,7 +59,7 @@ def template_mpc(model, silence_solver = False):
     # Create an interesting trajectory for the setpoint (_tvp)
     # by randomly choosing a new value or keeping the previous one.
     def random_setpoint(tvp0):
-        tvp_next = (0.5-np.random.rand(1))*np.pi
+        tvp_next = (0.5-np.random.rand())*np.pi
         switch = np.random.rand() >= 0.95
         tvp0 = (1-switch)*tvp0 + switch*tvp_next
         return tvp0
