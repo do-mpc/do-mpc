@@ -15,7 +15,7 @@ def main():
     sp.data_dir = './sample_results/'
 
 
-    sp.set_sampling_var('alpha', np.random.randn)
+    sp.set_sampling_var('alpha', lambda: np.random.randn())
     sp.set_sampling_var('beta', lambda: np.random.randint(0,5))
 
     _ = sp.gen_sampling_plan(n_samples=10)
