@@ -36,6 +36,7 @@ class EKF(Estimator):
 
     Warnings:
         Work in progress.
+        The current implementation is not working with DAE systems.
     """
     def __init__(self, model:Union[do_mpc.model.Model,do_mpc.model.LinearModel]):
         
@@ -110,9 +111,6 @@ class EKF(Estimator):
             h = self.model._y_expression
             self.h_fun = ca.Function('h_fun', [x, u, p, tvp, self.model._v], [h])
 
-            # storing time step
-            opts = {'tf': self.settings.t_step}
-
             # init covariance matrix (symbolic)
             P = ca.SX.sym('P', self.model.n_x, self.model.n_x)
             Q = ca.SX.sym('Q', self.model.n_x, self.model.n_x)
@@ -130,8 +128,9 @@ class EKF(Estimator):
                 'alg': alg,
             }
 
-            # setting up the state covariance integrator
-            self.x_p_integrator = ca.integrator('x_integrator', 'idas', dae, opts)
+            # setting up the state covariance integrator, giving t0=0.0 due to deprecated opts dict of casadi
+            t0 = 0.0
+            self.x_p_integrator = ca.integrator('x_integrator', 'idas', dae, t0, self.settings.t_step)
 
         # only for continious case:
         self._check_validity()
