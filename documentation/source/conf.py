@@ -37,6 +37,7 @@ release = __version__
 
 # -- General configuration ---------------------------------------------------
 
+html_context = {}
 # Set canonical URL from the Read the Docs Domain
 html_baseurl = os.environ.get("READTHEDOCS_CANONICAL_URL", "")
 
