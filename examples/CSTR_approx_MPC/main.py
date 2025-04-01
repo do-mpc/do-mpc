@@ -59,6 +59,7 @@ T_K_0 = 130.0  # [C]
 x0 = np.array([C_a_0, C_b_0, T_R_0, T_K_0]).reshape(-1, 1)
 u0 = np.array([5.0, 0.0]).reshape(-1, 1)
 # pushing to class
+mpc.u0=u0
 mpc.x0 = x0
 simulator.x0 = x0
 mpc.u0 = u0
@@ -74,9 +75,10 @@ approx_mpc.setup()
 
 
 # sampler
-n_samples = 10000
+n_samples = 100
 sampler = Sampler(mpc)
-sampler.settings.closed_loop_flag = False
+sampler.settings.closed_loop_flag = True
+sampler.settings.trajectory_length = 10
 sampler.settings.n_samples = n_samples
 sampler.setup()
 
@@ -86,8 +88,13 @@ sampler.default_sampling()
 # trainer
 trainer = Trainer(approx_mpc)
 trainer.settings.n_samples = n_samples
-trainer.settings.n_epochs = 10
-
+trainer.settings.n_epochs = 10000
+trainer.settings.scheduler_flag = True
+trainer.scheduler_settings.cooldown = 0
+trainer.scheduler_settings.patience = 50
+trainer.settings.show_fig =True
+trainer.settings.save_fig = True
+trainer.settings.save_history = True
 trainer.setup()
 trainer.default_training()
 
@@ -127,9 +134,10 @@ fig.align_ylabels()
 fig.tight_layout()
 plt.ion()
 
-
+approx_mpc.u0=u0
 timer = Timer()
-for k in range(200):
+sim_time=100
+for k in range(sim_time):
     timer.tic()
     u0 = approx_mpc.make_step(x0, clip_to_bounds=True)
     timer.toc()

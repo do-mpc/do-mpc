@@ -220,8 +220,9 @@ class Trainer:
 
         # saving hyperparameters as a json
 
-        json_dir = Path(data_dir)
-        json_dir = json_dir.joinpath("hyperparameters" + str(n_samples) + ".json")
+        json_dir = Path(self.settings.results_dir).joinpath(
+            "results_n_" + str(self.settings.n_samples), "hyperparameters.json"
+        )
 
         with open(json_dir, "w") as f:
             json.dump(self.hyperparameters, f, indent=4)
@@ -273,7 +274,7 @@ class Trainer:
                 threshold=self.scheduler_settings.threshold,
                 threshold_mode=self.scheduler_settings.threshold_mode,
                 cooldown=self.scheduler_settings.cooldown,
-                min_lr=self.scheduler_settings.min_lr,
+                min_lr=self.scheduler_settings.min_lr*0.1,
                 eps=self.scheduler_settings.eps,
             )
         return train_dataloader, test_dataloader, optimizer
@@ -469,10 +470,10 @@ class Trainer:
 
             # scheduler
             if self.settings.scheduler_flag:
-                self.lr_scheduler.step(train_loss)
+                self.lr_scheduler.step(val_loss)
 
                 # break if training min learning rate is reached
-                if optimizer.param_groups[0]["lr"] <= 1e-8:
+                if optimizer.param_groups[0]["lr"] < self.scheduler_settings.min_lr:
                     break
 
         # put visualize history
