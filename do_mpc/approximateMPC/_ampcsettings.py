@@ -124,13 +124,13 @@ class TrainerSettings:
     learning_rate: float = 1e-3
     """Default learning rate fro training"""
 
-    show_fig: bool = True
+    show_fig: bool = False
     """Display training performance after training"""
 
-    save_fig: bool = True
+    save_fig: bool = False
     """Save training performance after training as a .png file"""
 
-    save_history: bool = True
+    save_history: bool = False
     """Save training performance after training as a .json file"""
 
     print_frequency: int = 10
@@ -171,7 +171,7 @@ class TrainerSchedulerSettings:
     cooldown: float = 2
     """Number of epochs to wait before resuming normal operation after lr has been reduced. Default: 2."""
 
-    min_lr: float = 1e-9
+    min_lr: float = 1e-8
     """A scalar or a list of scalars. A lower bound on the learning rate of all param groups or each group respectively. Default: 1e-9."""
 
     eps: float = 1e-8
