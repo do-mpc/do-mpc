@@ -63,6 +63,7 @@ def template_model(symvar_type="SX"):
     )  # Concentration of A in input Upper bound 5.7 lower bound 4.5 [mol/l]
     alpha = 1
     beta = 1
+    
     # States struct (optimization variables):
     C_a = model.set_variable(var_type="_x", var_name="C_a", shape=(1, 1))
     C_b = model.set_variable(var_type="_x", var_name="C_b", shape=(1, 1))
@@ -72,10 +73,6 @@ def template_model(symvar_type="SX"):
     # Input struct (optimization variables):
     F = model.set_variable(var_type="_u", var_name="F")
     Q_dot = model.set_variable(var_type="_u", var_name="Q_dot")
-
-    # Fixed parameters:
-    # alpha = model.set_variable(var_type='_p', var_name='alpha')
-    # beta = model.set_variable(var_type='_p', var_name='beta')
 
     # Set expression. These can be used in the cost function, as non-linear constraints
     # or just to monitor another output.
@@ -104,4 +101,5 @@ def template_model(symvar_type="SX"):
     # Build the model
     model.setup()
 
+    # end of function
     return model

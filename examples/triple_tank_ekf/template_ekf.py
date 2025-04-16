@@ -9,11 +9,11 @@ def template_ekf(model):
     # init
     ekf = do_mpc.estimator.EKF(model=model)
 
-    #ekf.settings.n_horizon =  10
+    # modifying ekf settings
     ekf.settings.t_step = 1
 
     p_template = ekf.get_p_template()
-    # Typically, the values would be reset at each call of tvp_fun.
+    # Typically, the values would be reset at each call of p_fun.
     # Here we just return the fixed values:
     def p_fun_ekf(t_now):
         p_template['p1'] = 2

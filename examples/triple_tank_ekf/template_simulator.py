@@ -11,11 +11,15 @@ def template_simulator(model):
     template_optimizer: tuning parameters
     --------------------------------------------------------------------------
     """
+
+    # initialisation of simulator
     simulator = do_mpc.simulator.Simulator(model)
 
-
+    # modifying simulator settings
     simulator.set_param(t_step = 1)
 
+    # Typically, the values would be reset at each call of p_fun.
+    # Here we just return the fixed values:
     p_template = simulator.get_p_template()
     def p_fun(t_now):
         p_template['p1'] = 2
@@ -31,9 +35,10 @@ def template_simulator(model):
         else:
             tvp_template['tvp1'] = 1
         return tvp_template
-
     simulator.set_tvp_fun(tvp_fun)
 
+    # completing the simulator setup
     simulator.setup()
 
+    # end of function
     return simulator

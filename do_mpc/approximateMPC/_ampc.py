@@ -113,7 +113,7 @@ class FeedforwardNN(torch.nn.Module):
 
 # Approximate MPC
 class ApproxMPC(torch.nn.Module):
-    """Neural Network Approximaion of the Model Predictive Controller.
+    """Neural Network Approximation of the Model Predictive Controller.
 
     .. versionadded:: >v4.5.1
 

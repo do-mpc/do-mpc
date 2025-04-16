@@ -224,6 +224,9 @@ class Trainer:
             "results_n_" + str(self.settings.n_samples), "hyperparameters.json"
         )
 
+        # Ensure the directory exists, if not create it
+        Path(self.settings.results_dir).joinpath("results_n_" + str(self.settings.n_samples)).mkdir(parents=True, exist_ok=True)
+
         with open(json_dir, "w") as f:
             json.dump(self.hyperparameters, f, indent=4)
 
