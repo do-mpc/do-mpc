@@ -474,8 +474,8 @@ class Trainer:
             # scheduler
             if self.settings.scheduler_flag:
                 self.lr_scheduler.step(val_loss)
-
                 # break if training min learning rate is reached
+                print(optimizer.param_groups[0]["lr"])
                 if optimizer.param_groups[0]["lr"] < self.scheduler_settings.min_lr:
                     break
 

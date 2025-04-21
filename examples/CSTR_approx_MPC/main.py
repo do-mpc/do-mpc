@@ -90,7 +90,7 @@ sampler = Sampler(mpc)
 
 
 # configuring sampler settings
-n_samples = 100
+n_samples = 1000
 sampler.settings.closed_loop_flag = True
 sampler.settings.trajectory_length = 10
 sampler.settings.n_samples = n_samples
