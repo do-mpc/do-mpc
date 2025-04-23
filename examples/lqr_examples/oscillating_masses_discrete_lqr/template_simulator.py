@@ -25,7 +25,7 @@ import casadi as cas
 import pdb
 import sys
 import os
-rel_do_mpc_path = os.path.join('..','..')
+rel_do_mpc_path = os.path.join('..','..','..')
 sys.path.append(rel_do_mpc_path)
 import do_mpc
 
@@ -36,9 +36,12 @@ def template_simulator(model):
     --------------------------------------------------------------------------
     """
     simulator = do_mpc.simulator.Simulator(model)
-    
+
+    # setting up parameters for the simulator
     simulator.set_param(t_step = 0.5)
 
+    # Setup the simulator
     simulator.setup()
 
+    # end of function
     return simulator

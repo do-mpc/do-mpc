@@ -34,27 +34,34 @@ from template_mpc import template_mpc
 from template_simulator import template_simulator
 
 
-# %%
-
+# %%Instantiate the model, MPC controller, and simulator
 model = template_model()
 mpc = template_mpc(model)
 simulator = template_simulator(model)
 
-# %%
+# %% Create a differentiator object to compute sensitivities for the MPC problem
 nlpdiff = do_mpc.differentiator.DoMPCDifferentiator(mpc)
+
+# Disable constraint qualification and rank checks for faster computation (not recommended for production use)
 nlpdiff.settings.check_rank = False
 nlpdiff.settings.check_LICQ = False
 
-# %%
+# %% Set the initial condition of the simulator (state vector: [X, S, P, V])
 simulator.x0 = np.array([0.5, 0.5, 134.14, 130.0]).reshape(-1,1)
-# %%
+
+# %% Run one MPC iteration to compute the optimal control input
 mpc.make_step(simulator.x0)
-# %%
+
+# %% Differentiate the NLP problem to compute sensitivities of optimal solution w.r.t. parameters
 dxdp, dlamdp = nlpdiff.differentiate()
-# %%
+
+# %%  Inspect shape of dual variable sensitivities
 dlamdp.shape
-# %%
+
+# %% Check the status of the differentiator (e.g., success flag, iteration count)
 nlpdiff.status
-# %%
+
+# %% Access a specific sensitivity: derivative of the first control input w.r.t. the initial state
 nlpdiff.sens_num['dxdp', castools.indexf['_u', 0, 0], castools.indexf['_x0']]
+
 # %%

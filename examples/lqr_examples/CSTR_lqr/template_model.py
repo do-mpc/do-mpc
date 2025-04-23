@@ -37,7 +37,7 @@ def template_model(symvar_type='SX'):
     """
     model_type = 'continuous' # either 'discrete' or 'continuous'
     model = do_mpc.model.Model(model_type, symvar_type)
-    
+
     # Certain parameters
     K0_1 = 2.145e10      # [min^-1]
     K0_2 = 2.145e10      # [min^-1]
@@ -53,17 +53,17 @@ def template_model(symvar_type='SX'):
     kA = 14.448          # [kJ/min.K]
     C_ain = 5.1          # [kmol/m^3]
     V = 0.01             # [m^3]
-    
+
     # States struct (optimization variables):
     C_a = model.set_variable(var_type='_x', var_name='C_a', shape=(1,1))
     C_b = model.set_variable(var_type='_x', var_name='C_b', shape=(1,1))
     T_R = model.set_variable(var_type='_x', var_name='T_R', shape=(1,1))
     T_J = model.set_variable(var_type='_x', var_name='T_J', shape=(1,1))
-    
+
     # Input struct (optimization variables):
     F = model.set_variable(var_type='_u', var_name='F')
     Q_J = model.set_variable(var_type='_u', var_name='Q_J')
-    
+
     # Auxiliary terms
     r_1 = K0_1 * cas.exp((-E_R_1)/((T_R)))*C_a
     r_2 = K0_2 * cas.exp((-E_R_2)/((T_R)))*C_b
@@ -71,31 +71,31 @@ def template_model(symvar_type='SX'):
     # Aux expression from auxiliary terms
     r = cas.vertcat(r_1, r_2)
     model.set_expression(expr_name='r', expr=r)
-    
+
     # Differential equations
     model.set_rhs('C_a', (F/V)*(C_ain-C_a)-r_1)
     model.set_rhs('C_b', -(F/V)*C_b + r_1 - r_2)
     model.set_rhs('T_R', (F/V)*(T_in-T_R)-(kA/(rho*cp*V))*(T_R-T_J)+(1/(rho*cp))*((delH_R_1*(-r_1))+(del_H_R_2*(-r_2))))
     model.set_rhs('T_J', (1/(m_j*cp_J))*(-Q_J+kA*(T_R-T_J)))
-    
+
     # Build the model
     model.setup()
-    
+
     # Steady state values
     F_ss = 0.002365    # [m^3/min]
     Q_ss = 18.5583     # [kJ/min]
-    
+
     C_ass = 1.6329     # [kmol/m^3]
     C_bss = 1.1101     # [kmolm^3]
     T_Rss = 398.6581   # [K]
     T_Jss = 397.3736   # [K]
-    
+
     uss = np.array([[F_ss],[Q_ss]])
     xss = np.array([[C_ass],[C_bss],[T_Rss],[T_Jss]])
-    
+
     # Linearize the non-linear model
     linearmodel = do_mpc.model.linearize(model, xss, uss)
-    
+
     # returns linearized model
     return model,linearmodel
     

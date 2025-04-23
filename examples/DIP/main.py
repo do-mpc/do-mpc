@@ -20,6 +20,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+# imports
 import numpy as np
 import matplotlib.pyplot as plt
 from casadi import *
@@ -30,12 +31,13 @@ import os
 rel_do_mpc_path = os.path.join('..','..')
 sys.path.append(rel_do_mpc_path)
 import do_mpc
-
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.patches import Circle
 from matplotlib import rcParams
 from matplotlib.animation import FuncAnimation, FFMpegWriter, ImageMagickWriter
+import time
+
 # Plot settings
 rcParams['text.usetex'] = False
 rcParams['axes.grid'] = True
@@ -44,14 +46,12 @@ rcParams['axes.labelsize'] = 'xx-large'
 rcParams['xtick.labelsize'] = 'xx-large'
 rcParams['ytick.labelsize'] = 'xx-large'
 
-
-import time
-
+# local imports
 from template_mpc import template_mpc
 from template_simulator import template_simulator
 from template_model import template_model
 
-""" User settings: """
+# user settings
 show_animation = True
 store_animation = False
 store_results = False
@@ -61,21 +61,20 @@ obstacles = [
     {'x': 0., 'y': 0.6, 'r': 0.3},
 ]
 
-scenario = 1  # 1 = down-down start, 2 = up-up start, both with setpoint change.
-
-"""
-Get configured do-mpc modules:
-"""
-
+# setting up the model
 model = template_model(obstacles)
+
+# setting up a simulator, given the model
 simulator = template_simulator(model)
+
+# setting up a mpc controller, given the model
 mpc = template_mpc(model)
+
+# setting up an estimator, given the model
 estimator = do_mpc.estimator.StateFeedback(model)
 
-"""
-Set initial state
-"""
-
+# choosing a scenario for the start
+scenario = 1  # 1 = down-down start, 2 = up-up start, both with set-point change.
 if scenario == 1:
     simulator.x0['theta'] = .9*np.pi
     simulator.x0['pos'] = 0
@@ -85,18 +84,20 @@ elif scenario == 2:
 else:
     raise Exception('Scenario not defined.')
 
+# extracting initial position from the simulator
 x0 = simulator.x0.cat.full()
 
+# pushing initial condition to mpc and the estimator
 mpc.x0 = x0
 estimator.x0 = x0
 
+# setting up initial guesses
 mpc.set_initial_guess()
+
+# gets the initial condition of the algebraic variables
 z0 = simulator.init_algebraic_variables()
 
-"""
-Setup graphic:
-"""
-
+# sets up graphics
 # Function to create lines:
 L1 = 0.5  #m, length of the first rod
 L2 = 0.5  #m, length of the second rod
@@ -178,22 +179,24 @@ fig.align_ylabels()
 fig.tight_layout()
 
 
-"""
-Run MPC main loop:
-"""
+# simulation of the plant
 time_list = []
 
 n_steps = 240
 for k in range(n_steps):
     tic = time.time()
+    # for the current state x0, mpc computes the optimal control action u0
     u0 = mpc.make_step(x0)
     toc = time.time()
-    y_next = simulator.make_step(u0)
-    x0 = estimator.make_step(y_next)
 
+    # for the current state u0, computes the next state y_next
+    y_next = simulator.make_step(u0)
+
+    # for the current state y_next, estimates the next state x0
+    x0 = estimator.make_step(y_next)
     time_list.append(toc-tic)
 
-
+    # update the graphics
     if show_animation:
         line1, line2 = pendulum_bars(x0)
         bar1[0].set_data(line1[0],line1[1])

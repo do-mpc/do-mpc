@@ -33,7 +33,6 @@ import json
 from ._ampcsettings import TrainerSettings
 from ._ampcsettings import TrainerSchedulerSettings
 import pathlib
-# plt.ion()
 
 
 class Trainer:

@@ -97,9 +97,10 @@ def visualize(x_data, x_hat_data):
         ax[i].plot(x_data[i, :], label='real state')
         ax[i].plot(x_hat_data[i, :],"r--", label='estimated state')
         ax[i].set_xticklabels([])
+        ax[i].set_ylabel('x' + str(i+1))
 
     ax[-1].set_xlabel('time_steps')
-    fig.legend()
+    ax[0].legend()
     plt.show()
 
 # data converted to numpy arrays for plotting

@@ -39,29 +39,36 @@ def template_mpc(model, silence_solver=False):
     """
     mpc = do_mpc.controller.MPC(model)
 
+    # Set settings of MPC:
     mpc.settings.n_robust = 0
     mpc.settings.n_horizon = 7
     mpc.settings.t_step = 0.5
     mpc.settings.store_full_solution =True
 
+    # suppress solver output
     if silence_solver:
         mpc.settings.supress_ipopt_output()
 
+    # setting up the cost function
     mterm = model.aux['cost']
     lterm = model.aux['cost'] # terminal cost
-
     mpc.set_objective(mterm=mterm, lterm=lterm)
+
+    # setting up the factors for input penalisation
     mpc.set_rterm(u=1e-4)
 
     max_x = np.array([[4.0], [10.0], [4.0], [10.0]])
 
+    # setting up boundaries for the states
     mpc.bounds['lower','_x','x'] = -max_x
     mpc.bounds['upper','_x','x'] =  max_x
 
+    # setting up boundaries for the inputs
     mpc.bounds['lower','_u','u'] = -0.5
     mpc.bounds['upper','_u','u'] =  0.5
 
-
+    # completing the setup of the mpc
     mpc.setup()
 
+    # end of function
     return mpc

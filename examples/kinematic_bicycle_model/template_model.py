@@ -70,6 +70,8 @@ def template_model(symvar_type='SX'):
     model.set_rhs('Psi', (V / lr) * sin(Beta))
     model.set_rhs('V', Acc)
 
+    # Build the model
     model.setup()
 
+    # end of function
     return model

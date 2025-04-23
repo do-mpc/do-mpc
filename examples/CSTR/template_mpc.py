@@ -50,7 +50,7 @@ def template_mpc(model, silence_solver=False):
     mpc.settings.collocation_deg = 2
     mpc.settings.collocation_ni = 1
     mpc.settings.store_full_solution = True
-    
+
     # suppress solver output
     if silence_solver:
         mpc.settings.supress_ipopt_output()
@@ -66,7 +66,7 @@ def template_mpc(model, silence_solver=False):
     lterm = (model.x['C_b'] - 0.6)**2
     mpc.set_objective(mterm=mterm, lterm=lterm)
 
-    # setting up the scaling factor for teh inputs
+    # setting up the factors for input penalisation
     mpc.set_rterm(F=0.1, Q_dot = 1e-3)
     
     # setting up lower boundaries for the states

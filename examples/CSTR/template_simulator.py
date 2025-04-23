@@ -61,7 +61,7 @@ def template_simulator(model):
     def p_fun(t_now):
         return p_num
     simulator.set_p_fun(p_fun)
-    
+
     # completing the simulator setup
     simulator.setup()
 

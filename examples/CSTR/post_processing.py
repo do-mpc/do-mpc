@@ -44,9 +44,8 @@ Static plot Example
 """
 # Initialize graphic:
 sim_graphics = do_mpc.graphics.Graphics(results['simulator'])
-
-
 fig, ax = plt.subplots(5, sharex=True)
+
 # Configure plot:
 sim_graphics.add_line(var_type='_x', var_name='C_a', axis=ax[0])
 sim_graphics.add_line(var_type='_x', var_name='C_b', axis=ax[0])

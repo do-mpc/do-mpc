@@ -32,7 +32,6 @@ rel_do_mpc_path = os.path.join('..','..')
 sys.path.append(rel_do_mpc_path)
 import do_mpc
 from do_mpc.tools import Timer
-
 import matplotlib.pyplot as plt
 
 # local imports
@@ -66,7 +65,6 @@ x0 = np.array([C_a_0, C_b_0, T_R_0, T_K_0]).reshape(-1,1)
 # pushing initial condition to mpc and the simulator
 mpc.x0 = x0
 simulator.x0 = x0
-
 
 # setting up initial guesses
 mpc.set_initial_guess()
@@ -111,18 +109,18 @@ timer = Timer()
 
 # simulation of the plant
 for k in range(50):
-    timer.tic()
 
     # for the current state x0, mpc computes the optimal control action u0
+    timer.tic()
     u0 = mpc.make_step(x0)
     timer.toc()
 
     # for the current state u0, computes the next state y_next
     y_next = simulator.make_step(u0)
 
-    # for the current state y_next, computes the next state x0
+    # for the current state y_next, estimates the next state x0
     x0 = estimator.make_step(y_next)
-    
+
     # update the graphics
     if show_animation:
         graphics.plot_results(t_ind=k)
