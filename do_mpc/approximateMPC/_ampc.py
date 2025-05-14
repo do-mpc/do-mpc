@@ -161,13 +161,16 @@ class ApproxMPC(torch.nn.Module):
         # storage
         self._settings = ApproximateMPCSettings()
         self.mpc = mpc
-
+        self._settings.lbx = torch.tensor(ca.DM(self.mpc._x_lb).full().T)
+        self._settings.ubx = torch.tensor(ca.DM(self.mpc._x_ub).full().T)
+        self._settings.lbu = torch.tensor(ca.DM(self.mpc._u_lb).full().T)
+        self._settings.ubu = torch.tensor(ca.DM(self.mpc._u_ub).full().T)
         # flags
         self.flags = {
             "setup": False,
         }
 
-        return None
+
 
     @property
     def settings(self):
@@ -228,26 +231,9 @@ class ApproxMPC(torch.nn.Module):
         self.torch_data_type = torch.float32
         self.step_return_type = "numpy"  # "torch" or "numpy"
 
-        # TODO: get scaling and constraints from mpc object
-        self.lb_u = None  # lower bound of control actions
-        self.ub_u = None  # upper bound of control actions
-        self.x_shift = torch.tensor(
-            0.0
-        )  # shift of input data (min-max or standard scaling)
-        self.x_range = torch.tensor(
-            1.0
-        )  # range of input data (min-max or standard scaling)
-        self.y_shift = torch.tensor(
-            0.0
-        )  # shift of output data (min-max or standard scaling)
-        self.y_range = torch.tensor(
-            1.0
-        )  # range of output data (min-max or standard scaling)
 
-        self.lbx = torch.tensor(ca.DM(self.mpc._x_lb).full().T)
-        self.ubx = torch.tensor(ca.DM(self.mpc._x_ub).full().T)
-        self.lbu = torch.tensor(ca.DM(self.mpc._u_lb).full().T)
-        self.ubu = torch.tensor(ca.DM(self.mpc._u_ub).full().T)
+
+
 
         # storing initial guess
         self.x0 = self.mpc.x0
@@ -258,7 +244,7 @@ class ApproxMPC(torch.nn.Module):
         print("----------------------------------")
 
         # setup box constraints
-        self.shift_from_box()
+        self.set_shift_values()
 
         # setup ends
         return None
@@ -281,22 +267,22 @@ class ApproxMPC(torch.nn.Module):
 
         return None
 
-    def shift_from_box(self):
+    def set_shift_values(self):
         """Shifts and scales the input and output data based on the box constraints.
 
         Returns:
             None
         """
         if self.mpc.flags["set_rterm"]:
-            lb = torch.concatenate((self.lbx, self.lbu), axis=1)
-            ub = torch.concatenate((self.ubx, self.ubu), axis=1)
+            lb = torch.concatenate((self.settings.lbx, self.settings.lbu), axis=1)
+            ub = torch.concatenate((self.settings.ubx, self.settings.ubu), axis=1)
         else:
-            lb = self.lbx
-            ub = self.ubx
+            lb = self.settings.lbx
+            ub = self.settings.ubx
         self.x_shift = torch.tensor(lb)
         self.x_range = torch.tensor(ub - lb)
-        self.y_shift = torch.tensor(self.lbu)
-        self.y_range = torch.tensor(self.ubu - self.lbu)
+        self.y_shift = torch.tensor(self.settings.lbu)
+        self.y_range = torch.tensor(self.settings.ubu - self.settings.lbu)
 
         return None
 
@@ -348,11 +334,11 @@ class ApproxMPC(torch.nn.Module):
         Returns:
             y (torch.Tensor): Clipped outputs.
         """
-        if self.lbu is not None:
-            y = torch.max(y, self.lbu)
-        if self.ubu is not None:
-            y = torch.min(y, self.ubu)
-        if self.lbu is None and self.ubu is None:
+        if self.settings.lbu is not None:
+            y = torch.max(y, self.settings.lbu)
+        if self.settings.ubu is not None:
+            y = torch.min(y, self.settings.ubu)
+        if self.settings.lbu is None and self.settings.ubu is None:
             raise ValueError("No output constraints defined. Clipping not possible.")
         return y
 
@@ -372,7 +358,7 @@ class ApproxMPC(torch.nn.Module):
 
     # approximate MPC step method for use in closed loop
     @torch.no_grad()
-    def make_step(self, x, u_prev=None, clip_to_bounds=True):
+    def make_step(self, x0, u_prev=None, clip_to_bounds=True):
         """Make one step with the approximate MPC.
         Args:
             x (torch.tensor): Input tensor of shape (n_in,).
@@ -381,25 +367,28 @@ class ApproxMPC(torch.nn.Module):
             np.array: Array of shape (n_out,).
         """
 
-        # put asserting errors for shapes of x0 and u0
+        assert isinstance(x0,np.ndarray), "x0 must be a numpy array"
+        assert isinstance(u_prev, (np.ndarray, type(None))), "u_prev must be a numpy array or None"
 
         # taking optional input if provided
         if u_prev is not None:
             self.u0 = u_prev
 
         if self.mpc.flags["set_rterm"]:
-            x = np.concatenate((x, ca.DM(self.u0).full()), axis=0).squeeze()
+            x = np.concatenate((x0, ca.DM(self.u0).full()), axis=0).squeeze()
+        else:
+            x = x0
 
         # Check if inputs are tensors
-        if not isinstance(x, torch.Tensor):
-            if self.mpc.flags["set_rterm"]:
-                x = torch.tensor(x, dtype=self.torch_data_type).reshape(
-                    (-1, self.mpc.model.n_x + self.mpc.model.n_u)
-                )
-            else:
-                x = torch.tensor(x, dtype=self.torch_data_type).reshape(
-                    (-1, self.mpc.model.n_x)
-                )
+
+        if self.mpc.flags["set_rterm"]:
+            x = torch.tensor(x, dtype=self.torch_data_type).reshape(
+                (-1, self.mpc.model.n_x + self.mpc.model.n_u)
+            )
+        else:
+            x = torch.tensor(x, dtype=self.torch_data_type).reshape(
+                (-1, self.mpc.model.n_x)
+            )
         # forward pass
         x_scaled = self.scale_inputs(x)
         y_scaled = self.net(x_scaled)

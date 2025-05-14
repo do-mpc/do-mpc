@@ -321,12 +321,15 @@ class Trainer:
         if self.settings.save_history:
             assert self.settings.data_dir is not None, "exp_pth must be provided."
 
-            file_path = Path(self.settings.results_dir).joinpath(
+            file_path_hist = Path(self.settings.results_dir).joinpath(
                 "results_n_" + str(self.settings.n_samples), "training_history.json"
             )
-
+            file_path_app = Path(self.settings.results_dir).joinpath(
+                "results_n_" + str(self.settings.n_samples), "approx_mpc.pth"
+            )
+            self.approx_mpc.save_to_state_dict(file_path_app)
             # Save to a JSON file
-            with open(file_path, "w") as json_file:
+            with open(file_path_hist, "w") as json_file:
                 json.dump(self.history, json_file, indent=4)
         # setting up plot
         if self.settings.save_fig or self.settings.show_fig:
@@ -474,7 +477,6 @@ class Trainer:
             if self.settings.scheduler_flag:
                 self.lr_scheduler.step(val_loss)
                 # break if training min learning rate is reached
-                print(optimizer.param_groups[0]["lr"])
                 if optimizer.param_groups[0]["lr"] < self.scheduler_settings.min_lr:
                     break
 

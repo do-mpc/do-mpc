@@ -85,6 +85,10 @@ class Sampler:
 
         # settings
         self._settings = SamplerSettings()
+        self._settings.lbx = ca.DM(self.mpc._x_lb).full()
+        self._settings.ubx = ca.DM(self.mpc._x_ub).full()
+        self._settings.lbu = ca.DM(self.mpc._u_lb).full()
+        self._settings.ubu = ca.DM(self.mpc._u_ub).full()
 
         # init simulator
         self.simulator = do_mpc.simulator.Simulator(self.mpc.model)
@@ -117,11 +121,7 @@ class Sampler:
         # mandatory check for sanity
         self._settings.check_for_mandatory_settings()
 
-        # init
-        self.lbx = ca.DM(self.mpc._x_lb).full()
-        self.ubx = ca.DM(self.mpc._x_ub).full()
-        self.lbu = ca.DM(self.mpc._u_lb).full()
-        self.ubu = ca.DM(self.mpc._u_ub).full()
+
 
         # extra setup for closed loop
         if self.settings.closed_loop_flag:
@@ -227,11 +227,11 @@ class Sampler:
         id_precision = np.ceil(np.log10(self.settings.n_samples)).astype(int)
 
         def gen_x0():
-            x0 = np.random.uniform(self.lbx, self.ubx)
+            x0 = np.random.uniform(self.settings.lbx, self.settings.ubx)
             return x0
 
         def gen_u_prev():
-            u_prev = np.random.uniform(self.lbu, self.ubu)
+            u_prev = np.random.uniform(self.settings.lbu, self.settings.ubu)
             return u_prev
 
         assert self.settings.n_samples <= 10 ** (id_precision + 1), (

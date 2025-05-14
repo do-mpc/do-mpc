@@ -48,6 +48,17 @@ class ApproximateMPCSettings:
     device: str = "auto"
     """Type of device used. Can be `auto`, `cuda` or `cpu`"""
 
+    lbx: list = None
+    """Lower bound for the state variables"""
+
+    ubx: list = None
+    """Upper bound for the state variables"""
+
+    lbu: list = None
+    """Lower bound for the control variables"""
+
+    ubu: list = None
+    """Upper bound for the control variables"""
 
 @dataclass
 class SamplerSettings:
@@ -73,6 +84,17 @@ class SamplerSettings:
     overwrite_sampler: bool = True
     """Overwrite sampler"""
 
+    lbx: list = None
+    """Lower bound for the state variables"""
+
+    ubx: list = None
+    """Upper bound for the state variables"""
+
+    lbu: list = None
+    """Lower bound for the control variables"""
+
+    ubu: list = None
+    """Upper bound for the control variables"""
     # def init for simulator settings
 
     def check_for_mandatory_settings(self):

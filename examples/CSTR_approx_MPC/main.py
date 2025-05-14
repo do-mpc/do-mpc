@@ -90,23 +90,23 @@ sampler = Sampler(mpc)
 
 
 # configuring sampler settings
-n_samples = 1000
+n_samples = 10000
 sampler.settings.closed_loop_flag = True
-sampler.settings.trajectory_length = 10
+sampler.settings.trajectory_length = 5
 sampler.settings.n_samples = n_samples
 
 # sampler setup
 sampler.setup()
 
 # generating the samples
-sampler.default_sampling()
+#sampler.default_sampling()
 
 # initializing trainer for the approximate mpc
 trainer = Trainer(approx_mpc)
 
 # configuring trainer settings
 trainer.settings.n_samples = n_samples
-trainer.settings.n_epochs = 10000
+trainer.settings.n_epochs = 2000
 trainer.settings.show_fig =True
 trainer.settings.save_fig = True
 trainer.settings.save_history = True
@@ -172,7 +172,7 @@ for k in range(sim_time):
     timer.tic()
 
     # for the current state x0, approx_mpc computes the optimal control action u0
-    u0 = approx_mpc.make_step(x0, clip_to_bounds=True)
+    u0 = approx_mpc.make_step(x0,clip_to_bounds=True)
     timer.toc()
 
     # for the current state u0, computes the next state y_next
