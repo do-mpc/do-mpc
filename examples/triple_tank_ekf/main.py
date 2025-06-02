@@ -113,4 +113,4 @@ input('Press any key to exit.')
 
 # Store results:
 if store_results:
-    do_mpc.data.save_results([ekf, simulator], 'rot_oscillating_masses')
+    do_mpc.data.save_results([ekf, simulator], 'ekf_triple_tank_results')
