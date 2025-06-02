@@ -178,6 +178,8 @@ class Trainer:
         Returns:
             (torch.tensor, torch.tensor): _description_
         """
+        # Check setup.
+        assert self.flags['setup'] == True, 'MPC was not setup yet. Please call Trainer.setup().'
         x_shift = self.approx_mpc.x_shift  # torch.tensor(lbx)
         x_range = self.approx_mpc.x_range  # torch.tensor(ubx - lbx)
         y_shift = self.approx_mpc.y_shift  # torch.tensor(lbu)
@@ -196,6 +198,9 @@ class Trainer:
         Returns:
             (torch.utils.data.dataloader.DataLoader, torch.utils.data.dataloader.DataLoader, torch.optim.adam.Adam): Returns the relevant data loaders and the optimizer.
         """
+        # Check setup.
+        assert self.flags['setup'] == True, 'MPC was not setup yet. Please call Trainer.setup().'
+
         data_dir = self.settings.data_dir
         n_samples = self.settings.n_samples
         val = self.settings.val
@@ -449,6 +454,9 @@ class Trainer:
         Returns:
             None: None
         """
+        # Check setup.
+        assert self.flags['setup'] == True, 'MPC was not setup yet. Please call Trainer.setup().'
+
         n_epochs = self.settings.n_epochs
         train_dataloader, test_dataloader, optimizer = self.load_data()
 

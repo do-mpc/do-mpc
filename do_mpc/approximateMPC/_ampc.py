@@ -372,7 +372,8 @@ class ApproxMPC(torch.nn.Module):
         Returns:
             np.array: Array of shape (n_out,).
         """
-
+        # Check setup.
+        assert self.flags['setup'] == True, 'MPC was not setup yet. Please call ApproxMPC.setup().'
         assert isinstance(x0,np.ndarray), "x0 must be a numpy array"
         assert isinstance(u_prev, (np.ndarray, type(None))), "u_prev must be a numpy array or None"
 
@@ -396,9 +397,12 @@ class ApproxMPC(torch.nn.Module):
                 (-1, self.mpc.model.n_x)
             )
         # forward pass
-        x_scaled = self.scale_inputs(x)
-        y_scaled = self.net(x_scaled)
-        y = self.rescale_outputs(y_scaled)
+        if self.settings.scaling:
+            x_scaled = self.scale_inputs(x)
+            y_scaled = self.net(x_scaled)
+            y = self.rescale_outputs(y_scaled)
+        else:
+            y = self.net(x)
 
         # Clip outputs to satisfy input constraints of MPC
         if clip_to_bounds:

@@ -172,10 +172,7 @@ class Sampler:
         Returns:
             None: None
         """
-        # assert to prevent robust mpc from executing
-        assert self.mpc.settings.n_robust == 0, (
-            "Sampler with robust mpc not implemented yet."
-        )
+
 
         # extracting t_step from mpc
         self.simulator.settings.t_step = self.mpc.settings.t_step
@@ -200,6 +197,8 @@ class Sampler:
         Returns:
             None: None
         """
+        # Check setup.
+        assert self.flags['setup'] == True, 'MPC was not setup yet. Please call Sampler.setup().'
 
         self.approx_mpc_sampling_plan_box()
 
@@ -218,7 +217,8 @@ class Sampler:
         Returns:
             None: None
         """
-
+        # Check setup.
+        assert self.flags['setup'] == True, 'MPC was not setup yet. Please call Sampler.setup().'
         overwrite = self.settings.overwrite_sampler
 
         # Samples
@@ -265,6 +265,8 @@ class Sampler:
         Returns:
             None: None
         """
+        # Check setup.
+        assert self.flags['setup'] == True, 'MPC was not setup yet. Please call Sampler.setup().'
         overwrite_sampler = self.settings.overwrite_sampler
 
         n_samples = self.settings.n_samples
@@ -369,6 +371,9 @@ class Sampler:
             None: None
         """
 
+        # Check setup.
+        assert self.flags['setup'] == True, 'MPC was not setup yet. Please call Sampler.setup().'
+
         n_samples = self.settings.n_samples
         mpc = self.mpc
         trajectory_length = self.settings.trajectory_length
@@ -415,6 +420,15 @@ class Sampler:
                 u_prev_curr = u0
                 if mpc.solver_stats["success"] == False:
                     break
+                if self.mpc.settings.n_robust>0:
+                    p_num = self.simulator.get_p_template()
+                    keys=self.simulator.get_p_template().keys()
+                    for s,key in enumerate(keys):
+                        if s>0:
+                            p_num[key]= np.random.uniform(self.settings.lbp[s-1],self.settings.ubp[s-1])
+                    def p_fun(t_now):
+                        return p_num
+                    self.simulator.set_p_fun(p_fun)
                 y_next = self.simulator.make_step(u0)
                 x0 = self.estimator.make_step(y_next)
 

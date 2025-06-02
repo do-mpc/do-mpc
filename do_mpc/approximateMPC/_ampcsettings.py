@@ -48,6 +48,9 @@ class ApproximateMPCSettings:
     device: str = "auto"
     """Type of device used. Can be `auto`, `cuda` or `cpu`"""
 
+    scaling: bool = True
+    """Decides whether the state and control variables are scaled or not"""
+
     lbx: list = None
     """Lower bound for the state variables"""
 
@@ -84,6 +87,7 @@ class SamplerSettings:
     overwrite_sampler: bool = True
     """Overwrite sampler"""
 
+
     lbx: list = None
     """Lower bound for the state variables"""
 
@@ -95,7 +99,12 @@ class SamplerSettings:
 
     ubu: list = None
     """Upper bound for the control variables"""
-    # def init for simulator settings
+
+    lbp: list = None
+    """Lower bound for the control variables"""
+
+    ubp: list = None
+    """Upper bound for the control variables"""
 
     def check_for_mandatory_settings(self):
         """Method to assert the necessary settings required to design :py:class:`do_mpc.approximateMPC.Sampler`"""
