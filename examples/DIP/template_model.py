@@ -50,12 +50,9 @@ def template_model(obstacles, symvar_type='SX'):
     l2 = L2/2
     J1 = (m1 * l1**2) / 3   # Inertia
     J2 = (m2 * l2**2) / 3   # Inertia
-
     m1 = model.set_variable('_p', 'm1')
     m2 = model.set_variable('_p', 'm2')
-
     g = 9.80665 # m/s^2, gravity
-
     h1 = m0 + m1 + m2
     h2 = m1*l1 + m2*L1
     h3 = m2*l2
@@ -68,12 +65,12 @@ def template_model(obstacles, symvar_type='SX'):
     # Setpoint x:
     pos_set = model.set_variable('_tvp', 'pos_set')
 
-
     # States struct (optimization variables):
     pos = model.set_variable('_x',  'pos')
     theta = model.set_variable('_x',  'theta', (2,1))
     dpos = model.set_variable('_x',  'dpos')
     dtheta = model.set_variable('_x',  'dtheta', (2,1))
+
     # Algebraic states:
     ddpos = model.set_variable('_z', 'ddpos')
     ddtheta = model.set_variable('_z', 'ddtheta', (2,1))

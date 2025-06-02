@@ -39,6 +39,7 @@ def template_mpc(model, silence_solver = False):
     """
     mpc = do_mpc.controller.MPC(model)
 
+    # Set settings of MPC:
     mpc.settings.n_horizon =  100
     mpc.settings.n_robust =  0
     mpc.settings.open_loop =  0
@@ -49,18 +50,19 @@ def template_mpc(model, silence_solver = False):
     mpc.settings.collocation_ni =  1
     mpc.settings.store_full_solution =  True
 
+    # suppress solver output
     if silence_solver:
         mpc.settings.supress_ipopt_output()
 
-
+    # setting up the cost function
     mterm = model.aux['E_kin'] - model.aux['E_pot']
     lterm = -model.aux['E_pot']+10*(model.x['pos']-model.tvp['pos_set'])**2 # stage cost
-
-
     mpc.set_objective(mterm=mterm, lterm=lterm)
+
+    # setting up the factors for input penalisation
     mpc.set_rterm(force=0.1)
 
-
+    # setting up lower boundaries for the inputs
     mpc.bounds['lower','_u','force'] = -4
     mpc.bounds['upper','_u','force'] = 4
 
@@ -72,7 +74,7 @@ def template_mpc(model, silence_solver = False):
     m2_var = 0.2*np.array([1, 0.95, 1.05])
     mpc.set_uncertainty_values(m1=m1_var, m2=m2_var)
 
-
+    # setting up time varying parameters (tvp)
     tvp_template = mpc.get_tvp_template()
 
     # When to switch setpoint:
@@ -89,6 +91,8 @@ def template_mpc(model, silence_solver = False):
 
     mpc.set_tvp_fun(tvp_fun)
 
+    # completing the setup of the mpc
     mpc.setup()
 
+    # end of function
     return mpc

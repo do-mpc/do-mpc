@@ -33,7 +33,6 @@ import json
 from ._ampcsettings import TrainerSettings
 from ._ampcsettings import TrainerSchedulerSettings
 import pathlib
-# plt.ion()
 
 
 class Trainer:
@@ -179,6 +178,8 @@ class Trainer:
         Returns:
             (torch.tensor, torch.tensor): _description_
         """
+        # Check setup.
+        assert self.flags['setup'] == True, 'MPC was not setup yet. Please call Trainer.setup().'
         x_shift = self.approx_mpc.x_shift  # torch.tensor(lbx)
         x_range = self.approx_mpc.x_range  # torch.tensor(ubx - lbx)
         y_shift = self.approx_mpc.y_shift  # torch.tensor(lbu)
@@ -197,6 +198,9 @@ class Trainer:
         Returns:
             (torch.utils.data.dataloader.DataLoader, torch.utils.data.dataloader.DataLoader, torch.optim.adam.Adam): Returns the relevant data loaders and the optimizer.
         """
+        # Check setup.
+        assert self.flags['setup'] == True, 'MPC was not setup yet. Please call Trainer.setup().'
+
         data_dir = self.settings.data_dir
         n_samples = self.settings.n_samples
         val = self.settings.val
@@ -223,6 +227,9 @@ class Trainer:
         json_dir = Path(self.settings.results_dir).joinpath(
             "results_n_" + str(self.settings.n_samples), "hyperparameters.json"
         )
+
+        # Ensure the directory exists, if not create it
+        Path(self.settings.results_dir).joinpath("results_n_" + str(self.settings.n_samples)).mkdir(parents=True, exist_ok=True)
 
         with open(json_dir, "w") as f:
             json.dump(self.hyperparameters, f, indent=4)
@@ -319,12 +326,15 @@ class Trainer:
         if self.settings.save_history:
             assert self.settings.data_dir is not None, "exp_pth must be provided."
 
-            file_path = Path(self.settings.results_dir).joinpath(
+            file_path_hist = Path(self.settings.results_dir).joinpath(
                 "results_n_" + str(self.settings.n_samples), "training_history.json"
             )
-
+            file_path_app = Path(self.settings.results_dir).joinpath(
+                "results_n_" + str(self.settings.n_samples), "approx_mpc.pth"
+            )
+            self.approx_mpc.save_to_state_dict(file_path_app)
             # Save to a JSON file
-            with open(file_path, "w") as json_file:
+            with open(file_path_hist, "w") as json_file:
                 json.dump(self.history, json_file, indent=4)
         # setting up plot
         if self.settings.save_fig or self.settings.show_fig:
@@ -444,6 +454,9 @@ class Trainer:
         Returns:
             None: None
         """
+        # Check setup.
+        assert self.flags['setup'] == True, 'MPC was not setup yet. Please call Trainer.setup().'
+
         n_epochs = self.settings.n_epochs
         train_dataloader, test_dataloader, optimizer = self.load_data()
 
@@ -471,7 +484,6 @@ class Trainer:
             # scheduler
             if self.settings.scheduler_flag:
                 self.lr_scheduler.step(val_loss)
-
                 # break if training min learning rate is reached
                 if optimizer.param_groups[0]["lr"] < self.scheduler_settings.min_lr:
                     break

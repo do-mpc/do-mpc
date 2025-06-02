@@ -48,6 +48,20 @@ class ApproximateMPCSettings:
     device: str = "auto"
     """Type of device used. Can be `auto`, `cuda` or `cpu`"""
 
+    scaling: bool = True
+    """Decides whether the state and control variables are scaled or not"""
+
+    lbx: list = None
+    """Lower bound for the state variables"""
+
+    ubx: list = None
+    """Upper bound for the state variables"""
+
+    lbu: list = None
+    """Lower bound for the control variables"""
+
+    ubu: list = None
+    """Upper bound for the control variables"""
 
 @dataclass
 class SamplerSettings:
@@ -73,7 +87,24 @@ class SamplerSettings:
     overwrite_sampler: bool = True
     """Overwrite sampler"""
 
-    # def init for simulator settings
+
+    lbx: list = None
+    """Lower bound for the state variables"""
+
+    ubx: list = None
+    """Upper bound for the state variables"""
+
+    lbu: list = None
+    """Lower bound for the control variables"""
+
+    ubu: list = None
+    """Upper bound for the control variables"""
+
+    lbp: list = None
+    """Lower bound for the control variables"""
+
+    ubp: list = None
+    """Upper bound for the control variables"""
 
     def check_for_mandatory_settings(self):
         """Method to assert the necessary settings required to design :py:class:`do_mpc.approximateMPC.Sampler`"""
@@ -171,8 +202,8 @@ class TrainerSchedulerSettings:
     cooldown: float = 2
     """Number of epochs to wait before resuming normal operation after lr has been reduced. Default: 2."""
 
-    min_lr: float = 1e-8
-    """A scalar or a list of scalars. A lower bound on the learning rate of all param groups or each group respectively. Default: 1e-9."""
+    min_lr: float = 1e-7
+    """A scalar or a list of scalars. A lower bound on the learning rate of all param groups or each group respectively. Default: 1e-7."""
 
     eps: float = 1e-8
     """Minimal decay applied to lr. If the difference between new and old lr is smaller than eps, the update is ignored. Default: 1e-8."""

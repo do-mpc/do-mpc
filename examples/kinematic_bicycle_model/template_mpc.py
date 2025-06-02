@@ -51,35 +51,40 @@ def template_mpc(model, silence_solver=False):
     mpc.settings.collocation_ni = 1
     mpc.settings.store_full_solution = True
 
+    # suppress solver output
     if silence_solver:
         mpc.settings.supress_ipopt_output()
 
+    # setting up the cost function
     mterm = (model.x['Y_p'] - 2) ** 2 + (model.x['X_p'] - 3) ** 2 + (model.x['Psi'] - 0) ** 2
     lterm = (model.x['Y_p'] - 1) ** 2
-
     mpc.set_objective(mterm=mterm, lterm=lterm * 0)
 
+    # setting up the factors for input penalisation
     mpc.set_rterm(Delta=1.0, Acc=1e-3)
 
-    # Set constraints:
+    # setting up lower boundaries for the states
     mpc.bounds['lower', '_x', 'X_p'] = -50
     mpc.bounds['lower', '_x', 'Y_p'] = -50
     mpc.bounds['lower', '_x', 'Psi'] = -pi / 2
     mpc.bounds['lower', '_x', 'V'] = -5
 
+    # setting up upper boundaries for the states
     mpc.bounds['upper', '_x', 'X_p'] = 50
     mpc.bounds['upper', '_x', 'Y_p'] = 50
     mpc.bounds['upper', '_x', 'Psi'] = pi / 2
     mpc.bounds['upper', '_x', 'V'] = 5
 
+    # setting up lower boundaries for the inputs
     mpc.bounds['lower', '_u', 'Delta'] = -5
     mpc.bounds['lower', '_u', 'Acc'] = -5
 
+    # setting up upper boundaries for the inputs
     mpc.bounds['upper', '_u', 'Delta'] = 5
     mpc.bounds['upper', '_u', 'Acc'] = 5
 
-    # mpc.set_nl_cons('T_R', model.x['T_R'], ub=140, soft_constraint=True, penalty_term_cons=1e2)
-
+    # completing the setup of the mpc
     mpc.setup()
 
+    # end of function
     return mpc

@@ -39,23 +39,21 @@ def template_mhe(model, silence_solver = False):
     """
     mhe = do_mpc.estimator.MHE(model, ['Theta_1'])
 
+    # settings for mhe
     mhe.settings.n_horizon =  10
     mhe.settings.t_step =  0.1
     mhe.settings.store_full_solution =  True
     mhe.settings.nl_cons_check_colloc_points =  True
 
+    # suppress solver output
     if silence_solver:
         mhe.settings.supress_ipopt_output()
 
+    # Set the default MHE objective by passing the weighting matrices:
     P_v = model.tvp['P_v']
     P_x = 1e-4*np.eye(8)
     P_p = model.p['P_p']
-
-
-    # Set the default MHE objective by passing the weighting matrices:
     mhe.set_default_objective(P_x, P_v, P_p)
-
-
 
     # P_y is listed in the time-varying parameters and must be set.
     # This is more of a proof of concept (P_y is not actually changing over time).
@@ -91,9 +89,11 @@ def template_mhe(model, silence_solver = False):
 
     mhe.set_y_fun(y_fun)
 
+    # setting up boundaries for the inputs
     mhe.bounds['lower','_u','phi_m_set'] = -5
     mhe.bounds['upper','_u','phi_m_set'] = 5
 
+    # setting up boundaries for the states
     mhe.bounds['lower','_x', 'dphi'] = -6
     mhe.bounds['upper','_x', 'dphi'] = 6
 
@@ -105,6 +105,8 @@ def template_mhe(model, silence_solver = False):
     mhe.set_nl_cons('p_est_lb', -mhe._p_est['Theta_1']+1e-5, 0)
     mhe.set_nl_cons('p_est_ub', mhe._p_est['Theta_1']-1e-3, 0)
 
+    # completing the setup of the mpc
     mhe.setup()
 
+    # end of function
     return mhe

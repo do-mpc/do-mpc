@@ -20,47 +20,44 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+import numpy as np
 from casadi import *
 from casadi.tools import *
+import pdb
 import sys
 import os
-
-rel_do_mpc_path = os.path.join("..", "..")
+rel_do_mpc_path = os.path.join('..','..')
 sys.path.append(rel_do_mpc_path)
 import do_mpc
 
 
-def template_simulator(model):
-    """
-    --------------------------------------------------------------------------
-    template_optimizer: tuning parameters
-    --------------------------------------------------------------------------
-    """
-    simulator = do_mpc.simulator.Simulator(model)
+def template_mpc(model, silence_solver=False):
 
-    # setting up parameters for the simulator
-    params_simulator = {
-        "integration_tool": "cvodes",
-        "abstol": 1e-10,
-        "reltol": 1e-10,
-        "t_step": 0.005,
-    }
-    simulator.set_param(**params_simulator)
+    mpc = do_mpc.controller.MPC(model=model)
 
-    # setting up time varying parameters (tvp)
-    tvp_num = simulator.get_tvp_template()
-    def tvp_fun(t_now):
-        return tvp_num
-    simulator.set_tvp_fun(tvp_fun)
+    # suppress solver output
+    if silence_solver:
+        mpc.settings.supress_ipopt_output()
 
-    # setting up parameters for the simulator
-    p_num = simulator.get_p_template()
-    def p_fun(t_now):
-        return p_num
-    simulator.set_p_fun(p_fun)
+    mpc.set_param(t_step=0.1)
+    mpc.set_param(n_horizon=10)
 
-    # completing the simulator setup
-    simulator.setup()
+    setpoint = 0.005
+    mterm = (setpoint - model.x['states'][0])**2
+    mpc.set_objective(mterm=mterm, lterm=mterm)
 
-    # end of function
-    return simulator
+    mpc.set_rterm(inputs=0.1)
+
+    lbx = np.array([-0.01, -2.65/100])
+    ubx = np.array([0.01, 2.65/100])
+    lbu = np.array([-0.1])
+    ubu = np.array([0.1])
+
+    mpc.bounds['lower', '_x', 'states'] = lbx
+    mpc.bounds['upper', '_x', 'states'] = ubx
+    mpc.bounds['lower', '_u', 'inputs'] = lbu
+    mpc.bounds['upper', '_u', 'inputs'] = ubu
+
+    mpc.setup()
+
+    return mpc

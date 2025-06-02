@@ -20,10 +20,8 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
-import numpy as np
 from casadi import *
 from casadi.tools import *
-import pdb
 import sys
 import os
 rel_do_mpc_path = os.path.join('..','..')

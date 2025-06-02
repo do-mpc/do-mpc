@@ -20,72 +20,71 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+# imports
 import numpy as np
 import matplotlib.pyplot as plt
 from casadi import *
 from casadi.tools import *
-import pdb
 import sys
 import os
 rel_do_mpc_path = os.path.join('..','..')
 sys.path.append(rel_do_mpc_path)
 import do_mpc
-
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-import time
 
+# local imports
 from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator
 
-""" User settings: """
+# user settings
 show_animation = True
 store_results = False
 
-"""
-Get configured do-mpc modules:
-"""
-
+# setting up the model
 model = template_model()
+
+# setting up a mpc controller, given the model
 mpc = template_mpc(model)
+
+# setting up a simulator, given the model
 simulator = template_simulator(model)
+
+# setting up an estimator, given the model
 estimator = do_mpc.estimator.StateFeedback(model)
 
-"""
-Set initial state
-"""
-
+# Set the initial state of mpc, simulator and estimator:
 X_s_0 = 1.0 # This is the initial concentration inside the tank [mol/l]
 S_s_0 = 0.5 # This is the controlled variable [mol/l]
 P_s_0 = 0.0 #[C]
 V_s_0 = 120.0 #[C]
 x0 = np.array([X_s_0, S_s_0, P_s_0, V_s_0])
 
-
+# pushing initial condition to mpc, simulator and estimator
 mpc.x0 = x0
 simulator.x0 = x0
 estimator.x0 = x0
 
+# setting up initial guesses
 mpc.set_initial_guess()
 
-"""
-Setup graphic:
-"""
-
+# Initialize graphic:
 fig, ax, graphics = do_mpc.graphics.default_plot(mpc.data, figsize=(8,5))
 plt.ion()
 
-"""
-Run MPC main loop:
-"""
-
+# simulation of the plant
 for k in range(150):
+
+    # for the current state x0, mpc computes the optimal control action u0
     u0 = mpc.make_step(x0)
+
+    # for the current state u0, computes the next state y_next
     y_next = simulator.make_step(u0)
+
+    # for the current state y_next, estimates the next state x0
     x0 = estimator.make_step(y_next)
 
-
+    # update the graphics
     if show_animation:
         graphics.plot_results(t_ind=k)
         graphics.plot_predictions(t_ind=k)

@@ -80,4 +80,5 @@ def template_model():
     # Build the model
     model.setup()
 
+    # end of function
     return model

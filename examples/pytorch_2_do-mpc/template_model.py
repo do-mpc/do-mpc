@@ -20,44 +20,34 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
-import numpy as np
-from casadi import *
-from casadi.tools import *
-import pdb
-import sys
 import os
+import sys
 rel_do_mpc_path = os.path.join('..','..')
 sys.path.append(rel_do_mpc_path)
 import do_mpc
 
+def template_model():
+    # init
+    model = do_mpc.model.Model('continuous', symvar_type='SX')
 
-def template_simulator(model):
-    """
-    --------------------------------------------------------------------------
-    template_simulator: tuning parameters
-    --------------------------------------------------------------------------
-    """
-    simulator = do_mpc.simulator.Simulator(model)
+    # Define the states
+    position = model.set_variable(var_type='_x', var_name='position', shape=(1,1))
+    velocity = model.set_variable(var_type='_x', var_name='velocity', shape=(1,1))
 
-    # setting up parameters for the simulator
-    params_simulator = {
-        'integration_tool': 'cvodes',
-        'abstol': 1e-10,
-        'reltol': 1e-10,
-        't_step': 50.0/3600.0
-    }
-    simulator.set_param(**params_simulator)
+    # Define the control inputs
+    f_external = model.set_variable(var_type='_u', var_name='f_external', shape=(1,1))
 
-    # setting up parameters for the simulator
-    p_num = simulator.get_p_template()
-    p_num['delH_R'] = 950
-    p_num['k_0'] = 7
-    def p_fun(t_now):
-        return p_num
-    simulator.set_p_fun(p_fun)
+    # constants
+    k = 10      # spring constant
+    c = 2       # damping constant
+    mass = 0.1  # mass of the object
 
-    # completing the simulator setup
-    simulator.setup()
+    # Define the model equations
+    model.set_rhs('position', velocity)
+    model.set_rhs('velocity', (-k*position - c*velocity + f_external)/mass)
 
-    # end of function
-    return simulator
+    # model setup
+    model.setup()
+
+    # end
+    return model

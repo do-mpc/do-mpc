@@ -20,47 +20,21 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
-from casadi import *
-from casadi.tools import *
-import sys
 import os
-
-rel_do_mpc_path = os.path.join("..", "..")
+import sys
+rel_do_mpc_path = os.path.join('..','..')
 sys.path.append(rel_do_mpc_path)
 import do_mpc
 
-
 def template_simulator(model):
-    """
-    --------------------------------------------------------------------------
-    template_optimizer: tuning parameters
-    --------------------------------------------------------------------------
-    """
+    # init
     simulator = do_mpc.simulator.Simulator(model)
-
-    # setting up parameters for the simulator
-    params_simulator = {
-        "integration_tool": "cvodes",
-        "abstol": 1e-10,
-        "reltol": 1e-10,
-        "t_step": 0.005,
-    }
-    simulator.set_param(**params_simulator)
-
-    # setting up time varying parameters (tvp)
-    tvp_num = simulator.get_tvp_template()
-    def tvp_fun(t_now):
-        return tvp_num
-    simulator.set_tvp_fun(tvp_fun)
-
-    # setting up parameters for the simulator
-    p_num = simulator.get_p_template()
-    def p_fun(t_now):
-        return p_num
-    simulator.set_p_fun(p_fun)
-
-    # completing the simulator setup
+    
+    # set t_step
+    simulator.set_param(t_step = 0.1)
+    
+    # simulator setup
     simulator.setup()
 
-    # end of function
+    # end
     return simulator

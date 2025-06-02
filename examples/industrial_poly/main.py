@@ -20,38 +20,37 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
-import numpy as np
+# imports
 import matplotlib.pyplot as plt
 from casadi import *
 from casadi.tools import *
-import pdb
 import sys
 import os
 rel_do_mpc_path = os.path.join('..','..')
 sys.path.append(rel_do_mpc_path)
 import do_mpc
-
 import matplotlib.pyplot as plt
-import pickle
-import time
 
-
+# local imports
 from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator
 
 
-""" User settings: """
+# user settings
 show_animation = True
 store_results = False
 
-"""
-Get configured do-mpc modules:
-"""
-
+# setting up the model
 model = template_model()
+
+# setting up a mpc controller, given the model
 mpc = template_mpc(model)
+
+# setting up a simulator, given the model
 simulator = template_simulator(model)
+
+# setting up an estimator, given the model
 estimator = do_mpc.estimator.StateFeedback(model)
 
 # Set the initial state of the controller and simulator:
@@ -61,10 +60,10 @@ c_pR = 5.0
 # x0 is a property of the simulator - we obtain it and set values.
 x0 = simulator.x0
 
+# Set the initial state
 x0['m_W'] = 10000.0
 x0['m_A'] = 853.0
 x0['m_P'] = 26.5
-
 x0['T_R'] = 90.0 + 273.15
 x0['T_S'] = 90.0 + 273.15
 x0['Tout_M'] = 90.0 + 273.15
@@ -102,6 +101,7 @@ ax[4].set_xlabel('time')
 fig.align_ylabels()
 plt.ion()
 
+# simulation of the plant
 for k in range(100):
     u0 = mpc.make_step(x0)
     y_next = simulator.make_step(u0)
