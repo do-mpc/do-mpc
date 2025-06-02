@@ -49,7 +49,7 @@ class TestCSTR(unittest.TestCase):
         Reset path afterwards.
         """
         default_path = copy.deepcopy(sys.path)
-        sys.path.append('../examples/CSTR_approx_MPC/')
+        sys.path.append('../examples/CSTR_approx_mpc/')
         import template_model
         import template_mpc
         import template_simulator
