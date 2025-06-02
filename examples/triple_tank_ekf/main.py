@@ -38,6 +38,8 @@ from template_simulator import template_simulator
 show_animation = True
 store_results = False
 
+
+
 # setting up the model
 model = template_model()
 
@@ -70,6 +72,9 @@ ekf.set_initial_guess()
 # plot initialization
 x_data = [x0_true]
 x_hat_data = [x0]
+
+# fix numpy random seed for reproducibility
+np.random.seed(42)
 
 
 # simulation of the plant
@@ -113,4 +118,4 @@ input('Press any key to exit.')
 
 # Store results:
 if store_results:
-    do_mpc.data.save_results([ekf, simulator], 'ekf_triple_tank_results')
+    do_mpc.data.save_results(save_list=[ekf, simulator], result_name='results_triple_tank_ekf', result_path='results/', overwrite=True)
