@@ -48,6 +48,8 @@ class TestCSTR(unittest.TestCase):
         If this test isn't the first to run, the modules need to be reloaded.
         Reset path afterwards.
         """
+        if 'template_model' in sys.modules:
+            del sys.modules['template_model']
         default_path = copy.deepcopy(sys.path)
         sys.path.append('../examples/CSTR_approx_mpc/')
         import template_model
