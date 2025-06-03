@@ -1,6 +1,6 @@
 import sys
-sys.path.append('../../../../')
-sys.path.append('../../../oscillating_masses_discrete/')
+sys.path.append('../../../../../')
+sys.path.append('../../../../oscillating_masses_discrete/')
 import do_mpc
 
 from template_model import template_model

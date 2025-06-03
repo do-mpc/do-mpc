@@ -90,7 +90,7 @@ sampler = Sampler(mpc)
 
 
 # configuring sampler settings
-n_samples = 10000
+n_samples = 10
 sampler.settings.closed_loop_flag = True
 sampler.settings.trajectory_length = 5
 sampler.settings.n_samples = n_samples
@@ -99,7 +99,7 @@ sampler.settings.n_samples = n_samples
 sampler.setup()
 
 # generating the samples
-#sampler.default_sampling()
+sampler.default_sampling()
 
 # initializing trainer for the approximate mpc
 trainer = Trainer(approx_mpc)

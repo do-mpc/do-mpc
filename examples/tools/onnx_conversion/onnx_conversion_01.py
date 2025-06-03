@@ -2,12 +2,16 @@
 from tensorflow import keras
 import casadi
 import numpy as np
+import os
 
 # import the python script from the corresponding folder
 import sys
-sys.path.append('../../')
-sys.path.append('../../do_mpc/sysid')
+sys.path.append(os.path.join('..','..','..'))
+
+
 import do_mpc
+
+sys.path.append(os.path.join('..','..','..','do_mpc','sysid'))
 
 import onnxconversion
 import importlib

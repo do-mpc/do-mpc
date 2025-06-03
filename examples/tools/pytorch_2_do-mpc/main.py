@@ -27,7 +27,7 @@ import casadi as ca
 import numpy as np
 import matplotlib.pyplot as plt
 
-rel_do_mpc_path = os.path.join('..','..')
+rel_do_mpc_path = os.path.join('..','..','..') 
 sys.path.append(rel_do_mpc_path)
 import do_mpc
 
@@ -69,7 +69,7 @@ real_model = template_model()
 # setting up real simulator
 real_simulator = template_simulator(model=real_model)
 
-# initialising both systems
+# constraints
 lbx = np.array([-0.01, -2.65/100])
 ubx = np.array([0.01, 2.65/100])
 
