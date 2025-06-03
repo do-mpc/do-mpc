@@ -131,7 +131,7 @@ class TestapproxCSTR(unittest.TestCase):
 
 
         # configuring sampler settings
-        n_samples = 3
+        n_samples = 50
         sampler.settings.closed_loop_flag = True
         sampler.settings.trajectory_length = 5
         sampler.settings.n_samples = n_samples

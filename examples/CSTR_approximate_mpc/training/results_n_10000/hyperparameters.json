@@ -1,6 +1,6 @@
 {
     "data_dir": ".\\sampling",
-    "n_samples": 3,
+    "n_samples": 10000,
     "scheduler_flag": true,
     "lr_reduce_factor": 0.1,
     "lr_scheduler_patience": 50,
