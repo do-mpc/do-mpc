@@ -51,7 +51,7 @@ class TestapproxCSTR(unittest.TestCase):
         """
 
         default_path = copy.deepcopy(sys.path)
-        sys.path.append('../examples/CSTR_approx_mpc/')
+        sys.path.append('../examples/CSTR_approximate_mpc/')
         import template_mpc
         import template_model
         import template_simulator
