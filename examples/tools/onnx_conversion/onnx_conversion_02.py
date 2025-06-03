@@ -20,17 +20,17 @@ import numpy as np
 
 # import the python script from the corresponding folder
 import sys
-sys.path.append('../../')
-sys.path.append('../../do_mpc/sysid')
+sys.path.append(os.path.join('..','..','..'))
+
 import do_mpc
+
+sys.path.append(os.path.join('..','..','..','do_mpc','sysid'))
 
 import onnxconversion
 import importlib
 importlib.reload(onnxconversion)
 
 import pdb
-
-
 
 # Specify the Keras model layers
 model_input1 = keras.Input(shape=(3), name='first_input')
