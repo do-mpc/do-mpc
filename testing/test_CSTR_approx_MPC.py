@@ -42,7 +42,7 @@ from do_mpc.approximateMPC import ApproxMPC, Trainer
 
 
 
-class TestCSTR(unittest.TestCase):
+class TestapproxCSTR(unittest.TestCase):
     def setUp(self):
         """Add path of test case and import the modules.
         If this test isn't the first to run, the modules need to be reloaded.
@@ -64,12 +64,12 @@ class TestCSTR(unittest.TestCase):
     def test_SX(self):
         print('Testing SX implementation')
         model = self.template_model.template_model('SX')
-        self.CSTR(model)
+        self.approxCSTR(model)
 
     def test_MX(self):
         print('Testing MX implementation')
         model = self.template_model.template_model('MX')
-        self.CSTR(model)
+        self.approxCSTR(model)
 
     def test_pickle_unpickle(self):
         print('Testing SX implementation with pickle / unpickle')
@@ -81,9 +81,9 @@ class TestCSTR(unittest.TestCase):
         # Load the casadi structure
         with open('model.pkl', 'rb') as f:
             model_unpickled = pickle.load(f)
-        self.CSTR(model_unpickled)
+        self.approxCSTR(model_unpickled)
 
-    def CSTR(self, model):
+    def approxCSTR(self, model):
         """
         Get configured do-mpc modules:
         For now we only test if everything runs through without errors.
