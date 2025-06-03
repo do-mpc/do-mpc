@@ -37,6 +37,7 @@ if not do_mpc_path in sys.path:
     sys.path.append('../')
 
 import do_mpc
+
 from do_mpc.approximateMPC import Sampler
 from do_mpc.approximateMPC import ApproxMPC, Trainer
 
@@ -48,12 +49,11 @@ class TestapproxCSTR(unittest.TestCase):
         If this test isn't the first to run, the modules need to be reloaded.
         Reset path afterwards.
         """
-        if 'template_model' in sys.modules:
-            del sys.modules['template_model']
+
         default_path = copy.deepcopy(sys.path)
         sys.path.append('../examples/CSTR_approx_mpc/')
-        import template_model
         import template_mpc
+        import template_model
         import template_simulator
 
         self.template_model = reload(template_model)
