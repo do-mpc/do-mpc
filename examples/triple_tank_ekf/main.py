@@ -55,6 +55,9 @@ r = 1e-2 * np.ones(model.n_y)
 Q = np.diag(q.flatten())
 R = np.diag(r.flatten())
 
+# Initial covariance matrix of the EKF (if not set, it is initialized to the identity matrix)
+ekf.P0 = np.eye(model.n_x)
+
 # initial states of the simulator which is the real state of the system
 x0_true = np.array([2, 2.8, 2.7]).reshape([-1, 1])
 

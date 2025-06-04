@@ -138,8 +138,9 @@ class EKF(Estimator):
         # setting up counter
         self.counter = 0
 
-        # initialiasing a default covariance matrix
-        self.P0 = np.eye((self.model.n_x))
+        if not hasattr(self, "P0"):
+            # P0 doesn’t exist yet, so initialize it now
+            self.P0 = np.eye(self.model.n_x)
 
         # initialising a default algebraic initial state
         self.z0 = np.zeros((self.model.n_z))
@@ -170,6 +171,7 @@ class EKF(Estimator):
 
         # set initial value for state
         self.x0 = ca.DM(self.x0).full()
+
 
         # updating flag
         self.flags['set_initial_guess'] = True
@@ -212,6 +214,7 @@ class EKF(Estimator):
         z0 = self.z0
         v0 = np.zeros((self.model.n_y, 1))
         w0 = self.model['w'](0)
+        P0 = ca.DM(self.P0).full()
 
         # counter and timer calculation
         self.counter += 1
@@ -225,31 +228,34 @@ class EKF(Estimator):
 
         # Apriori and Prediction covariance
         if self.model.model_type is 'continuous':
-            initial_cond_x = ca.vertcat(self.x0, self.P0.reshape((-1,1)))
+            initial_cond_x = ca.vertcat(self.x0, P0.reshape((-1,1)))
             initial_guess_z = z0
             sol = self.x_p_integrator(x0 = initial_cond_x, z0 = initial_guess_z, p=ca.vertcat(u_next, tvp0, p0, Q_k.reshape((-1, 1))))
             x_apriori = sol['xf'].full()[0:self.model.n_x]
-            self.P0 = sol['xf'].full()[self.model.n_x:].reshape((self.model.n_x, self.model.n_x))
+            P0 = sol['xf'].full()[self.model.n_x:].reshape((self.model.n_x, self.model.n_x))
             y_apriori = self.h_fun(x_apriori, u_next, p0, tvp0, v0)
 
         else:            
             x_apriori = self.model._rhs_fun(x0, u_next, z0, tvp0, p0, w0)
             y_apriori = self.model._meas_fun(x_apriori, u_next, z0, tvp0, p0, v0)
 
-            self.P0 = A_k @ self.P0 @ A_k.T + Q_k
+            P0 = A_k @ P0 @ A_k.T + Q_k
 
         # Kalman gain
-        L = self.P0 @ C_k.T @ ca.inv_minor(C_k @ self.P0 @ C_k.T + R_k)
+        L = P0 @ C_k.T @ ca.inv_minor(C_k @ P0 @ C_k.T + R_k)
 
         # Aposteriori
         x0 = x_apriori + L @ (y_next - y_apriori)
 
         # Updated error covariance
-        self.P0 = (np.eye(self.model.n_x) - L @ C_k) @ self.P0
+        P0 = (np.eye(self.model.n_x) - L @ C_k) @ P0
 
         # store current state
         self.x0 = ca.DM(x0).full()
         self.z0 = z0
+
+        # store current covariance matrix
+        self.P0 = ca.DM(P0).full()
 
         # Update data object:
         self.data.update(_x = ca.DM(x0).full())
