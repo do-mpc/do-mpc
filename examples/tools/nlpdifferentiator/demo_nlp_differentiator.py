@@ -30,10 +30,10 @@ import os
 import sys
 
 # Use dark background style for plots
-plt.style.use('dark_background')
+# plt.style.use('dark_background')
 
 # Add relative path to access do-mpc module
-sys.path.append(os.path.join('..','..'))
+sys.path.append(os.path.join('..','..','..'))
 import do_mpc
 
 # %% Define the NLP problem for optimization

@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="51daeb65-7e04-4fce-8893-fff95fcb6334" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/do_mpc/approximateMPC/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/do_mpc/approximateMPC/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/do_mpc/approximateMPC/_ampc.py" beforeDir="false" afterPath="$PROJECT_DIR$/do_mpc/approximateMPC/_ampc.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/do_mpc/approximateMPC/_ampcsettings.py" beforeDir="false" afterPath="$PROJECT_DIR$/do_mpc/approximateMPC/_ampcsettings.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/do_mpc/approximateMPC/_sampling.py" beforeDir="false" afterPath="$PROJECT_DIR$/do_mpc/approximateMPC/_ampc_sampler.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/do_mpc/approximateMPC/_trainer.py" beforeDir="false" afterPath="$PROJECT_DIR$/do_mpc/approximateMPC/_trainer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/documentation/source/example_gallery/appx_cstr_example.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/documentation/source/example_gallery/appx_cstr_example.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/CSTR_approx_MPC/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/examples/CSTR_approx_MPC/main.py" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;smjsadam&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/smjsadam/do-mpc_approx_mpc.git&quot;,
+    &quot;accountId&quot;: &quot;6730643c-006c-48f5-a223-1e607ec512e7&quot;
+  }
+}</component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 7
+}</component>
+  <component name="ProjectId" id="2uFsc5jkhqlE95ZUEHcZTg8VDGq" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Python.main.executor": "Run",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "WebServerToolWindowFactoryState": "false",
+    "git-widget-placeholder": "develop",
+    "last_opened_file_path": "C:/Users/smjsadam/Documents/Job/Forschung/Code/do-mpc_approx_mpc",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\smjsadam\Documents\Job\Forschung\Code\do-mpc_approx_mpc\examples\CSTR_approx_MPC" />
+      <recent name="C:\Users\smjsadam\Documents\Job\Forschung\Code\do-mpc_approx_mpc\examples\CSTR_approx_MPC\training" />
+      <recent name="C:\Users\smjsadam\Documents\Job\Forschung\Code\do-mpc_approx_mpc\documentation\source\example_gallery" />
+    </key>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-js-predefined-d6986cc7102b-1632447f56bf-JavaScript-PY-243.25659.43" />
+        <option value="bundled-python-sdk-181015f7ab06-4df51de95216-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-243.25659.43" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="51daeb65-7e04-4fce-8893-fff95fcb6334" name="Changes" comment="" />
+      <created>1741855732610</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1741855732610</updated>
+      <workItem from="1741855733901" duration="1370000" />
+      <workItem from="1743494552188" duration="9527000" />
+      <workItem from="1745259193422" duration="3012000" />
+      <workItem from="1745324586870" duration="5122000" />
+      <workItem from="1745838075519" duration="709000" />
+      <workItem from="1747208717278" duration="11500000" />
+      <workItem from="1747481966124" duration="649000" />
+      <workItem from="1748853603924" duration="1213000" />
+      <workItem from="1749022373046" duration="1778000" />
+      <workItem from="1749068502327" duration="993000" />
+      <workItem from="1749108840070" duration="14919000" />
+      <workItem from="1749142543978" duration="10349000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/do_mpc/approximateMPC/_ampc.py</url>
+          <line>294</line>
+          <option name="timeStamp" value="5" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/main_py$_sampling.coverage" NAME="_sampling Coverage Results" MODIFIED="1749126138633" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/do_mpc/approximateMPC" />
+    <SUITE FILE_PATH="coverage/main_py$template_mpc.coverage" NAME="template_mpc Coverage Results" MODIFIED="1749121247485" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples/CSTR_approx_MPC" />
+    <SUITE FILE_PATH="coverage/main_py$main.coverage" NAME="main Coverage Results" MODIFIED="1749159129038" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples/CSTR_approx_MPC" />
+  </component>
+</project>

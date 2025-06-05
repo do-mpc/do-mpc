@@ -27,7 +27,7 @@ from typing import Dict, List
 class EstimatorSettings:
     """Settings for :py:class:`do_mpc.estimator`.
 
-    This class contains the mandaory settings for the all the estimators available int :py:class:`do_mpc.estimator`.
+    This class contains the mandatory settings for the all the estimators available int :py:class:`do_mpc.estimator`.
     This class creates an instance of type :py:class:`EstimatorSettings` and adds it to its class attributes.
     """
     n_horizon:int = None

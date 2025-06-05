@@ -38,6 +38,8 @@ from template_simulator import template_simulator
 show_animation = True
 store_results = False
 
+
+
 # setting up the model
 model = template_model()
 
@@ -52,6 +54,9 @@ q = 1e-3 * np.ones(model.n_x)
 r = 1e-2 * np.ones(model.n_y)
 Q = np.diag(q.flatten())
 R = np.diag(r.flatten())
+
+# Initial covariance matrix of the EKF (if not set, it is initialized to the identity matrix)
+ekf.P0 = np.eye(model.n_x)
 
 # initial states of the simulator which is the real state of the system
 x0_true = np.array([2, 2.8, 2.7]).reshape([-1, 1])
@@ -70,6 +75,9 @@ ekf.set_initial_guess()
 # plot initialization
 x_data = [x0_true]
 x_hat_data = [x0]
+
+# fix numpy random seed for reproducibility
+np.random.seed(42)
 
 
 # simulation of the plant
@@ -113,4 +121,4 @@ input('Press any key to exit.')
 
 # Store results:
 if store_results:
-    do_mpc.data.save_results([ekf, simulator], 'rot_oscillating_masses')
+    do_mpc.data.save_results(save_list=[ekf, simulator], result_name='results_triple_tank_ekf', result_path='results/', overwrite=True)

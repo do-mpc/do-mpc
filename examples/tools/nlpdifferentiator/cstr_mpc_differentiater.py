@@ -26,9 +26,11 @@ import os
 import numpy as np
 import casadi.tools as castools
 
-sys.path.append(os.path.join('..','..'))
-sys.path.append(os.path.join('..','CSTR'))
+sys.path.append(os.path.join('..','..','..'))
+
 import do_mpc
+sys.path.append(os.path.join('..','..','CSTR'))
+
 from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator

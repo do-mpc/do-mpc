@@ -30,7 +30,7 @@ rel_do_mpc_path = os.path.join('..','..')
 sys.path.append(rel_do_mpc_path)
 import do_mpc
 
-
+ 
 def template_model(symvar_type='SX'):
     """
     --------------------------------------------------------------------------

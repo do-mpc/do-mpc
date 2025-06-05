@@ -201,6 +201,49 @@ class Simulator(do_mpc.model.IteratedVariables):
 
     @do_mpc.tools.IndexedProperty
     def scaling(self, ind):
+        """Get or set scaling factors for differential and algebraic states.
+        
+        Scaling can significantly improve the numerical stability of the simulator,
+        especially when differential and algebraic states have very different orders of magnitude.
+        Variables are internally scaled (divided by the scaling factor) before integration,
+        then scaled back to their physical values after integration. The scaled system is integrated.
+        
+        Query and set scaling of the state variables.
+        The :py:func:`Simulator.scaling` method is an indexed property, meaning
+        getting and setting this property requires an index and calls this function.
+        The power index (elements are seperated by comas) must contain atleast the following elements:
+
+        ======      =================   ==========================================================
+        order       index name          valid options
+        ======      =================   ==========================================================
+        1           variable type       ``_x`` and ``_z``
+        2           variable name       Names defined in :py:class:`do_mpc.model.Model`.
+        ======      =================   ==========================================================
+        
+        **Example:**
+        
+        ::
+        
+            # Set scaling for state variable 'x3' to 100
+            simulator.scaling['_x', 'x3'] = 100
+            
+            # Set scaling for algebraic variable 'z1' to 0.001  
+            simulator.scaling['_z', 'z1'] = 0.001
+            
+            # Get current scaling value
+            x3_scaling = simulator.scaling['_x', 'x3']
+        
+        **When to use scaling:**
+        
+        - When state variables differ by several orders of magnitude
+        (e.g., temperatures ~300K and concentrations ~1e-6 mol/L)
+        - When experiencing numerical difficulties
+
+            
+        Note:
+            Scaling factors must be set before calling simulator.setup().
+            :py:meth:`setup`. Default scaling is 1.0 for all variables.
+        """
 
         assert isinstance(ind, tuple), 'Power index must include var_type, var_name (as a tuple).'
         assert len(ind)>=2, 'Power index must include var_type, var_name (as a tuple).'
@@ -224,7 +267,8 @@ class Simulator(do_mpc.model.IteratedVariables):
 
     @scaling.setter
     def scaling(self, ind, val):
-        """See Docstring for scaling getter method"""
+        """Set scaling factor for a specific variable.
+        """
         assert not self.flags['setup'], 'Scaling can only be set before the simulator is set up.'
         assert isinstance(ind, tuple), 'Power index must include var_type, var_name (as a tuple).'
         assert len(ind)>=2, 'Power index must include var_type, var_name (as a tuple).'

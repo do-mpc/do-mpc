@@ -18,6 +18,7 @@ def template_model(symvar_type = 'SX'):
     x2 = model.set_variable(var_type='_x', var_name='x2')
     x3 = model.set_variable(var_type='_x', var_name='x3')
 
+
     # inputs
     u1 = model.set_variable(var_type='_u', var_name='u1')
     u2 = model.set_variable(var_type='_u', var_name='u2')

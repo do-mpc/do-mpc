@@ -27,6 +27,7 @@ from casadi.tools import *
 import pdb
 import sys
 import unittest
+import pickle
 
 from importlib import reload
 import copy
@@ -38,87 +39,102 @@ if not do_mpc_path in sys.path:
 import do_mpc
 
 
-class TestDIP(unittest.TestCase):
+
+class TestEKF(unittest.TestCase):
     def setUp(self):
         """Add path of test case and import the modules.
         If this test isn't the first to run, the modules need to be reloaded.
         Reset path afterwards.
         """
         default_path = copy.deepcopy(sys.path)
-        sys.path.append('../examples/double_inverted_pendulum/')
+        sys.path.append('../examples/triple_tank_ekf/')
         import template_model
-        import template_mpc
+        import template_ekf
         import template_simulator
 
         self.template_model = reload(template_model)
-        self.template_mpc = reload(template_mpc)
+        self.template_ekf = reload(template_ekf)
         self.template_simulator = reload(template_simulator)
         sys.path = default_path
 
     def test_SX(self):
         print('Testing SX implementation')
-        self.dip('SX')
+        model = self.template_model.template_model('SX')
+        self.TT_EKF(model)
 
-    def test_MX(self):
-        print('Testing MX implementation')
-        self.dip('MX')
 
-    def dip(self, symvar_type):
+    def test_pickle_unpickle(self):
+        print('Testing SX implementation with pickle / unpickle')
+        # Test if pickling / unpickling works for the SX model:
+        model = self.template_model.template_model('SX')
+        with open('model.pkl', 'wb') as f:
+            pickle.dump(model, f)
+
+        # Load the casadi structure
+        with open('model.pkl', 'rb') as f:
+            model_unpickled = pickle.load(f)
+        self.TT_EKF(model_unpickled)
+
+    def TT_EKF(self, model):
         """
         Get configured do-mpc modules:
         """
-        # Define obstacles to avoid (cicles)
-        obstacles = [
-            {'x': 0., 'y': 0.6, 'r': 0.3},
-        ]
 
-        model = self.template_model.template_model(obstacles, symvar_type)
-        mpc = self.template_mpc.template_mpc(model, silence_solver=True)
+
+        # setting up a simulator, given the model
         simulator = self.template_simulator.template_simulator(model)
-        estimator = do_mpc.estimator.StateFeedback(model)
 
-        """
-        Set initial state
-        """
+        # setting up Extended Kalman Filter (EKF), given the model
+        ekf = self.template_ekf.template_ekf(model)
 
-        simulator.x0['theta'] = .9*np.pi
-        simulator.x0['pos'] = 0
+        # setting up model variances with a generic value
+        q = 1e-3 * np.ones(model.n_x)
+        r = 1e-2 * np.ones(model.n_y)
+        Q = np.diag(q.flatten())
+        R = np.diag(r.flatten())
 
-        x0 = simulator.x0.cat.full()
+        # initial states of the simulator which is the real state of the system
+        x0_true = np.array([2, 2.8, 2.7]).reshape([-1, 1])
 
-        mpc.x0 = x0
-        estimator.x0 = x0
+        # and the initial state of the EKF which is a guess of the initial state of the system
+        x0 = np.array([1.2, 1.4, 1.8]).reshape([-1, 1])
 
-        mpc.set_initial_guess()
-        simulator.init_algebraic_variables()
+        # pushing initial condition to ekf and the simulator
+        simulator.x0 = x0_true
+        ekf.x0 = x0
 
-        """
-        Run some steps:
-        """
+        # setting up initial guesses
+        simulator.set_initial_guess()
+        ekf.set_initial_guess()
 
-        for k in range(5):
-            u0 = mpc.make_step(x0)
-            y_next = simulator.make_step(u0)
-            x0 = estimator.make_step(y_next)
+        # fix numpy random seed for reproducibility
+        np.random.seed(42)
 
-        """
-        Store results (from reference run):
-        """
-        # do_mpc.data.save_results([mpc, simulator, estimator], 'results_dip', overwrite=True)
+
+        # simulation of the plant
+        for k in range(200):
+
+            # a step input is applied to the system
+            u0 = np.array([0.0001, 0.0001]).reshape([-1, 1])
+
+            # the simulator makes a step and returns the next state of the system
+            y_next = simulator.make_step(u0, v0=0.001*np.random.randn(model.n_v,1))
+
+            # the EKF makes a step and returns the next state of the system
+            x0 = ekf.make_step(y_next = y_next, u_next = u0, Q_k=Q, R_k=R)
+
+
+
 
         """
         Compare results to reference run:
         """
-        ref = do_mpc.data.load_results('./results/results_dip.pkl')
+        ref = do_mpc.data.load_results('./results/results_triple_tank_ekf.pkl')
 
         test = ['_x', '_u', '_time', '_z']
 
         msg = 'Check if variable {var} for {module} is identical to previous runs: {check}. Max diff is {max_diff:.4E}.'
         for test_i in test:
-            # Check MPC
-            max_diff = np.max(np.abs(mpc.data.__dict__[test_i] - ref['mpc'].__dict__[test_i]), initial=0)
-            check = max_diff < 1e-8
-            self.assertTrue(check, msg.format(var=test_i, module='MPC', check=check, max_diff=max_diff))
 
             # Check Simulator
             max_diff = np.max(np.abs(simulator.data.__dict__[test_i] - ref['simulator'].__dict__[test_i]), initial=0)
@@ -126,15 +142,19 @@ class TestDIP(unittest.TestCase):
             self.assertTrue(check, msg.format(var=test_i, module='Simulator', check=check, max_diff=max_diff))
 
             # Estimator
-            max_diff = np.max(np.abs(estimator.data.__dict__[test_i] - ref['estimator'].__dict__[test_i]), initial=0)
+            max_diff = np.max(np.abs(ekf.data.__dict__[test_i] - ref['estimator'].__dict__[test_i]), initial=0)
             check = max_diff < 1e-8
             self.assertTrue(check, msg.format(var=test_i, module='Estimator', check=check, max_diff=max_diff))
 
+
+
         # Store for test reasons
         try:
-            do_mpc.data.save_results([mpc, simulator], 'test_save', overwrite=True)
+            do_mpc.data.save_results([ekf, simulator], 'test_save', overwrite=True)
         except:
             raise Exception()
+
+
 
 
 if __name__ == '__main__':
