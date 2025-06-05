@@ -355,7 +355,7 @@ class Optimizer:
 
     @do_mpc.tools.IndexedProperty
     def scaling(self, ind):
-        """Query and set  scaling of the optimization variables.
+        """Query and set scaling of the optimization variables.
         The :py:func:`Optimizer.scaling` method is an indexed property, meaning
         getting and setting this property requires an index and calls this function.
         The power index (elements are seperated by comas) must contain atleast the following elements:
