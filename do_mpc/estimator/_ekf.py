@@ -80,7 +80,7 @@ class EKF(Estimator):
             ValueError: If matrix has wrong dimensions or is not square
             Warning: If matrix is not symmetric (will be made symmetric)
         """
-        # Strict type checking - only accept numpy arrays
+        # Only accept numpy arrays
         if not isinstance(val, np.ndarray):
             raise TypeError(f"P0 must be a numpy.ndarray, got {type(val).__name__}")
         
@@ -239,12 +239,20 @@ class EKF(Estimator):
 
         Returns:
             x0
+
+        Raises:
+            AssertionError: If the EKF was not setup yet or if the initial guess was not set.
+            AssertionError: If the dimensions of Q_k and R_k are not correct.
         """
 
         # checks to ensure proper usage
         assert self.flags['setup'] == True, 'EKF was not setup yet. Please call EKF.setup().'
         assert self.flags[
                    'set_initial_guess'] == True, 'Initial guess was not provided. Please call EKF.set_initial_guess().'
+        
+        # checks correct dimensions of Q_k and R_k
+        assert Q_k.shape == (self.model.n_x, self.model.n_x), 'Q_k must be a square matrix of shape ({}, {})'.format(self.model.n_x, self.model.n_x)
+        assert R_k.shape == (self.model.n_y, self.model.n_y), 'R_k must be a square matrix of shape ({}, {})'.format(self.model.n_y, self.model.n_y)
 
         if self.flags['first_step']:
             self.flags.update({
