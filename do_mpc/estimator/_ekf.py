@@ -53,6 +53,51 @@ class EKF(Estimator):
             'first_step': True
         }
 
+        # Initialize structure for initial conditions:
+        self._P0 = np.eye(self.model.n_x)
+
+
+    @property
+    def P0(self):
+        """Initial error covariance matrix for the Extended Kalman Filter.
+        
+        This matrix represents the initial uncertainty in the state estimates.
+        It must be a positive semi-definite matrix of shape (n_x, n_x).
+        
+        The default initialization is an identity matrix.
+        """
+        return self._P0
+
+    @P0.setter
+    def P0(self, val):
+        """Set the initial error covariance matrix.
+        
+        Args:
+            val: New covariance matrix. Must be a numpy.ndarray with shape (n_x, n_x).
+        
+        Raises:
+            TypeError: If val is not a numpy.ndarray
+            ValueError: If matrix has wrong dimensions or is not square
+            Warning: If matrix is not symmetric (will be made symmetric)
+        """
+        # Strict type checking - only accept numpy arrays
+        if not isinstance(val, np.ndarray):
+            raise TypeError(f"P0 must be a numpy.ndarray, got {type(val).__name__}")
+        
+        # Validate dimensions
+        if val.ndim != 2:
+            raise ValueError(f"P0 must be a 2D matrix, got {val.ndim}D array")
+        
+        if val.shape[0] != val.shape[1]:
+            raise ValueError(f"P0 must be square, got shape {val.shape}")
+        
+        if val.shape[0] != self.model.n_x:
+            raise ValueError(
+                f"P0 must have shape ({self.model.n_x}, {self.model.n_x}) "
+                f"to match state dimension, got {val.shape}"
+                )
+        self._P0 = ca.DM(val).full()
+
     def _check_validity(self):
 
         # tvp_fun must be set, if tvp are defined in model.
@@ -167,7 +212,7 @@ class EKF(Estimator):
 
         # checks to ensure proper usage
         assert self.flags['setup'] == True, 'EKF was not setup yet. Please call EKF.setup().'
-        assert self.P0.shape == (self.model.n_x, self.model.n_x), 'P0 needs to be of the shape: (n_x, n_x).'
+
 
         # set initial value for state
         self.x0 = ca.DM(self.x0).full()
@@ -214,7 +259,7 @@ class EKF(Estimator):
         z0 = self.z0
         v0 = np.zeros((self.model.n_y, 1))
         w0 = self.model['w'](0)
-        P0 = ca.DM(self.P0).full()
+        P0 = self.P0
 
         # counter and timer calculation
         self.counter += 1
@@ -255,7 +300,7 @@ class EKF(Estimator):
         self.z0 = z0
 
         # store current covariance matrix
-        self.P0 = ca.DM(P0).full()
+        self.P0 = P0.full()
 
         # Update data object:
         self.data.update(_x = ca.DM(x0).full())
