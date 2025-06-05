@@ -59,6 +59,7 @@ def template_simulator(model):
         return tvp_template
     simulator.set_tvp_fun(tvp_fun)
 
+
     # completing the simulator setup
     simulator.setup()
 
