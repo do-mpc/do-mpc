@@ -18,8 +18,6 @@ def template_model(symvar_type = 'SX'):
     x2 = model.set_variable(var_type='_x', var_name='x2')
     x3 = model.set_variable(var_type='_x', var_name='x3')
 
-    # algebraic state
-    z1 = model.set_variable(var_type='_z', var_name='z1')
 
     # inputs
     u1 = model.set_variable(var_type='_u', var_name='u1')
