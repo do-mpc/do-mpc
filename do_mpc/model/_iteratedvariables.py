@@ -36,7 +36,7 @@ class IteratedVariables:
     def __init__(self):
         assert 'model' in self.__dict__.keys(), 'Cannot initialize variables before assigning the model to the current class instance.'
 
-        # Initialize structure for intial conditions:
+        # Initialize structure for initial conditions:
         self._x0 = self.model._x(0.0)
         self._u0 = self.model._u(0.0)
         self._z0 = self.model._z(0.0)
