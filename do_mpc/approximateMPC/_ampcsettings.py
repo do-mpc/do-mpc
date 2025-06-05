@@ -39,7 +39,7 @@ class ApproximateMPCSettings:
     n_neurons: int = 50
     """Number of neurons per hidden layer"""
 
-    act_fn: str = "relu"
+    act_fn: str = "tanh"
     """Activation function used after each layer"""
 
     output_act_fn: str = "linear"
@@ -74,6 +74,8 @@ class SamplerSettings:
     n_samples: int = None
     """Number of samples to be generated"""
 
+    dataset_name: str = None
+
     trajectory_length: int = None
     """Trajectory length for closed loop sampling"""
 
@@ -101,15 +103,18 @@ class SamplerSettings:
     """Upper bound for the control variables"""
 
     lbp: list = None
-    """Lower bound for the control variables"""
+    """Lower bound for the parameters randomly sampled for the simulator in case of closed-loop sampling of a robust MPC"""
 
     ubp: list = None
-    """Upper bound for the control variables"""
+    """Upper bound for the parameters randomly sampled for the simulator in case of closed-loop sampling of a robust MPC"""
 
     def check_for_mandatory_settings(self):
         """Method to assert the necessary settings required to design :py:class:`do_mpc.approximateMPC.Sampler`"""
         if self.n_samples is None:
             raise ValueError("n_samples must be set")
+
+        if self.dataset_name is None:
+            raise ValueError("Name of your dataset must be set. Use the `name` attribute.")
 
         if self.closed_loop_flag is True and self.trajectory_length == None:
             raise ValueError(
@@ -128,8 +133,8 @@ class TrainerSettings:
     This class creates an instance of type :py:class:`TrainerSettings` and adds it to its class attributes.
     """
 
-    n_samples: int = None
-    """Number of samples to be trained"""
+    dataset_name: str = None
+    """Name of the dataset to be used for training"""
 
     n_epochs: int = None
     """Number of epochs for training"""
@@ -139,6 +144,7 @@ class TrainerSettings:
     """Location where sampled data is read from"""
 
     results_dir: "str" = os.path.join(".", "training")
+    """Location where results are stored"""
 
     scheduler_flag: bool = False
     """Decides whether the scheduler adapts the learning rate"""
@@ -152,8 +158,8 @@ class TrainerSettings:
     shuffle: bool = True
     """Shuffle the data before training or not"""
 
-    learning_rate: float = 1e-3
-    """Default learning rate fro training"""
+    learning_rate: float = 1e-2
+    """Default learning rate from training"""
 
     show_fig: bool = False
     """Display training performance after training"""
@@ -169,11 +175,11 @@ class TrainerSettings:
 
     def check_for_mandatory_settings(self):
         """Method to assert the necessary settings required to design :py:class:`do_mpc.approximateMPC.Trainer`"""
-        if self.n_samples is None:
-            raise ValueError("n_samples must be set")
+        if self.dataset_name is None:
+            raise ValueError("The dataset name must be provided")
 
         if self.n_epochs is None:
-            raise ValueError("n_epochs must be set")
+            raise ValueError("A number of epochs must be set")
 
 
 @dataclass

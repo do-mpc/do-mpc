@@ -24,13 +24,14 @@
 from casadi.tools import *
 import sys
 import os
+import torch
 rel_do_mpc_path = os.path.join("..", "..")
 sys.path.append(rel_do_mpc_path)
 import do_mpc
 from do_mpc.tools import Timer
 import matplotlib.pyplot as plt
 import matplotlib
-from do_mpc.approximateMPC import Sampler
+from do_mpc.approximateMPC import AMPCSampler
 from do_mpc.approximateMPC import ApproxMPC, Trainer
 
 # local imports
@@ -38,6 +39,8 @@ from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator
 
+import pickle as pkl
+from pathlib import Path
 
 # user settings
 show_animation = True
@@ -78,7 +81,7 @@ simulator.set_initial_guess()
 approx_mpc = ApproxMPC(mpc)
 
 # configuring approximate mpc settings
-approx_mpc.settings.n_hidden_layers = 3
+approx_mpc.settings.n_hidden_layers = 1
 approx_mpc.settings.n_neurons = 50
 
 # approximate mpc setup
@@ -86,27 +89,29 @@ approx_mpc.setup()
 
 
 # initializing sampler for the approximate mpc
-sampler = Sampler(mpc)
+sampler = AMPCSampler(mpc)
 
-
+dataset_name = 'my_dataset_new'
 # configuring sampler settings
 n_samples = 10000
 sampler.settings.closed_loop_flag = True
-sampler.settings.trajectory_length = 5
+sampler.settings.trajectory_length = 1
 sampler.settings.n_samples = n_samples
+sampler.settings.dataset_name = dataset_name
 
 # sampler setup
 sampler.setup()
 
 # generating the samples
+np.random.seed(42)  # for reproducibility
 #sampler.default_sampling()
 
 # initializing trainer for the approximate mpc
 trainer = Trainer(approx_mpc)
 
 # configuring trainer settings
-trainer.settings.n_samples = n_samples
-trainer.settings.n_epochs = 2000
+trainer.settings.dataset_name = dataset_name
+trainer.settings.n_epochs = 1000
 trainer.settings.show_fig =True
 trainer.settings.save_fig = True
 trainer.settings.save_history = True
@@ -119,15 +124,13 @@ trainer.scheduler_settings.patience = 50
 # trainer setup
 trainer.setup()
 
+
 # training the approximate mpc with the sampled data
+torch.manual_seed(42)  # for reproducibility
 trainer.default_training()
 
 # pushing initial condition to approx_mpc
 approx_mpc.u0=u0
-
-# saving data
-# approx_mpc.save_to_state_dict('approx_mpc.pth')
-# approx_mpc.load_from_state_dict('approx_mpc.pth')
 
 # Initialize graphic:
 graphics = do_mpc.graphics.Graphics(simulator.data)

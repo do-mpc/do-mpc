@@ -35,7 +35,7 @@ import casadi as ca
 from ._ampcsettings import SamplerSettings
 
 
-class Sampler:
+class AMPCSampler:
     """Class to sample data for the ApproxMPC.
 
     .. versionadded:: >v4.6.0.
@@ -121,7 +121,14 @@ class Sampler:
         # mandatory check for sanity
         self._settings.check_for_mandatory_settings()
 
-
+        assert any(np.isinf(
+            self.settings.lbx)) == False, "There are missing lower bounds for state variables that forms your sampling box."
+        assert any(np.isinf(
+            self.settings.ubx)) == False, "There are missing upper bounds for state variables that forms your sampling box."
+        assert any(np.isinf(
+            self.settings.lbu)) == False, "There are missing lower bounds for input variables that forms your sampling box."
+        assert any(np.isinf(
+            self.settings.ubu)) == False, "There are missing upper bounds for input variables that forms your sampling box."
 
         # extra setup for closed loop
         if self.settings.closed_loop_flag:
@@ -218,12 +225,14 @@ class Sampler:
             None: None
         """
         # Check setup.
-        assert self.flags['setup'] == True, 'MPC was not setup yet. Please call Sampler.setup().'
+        assert self.flags['setup'] == True, 'Sampler was not setup yet. Please call Sampler.setup().'
         overwrite = self.settings.overwrite_sampler
 
         # Samples
         data_dir = Path(self.settings.data_dir)
-        sampling_plan_name = "sampling_plan" + "_n" + str(self.settings.n_samples)
+        data_dir = data_dir.joinpath(self.settings.dataset_name)
+
+        sampling_plan_name = "sampling_plan" + "_" + self.settings.dataset_name
         id_precision = np.ceil(np.log10(self.settings.n_samples)).astype(int)
 
         def gen_x0():
@@ -254,7 +263,6 @@ class Sampler:
         # Export
         sp.export(sampling_plan_name)
 
-        # end of fucntion
         return None
 
     def approx_mpc_open_loop_sampling(self):
@@ -266,24 +274,22 @@ class Sampler:
             None: None
         """
         # Check setup.
-        assert self.flags['setup'] == True, 'MPC was not setup yet. Please call Sampler.setup().'
+        assert self.flags['setup'] == True, 'Sampler was not setup yet. Please call Sampler.setup().'
         overwrite_sampler = self.settings.overwrite_sampler
 
-        n_samples = self.settings.n_samples
+        dataset_name = self.settings.dataset_name
         mpc = self.mpc
 
-        suffix = "_n" + str(n_samples)
+        suffix = "_" + dataset_name
         sampling_plan_name = "sampling_plan"
         sample_name = "sample"
         data_dir = Path(self.settings.data_dir)
+        data_dir = data_dir.joinpath(self.settings.dataset_name)
 
         # How are samples named? (DEFAULT)
-        sampling_plan_name = sampling_plan_name + suffix  # 'sampling_plan'+suffix
+        sampling_plan_name = sampling_plan_name + suffix
 
         samples_dir = data_dir.joinpath("samples" + suffix)
-
-        # Data
-        data_file_name = "data"
 
         # Sampling functions
         def run_mpc_one_step(x0, u_prev):
@@ -322,7 +328,7 @@ class Sampler:
         sampler.set_param(sample_name=sample_name)
 
         sampler.set_sample_function(sample_function)
-
+        print("Sampling data is being generated...")
         sampler.sample_data()
 
         # Data Handling
@@ -337,28 +343,27 @@ class Sampler:
         dh.set_post_processing("iter_count", lambda x: x[1]["iter_count"])
 
         df = pd.DataFrame(dh[:])
-        n_data = df.shape[0]
+
         df.to_pickle(
             str(data_dir)
             + "/"
-            + data_file_name
-            + "_n{}".format(n_data)
+            + "data_"
+            + dataset_name
             + "_all"
             + ".pkl"
         )
 
         # Save
         df = pd.DataFrame(dh.filter(output_filter=lambda status: status == True))
-        n_data_opt = df.shape[0]
         df.to_pickle(
             str(data_dir)
             + "/"
-            + data_file_name
-            + "_n{}".format(n_data)
+            + "data_"
+            + dataset_name
             + "_opt"
             + ".pkl"
         )
-
+        print("Successfully sampled open loop data for ApproxMPC.")
         # Save all
         return None
 
@@ -372,17 +377,19 @@ class Sampler:
         """
 
         # Check setup.
-        assert self.flags['setup'] == True, 'MPC was not setup yet. Please call Sampler.setup().'
+        assert self.flags['setup'] == True, 'Sampler was not setup yet. Please call Sampler.setup().'
 
-        n_samples = self.settings.n_samples
+
+        dataset_name = self.settings.dataset_name
         mpc = self.mpc
         trajectory_length = self.settings.trajectory_length
         overwrite_sampler = self.settings.overwrite_sampler
 
-        suffix = "_n" + str(n_samples)
+        suffix = "_" + dataset_name
         sampling_plan_name = "sampling_plan"
         sample_name = "sample"
         data_dir = Path(self.settings.data_dir)
+        data_dir = data_dir.joinpath(self.settings.dataset_name)
 
         sampling_plan_name = sampling_plan_name + suffix  # 'sampling_plan'+suffix
 
@@ -390,8 +397,7 @@ class Sampler:
         samples_dir = data_dir.joinpath("samples" + suffix)
         # samples_dir = data_dir+'samples' + suffix
 
-        # Data
-        data_file_name = "data"
+
 
         # Sampling functions
         def run_mpc_closed_loop(x0, u_prev):
@@ -460,7 +466,7 @@ class Sampler:
         sampler.set_param(sample_name=sample_name)
 
         sampler.set_sample_function(sample_function)
-
+        print("Sampling data is being generated...")
         # Main - Sample Data
         sampler.sample_data()
 
@@ -481,8 +487,8 @@ class Sampler:
         df.to_pickle(
             str(data_dir)
             + "/"
-            + data_file_name
-            + "_n{}".format(n_data)
+            + "data_"
+            + dataset_name
             + "_all"
             + ".pkl"
         )
@@ -493,11 +499,11 @@ class Sampler:
         df.to_pickle(
             str(data_dir)
             + "/"
-            + data_file_name
-            + "_n{}".format(n_data)
+            + "data_"
+            + dataset_name
             + "_opt"
             + ".pkl"
         )
-
+        print("Successfully sampled closed-loop data for ApproxMPC.")
         # end of function
         return None
