@@ -25,6 +25,8 @@ testing/results/test_save.pkl
 
 examples/**/*.pkl
 documentation/source/example_gallery/**/*.pkl
+!documentation/source/example_gallery/sampling_notebook/*.pkl
+!documentation/source/example_gallery/training_notebook/*.pkl
 testing/sample_results/*.pkl
 
 testing/model.pkl
