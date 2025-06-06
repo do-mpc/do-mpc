@@ -28,6 +28,7 @@ import pdb
 import sys
 import unittest
 import pickle
+import torch
 
 from importlib import reload
 import copy
@@ -38,7 +39,7 @@ if not do_mpc_path in sys.path:
 
 import do_mpc
 
-from do_mpc.approximateMPC import Sampler
+from do_mpc.approximateMPC import AMPCSampler
 from do_mpc.approximateMPC import ApproxMPC, Trainer
 
 
@@ -90,6 +91,9 @@ class TestapproxCSTR(unittest.TestCase):
         """
 
         # setting up a mpc controller, given the model
+  
+
+        # setting up a mpc controller, given the model
         mpc = self.template_mpc.template_mpc(model, silence_solver=True)
 
         # setting up a simulator, given the model
@@ -113,13 +117,13 @@ class TestapproxCSTR(unittest.TestCase):
 
         # setting up initial guesses
         mpc.set_initial_guess()
-        simulator.set_initial_guess()
+        simulator.set_initial_guess() 
 
         # approximate mpc initialization
         approx_mpc = ApproxMPC(mpc)
 
         # configuring approximate mpc settings
-        approx_mpc.settings.n_hidden_layers = 3
+        approx_mpc.settings.n_hidden_layers = 1
         approx_mpc.settings.n_neurons = 50
 
         # approximate mpc setup
@@ -127,26 +131,28 @@ class TestapproxCSTR(unittest.TestCase):
 
 
         # initializing sampler for the approximate mpc
-        sampler = Sampler(mpc)
+        sampler = AMPCSampler(mpc)
 
-
+        dataset_name = 'my_dataset_new'
         # configuring sampler settings
         n_samples = 50
         sampler.settings.closed_loop_flag = True
-        sampler.settings.trajectory_length = 5
+        sampler.settings.trajectory_length = 1
         sampler.settings.n_samples = n_samples
+        sampler.settings.dataset_name = dataset_name
 
         # sampler setup
         sampler.setup()
 
         # generating the samples
+        np.random.seed(42)  # for reproducibility
         sampler.default_sampling()
 
         # initializing trainer for the approximate mpc
         trainer = Trainer(approx_mpc)
 
         # configuring trainer settings
-        trainer.settings.n_samples = n_samples
+        trainer.settings.dataset_name = dataset_name
         trainer.settings.n_epochs = 10
         trainer.settings.show_fig =False
         trainer.settings.save_fig = False
@@ -160,7 +166,9 @@ class TestapproxCSTR(unittest.TestCase):
         # trainer setup
         trainer.setup()
 
+
         # training the approximate mpc with the sampled data
+        torch.manual_seed(42)  # for reproducibility
         trainer.default_training()
 
         # pushing initial condition to approx_mpc

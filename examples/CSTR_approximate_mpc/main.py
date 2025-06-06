@@ -75,7 +75,7 @@ simulator.x0 = x0
 
 # setting up initial guesses
 mpc.set_initial_guess()
-simulator.set_initial_guess()
+simulator.set_initial_guess() 
 
 # approximate mpc initialization
 approx_mpc = ApproxMPC(mpc)
@@ -104,7 +104,7 @@ sampler.setup()
 
 # generating the samples
 np.random.seed(42)  # for reproducibility
-#sampler.default_sampling()
+sampler.default_sampling()
 
 # initializing trainer for the approximate mpc
 trainer = Trainer(approx_mpc)
