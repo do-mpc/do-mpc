@@ -161,10 +161,10 @@ class ApproxMPC(torch.nn.Module):
         # storage
         self._settings = ApproximateMPCSettings()
         self.mpc = mpc
-        self._settings.lbx = torch.tensor(ca.DM(self.mpc._x_lb).full().T)
-        self._settings.ubx = torch.tensor(ca.DM(self.mpc._x_ub).full().T)
-        self._settings.lbu = torch.tensor(ca.DM(self.mpc._u_lb).full().T)
-        self._settings.ubu = torch.tensor(ca.DM(self.mpc._u_ub).full().T)
+        self._settings.lbx = torch.tensor(ca.DM(self.mpc._x_lb).full())
+        self._settings.ubx = torch.tensor(ca.DM(self.mpc._x_ub).full())
+        self._settings.lbu = torch.tensor(ca.DM(self.mpc._u_lb).full())
+        self._settings.ubu = torch.tensor(ca.DM(self.mpc._u_ub).full())
         # flags
         self.flags = {
             "setup": False,
@@ -248,6 +248,13 @@ class ApproxMPC(torch.nn.Module):
         print("----------------------------------")
         print(self)
         print("----------------------------------")
+        assert any(torch.isinf(self.settings.lbx))==False, "There are missing lower bounds for state variables that are required for clipping and scaling."
+        assert any(torch.isinf(
+            self.settings.ubx))==False, "There are missing upper bounds for state variables that are required for clipping and scaling."
+        assert any(torch.isinf(
+            self.settings.lbu))==False, "There are missing lower bounds for input variables that are required for clipping and scaling."
+        assert any(torch.isinf(
+            self.settings.ubu))==False, "There are missing upper bounds for input variables that are required for clipping and scaling."
 
         # setup box constraints
         self.set_shift_values()
@@ -280,15 +287,15 @@ class ApproxMPC(torch.nn.Module):
             None
         """
         if self.mpc.flags["set_rterm"]:
-            lb = torch.concatenate((self.settings.lbx, self.settings.lbu), axis=1)
-            ub = torch.concatenate((self.settings.ubx, self.settings.ubu), axis=1)
+            lb = torch.concatenate((self.settings.lbx.T, self.settings.lbu.T), axis=1)
+            ub = torch.concatenate((self.settings.ubx.T, self.settings.ubu.T), axis=1)
         else:
-            lb = self.settings.lbx
-            ub = self.settings.ubx
+            lb = self.settings.lbx.T
+            ub = self.settings.ubx.T
         self.x_shift = torch.tensor(lb)
         self.x_range = torch.tensor(ub - lb)
-        self.y_shift = torch.tensor(self.settings.lbu)
-        self.y_range = torch.tensor(self.settings.ubu - self.settings.lbu)
+        self.y_shift = torch.tensor(self.settings.lbu.T)
+        self.y_range = torch.tensor(self.settings.ubu.T - self.settings.lbu.T)
 
         return None
 
@@ -341,9 +348,9 @@ class ApproxMPC(torch.nn.Module):
             y (torch.Tensor): Clipped outputs.
         """
         if self.settings.lbu is not None:
-            y = torch.max(y, self.settings.lbu)
+            y = torch.max(y, self.settings.lbu.T)
         if self.settings.ubu is not None:
-            y = torch.min(y, self.settings.ubu)
+            y = torch.min(y, self.settings.ubu.T)
         if self.settings.lbu is None and self.settings.ubu is None:
             raise ValueError("No output constraints defined. Clipping not possible.")
         return y
@@ -420,18 +427,18 @@ class ApproxMPC(torch.nn.Module):
 
         return y
 
-    def save_to_state_dict(self, directory="model.pth"):
+    def save_to_state_dict(self, directory="approx_mpc.pth"):
         """Save the neural network to a state dictionary.
 
         Args:
-            directory (str, optional): Directory to save the model. Defaults to "model.pth".
+            directory (str, optional): Directory to save the model. Defaults to "approx_mpc.pth".
         """
         torch.save(self.net.state_dict(), directory)
 
-    def load_from_state_dict(self, directory="model.pth"):
+    def load_from_state_dict(self, directory="approx_mpc.pth"):
         """Load the neural network from a state dictionary.
 
         Args:
-            directory (str, optional): Directory to load the model. Defaults to "model.pth".
+            directory (str, optional): Directory to load the model. Defaults to "approx_mpc.pth".
         """
         self.net.load_state_dict(torch.load(directory))
