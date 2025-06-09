@@ -39,8 +39,7 @@ from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator
 
-import pickle as pkl
-from pathlib import Path
+
 
 # user settings
 show_animation = True
@@ -91,7 +90,7 @@ approx_mpc.setup()
 # initializing sampler for the approximate mpc
 sampler = AMPCSampler(mpc)
 
-dataset_name = 'my_dataset_new'
+dataset_name = 'my_dataset'
 # configuring sampler settings
 n_samples = 10000
 sampler.settings.closed_loop_flag = True
@@ -111,7 +110,7 @@ trainer = Trainer(approx_mpc)
 
 # configuring trainer settings
 trainer.settings.dataset_name = dataset_name
-trainer.settings.n_epochs = 1000
+trainer.settings.n_epochs = 3000
 trainer.settings.show_fig =True
 trainer.settings.save_fig = True
 trainer.settings.save_history = True

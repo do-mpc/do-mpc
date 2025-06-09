@@ -158,7 +158,7 @@ class TrainerSettings:
     shuffle: bool = True
     """Shuffle the data before training or not"""
 
-    learning_rate: float = 1e-2
+    learning_rate: float = 1e-3
     """Default learning rate from training"""
 
     show_fig: bool = False
