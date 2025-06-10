@@ -167,6 +167,7 @@ Table of contents
    /example_gallery/DIP
    /example_gallery/data_generator
    /example_gallery/CSTR_lqr
+   /example_gallery/appx_cstr_example
 
 
 

@@ -75,7 +75,9 @@ class RTServer:
             self.created = False
             print("Server could not be created. Check your opcua module installation!")
             return False
-
+        
+        # Set endpoint (If not specified self.opcua_server.start() will give an error)
+        self.opcua_server.set_endpoint(self.address)
      
     def namespace_from_client(self, client:RTClient)->None:
         '''
@@ -137,7 +139,7 @@ class RTServer:
         try:
             self.opcua_server.start()
 
-        except RuntimeError as err:
+        except Exception as err:
             print("The server "+ self.name +" could not be started, returned error message :\n", err)
 
     

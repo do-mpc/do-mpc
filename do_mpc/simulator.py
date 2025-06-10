@@ -169,6 +169,11 @@ class Simulator(do_mpc.model.IteratedVariables):
             'first_step': True,
         }
 
+        # Initialze the private attributes for scaling of variables.
+        # We only scale differential and algebraic variables because control actions and parameters are constant during integration. 
+        self._x_scaling = self.model._x(1.0)
+        self._z_scaling = self.model._z(1.0)
+
     @property
     def settings(self):
         '''
@@ -194,7 +199,96 @@ class Simulator(do_mpc.model.IteratedVariables):
     def settings(self, val):
         warnings.warn('Cannot change the settings attribute')
 
+    @do_mpc.tools.IndexedProperty
+    def scaling(self, ind):
+        """Get or set scaling factors for differential and algebraic states.
+        
+        Scaling can significantly improve the numerical stability of the simulator,
+        especially when differential and algebraic states have very different orders of magnitude.
+        Variables are internally scaled (divided by the scaling factor) before integration,
+        then scaled back to their physical values after integration. The scaled system is integrated.
+        
+        Query and set scaling of the state variables.
+        The :py:func:`Simulator.scaling` method is an indexed property, meaning
+        getting and setting this property requires an index and calls this function.
+        The power index (elements are seperated by comas) must contain atleast the following elements:
 
+        ======      =================   ==========================================================
+        order       index name          valid options
+        ======      =================   ==========================================================
+        1           variable type       ``_x`` and ``_z``
+        2           variable name       Names defined in :py:class:`do_mpc.model.Model`.
+        ======      =================   ==========================================================
+        
+        **Example:**
+        
+        ::
+        
+            # Set scaling for state variable 'x3' to 100
+            simulator.scaling['_x', 'x3'] = 100
+            
+            # Set scaling for algebraic variable 'z1' to 0.001  
+            simulator.scaling['_z', 'z1'] = 0.001
+            
+            # Get current scaling value
+            x3_scaling = simulator.scaling['_x', 'x3']
+        
+        **When to use scaling:**
+        
+        - When state variables differ by several orders of magnitude
+        (e.g., temperatures ~300K and concentrations ~1e-6 mol/L)
+        - When experiencing numerical difficulties
+
+            
+        Note:
+            Scaling factors must be set before calling simulator.setup().
+            :py:meth:`setup`. Default scaling is 1.0 for all variables.
+        """
+
+        assert isinstance(ind, tuple), 'Power index must include var_type, var_name (as a tuple).'
+        assert len(ind)>=2, 'Power index must include var_type, var_name (as a tuple).'
+
+        var_type   = ind[0]
+        var_name   = ind[1:]
+
+        err_msg = 'Invalid power index {} for var_type. Must be from (_x, states, _z, algebraic).'
+        assert var_type in ('_x', '_z'), err_msg.format(var_type)
+
+        query = '{var_type}_scaling'.format(var_type=var_type)
+        # query results string e.g. _x_scaling, _u_scaling
+
+        # Get the desired struct:
+        var_struct = getattr(self, query)
+
+        err_msg = 'Calling .scaling with {} is not valid. Possible keys are {}.'
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), err_msg.format(ind, var_struct.keys())
+
+        return var_struct[var_name]
+
+    @scaling.setter
+    def scaling(self, ind, val):
+        """Set scaling factor for a specific variable.
+        """
+        assert not self.flags['setup'], 'Scaling can only be set before the simulator is set up.'
+        assert isinstance(ind, tuple), 'Power index must include var_type, var_name (as a tuple).'
+        assert len(ind)>=2, 'Power index must include var_type, var_name (as a tuple).'
+        var_type   = ind[0]
+        var_name   = ind[1:]
+
+        err_msg = 'Invalid power index {} for var_type. Must be from (_x, states, _z, algebraic).'
+        assert var_type in ('_x', '_z'), err_msg.format(var_type)
+
+        query = '{var_type}_scaling'.format(var_type=var_type)
+        # query results string e.g. _x_scaling, _u_scaling
+
+        # Get the desired struct:
+        var_struct = getattr(self, query)
+
+        err_msg = 'Calling .scaling with {} is not valid. Possible keys are {}.'
+        assert (var_name[0] if isinstance(var_name, tuple) else var_name) in var_struct.keys(), err_msg.format(ind, var_struct.keys())
+
+        var_struct[var_name] = val
+    
     def reset_history(self)->None:
         """Reset the history of the simulator.
         """
@@ -248,17 +342,33 @@ class Simulator(do_mpc.model.IteratedVariables):
             castools.entry('_w', struct=self.model._w)
         ])
 
+        # Create scaling struct and assign values for _x and _z
+        self.sim_x_scaling = sim_x_scaling = sim_x(1.0)
+        self.sim_z_scaling = sim_z_scaling = sim_z(1.0)
+        sim_x_scaling["_x"] = self._x_scaling
+        sim_z_scaling["_z"] = self._z_scaling
+
+        # Create the unscaled (physical) variables
+        self.sim_x_unscaled = sim_x_unscaled = sim_x(sim_x.cat * sim_x_scaling)
+        self.sim_z_unscaled = sim_z_unscaled = sim_z(sim_z.cat * sim_z_scaling)
+
         # Initiate numerical structures to store the solutions (updated at each iteration)
         self.sim_x_num = self.sim_x(0)
+        self.sim_x_num_unscaled = self.sim_x(0)
         self.sim_z_num = self.sim_z(0)
+        self.sim_z_num_unscaled = self.sim_z(0)
         self.sim_p_num = self.sim_p(0)
         self.sim_aux_num = self.model._aux_expression(0)
 
         if self.model.model_type == 'discrete':
 
             # Build the rhs expression with the newly created variables
-            alg = self.model._alg_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
-            x_next = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
+            # NOTE: _alg_fun is evaluated with the unscaled variables to introduce the scaling factors. 
+            #       During evaluation the scaled variables can then be used.
+            alg = self.model._alg_fun(sim_x_unscaled['_x'], sim_p['_u'], sim_z_unscaled['_z'], sim_p['_tvp'], sim_p['_p'], sim_p['_w'])
+            
+            # Do the same for the ode expression but also divide by the scaling factor of the states.
+            x_next = self.model._rhs_fun(sim_x_unscaled['_x'], sim_p['_u'], sim_z_unscaled['_z'], sim_p['_tvp'], sim_p['_p'], sim_p['_w']) / sim_x_scaling
 
             # Build the DAE function
             nlp = {'x': sim_z['_z'], 'p': castools.vertcat(sim_x['_x'], sim_p), 'f': castools.DM(0), 'g': alg}
@@ -271,10 +381,14 @@ class Simulator(do_mpc.model.IteratedVariables):
         elif self.model.model_type == 'continuous':
 
             # Define the ODE
-            xdot = self.model._rhs_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
-            alg = self.model._alg_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'], sim_p['_w'])
+            # NOTE: We evaluate here with the unscaled variables to introduce the scaling factors in the equations.
+            # We have to divide the dynamics by the scaling factor of the states to get the correct result.
+            # From now on we can use the scaled variables.
+            xdot = self.model._rhs_fun(sim_x_unscaled['_x'], sim_p['_u'], sim_z_unscaled['_z'], sim_p['_tvp'], sim_p['_p'], sim_p['_w']) / self._x_scaling
+            alg = self.model._alg_fun(sim_x_unscaled['_x'], sim_p['_u'], sim_z_unscaled['_z'], sim_p['_tvp'], sim_p['_p'], sim_p['_w'])
 
-            dae = {
+            # Now setup the dae system with the scaled variables
+            self.dae = dae = {
                 'x': sim_x,
                 'z': sim_z,
                 'p': sim_p,
@@ -301,7 +415,8 @@ class Simulator(do_mpc.model.IteratedVariables):
                 t0 = 0.0
                 self.simulator = castools.integrator('simulator', self._settings.integration_tool, dae, t0, self._settings.t_step, opts)
 
-        sim_aux = self.model._aux_expression_fun(sim_x['_x'],sim_p['_u'],sim_z['_z'],sim_p['_tvp'],sim_p['_p'])
+        # Evaluate symbolically with unscaled variables such that the scaled variables can be used during evaluation.
+        sim_aux = self.model._aux_expression_fun(sim_x_unscaled['_x'], sim_p['_u'], sim_z_unscaled['_z'], sim_p['_tvp'], sim_p['_p'])
         # Create function to caculate all auxiliary expressions:
         self.sim_aux_expression_fun = castools.Function('sim_aux_expression_fun', [sim_x, sim_z, sim_p], [sim_aux])
 
@@ -497,7 +612,11 @@ class Simulator(do_mpc.model.IteratedVariables):
         """
         assert self.flags['setup'] == True, 'Simulator was not setup yet. Please call Simulator.setup().'
 
-        self.sim_z_num['_z'] = self._z0.cat
+        # We assume that the unscaled z0 is provided by the user. Hence, we have to scale it before we can use it in the DAE solver.
+        self.sim_x_num["_x"] = self._x0.cat / self._x_scaling
+        self.sim_x_num_unscaled["_x"] = self._x0.cat
+        self.sim_z_num['_z'] = self._z0.cat / self._z_scaling
+        self.sim_z_num_unscaled['_z'] = self._z0.cat
 
     def init_algebraic_variables(self) -> np.ndarray:
         """Initializes the algebraic variables. 
@@ -534,30 +653,38 @@ class Simulator(do_mpc.model.IteratedVariables):
             )
 
 
-        z0 = castools.vertcat(self.z0)
-        p0 = castools.vertcat(self.p_fun(self.t0), self.tvp_fun(self.t0), self.u0, self.x0)
+        z0 = castools.vertcat(self.z0) / self._z_scaling
+        x0 = castools.vertcat(self.x0) / self._x_scaling
+        p0 = castools.vertcat(x0, self.u0, self.p_fun(self.t0), self.tvp_fun(self.t0))
 
+        if self.model.model_type == 'discrete':
+            res = self.discrete_dae_solver(x0 = z0, ubg = 0, lbg = 0, p=p0)
 
-        residual_to_initial_guess = castools.vertcat(self.model.z) - z0
-        cost = castools.sum2(castools.sum1(residual_to_initial_guess**2))
+        elif self.model.model_type == 'continuous':
+            residual_to_initial_guess = castools.vertcat(self.sim_z["_z"]) - z0
+            cost = castools.sum2(castools.sum1(residual_to_initial_guess**2))
 
-        nlp = {}
-        nlp['x'] = castools.vertcat(self.model.z)
-        nlp['f'] = cost
-        nlp['g'] = castools.vertcat(self.model._alg)
-        nlp['p'] = castools.vertcat(self.model.p, self.model.tvp, self.model.u, self.model.x)
+            nlp = {}
+            nlp['x'] = castools.vertcat(self.sim_z["_z"])
+            nlp['f'] = cost
+            nlp['g'] = castools.vertcat(self.dae["alg"])
+            nlp['p'] = castools.vertcat(self.sim_x["_x"], self.sim_p)
 
-        supress_ipopt =  {'ipopt.print_level':0, 'ipopt.sb': 'yes', 'print_time':0}
+            suppress_ipopt =  {'ipopt.print_level':0, 'ipopt.sb': 'yes', 'print_time':0}
 
-        solver = castools.nlpsol("solver", "ipopt", nlp, supress_ipopt)
-        res = solver(x0=z0, lbg=0, ubg=0, p=p0)
+            solver = castools.nlpsol("solver", "ipopt", nlp, suppress_ipopt)
+            res = solver(x0=z0, lbg=0, ubg=0, p=p0)
+        else:
+            raise ValueError(f'Model type {self.model.model_type} is not supported.')
+        
+
         z_init = res['x']
 
-        self.z0 = z_init
+        self.z0 = z_init * self._z_scaling
 
         self.set_initial_guess()
 
-        return z_init.full()
+        return self.z0
 
 
     def simulate(self)->np.ndarray:
@@ -594,25 +721,38 @@ class Simulator(do_mpc.model.IteratedVariables):
         sim_p_num = self.sim_p_num
 
         if self.model.model_type == 'discrete':
-            if self.model.n_z > 0: # Solve DAE only when it exists ...
-                r = self.discrete_dae_solver(x0 = sim_z_num, ubg = 0, lbg = 0, p=castools.vertcat(sim_x_num,sim_p_num))
-                sim_z_num.master = r['x']
+            if self.model.n_z > 0: # Solve DAE when it exists...
+                r = self.discrete_dae_solver(x0 = sim_z_num, ubg = 0, lbg = 0, p=castools.vertcat(sim_x_num, sim_p_num))
+                sim_z_num["_z"] = r['x']
             x_new = self.simulator(sim_x_num, sim_z_num, sim_p_num)
+            # NOTE: This z_new actually satisfies the AE before the integration takes place, so g(x_k, u_k, z_new, p_k) = 0.
+            # If you would like to have the z_new satisfying the AE after the integration, you need to call the DAE solver again, so g(x_new, u_k, z_new, p_k) = 0.
+            # Further, be careful because while x_new remains the starting point for the next integration, u_{k+1} will change and hence also z_new, so g(x_new, u_{k+1}, z_new, p_{k+1}) = 0.
+            z_new = sim_z_num.cat
+
         elif self.model.model_type == 'continuous':
             r = self.simulator(x0 = sim_x_num, z0 = sim_z_num, p = sim_p_num)
             x_new = r['xf']
             z_new = r['zf']
-            sim_z_num.master = z_new
         else:
             raise ValueError(f'Model type {self.model.model_type} is not supported.')
+        
+        # Update all numerical values in the sim_x_num and sim_z_num structures
+        self.sim_x_num.master = x_new
+        self.sim_x_num_unscaled.master = x_new * self._x_scaling.cat
+        self.sim_z_num.master = z_new
+        self.sim_z_num_unscaled.master = z_new * self._z_scaling.cat
+        # if z_new.shape[0] > 0:
+        #     self.sim_z_num_unscaled.master = z_new * self._z_scaling.cat
+
         # There may be made an error here. sim_p_num fits to values in time step
         # k + 1 (new). However, the values are actually the p values for step
         # k (now).
-        aux_new = self.sim_aux_expression_fun(x_new, sim_z_num, sim_p_num)
+        aux_new = self.sim_aux_expression_fun(self.sim_x_num, self.sim_z_num, sim_p_num)
 
         self.sim_aux_num.master = aux_new
 
-        return x_new
+        return x_new, z_new
 
     def make_step(self, u0:np.ndarray=None, v0:np.ndarray=None, w0:np.ndarray=None)-> np.ndarray:
         """Main method of the simulator class during control runtime. This method is called at each timestep
@@ -639,6 +779,7 @@ class Simulator(do_mpc.model.IteratedVariables):
             y_next
         """
         # Generate dummy input if system is autnomous
+
         if u0 is None:
             assert self.model.n_u == 0, 'No input u0 provided. Please provide an input u0.'
             u0 = self.model._u(0)
@@ -669,35 +810,40 @@ class Simulator(do_mpc.model.IteratedVariables):
         x0 = self._x0
 
         z0 = self.sim_z_num['_z']
-        self.sim_x_num['_x'] = x0
+        z0_unscaled = self.sim_z_num_unscaled["_z"]
+        self.sim_x_num['_x'] = x0.cat / self._x_scaling
         self.sim_p_num['_u'] = u0
         self.sim_p_num['_p'] = p0
         self.sim_p_num['_tvp'] = tvp0
         self.sim_p_num['_w'] = w0
 
         if self.flags['first_step']:
-            aux0 = self.sim_aux_expression_fun(x0, z0, self.sim_p_num)
+            # Remember to plug in the unscaled (physical) version of x and z
+            aux0 = self.sim_aux_expression_fun(self.sim_x_num["_x"], self.sim_z_num["_z"], self.sim_p_num)
         else:
             # .master is chosen so that a copy is created of the variables.
             aux0 = self.sim_aux_num.master
 
-        x_next = self.simulate()
+        x_next, z_next = self.simulate()
 
         # Call measurement function
-        z_next = self.sim_z_num['_z']
-        y_next = self.model._meas_fun(x_next, u0, z_next, tvp0, p0, v0)
+        x_next_unscaled = x_next * self._x_scaling.cat
+        z_next_unscaled = z_next * self._z_scaling.cat
 
-        self.data.update(_x = x0)
+        y_next = self.model._meas_fun(x_next_unscaled, u0, z_next_unscaled, tvp0, p0, v0)
+
+        # Update data object
+        self.data.update(_x = x0.cat)
         self.data.update(_u = u0)
-        self.data.update(_z = z0)
+        self.data.update(_z = z0_unscaled)
         self.data.update(_tvp = tvp0)
         self.data.update(_p = p0)
         self.data.update(_y = y_next)
         self.data.update(_aux = aux0)
         self.data.update(_time = t0)
 
-        self._x0.master = x_next
-        self._z0.master = z0
+        self._x0.master = x_next_unscaled
+        self._z0.master = z_next_unscaled
         self._u0.master = u0
         self._t0 = self._t0 + self._settings.t_step 
 

@@ -355,7 +355,7 @@ class Optimizer:
 
     @do_mpc.tools.IndexedProperty
     def scaling(self, ind):
-        """Query and set  scaling of the optimization variables.
+        """Query and set scaling of the optimization variables.
         The :py:func:`Optimizer.scaling` method is an indexed property, meaning
         getting and setting this property requires an index and calls this function.
         The power index (elements are seperated by comas) must contain atleast the following elements:
@@ -826,18 +826,19 @@ class Optimizer:
             ffcn = castools.Function('ffcn', [_x, _u, _z, _tvp, _p, _w], [_rhs_scaled])
             afcn = castools.Function('afcn', [_x, _u, _z, _tvp, _p, _w], [_alg])
             # Get collocation information
-            coll = self.settings.collocation_type
-            deg = self.settings.collocation_deg
-            ni = self.settings.collocation_ni
-            nk = self.settings.n_horizon
-            t_step = self.settings.t_step
-            n_x = self.model.n_x
-            n_u = self.model.n_u
-            n_p = self.model.n_p
-            n_z = self.model.n_z
-            n_w = self.model.n_w
-            n_tvp = self.model.n_tvp
-            n_total_coll_points = (deg + 1) * ni
+            coll = self.settings.collocation_type # Collocation type
+            deg = self.settings.collocation_deg # Degree of polynomial
+            ni = self.settings.collocation_ni # Number of finite elements
+            nk = self.settings.n_horizon # Number of control intervals
+            t_step = self.settings.t_step # Time step
+            n_x = self.model.n_x # Number of states
+            n_u = self.model.n_u # Number of inputs
+            n_p = self.model.n_p # Number of parameters
+            n_z = self.model.n_z # Number of algebraic variables
+            n_w = self.model.n_w # Number of disturbances
+            n_tvp = self.model.n_tvp # Number of time-varying parameters
+            n_total_coll_points = (deg + 1) * ni # (Number of collocation points
+            # + 1 at the beginning of the finite interval) * number of finite elements
 
             # Choose collocation points
             if coll == 'legendre':    # Legendre collocation points
@@ -861,26 +862,30 @@ class Optimizer:
 
             # All collocation time points
             T = np.zeros((nk, ni, deg + 1))
+            # For all control intervals
             for k in range(nk):
+                # For all finite elements
                 for i in range(ni):
+                    # For all collocation points
                     for j in range(deg + 1):
-                        T[k, i, j] = h * (k * ni + i + tau_root[j])
+                        T[k, i, j] = h * (k * ni + i + tau_root[j]) # Actual time points for each collocation point
 
             # For all collocation points
             for j in range(deg + 1):
                 # Construct Lagrange polynomials to get the polynomial basis at the
                 # collocation point
                 L = 1
-                for r in range(deg + 1):
+                # For all collocation points
+                for r in range(deg + 1): 
                     if r != j:
-                        L *= (tau - tau_root[r]) / (tau_root[j] - tau_root[r])
-                lfcn = castools.Function('lfcn', [tau], [L])
+                        L *= (tau - tau_root[r]) / (tau_root[j] - tau_root[r]) # Lagrange polynomial
+                lfcn = castools.Function('lfcn', [tau], [L]) # Lagrange polynomial function
                 D[j] = lfcn(1.0)
                 # Evaluate the time derivative of the polynomial at all collocation
                 # points to get the coefficients of the continuity equation
                 tfcn = castools.Function('tfcn', [tau], [castools.tangent(L, tau)])
                 for r in range(deg + 1):
-                    C[j, r] = tfcn(tau_root[r])
+                    C[j, r] = tfcn(tau_root[r]) # Coefficients of the continuity equation
 
             # Define symbolic variables for collocation
             xk0 = self.model.sv.sym("xk0", n_x)
@@ -891,17 +896,19 @@ class Optimizer:
             wk = self.model.sv.sym("wk", n_w)
 
             # State trajectory
-            n_ik = ni * (deg + 1) * n_x
+            n_ik = ni * (deg + 1) * n_x # Total number of state variables for the control interval
             ik = self.model.sv.sym("ik", n_ik)
 
-            ik_split = np.resize(np.array([], dtype=self.model.sv.dtype), (ni, deg + 1))
+            ik_split = np.resize(np.array([], dtype=self.model.sv.dtype), (ni, deg + 1)) # A 2D array to reorganize 
+            # the state variables by finite element and collocation point
             offset = 0
 
             # Algebraic trajectory
-            n_zk = ni * (deg +1) * n_z
+            n_zk = ni * (deg +1) * n_z # Total number of algebraic variables for the control interval
             zk = self.model.sv.sym("zk", n_zk)
+            zk_split = np.resize(np.array([], dtype=self.model.sv.dtype), (ni, deg + 1)) # A 2D array to reorganize 
+            # the algebraic variables by finite element and collocation point
             offset_z = 0
-            zk_split = np.resize(np.array([], dtype=self.model.sv.dtype), (ni, deg + 1))
 
             # Store initial condition
             ik_split[0, 0] = xk0
@@ -944,8 +951,10 @@ class Optimizer:
                 for j in range(1, deg + 1):
                     # Get an expression for the state derivative at the coll point
                     xp_ij = 0
-                    for r in range(deg + 1):
-                        xp_ij += C[r, j] * ik_split[i, r]
+                    # For all collocation points
+                    for r in range(deg + 1): 
+                        xp_ij += C[r, j] * ik_split[i, r] # State derivative at the collocation point
+                        # (multiplication with h happens later when adding the collocation equation to gk)
 
                     # Add collocation equations to the NLP
                     f_ij = ffcn(ik_split[i, j], uk, zk_split[i,j], tv_pk, pk, wk)
@@ -962,8 +971,10 @@ class Optimizer:
 
                 # Get an expression for the state at the end of the finite element
                 xf_i = 0
-                for r in range(deg + 1):
-                    xf_i += D[r] * ik_split[i, r]
+                # For all collocation points
+                for r in range(deg + 1): 
+                    xf_i += D[r] * ik_split[i, r] # State at the end of the finite element
+                    # (can be computed from collocation equations)
 
                 # Add continuity equation to NLP
                 x_next = ik_split[i + 1, 0] if i + 1 < ni else xkf
@@ -996,10 +1007,11 @@ class Optimizer:
         nk = self.settings.n_horizon
         n_robust = self.settings.n_robust
         # Build auxiliary variables that code the structure of the tree
-        # Number of branches
+        # Number of branches scenarios are split into at each stage
         n_branches = [self.n_combinations if k < n_robust else 1 for k in range(nk)]
         # Calculate the number of scenarios (nodes at each stage)
         n_scenarios = [self.n_combinations**min(k, n_robust) for k in range(nk + 1)]
+        
         # Scenaro tree structure
         child_scenario = -1 * np.ones((nk, n_scenarios[-1], n_branches[0])).astype(int)
         parent_scenario = -1 * np.ones((nk + 1, n_scenarios[-1])).astype(int)
@@ -1027,11 +1039,11 @@ class Optimizer:
                     branch_offset[k][s] = s % n_branches[0]
 
         self.scenario_tree = {
-            'structure_scenario': structure_scenario,
-            'n_branches': n_branches,
-            'n_scenarios': n_scenarios,
-            'parent_scenario': parent_scenario,
-            'branch_offset': branch_offset
+            'structure_scenario': structure_scenario,   # the nth column of structure_scenario provides the indices of the branches containing the nth scenario in each timestep
+            'n_branches': n_branches,                   # number of branches each scenario is split into in each timestep
+            'n_scenarios': n_scenarios,                 # number of scenarios evaluated in each timestep
+            'parent_scenario': parent_scenario,         # contains indices of parent scenarios. Each row considers a time step and elements at -1 consider scenarios that are not yet created at the respecive step
+            'branch_offset': branch_offset              # branch_offset is used for selection of parameters for each scenario once the tree is fully branched
         }
         return n_branches, n_scenarios, child_scenario, parent_scenario, branch_offset
 

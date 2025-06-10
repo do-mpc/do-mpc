@@ -20,49 +20,43 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+# imports
 import numpy as np
 import matplotlib.pyplot as plt
-import casadi as cas
-import pdb
 import sys
-import time
 import os
-rel_do_mpc_path = os.path.join('..','..')
+rel_do_mpc_path = os.path.join('..','..','..')
 sys.path.append(rel_do_mpc_path)
 import do_mpc
 
+# local imports
 from template_model import template_model
 from template_lqr import template_lqr
 from template_simulator import template_simulator
 
-""" User settings: """
+# user settings
 store_results = True
 
-"""
-Get configured do-mpc modules:
-"""
+# setting up the model
 model = template_model()
+
+# # setting up lqr controller for the model
 lqr = template_lqr(model)
+
+# setting up a simulator, given the model
 simulator = template_simulator(model)
 
-"""
-Set initial state
-"""
+# Set the initial state of mpc and simulator:
 x0 = np.array([[2],[1],[3],[1]])
 simulator.x0 = x0
 
-"""
-Run MPC main loop:
-"""
-
+# simulation of the plant
 for k in range(50):
     u0 = lqr.make_step(x0)
     y_next = simulator.make_step(u0)
     x0 = y_next
     
-"""
-Setup graphic:
-"""
+# Configure plot:
 fig, ax, graphics = do_mpc.graphics.default_plot(simulator.data, figsize=(16,9))
 graphics.plot_results()
 graphics.reset_axes()

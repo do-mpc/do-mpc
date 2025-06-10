@@ -3,11 +3,11 @@ channels:
   - default
   - conda-forge
 dependencies:
-  - python=3.10
-  - numpy<2.0.0
+  - python=3.12
+  - numpy
   - scipy
   - matplotlib
-  - casadi=3.6.*
+  - casadi>=3.6.0
   - onnx
   - ipython
   - jupyter
@@ -22,6 +22,8 @@ dependencies:
   - myst-parser
   - packaging
   - asyncua
+  - pandas
+  - torch>2.0.0
 
   # install with:
   # conda env create --prefix ./.venv -f .conda.yml  

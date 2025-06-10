@@ -30,7 +30,7 @@ rel_do_mpc_path = os.path.join('..','..')
 sys.path.append(rel_do_mpc_path)
 import do_mpc
 
-
+ 
 def template_model(symvar_type='SX'):
     """
     --------------------------------------------------------------------------
@@ -79,7 +79,7 @@ def template_model(symvar_type='SX'):
     # or just to monitor another output.
     T_dif = model.set_expression(expr_name='T_dif', expr=T_R-T_K)
 
-    # Expressions can also be formed without beeing explicitly added to the model.
+    # Expressions can also be formed without being explicitly added to the model.
     # The main difference is that they will not be monitored and can only be used within the current file.
     K_1 = beta * K0_ab * exp((-E_A_ab)/((T_R+273.15)))
     K_2 =  K0_bc * exp((-E_A_bc)/((T_R+273.15)))
@@ -94,5 +94,5 @@ def template_model(symvar_type='SX'):
     # Build the model
     model.setup()
 
-
+    # end of function
     return model

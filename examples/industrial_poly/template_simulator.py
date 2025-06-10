@@ -39,15 +39,16 @@ def template_simulator(model):
     """
     simulator = do_mpc.simulator.Simulator(model)
 
+    # setting up parameters for the simulator
     params_simulator = {
         'integration_tool': 'cvodes',
         'abstol': 1e-10,
         'reltol': 1e-10,
         't_step': 50.0/3600.0
     }
-
     simulator.set_param(**params_simulator)
 
+    # setting up parameters for the simulator
     p_num = simulator.get_p_template()
     p_num['delH_R'] = 950
     p_num['k_0'] = 7
@@ -55,6 +56,8 @@ def template_simulator(model):
         return p_num
     simulator.set_p_fun(p_fun)
 
+    # completing the simulator setup
     simulator.setup()
 
+    # end of function
     return simulator

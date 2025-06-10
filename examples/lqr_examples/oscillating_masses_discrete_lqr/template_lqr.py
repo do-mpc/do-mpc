@@ -25,7 +25,7 @@ import casadi as cas
 import pdb
 import sys
 import os
-rel_do_mpc_path = os.path.join('..','..')
+rel_do_mpc_path = os.path.join('..','..','..')
 sys.path.append(rel_do_mpc_path)
 import do_mpc
 
@@ -37,11 +37,11 @@ def template_lqr(model):
     """
     # Initialize the controller
     lqr = do_mpc.controller.LQR(model)
-    
+
     # Initialize the parameters
     lqr.settings.t_step = .5
     lqr.settings.n_horizon = None # infinite horizon
-    
+
     # Setting the objective
     Q = np.identity(4)
     R = np.identity(1)
@@ -49,8 +49,8 @@ def template_lqr(model):
 
     lqr.set_objective(Q=Q, R=R)
     lqr.set_rterm(delR = Rdelu)
-    
+
     # lqr setup
     lqr.setup()
-    
+
     return lqr

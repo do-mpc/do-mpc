@@ -1,4 +1,6 @@
 casadi>=3.6.0
 scipy
-numpy<2.0.0
+numpy
 matplotlib
+pandas
+torch>2.0.0

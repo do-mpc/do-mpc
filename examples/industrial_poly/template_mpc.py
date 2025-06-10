@@ -39,6 +39,7 @@ def template_mpc(model, silence_solver = False):
     """
     mpc = do_mpc.controller.MPC(model)
 
+    # Set settings of MPC:
     mpc.settings.n_horizon = 20
     mpc.settings.n_robust = 1
     mpc.settings.open_loop = 0
@@ -46,21 +47,24 @@ def template_mpc(model, silence_solver = False):
     mpc.settings.state_discretization = 'collocation'
     mpc.settings.store_full_solution = True    
 
+    # suppress solver output
     if silence_solver:
         mpc.settings.supress_ipopt_output()
 
+    # setting up the cost function
     mterm = - model.x['m_P']
     lterm = - model.x['m_P']
-
     mpc.set_objective(mterm=mterm, lterm=lterm)
+
+    # setting up the factors for input penalisation
     mpc.set_rterm(m_dot_f=0.002, T_in_M=0.004, T_in_EK=0.002)
 
     temp_range = 2.0
 
+    # setting up lower boundaries for the states
     mpc.bounds['lower','_x','m_W'] = 0.0
     mpc.bounds['lower','_x','m_A'] = 0.0
     mpc.bounds['lower','_x','m_P'] = 26.0
-
     mpc.bounds['lower','_x','T_R'] = 363.15 - temp_range
     mpc.bounds['lower','_x','T_S'] = 298.0
     mpc.bounds['lower','_x','Tout_M'] = 298.0
@@ -68,6 +72,7 @@ def template_mpc(model, silence_solver = False):
     mpc.bounds['lower','_x','Tout_AWT'] = 288.0
     mpc.bounds['lower','_x','accum_monom'] = 0.0
 
+    # setting up upper boundaries for the states
     mpc.bounds['upper','_x','T_R'] = 363.15 + temp_range
     mpc.bounds['upper','_x','T_S'] = 400.0
     mpc.bounds['upper','_x','Tout_M'] = 400.0
@@ -76,10 +81,12 @@ def template_mpc(model, silence_solver = False):
     mpc.bounds['upper','_x','accum_monom'] = 30000.0
     mpc.bounds['upper','_x','T_adiab'] = 382.15
 
+    # setting up lower boundaries for the inputs
     mpc.bounds['lower','_u','m_dot_f'] = 0.0
     mpc.bounds['lower','_u','T_in_M'] = 333.15
     mpc.bounds['lower','_u','T_in_EK'] = 333.15
 
+    # setting up upper boundaries for the inputs
     mpc.bounds['upper','_u','m_dot_f'] = 3.0e4
     mpc.bounds['upper','_u','T_in_M'] = 373.15
     mpc.bounds['upper','_u','T_in_EK'] = 373.15
@@ -89,7 +96,6 @@ def template_mpc(model, silence_solver = False):
     mpc.scaling['_x','m_A'] = 10
     mpc.scaling['_x','m_P'] = 10
     mpc.scaling['_x','accum_monom'] = 10
-
     mpc.scaling['_u','m_dot_f'] = 100
 
     # Check if robust multi-stage is active
@@ -99,11 +105,13 @@ def template_mpc(model, silence_solver = False):
     else:
         mpc.bounds['upper','_x','T_R'] = 363.15+temp_range
 
-
+    # setting up parameter uncertainty
     delH_R_var = np.array([950.0, 950.0 * 1.30, 950.0 * 0.70])
     k_0_var = np.array([7.0*1.00, 7.0*1.30, 7.0*0.70])
     mpc.set_uncertainty_values(delH_R = delH_R_var, k_0 =  k_0_var)
 
+    # completing the setup of the mpc
     mpc.setup()
 
+    # end of function
     return mpc

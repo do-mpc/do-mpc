@@ -36,14 +36,16 @@ def template_simulator(model):
     --------------------------------------------------------------------------
     """
     simulator = do_mpc.simulator.Simulator(model)
-    
+
+    # setting up parameters for the simulator
     params_simulator = {
         'integration_tool': 'cvodes',
         't_step': 0.5
         }
     simulator.set_param(**params_simulator)
-    
+
     # Setup the simulator
     simulator.setup()
-    
+
+    # end of function
     return simulator

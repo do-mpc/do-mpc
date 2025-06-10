@@ -20,54 +20,53 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+# imports
 import numpy as np
 import matplotlib.pyplot as plt
 from casadi import *
 from casadi.tools import *
-import pdb
 import sys
 import os
 rel_do_mpc_path = os.path.join('..','..')
 sys.path.append(rel_do_mpc_path)
 import do_mpc
-
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-import time
 
+# local imports
 from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator
 
-""" User settings: """
+# user settings
 show_animation = True
 store_results = False
 store_animation = False
 
-"""
-Get configured do-mpc modules:
-"""
+# setting up the model
+model = template_model()
+
+# setting up a mpc controller, given the model
 w_ref = 6+10*np.random.rand()
 E_0 = 5+3*np.random.rand()
 h_min = 80+40*np.random.rand()
-
-
-model = template_model()
 mpc = template_mpc(model, w_ref, E_0, h_min=h_min)
+
+# setting up a simulator, given the model
 simulator = template_simulator(model, w_ref, E_0)
+
+# setting up an estimator, given the model
 estimator = do_mpc.estimator.StateFeedback(model)
 
-"""
-Set initial state
-"""
 # Derive initial state from bounds:
 lb_theta, ub_theta = mpc.bounds['lower','_x','theta'], mpc.bounds['upper','_x','theta']
 lb_phi, ub_phi = mpc.bounds['lower','_x','phi'], mpc.bounds['upper','_x','phi']
 lb_psi, ub_psi = mpc.bounds['lower','_x','psi'], mpc.bounds['upper','_x','psi']
+
 # with mean and radius:
 m_theta, r_theta = (ub_theta+lb_theta)/2, (ub_theta-lb_theta)/2
 m_phi, r_phi = (ub_phi+lb_phi)/2, (ub_phi-lb_phi)/2
 m_psi, r_psi = (ub_psi+lb_psi)/2, (ub_psi-lb_psi)/2
+
 # How close can the intial state be to the bounds?
 # tightness=1 -> Initial state could be on the bounds.
 # tightness=0 -> Initial state will be at the center of the feasible range.
@@ -76,19 +75,18 @@ theta_0 = m_theta-tightness*r_theta+2*tightness*r_theta*np.random.rand()
 phi_0 = m_phi-tightness*r_phi+2*tightness*r_phi*np.random.rand()
 psi_0 = m_psi-tightness*r_psi+2*tightness*r_psi*np.random.rand()
 
-
+# Set the initial state of mpc, simulator and estimator:
 x0 = np.array([theta_0, phi_0, psi_0]).reshape(-1,1)
 
+# pushing initial condition to mpc, simulator and estimator
 mpc.x0 = x0
 simulator.x0 =x0
 estimator.x0 = x0
 
+# setting up initial guesses
 mpc.set_initial_guess()
 
-"""
-Setup graphic:
-"""
-
+# Initialize graphic:
 fig = plt.figure(figsize=(16,9))
 plt.ion()
 
@@ -122,17 +120,20 @@ ax3.set_ylabel('input [-]')
 ax4.set_ylabel('E_0')
 ax5.set_ylabel('v_0')
 
-"""
-Run MPC main loop:
-"""
-
+# simulation of the plant
 n_steps = 200
-
 for k in range(n_steps):
+
+    # for the current state x0, mpc computes the optimal control action u0
     u0 = mpc.make_step(x0)
+
+    # for the current state u0, computes the next state y_next
     y_next = simulator.make_step(u0)
+
+    # for the current state y_next, estimates the next state x0
     x0 = estimator.make_step(y_next)
 
+    # update the graphics
     if show_animation:
         phi_pred = mpc.data.prediction(('_x', 'phi'))[0]
         theta_pred = mpc.data.prediction(('_x', 'theta'))[0]
@@ -153,7 +154,7 @@ for k in range(n_steps):
         plt.show()
         plt.pause(0.01)
 
-
+# Store animation:
 if store_animation:
     from matplotlib.animation import FuncAnimation, FFMpegWriter, ImageMagickWriter
     def update(t_ind):

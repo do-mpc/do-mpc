@@ -20,47 +20,49 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+# imports
 import numpy as np
 import matplotlib.pyplot as plt
 from casadi import *
 from casadi.tools import *
-import pdb
 import sys
-import time
 import os
 rel_do_mpc_path = os.path.join('..','..')
 sys.path.append(rel_do_mpc_path)
 import do_mpc
 
 
-""" User settings: """
-show_animation = True
-store_results = False
-
-"""
-Get configured do-mpc modules:
-"""
-
+# local imports
 from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator
 from template_mhe import template_mhe
 
+# user settings
+show_animation = True
+store_results = False
+
+# setting up the model
 model = template_model()
+
+# setting up a mpc controller, given the model
 mpc = template_mpc(model)
+
+# setting up a simulator, given the model
 simulator = template_simulator(model)
+
+# setting up an moving horizon estimator, given the model
 mhe = template_mhe(model)
 
 
-"""
-Set initial state
-"""
+# Set the initial state:
 np.random.seed(99)
 
 # Use different initial state for the true system (simulator) and for MHE / MPC
 x0_true = np.random.rand(model.n_x)-0.5
 x0 = np.zeros(model.n_x)
 
+# pushing initial guesses to class 
 mpc.x0 = x0
 simulator.x0 = x0_true
 mhe.x0 = x0
@@ -70,11 +72,8 @@ mhe.p_est0 = 1e-4
 mpc.set_initial_guess()
 mhe.set_initial_guess()
 
-"""
-Setup graphic:
-"""
+# Initialize graphic:
 color = plt.rcParams['axes.prop_cycle'].by_key()['color']
-
 fig, ax = plt.subplots(5,1, sharex=True, figsize=(10, 9))
 
 mpc_plot = do_mpc.graphics.Graphics(mpc.data)
@@ -128,17 +127,17 @@ for ax_i in ax:
 fig.tight_layout()
 plt.ion()
 
-"""
-Run MPC main loop:
-"""
-
+# simulation of the plant
 for k in range(200):
+
+    # for the current state x0, mpc computes the optimal control action u0
     u0 = mpc.make_step(x0)
     # Simulate with process and measurement noise
 
     y_next = simulator.make_step(u0, v0=1e-2*np.random.randn(model.n_v,1))
     x0 = mhe.make_step(y_next)
 
+    # update the graphics
     if show_animation:
         mpc_plot.plot_results()
         mpc_plot.plot_predictions()

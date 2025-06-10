@@ -25,7 +25,7 @@ import casadi as cas
 import pdb
 import sys
 import os
-rel_do_mpc_path = os.path.join('..','..')
+rel_do_mpc_path = os.path.join('..','..','..')
 sys.path.append(rel_do_mpc_path)
 import do_mpc
 
@@ -54,8 +54,6 @@ def template_model(symvar_type='SX'):
                   [0.367]])
     
     x_next = A@_x + B@_u
-
-    #model.set_rhs('x', x_next)
     
     model.setup(A,B)
     

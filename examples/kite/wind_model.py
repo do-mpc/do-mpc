@@ -3,6 +3,34 @@ from scipy.signal import TransferFunction as TF
 
 
 class Wind:
+    """
+    Wind disturbance generator based on Dryden turbulence model.
+
+    This class simulates wind disturbances affecting a system (e.g., an aerial vehicle)
+    using a first-order filtered white noise model, commonly used in control and aerospace
+    applications. The wind disturbance is modeled in discrete time as a stochastic process
+    with tunable variance and dynamics, parameterized by a reference wind speed.
+
+    Attributes:
+        w_ref (float): Reference wind speed [m/s].
+        sigma_w (float): Standard deviation of wind noise [m/s].
+        bar_w_N (float): Mean offset of the wind disturbance component.
+        A_dis (float): Discrete-time state transition coefficient.
+        B_dis (float): Discrete-time input coefficient.
+        C_dis (float): Discrete-time output coefficient.
+        f_init (float): Current internal state of the disturbance filter.
+
+    Parameters:
+        w_ref (float): Reference wind speed [m/s].
+        t_step (float): Discrete time step used in the simulation [s].
+        k_sigma_w (float, optional): Proportionality constant for wind turbulence intensity
+                                     (default is 0.14, a typical value for low-level turbulence).
+
+    Methods:
+        make_step():
+            Advances the wind model by one time step and returns the current wind speed [m/s],
+            including the disturbance.
+    """
     def __init__(self, w_ref, t_step, k_sigma_w = 0.14):
         # given parameters
         self.w_ref  =  w_ref          # [m/s]
@@ -36,6 +64,12 @@ class Wind:
 
 
     def make_step(self):
+        """
+        Advance the wind disturbance model by one time step.
+
+        Returns:
+            float: Current wind speed [m/s] with applied disturbance.
+        """
         w_N_cur = self.bar_w_N + self.sigma_w * self.C_dis * self.f_init
         w_N = self.w_ref + w_N_cur
 
