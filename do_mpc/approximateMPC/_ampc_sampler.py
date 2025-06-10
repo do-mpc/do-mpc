@@ -184,11 +184,28 @@ class AMPCSampler:
         # extracting t_step from mpc
         self.simulator.settings.t_step = self.mpc.settings.t_step
 
-        # extracting tvp from the mpc class
-        self.simulator.set_tvp_fun(self.mpc.tvp_fun)
+        if self.mpc.settings.n_robust == 0:
 
-        # extracting p from the mpc class
-        self.simulator.set_p_fun(self.mpc.p_fun)
+            # extracting tvp from the mpc class
+            self.simulator.set_tvp_fun(self.mpc.tvp_fun)
+
+            # extracting p from the mpc class
+            self.simulator.set_p_fun(self.mpc.p_fun)
+
+        else:
+            p_num = self.simulator.get_p_template()
+
+            def p_fun(t_now):
+                return p_num
+
+            self.simulator.set_p_fun(p_fun)
+
+            tvp_num = self.simulator.get_tvp_template()
+
+            def tvp_fun(t_now):
+                return tvp_num
+
+            self.simulator.set_tvp_fun(tvp_fun)
 
         # simulator setup
         self.simulator.setup()
