@@ -25,7 +25,7 @@ setup(
     packages=['do_mpc','do_mpc.controller','do_mpc.differentiator',
               'do_mpc.estimator','do_mpc.model','do_mpc.sampling',
               'do_mpc.sysid','do_mpc.tools', 'do_mpc.opcua',
-             'do_mpc.approximateMPC],
+             'do_mpc.approximateMPC'],
     author='Sergio Lucia and Felix Fiedler',
     author_email='sergio.lucia@tu-berlin.de',
     url='https://www.do-mpc.com',
