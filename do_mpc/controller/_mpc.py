@@ -137,7 +137,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         To take full control over the initial guess, modify the values of :py:attr:`opt_x_num`.
 
-    During runtime call :py:func:`make_step` with the current state :math:`x` to obtain the optimal control input :math:`u`.
+    During runtime call :py:func:`make_step` with the current state :math:`x` to get the optimal control input :math:`u`.
 
     """
     def __init__(self, model:Union[do_mpc.model.Model,do_mpc.model.LinearModel], settings: Optional[MPCSettings] = None):

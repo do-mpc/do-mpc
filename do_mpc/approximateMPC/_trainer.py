@@ -258,8 +258,11 @@ class Trainer:
             x = torch.cat((x0, u_prev), dim=1)
         else:
             x = x0
-
-        x_scaled, u0_scaled = self.scale_dataset(x, u0)
+        if self.approx_mpc.settings.scaling:
+            x_scaled, u0_scaled = self.scale_dataset(x, u0)
+        else:
+            x_scaled = x
+            u0_scaled = u0
         data = TensorDataset(x_scaled, u0_scaled)
         training_data, val_data = random_split(
             data, [1 - val, val], generator=self.generator
