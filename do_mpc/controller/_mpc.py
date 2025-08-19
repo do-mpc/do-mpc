@@ -80,7 +80,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
     6. Use :py:meth:`get_tvp_template` and :py:meth:`set_tvp_fun` to create a method to obtain new time-varying parameters at each iteration.
 
-    7. To finalize the class configuration there are two routes. The default approach is to call :py:meth:`setup`. For deep customization use the combination of :py:meth:`prepare_nlp` and :py:meth:`create_nlp`. See graph below for an illustration of the process.
+    7. To finalize the class configuration there are two ways. The default approach is to call :py:meth:`setup`. For deep customization use the combination of :py:meth:`prepare_nlp` and :py:meth:`create_nlp`. See graph below for an illustration of the process.
 
     .. graphviz::
         :name: route_to_setup
@@ -137,7 +137,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         To take full control over the initial guess, modify the values of :py:attr:`opt_x_num`.
 
-    During runtime call :py:func:`make_step` with the current state :math:`x` to obtain the optimal control input :math:`u`.
+    During runtime call :py:func:`make_step` with the current state :math:`x` to get the optimal control input :math:`u`.
 
     """
     def __init__(self, model:Union[do_mpc.model.Model,do_mpc.model.LinearModel], settings: Optional[MPCSettings] = None):
@@ -1210,7 +1210,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                         # Ensure nonlinear constraints on all collocation points
                         for i in range(n_total_coll_points):
                             nl_cons_k = self._nl_cons_fun(
-                                opt_x_unscaled['_x', k, s, i], opt_x_unscaled['_u', k, s_u], opt_x_unscaled['_z', k, s, i],
+                                opt_x_unscaled['_x', k+1, s, i], opt_x_unscaled['_u', k, s_u], opt_x_unscaled['_z', k, s, i],
                                 opt_p['_tvp', k], opt_p['_p', current_scenario], opt_x_unscaled['_eps', k_eps, s])
                             cons.append(nl_cons_k)
                             cons_lb.append(self._nl_cons_lb)

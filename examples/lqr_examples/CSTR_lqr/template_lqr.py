@@ -20,8 +20,6 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
-import casadi as cas
-import pdb
 import sys
 import os
 rel_do_mpc_path = os.path.join('..','..')
@@ -49,12 +47,13 @@ def template_lqr(model):
     Q = 10*np.array([[1,0,0,0],[0,1,0,0],[0,0,0.01,0],[0,0,0,0.01]])
     R = np.array([[1e-1,0],[0,1e-5]])
     Rdelu = np.array([[1e8,0],[0,1]])
-    
+
     lqr.set_objective(Q=Q, R=R)
     lqr.set_rterm(delR = Rdelu)
-    
+
     # set up lqr
     lqr.setup()
+
     # returns lqr
     return lqr
     

@@ -25,10 +25,14 @@ testing/results/test_save.pkl
 
 examples/**/*.pkl
 documentation/source/example_gallery/**/*.pkl
+!documentation/source/example_gallery/sampling_notebook/my_dataset/*.pkl
+!documentation/source/example_gallery/training_notebook/results_my_dataset/*.pkl
 testing/sample_results/*.pkl
 
 testing/model.pkl
 
 .venv/
 
-extra
+
+
+.ruff_cache

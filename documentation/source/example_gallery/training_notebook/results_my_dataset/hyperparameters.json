@@ -1,0 +1,13 @@
+{
+    "data_dir": "./sampling_notebook",
+    "dataset_name": "my_dataset",
+    "scheduler_flag": false,
+    "lr_reduce_factor": 0.1,
+    "lr_scheduler_patience": 50,
+    "lr_scheduler_cooldown": 0,
+    "min_lr": 1e-07,
+    "val": 0.2,
+    "batch_size": 1000,
+    "shuffle": true,
+    "learning_rate": 0.001
+}

@@ -37,6 +37,7 @@ def template_mpc(model):
     """
     mpc = do_mpc.controller.MPC(model)
 
+    # Set settings of MPC:
     setup_mpc = {
         'n_horizon': 10,
         'n_robust': 0,
@@ -50,40 +51,40 @@ def template_mpc(model):
         # Use MA27 linear solver in ipopt for faster calculations:
         'nlpsol_opts': {'ipopt.fixed_variable_treatment': 'make_constraint','ipopt.tol': 1e-16}
     }
-
     mpc.set_param(**setup_mpc)
 
+    # suppress solver output
     mpc.settings.supress_ipopt_output()
 
+    # setting up the cost function
     mterm = -model.x['P_s']
     lterm = -model.x['P_s']
-
     mpc.set_objective(mterm=mterm, lterm=lterm)
+
+    # setting up the factors for input penalisation
     mpc.set_rterm(inp=1)
 
-    # soft constraint
-    # mpc.set_nl_cons('soft_constraint', -model.x['S_s'], ub=0.0, soft_constraint=True, penalty_term_cons=1, maximum_violation=np.inf)
-    # mpc.set_nl_cons('soft_constraint', -model.u['inp'], ub=0.2, soft_constraint=True, penalty_term_cons=1, maximum_violation=np.inf)
-
+    # setting up lower boundaries for the states
     mpc.bounds['lower', '_x', 'X_s'] = 0.0
     mpc.bounds['lower', '_x', 'S_s'] = -0.01
     mpc.bounds['lower', '_x', 'P_s'] = 0.0
     mpc.bounds['lower', '_x', 'V_s'] = 0.0
 
+    # setting up upper boundaries for the states
     mpc.bounds['upper', '_x','X_s'] = 3.7
     mpc.bounds['upper', '_x','P_s'] = 3.0
 
+    # setting up boundaries for the inputs
     mpc.bounds['lower','_u','inp'] = 0.0
     mpc.bounds['upper','_u','inp'] = 0.2
 
-
+    # setting up parameter uncertainty
     Y_x_values = np.array([0.5, 0.4, 0.3])
     S_in_values = np.array([200.0, 220.0, 180.0])
-    # Y_x_values = np.array([0.4])
-    # S_in_values = np.array([220.0])
-    
     mpc.set_uncertainty_values(Y_x = Y_x_values, S_in = S_in_values)
 
+    # completing the setup of the mpc
     mpc.setup()
 
+    # end of function
     return mpc

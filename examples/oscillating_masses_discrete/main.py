@@ -20,66 +20,70 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+# imports
 import numpy as np
 import matplotlib.pyplot as plt
 from casadi import *
 from casadi.tools import *
-import pdb
 import sys
-import time
 import os
 rel_do_mpc_path = os.path.join('..','..')
 sys.path.append(rel_do_mpc_path)
 import do_mpc
 
+# local imports
 from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator
 
 
-""" User settings: """
+# user settings
 show_animation = True
 store_results = False
 
-"""
-Get configured do-mpc modules:
-"""
+# setting up the model
 model = template_model()
+
+# setting up a mpc controller, given the model
 mpc = template_mpc(model)
+
+# setting up a simulator, given the model
 simulator = template_simulator(model)
+
+# setting up an estimator, given the model
 estimator = do_mpc.estimator.StateFeedback(model)
 
 
-"""
-Set initial state
-"""
+# Set the initial state of mpc, simulator and estimator:
 np.random.seed(99)
-
 e = np.ones([model.n_x,1])
 x0 = np.random.uniform(-3*e,3*e) # Values between +3 and +3 for all states
+
+# pushing initial condition to mpc and the simulator
 mpc.x0 = x0
 simulator.x0 = x0
 estimator.x0 = x0
 
-# Use initial state to set the initial guess.
+# setting up initial guess
 mpc.set_initial_guess()
 
-"""
-Setup graphic:
-"""
-
+# Initialize graphic:
 fig, ax, graphics = do_mpc.graphics.default_plot(mpc.data)
 plt.ion()
 
-"""
-Run MPC main loop:
-"""
-
+# simulation of the plant
 for k in range(50):
+
+    # for the current state x0, mpc computes the optimal control action u0
     u0 = mpc.make_step(x0)
+
+    # for the current state u0, computes the next state y_next
     y_next = simulator.make_step(u0)
+
+    # for the current state y_next, estimates the next state x0
     x0 = estimator.make_step(y_next)
 
+    # update the graphics
     if show_animation:
         graphics.plot_results(t_ind=k)
         graphics.plot_predictions(t_ind=k)

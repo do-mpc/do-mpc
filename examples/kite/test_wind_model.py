@@ -82,19 +82,3 @@ for j in range(N_traj):
     plt.legend()
 
 input('bla')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#w = (w_ref + w_N) # * (z/z_ref)**a

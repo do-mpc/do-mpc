@@ -73,7 +73,7 @@ The core modules are used to create the **do-mpc** control loop (click on elemen
 
 from packaging import version
 import warnings
-import importlib
+import importlib.util
 
 # Check if optional toollboxes were installed (pip install do_mpc[full])
 if importlib.util.find_spec("onnx"):
@@ -101,6 +101,7 @@ from . import graphics
 from . import sysid
 from . import differentiator
 from . import opcua
+from . import approximateMPC
 
 from ._version import __version__
 

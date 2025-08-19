@@ -39,9 +39,11 @@ def template_simulator(model):
     """
     simulator = do_mpc.simulator.Simulator(model)
 
-
+    # setting up parameters for the simulator
     simulator.set_param(t_step = 0.5)
 
+    # completing the simulator setup
     simulator.setup()
 
+    # end of function
     return simulator

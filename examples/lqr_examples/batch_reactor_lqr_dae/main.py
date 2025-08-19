@@ -20,39 +20,36 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+# imports
 import numpy as np
 import matplotlib.pyplot as plt
-import casadi as cas
-import pdb
 import sys
 import os
 rel_do_mpc_path = os.path.join('..','..','..')
 sys.path.append(rel_do_mpc_path)
 import do_mpc
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-import time
 
+# local imports
 from template_model import template_model
 from template_lqr import template_lqr
 from template_simulator import template_simulator
 
-""" User settings: """
+# user settings
 store_results = False
 
-"""
-Get configured do-mpc modules:
-"""
-
+# setting up the models
 t_sample = 0.5
 model, daemodel, linearmodel = template_model()
 model_dc = linearmodel.discretize(t_sample)
+
+# setting up lqr controller for the discrete linear model
 lqr = template_lqr(model_dc)
+
+# setting up a simulator, given the linear model
 simulator = template_simulator(linearmodel)
 
-"""
-Set initial state
-"""
+# Set the initial state of mpc and simulator:
 Ca0 = 1
 Cb0 = 0
 Ad0 = 0
@@ -60,6 +57,7 @@ Cain0 = 0
 Cc0 = 0
 x0 = np.array([[Ca0],[Cb0],[Ad0],[Cain0],[Cc0]])
 
+# pushing initial condition to simulator
 simulator.x0 = x0
 
 # Set setpoints
@@ -69,21 +67,18 @@ Ad_ss = 3
 Cain_ss = 0
 Cc_ss = 2
 
+# sets the desired operating point for the lqr
 xss = np.array([[Ca_ss],[Cb_ss],[Ad_ss],[Cain_ss],[Cc_ss]])
 uss = model_dc.get_steady_state(xss = xss)
 lqr.set_setpoint(xss = xss, uss = uss)
 
-"""
-Run MPC main loop:
-"""
+# simulation of the plant
 for k in range(50):
     u0 = lqr.make_step(x0)
     y_next = simulator.make_step(u0)
     x0 = y_next
     
-"""
-Setup graphic:
-"""
+# Configure plot:
 fig, ax, graphics = do_mpc.graphics.default_plot(simulator.data, figsize=(16,9))
 graphics.plot_results()
 graphics.reset_axes()

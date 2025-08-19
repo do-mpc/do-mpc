@@ -39,27 +39,30 @@ def template_mpc(model, silence_solver = False):
     """
     mpc = do_mpc.controller.MPC(model)
 
+    # Set settings of MPC:
     mpc.settings.n_robust =  0
     mpc.settings.n_horizon =  20
     mpc.settings.t_step =  0.1
     mpc.settings.store_full_solution =  True
 
+    # suppress solver output
     if silence_solver:
         mpc.settings.supress_ipopt_output()
 
+    # setting up the cost function
     _x, _tvp  = model['x', 'tvp']
-
     lterm = (_x['phi_2'] - _tvp['phi_2_set'])**2
     mterm = DM(1)
-
     mpc.set_objective(mterm=mterm, lterm=lterm)
+
+    # setting up the factors for input penalisation
     mpc.set_rterm(phi_m_set=1e-2)
 
 
     # Create an interesting trajectory for the setpoint (_tvp)
     # by randomly choosing a new value or keeping the previous one.
     def random_setpoint(tvp0):
-        tvp_next = (0.5-np.random.rand(1))*np.pi
+        tvp_next = (0.5-np.random.rand())*np.pi
         switch = np.random.rand() >= 0.95
         tvp0 = (1-switch)*tvp0 + switch*tvp_next
         return tvp0
@@ -90,9 +93,12 @@ def template_mpc(model, silence_solver = False):
         Theta_2 = inertia_mass_2,
         Theta_3 = inertia_mass_3,)
 
+    # setting up boundaries for the inputs
     mpc.bounds['lower','_u','phi_m_set'] = -5
     mpc.bounds['upper','_u','phi_m_set'] = 5
 
+    # completing the setup of the mpc
     mpc.setup()
 
+    # end of function
     return mpc

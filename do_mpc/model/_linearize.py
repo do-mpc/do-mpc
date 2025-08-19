@@ -73,7 +73,7 @@ def linearize(model:Model,
     A,B,C,D = model.get_linear_system_matrices(xss,uss, tvp=tvp0, p=p0)
     
     # Check if A,B,C,D are constant or expressions
-    all_constant = np.alltrue(
+    all_constant = np.all(
         [isinstance(A, np.ndarray), isinstance(B, np.ndarray), isinstance(C, np.ndarray), isinstance(D, np.ndarray)]
     )
     

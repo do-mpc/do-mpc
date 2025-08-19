@@ -83,8 +83,8 @@ class ServerOpts:
 
     Args:
         name : Name of the server.
-        address : IP address of the server.
-        port : Used port number.
+        address : URL of the server <scheme>://<netloc>/<path>;<params>?<query>#<fragment>.
+        port : Used port number (Argument is currently not used).
     '''
     name: str
     address: str
@@ -99,8 +99,8 @@ class ClientOpts:
 
     Args:
         name : Name of the client.
-        address : IP address of the target server.
-        port : Used port number of the target server.
+        address : URL of the target server <scheme>://<netloc>/<path>;<params>?<query>#<fragment>.
+        port : Used port number of the target server (Argument is currently not used).
         timeunit: Time unit factor to convert the time unit used by the dynamic system into seconds. The default value is 1 for seconds. Use 60 for minutes, 3600 for hours, and so on. 
     '''
 
@@ -109,7 +109,7 @@ class ClientOpts:
     """
     name: str
     """
-    IP address of the target server.
+    URL of the target server.
     """
 
     address: str

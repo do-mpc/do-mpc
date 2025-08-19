@@ -45,7 +45,7 @@ class TestSamplingTools(unittest.TestCase):
         Reset path afterwards.
         """
         default_path = copy.deepcopy(sys.path)
-        sys.path.append('../examples/sampling/regular/test_fun/')
+        sys.path.append('../examples/tools/sampling/regular/test_fun/')
         import sampling_test
 
         self.test_function = sampling_test.main
@@ -66,3 +66,4 @@ class TestSamplingTools(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+

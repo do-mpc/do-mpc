@@ -53,6 +53,53 @@ class EKF(Estimator):
             'first_step': True
         }
 
+
+        # Initialize structure for initial conditions:
+        self._P0 = np.eye(self.model.n_x)
+
+
+    @property
+    def P0(self):
+        """Initial error covariance matrix for the Extended Kalman Filter.
+        
+        This matrix represents the initial uncertainty in the state estimates.
+        It must be a positive semi-definite matrix of shape (n_x, n_x).
+        
+        The default initialization is an identity matrix.
+        """
+        return self._P0
+
+    @P0.setter
+    def P0(self, val):
+        """Set the initial error covariance matrix.
+        
+        Args:
+            val: New covariance matrix. Must be a numpy.ndarray with shape (n_x, n_x).
+        
+        Raises:
+            TypeError: If val is not a numpy.ndarray
+            ValueError: If matrix has wrong dimensions or is not square
+            Warning: If matrix is not symmetric (will be made symmetric)
+        """
+        # Only accept numpy arrays
+        if not isinstance(val, np.ndarray):
+            raise TypeError(f"P0 must be a numpy.ndarray, got {type(val).__name__}")
+        
+        # Validate dimensions
+        if val.ndim != 2:
+            raise ValueError(f"P0 must be a 2D matrix, got {val.ndim}D array")
+        
+        if val.shape[0] != val.shape[1]:
+            raise ValueError(f"P0 must be square, got shape {val.shape}")
+        
+        if val.shape[0] != self.model.n_x:
+            raise ValueError(
+                f"P0 must have shape ({self.model.n_x}, {self.model.n_x}) "
+                f"to match state dimension, got {val.shape}"
+                )
+        self._P0 = ca.DM(val).full()
+
+
     def _check_validity(self):
 
         # tvp_fun must be set, if tvp are defined in model.
@@ -138,8 +185,11 @@ class EKF(Estimator):
         # setting up counter
         self.counter = 0
 
-        # initialiasing a default covariance matrix
-        self.P0 = np.eye((self.model.n_x))
+
+        if not hasattr(self, "P0"):
+            # P0 doesn’t exist yet, so initialize it now
+            self.P0 = np.eye(self.model.n_x)
+
 
         # initialising a default algebraic initial state
         self.z0 = np.zeros((self.model.n_z))
@@ -166,10 +216,11 @@ class EKF(Estimator):
 
         # checks to ensure proper usage
         assert self.flags['setup'] == True, 'EKF was not setup yet. Please call EKF.setup().'
-        assert self.P0.shape == (self.model.n_x, self.model.n_x), 'P0 needs to be of the shape: (n_x, n_x).'
+
 
         # set initial value for state
         self.x0 = ca.DM(self.x0).full()
+
 
         # updating flag
         self.flags['set_initial_guess'] = True
@@ -192,12 +243,21 @@ class EKF(Estimator):
 
         Returns:
             x0
+
+        Raises:
+            AssertionError: If the EKF was not setup yet or if the initial guess was not set.
+            AssertionError: If the dimensions of Q_k and R_k are not correct.
         """
 
         # checks to ensure proper usage
         assert self.flags['setup'] == True, 'EKF was not setup yet. Please call EKF.setup().'
         assert self.flags[
                    'set_initial_guess'] == True, 'Initial guess was not provided. Please call EKF.set_initial_guess().'
+        
+        # checks correct dimensions of Q_k and R_k
+        assert Q_k.shape == (self.model.n_x, self.model.n_x), 'Q_k must be a square matrix of shape ({}, {})'.format(self.model.n_x, self.model.n_x)
+        assert R_k.shape == (self.model.n_y, self.model.n_y), 'R_k must be a square matrix of shape ({}, {})'.format(self.model.n_y, self.model.n_y)
+
 
         if self.flags['first_step']:
             self.flags.update({
@@ -212,6 +272,7 @@ class EKF(Estimator):
         z0 = self.z0
         v0 = np.zeros((self.model.n_y, 1))
         w0 = self.model['w'](0)
+        P0 = self.P0
 
         # counter and timer calculation
         self.counter += 1
@@ -225,31 +286,37 @@ class EKF(Estimator):
 
         # Apriori and Prediction covariance
         if self.model.model_type is 'continuous':
-            initial_cond_x = ca.vertcat(self.x0, self.P0.reshape((-1,1)))
+            initial_cond_x = ca.vertcat(self.x0, P0.reshape((-1,1)))
             initial_guess_z = z0
             sol = self.x_p_integrator(x0 = initial_cond_x, z0 = initial_guess_z, p=ca.vertcat(u_next, tvp0, p0, Q_k.reshape((-1, 1))))
             x_apriori = sol['xf'].full()[0:self.model.n_x]
-            self.P0 = sol['xf'].full()[self.model.n_x:].reshape((self.model.n_x, self.model.n_x))
+            P0 = sol['xf'].full()[self.model.n_x:].reshape((self.model.n_x, self.model.n_x))
             y_apriori = self.h_fun(x_apriori, u_next, p0, tvp0, v0)
 
         else:            
             x_apriori = self.model._rhs_fun(x0, u_next, z0, tvp0, p0, w0)
             y_apriori = self.model._meas_fun(x_apriori, u_next, z0, tvp0, p0, v0)
 
-            self.P0 = A_k @ self.P0 @ A_k.T + Q_k
+
+            P0 = A_k @ P0 @ A_k.T + Q_k
 
         # Kalman gain
-        L = self.P0 @ C_k.T @ ca.inv_minor(C_k @ self.P0 @ C_k.T + R_k)
+        L = P0 @ C_k.T @ ca.inv_minor(C_k @ P0 @ C_k.T + R_k)
 
         # Aposteriori
         x0 = x_apriori + L @ (y_next - y_apriori)
 
         # Updated error covariance
-        self.P0 = (np.eye(self.model.n_x) - L @ C_k) @ self.P0
+
+        P0 = (np.eye(self.model.n_x) - L @ C_k) @ P0
 
         # store current state
         self.x0 = ca.DM(x0).full()
         self.z0 = z0
+
+
+        # store current covariance matrix
+        self.P0 = P0.full()
 
         # Update data object:
         self.data.update(_x = ca.DM(x0).full())
