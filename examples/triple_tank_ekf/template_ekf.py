@@ -9,6 +9,7 @@ def template_ekf(model):
     # init
     ekf = do_mpc.estimator.EKF(model=model)
 
+
     # modifying ekf settings
     ekf.settings.t_step = 1
 

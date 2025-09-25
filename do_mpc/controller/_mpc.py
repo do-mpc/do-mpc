@@ -140,7 +140,9 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     During runtime call :py:func:`make_step` with the current state :math:`x` to get the optimal control input :math:`u`.
 
     """
-    def __init__(self, model:Union[do_mpc.model.Model,do_mpc.model.LinearModel], settings: Optional[MPCSettings] = None):
+
+    def __init__(self, model: Union[do_mpc.model.Model, do_mpc.model.LinearModel],
+                 settings: Optional[MPCSettings] = None):
 
         self.model = model
 
@@ -168,6 +170,12 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         # initialize MPC _settings class
         self._settings = MPCSettings()
 
+        # initializes options for nlp solver
+        self.nlpsol_opts = {}  # Will update default options with this dict.
+
+        # List from model object that contains the names of the integer input varables. Integer inputs yield a MINLP problem.
+        self.integer_u = self.model.integer
+
         # Flags are checked when calling .setup.
         self.flags.update({
             'set_objective': False,
@@ -176,6 +184,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             'set_tvp_fun': False,
             'set_p_fun': False,
             'set_initial_guess': False,
+            'MINLP': True if bool(self.integer_u) else False,  # checks if there are any integer inputs
         })
 
     @property
@@ -1088,7 +1097,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     def _prepare_nlp(self)->None:
         """Internal method. See detailed documentation with optimizer.prepare_nlp
         """
-        self._settings.check_for_mandatory_settings()
+        self._settings.are_settings_valid(raise_error=True)
         nl_cons_input = self.model['x', 'u', 'z', 'tvp', 'p']
         self._setup_nl_cons(nl_cons_input)
         self._check_validity()
@@ -1123,6 +1132,17 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             castools.entry('_u', repeat=[self._settings.n_horizon, n_u_scenarios], struct=self.model._u),
             castools.entry('_eps', repeat=[n_eps, n_max_scenarios], struct=self._eps),
         ])
+
+        # Create integer list for MINLP if any input is discrete
+        if self.flags['MINLP']:
+            # Create a Sym_Struct with similar structure, but with only booleans of value 'False'
+            opt_x_integer_flag = opt_x(False)
+            # Set all integer variables to true
+            for u_int in self.integer_u:
+                opt_x_integer_flag['_u', :, :, u_int] = True
+            # Convert Sym_Struct to list with boolean entries
+            self.opt_x_integer_flag = np.ndarray.flatten(np.array(opt_x_integer_flag.cat, dtype=bool)).tolist()
+
         self.n_opt_x = self._opt_x.shape[0]
         # NOTE: The entry _x[k,child_scenario[k,s,b],:] starts with the collocation points from s to b at time k
         #       and the last point contains the child node
@@ -1178,6 +1198,10 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         # For all control intervals
         for k in range(self._settings.n_horizon):
+            if (self._settings.n_control_horizon is not None and k >= self._settings.n_control_horizon):
+                k_u = self._settings.n_control_horizon - 1
+            else:
+                k_u = k
             # For all scenarios (grows exponentially with n_robust)
             for s in range(n_scenarios[k]):
                 # For all childen nodes of each node at stage k, discretize the model equations
@@ -1204,6 +1228,14 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                     cons.append(xf_ksb - opt_x['_x', k+1, child_scenario[k][s][b], -1])
                     cons_lb.append(np.zeros((self.model.n_x, 1)))
                     cons_ub.append(np.zeros((self.model.n_x, 1)))
+
+                    if k != k_u:
+                        # Add constraints to keep the control input constant.
+                        current_u = opt_x['_u', k, s_u]
+                        n_current_u = current_u.shape[0]
+                        cons.append(current_u - opt_x['_u', k_u, s_u])
+                        cons_lb.append(np.zeros((n_current_u, 1)))
+                        cons_ub.append(np.zeros((n_current_u, 1)))
 
                     k_eps = min(k, n_eps-1)
                     if self._settings.nl_cons_check_colloc_points:
@@ -1293,8 +1325,19 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             'expand': False,
             'ipopt.linear_solver': 'mumps',
         }.update(self._settings.nlpsol_opts)
-        self.nlp = {'x': castools.vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons, 'p': castools.vertcat(self._opt_p)}
-        self.S = castools.nlpsol('S', 'ipopt', self.nlp, self._settings.nlpsol_opts)
+
+        # Use BOMNIN for MINLP and IPOPT for NLP
+        if self.flags['MINLP']:
+            self._settings.nlpsol_opts.update({
+                'discrete': self.opt_x_integer_flag
+            })
+            solvername = 'bonmin'
+        else:
+            solvername = 'ipopt'
+
+        self.nlp = {'x': castools.vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons,
+                    'p': castools.vertcat(self._opt_p)}
+        self.S = castools.nlpsol('S', solvername, self.nlp, self._settings.nlpsol_opts)
 
         # Create function to caculate all auxiliary expressions:
         self.opt_aux_expression_fun = castools.Function('opt_aux_expression_fun', [self._opt_x, self._opt_p], [self._opt_aux])
