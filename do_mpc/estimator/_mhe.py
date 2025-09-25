@@ -27,6 +27,9 @@ import pdb
 import copy
 import warnings
 import time
+
+from sympy.solvers.ode.single import solver_map
+
 from ..optimizer import Optimizer
 from ._base import Estimator
 import do_mpc
@@ -218,6 +221,9 @@ class MHE(Optimizer, Estimator):
         self._w = self.model._w
         self._v = self.model._v
 
+        # List from model object that contains the names of the integer input variables. Integer inputs yield a MINLP problem.
+        self.integer_u = self.model.integer
+
         # Flags are checked when calling .setup.
         self.flags.update({
             'setup': False,
@@ -226,6 +232,7 @@ class MHE(Optimizer, Estimator):
             'set_y_fun': False,
             'set_objective': False,
             'set_initial_guess': False,
+            'MINLP': True if bool(self.integer_u) else False,  # checks if there are any integer inputs
         })
 
     @property
@@ -1056,6 +1063,16 @@ class MHE(Optimizer, Estimator):
             castools.entry('_p_est', struct=self._p_est),
         ])
 
+        # Create integer list for MINLP if any input is discrete
+        if self.flags['MINLP']:
+            # Create a Sym_Struct with similar structure, but with only booleans of value 'False'
+            opt_x_integer_flag = opt_x(False)
+            # Set all integer variables to true
+            for u_int in self.integer_u:
+                opt_x_integer_flag['_u', :, u_int] = True
+            # Convert Sym_Struct to list with boolean entries
+            self.opt_x_integer_flag = np.ndarray.flatten(np.array(opt_x_integer_flag.cat, dtype=bool)).tolist()
+
         self.n_opt_x = opt_x.shape[0]
         # NOTE: The entry _x[k,:] starts with the collocation points from s to b at time k
         #       and the last point contains the child node
@@ -1224,8 +1241,18 @@ class MHE(Optimizer, Estimator):
             'expand': False,
             'ipopt.linear_solver': 'mumps',
         }.update(self.settings.nlpsol_opts)
+
+        # Use BONMIN for MINLP and IPOPT for NLP
+        if self.flags['MINLP']:
+            self.settings.nlpsol_opts.update({
+                'discrete': self.opt_x_integer_flag
+            })
+            solvername = 'bonmin'
+        else:
+            solvername = 'ipopt'
+
         self.nlp = {'x': castools.vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons, 'p': castools.vertcat(self._opt_p)}
-        self.S = castools.nlpsol('S', 'ipopt', self.nlp, self.settings.nlpsol_opts)
+        self.S = castools.nlpsol('S', solvername, self.nlp, self.settings.nlpsol_opts)
 
         # Create function to caculate all auxiliary expressions:
         self.opt_aux_expression_fun = castools.Function('opt_aux_expression_fun', [self._opt_x, self._opt_p], [self._opt_aux])
