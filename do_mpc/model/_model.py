@@ -534,7 +534,7 @@ class Model:
         raise Exception('Cannot set measurement noise directly.')
 
 
-    def set_variable(self, var_type:str, var_name:str, input_type_integer=False, shape:Union[int,Tuple]=(1,1))->Union[castools.SX,castools.MX]:
+    def set_variable(self, var_type:str, var_name:str, shape:Union[int,Tuple]=(1,1), input_type_integer=False)->Union[castools.SX,castools.MX]:
         """Introduce new variables to the model class. Define variable type, name and shape (optional).
 
         **Example:**
