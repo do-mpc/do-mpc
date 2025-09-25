@@ -22,7 +22,7 @@
 
 #import data class decorator
 from dataclasses import dataclass, field
-from typing import Dict,List, Optional
+from typing import Dict,List
 
 @dataclass
 class ControllerSettings:
@@ -78,9 +78,6 @@ class MPCSettings(ControllerSettings):
     """Prediction horizon of the optimal control problem. 
     
     Parameter must be set by user"""
-    n_control_horizon: Optional[int] = None
-    """Number of control inputs after which the control input is kept constant.
-    """
 
     n_robust: int = 0
     """Robust horizon for robust scenario-tree MPC.
@@ -144,15 +141,6 @@ class MPCSettings(ControllerSettings):
     
     All options are listed `here <http://casadi.sourceforge.net/api/internal/d4/d89/group__nlpsol.html>`_."""
 
-    def are_settings_valid(self, raise_error: bool) -> bool:
-        """Method to check if the settings are valid.
-
-        This method checks if the settings are valid and returns a boolean value.
-        """
-        self.check_for_mandatory_settings()
-        settings_are_valid = self.check_for_valid_settings(raise_error)
-        return settings_are_valid
-
     def check_for_mandatory_settings(self):
         """Method to assert the necessary settings required to design :py:class:`do_mpc.controller.MPC`
         """
@@ -160,34 +148,6 @@ class MPCSettings(ControllerSettings):
 
         if self.n_horizon is None:
             raise ValueError("n_horizon must be set")
-
-    def check_for_valid_settings(self, raise_error: bool) -> bool:
-        """
-        Check if the MPC settings are valid.
-
-        This method verifies that the control horizon (`n_control_horizon`) is a positive integer
-        and does not exceed the total horizon (`n_horizon`). If the settings are invalid and
-        `raise_error` is True, a ValueError is raised with an appropriate message.
-
-        Args:
-            raise_error (bool): If True, raises a ValueError when settings are invalid.
-
-        Returns:
-            bool: True if settings are valid, False otherwise.
-
-        Raises:
-            ValueError: If `raise_error` is True and `n_control_horizon` is invalid.
-        """
-        if self.n_control_horizon is not None:
-            if self.n_control_horizon <= 0:
-                if raise_error:
-                    raise ValueError(f"n_controls must be positive but is {self.n_control_horizon}")
-                return False
-            elif self.n_control_horizon > self.n_horizon:
-                if raise_error:
-                    raise ValueError(f"n_controls must be less or equal than n_horizon but is {self.n_control_horizon}")
-                return False
-        return True
     
     def supress_ipopt_output(self):
         """Method to supress the ipopt solver output.

@@ -55,7 +55,7 @@ def template_mpc(model, silence_solver=False):
     if silence_solver:
         mpc.settings.supress_ipopt_output()
 
-    # setting up the scaling of the variables
+
     mpc.scaling['_x', 'T_R'] = 100
     mpc.scaling['_x', 'T_K'] = 100
     mpc.scaling['_u', 'Q_dot'] = 2000
@@ -68,7 +68,7 @@ def template_mpc(model, silence_solver=False):
 
     # setting up the factors for input penalisation
     mpc.set_rterm(F=0.1, Q_dot = 1e-3)
-    
+
     # setting up lower boundaries for the states
     mpc.bounds['lower', '_x', 'C_a'] = 0.1
     mpc.bounds['lower', '_x', 'C_b'] = 0.1
