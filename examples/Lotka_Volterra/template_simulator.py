@@ -1,4 +1,3 @@
-
 #
 #   This file is part of do-mpc
 #
@@ -21,48 +20,35 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+# imports
 import sys
 import os
 rel_do_mpc_path = os.path.join('..','..')
 sys.path.append(rel_do_mpc_path)
 import do_mpc
 
-
-
 def template_simulator(model):
     """
     --------------------------------------------------------------------------
-    template_optimizer: tuning parameters
+    template_simulator: tuning parameters
     --------------------------------------------------------------------------
     """
-    
-    # initialisation of simulator
     simulator = do_mpc.simulator.Simulator(model)
 
-    # modifying simulator settings
-    simulator.set_param(t_step = 1)
+    # setting up parameters for the simulator
+    params_simulator = {
+        'integration_tool': 'cvodes',
+        'abstol': 1e-10,
+        'reltol': 1e-10,
+        't_step': .3
+    }
+    simulator.set_param(**params_simulator)
 
-    # Typically, the values would be reset at each call of p_fun.
-    # Here we just return the fixed values:
-
-    p_template = simulator.get_p_template()
+    # setting up parameters for the simulator
+    p_num = simulator.get_p_template()
     def p_fun(t_now):
-        p_template['p1'] = 2
-        return p_template
+        return p_num
     simulator.set_p_fun(p_fun)
-
-    # The timevarying paramters have no effect on the simulator (they are only part of the cost function).
-    # We simply use the default values:
-    tvp_template = simulator.get_tvp_template()
-    def tvp_fun(t_now):
-        if t_now<50:
-            tvp_template['tvp1'] = 0.5
-        else:
-            tvp_template['tvp1'] = 1
-        return tvp_template
-
-    simulator.set_tvp_fun(tvp_fun)
-
 
     # completing the simulator setup
     simulator.setup()

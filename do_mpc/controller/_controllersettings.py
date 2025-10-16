@@ -78,6 +78,7 @@ class MPCSettings(ControllerSettings):
     """Prediction horizon of the optimal control problem. 
     
     Parameter must be set by user"""
+
     n_robust: int = 0
     """Robust horizon for robust scenario-tree MPC.
     

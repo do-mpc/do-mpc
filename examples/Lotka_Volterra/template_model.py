@@ -1,4 +1,3 @@
-
 #
 #   This file is part of do-mpc
 #
@@ -21,6 +20,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+# imports
 import sys
 import os
 rel_do_mpc_path = os.path.join('..','..')
@@ -28,44 +28,32 @@ sys.path.append(rel_do_mpc_path)
 import do_mpc
 
 
-
-def template_simulator(model):
+def template_model(symvar_type='SX'):
     """
     --------------------------------------------------------------------------
-    template_optimizer: tuning parameters
+    template_model: Variables / RHS / AUX
     --------------------------------------------------------------------------
     """
-    
-    # initialisation of simulator
-    simulator = do_mpc.simulator.Simulator(model)
+    model_type = 'continuous'
+    model = do_mpc.model.Model(model_type, symvar_type)
 
-    # modifying simulator settings
-    simulator.set_param(t_step = 1)
+    # Certain parameters
+    c0 = .4
+    c1 = .2
 
-    # Typically, the values would be reset at each call of p_fun.
-    # Here we just return the fixed values:
+    # State struct (hunter and prey, optimization variables)
+    x_0 = model.set_variable('_x', 'x_0')
+    x_1 = model.set_variable('_x', 'x_1')
 
-    p_template = simulator.get_p_template()
-    def p_fun(t_now):
-        p_template['p1'] = 2
-        return p_template
-    simulator.set_p_fun(p_fun)
+    # Input struct (optimization paramters)
+    inp = model.set_variable('_u', 'inp', input_type_integer=True)
 
-    # The timevarying paramters have no effect on the simulator (they are only part of the cost function).
-    # We simply use the default values:
-    tvp_template = simulator.get_tvp_template()
-    def tvp_fun(t_now):
-        if t_now<50:
-            tvp_template['tvp1'] = 0.5
-        else:
-            tvp_template['tvp1'] = 1
-        return tvp_template
+    # Differential equations
+    model.set_rhs('x_0', x_0 - x_0 * x_1 - c0 * x_0 * inp)
+    model.set_rhs('x_1', -x_1 + x_0 * x_1 - c1 * x_1 * inp)
 
-    simulator.set_tvp_fun(tvp_fun)
-
-
-    # completing the simulator setup
-    simulator.setup()
+    # Build the model
+    model.setup()
 
     # end of function
-    return simulator
+    return model
