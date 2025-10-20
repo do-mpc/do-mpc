@@ -88,6 +88,12 @@ if importlib.util.find_spec("asyncua"):
 else:
     __ASYNCUA_INSTALLED__ = False
 
+if importlib.util.find_spec("torch"):
+    import torch
+    __TORCH_INSTALLED__ = True
+else:
+    __TORCH_INSTALLED__ = False
+
 from . import tools
 from . import model
 from . import optimizer
