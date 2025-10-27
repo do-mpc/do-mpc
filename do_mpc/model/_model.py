@@ -534,7 +534,7 @@ class Model:
         raise Exception('Cannot set measurement noise directly.')
 
 
-    def set_variable(self, var_type:str, var_name:str, shape:Union[int,Tuple]=(1,1), input_type_integer=False)->Union[castools.SX,castools.MX]:
+    def set_variable(self, var_type:str, var_name:str, shape:Union[int,Tuple]=(1,1), bool:input_type_integer=False)->Union[castools.SX,castools.MX]:
         """Introduce new variables to the model class. Define variable type, name and shape (optional).
 
         **Example:**
@@ -553,12 +553,14 @@ class Model:
 
         Note: 
             ``var_type`` allows a shorthand notation e.g. ``_x`` which is equivalent to ``states``.
-            ``input_type_integer`` can be set to `True` for inputs if the problem is a MINLP. For other variable types do_mpc will throw an error.
+
+            ``input_type_integer`` can be set to `True` for inputs that are treated as integer decision variables.
 
         Args:
             var_type : Declare the type of the variable.
             var_name : Set a user-defined name for the parameter. The names are reused throughout do_mpc.
-            shape : Shape of the current variable (optional), defaults to ``1``. 
+            shape : Shape of the current variable (optional), defaults to ``1``.
+            input_type_integer : define an integer input variable, defaults to ``False``.
                
         The following types of **var_type** are valid (long or short name is possible):
 
@@ -576,6 +578,7 @@ class Model:
             assertion: **var_type** must be string
             assertion: **var_name** must be string
             assertion: **shape** must be tuple or int
+            assertion: **input_type_integer** must be boolean
             assertion: Cannot call after :py:func:`setup`.
 
         Returns:
@@ -584,7 +587,7 @@ class Model:
         assert self.flags['setup'] == False, 'Cannot call .set_variable after setup.'
         assert isinstance(var_type, str), 'var_type must be str, you have: {}'.format(type(var_type))
         assert isinstance(var_name, str), 'var_name must be str, you have: {}'.format(type(var_name))
-        assert isinstance(input_type_integer, bool), 'integer must be bool, you have: {}'.format(
+        assert isinstance(input_type_integer, bool), 'integer must be boolean, you have: {}'.format(
             type(input_type_integer))
         assert isinstance(shape, (tuple,int)), 'shape must be tuple or int, you have: {}'.format(type(shape))
         if input_type_integer == True:
@@ -613,7 +616,7 @@ class Model:
 
         # Update list of integer_inputs with the name of the current input
         if var_type == '_u' and input_type_integer == True: self.integer += [var_name]
-        # Naming? Integer
+
 
         return var
 
