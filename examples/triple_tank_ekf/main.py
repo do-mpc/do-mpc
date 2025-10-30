@@ -140,7 +140,7 @@ for k in range(N_sim):
         plt.pause(0.01)
 
 
-=======
+
 # user settings
 show_animation = True
 store_results = False
