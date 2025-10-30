@@ -48,7 +48,7 @@ class Testlotka_volterra(unittest.TestCase):
         Reset path afterwards.
         """
         default_path = copy.deepcopy(sys.path)
-        sys.path.append('../examples/lotka_volterra/')
+        sys.path.append('../examples/Lotka_Volterra/')
         import template_model
         import template_mpc
         import template_simulator
