@@ -38,21 +38,18 @@ def template_mpc(model):
     """
     mpc = do_mpc.controller.MPC(model)
 
+
     # Set settings of MPC:
-    setup_mpc = {
-        'n_horizon': 25,
-        'n_robust': 0,
-        'open_loop': 0,
-        't_step': .3,
-        'state_discretization': 'collocation',
-        'collocation_type': 'radau',
-        'collocation_deg': 2,
-        'collocation_ni': 2,
-        'store_full_solution': True,
-        # Use MA27 linear solver in ipopt for faster calculations:
-        # 'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
-    }
-    mpc.set_param(**setup_mpc)
+    mpc.settings.n_horizon = 25
+    mpc.settings.n_robust = 0
+    mpc.settings.open_loop = 0
+    mpc.settings.t_step = 0.3
+    mpc.settings.state_discretization = 'collocation'
+    mpc.settings.collocation_type = 'radau'
+    mpc.settings.collocation_deg = 2
+    mpc.settings.collocation_ni = 2
+    mpc.settings.store_full_solution = True
+
 
     # setting up the cost function
     x_0 = model.x['x_0']
