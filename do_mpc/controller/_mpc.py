@@ -1262,17 +1262,17 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                     # For user defined penalty term
                     if self.flags['rterm_fun'] == True:
                         if k==0:
-                            obj += self.rterm_fun(opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s_u], opt_p['_u_prev']/self._u_scaling,
+                            obj += omega_delta_u[k] * self.rterm_fun(opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s_u], opt_p['_u_prev']/self._u_scaling,
                                                      opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
                         else:
-                            obj += self.rterm_fun(opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s_u], opt_x['_u', k-1, parent_scenario[k][s_u]],
+                            obj += omega_delta_u[k] * self.rterm_fun(opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s_u], opt_x['_u', k-1, parent_scenario[k][s_u]],
                                                      opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
                     # Default penalty term
                     if self.flags['rterm_fun'] == False:
                         if k == 0:
-                            obj += self.rterm_factor.cat.T@((opt_x['_u', 0, s_u]-opt_p['_u_prev']/self._u_scaling)**2)
+                            obj += omega_delta_u[k] * self.rterm_factor.cat.T@((opt_x['_u', 0, s_u]-opt_p['_u_prev']/self._u_scaling)**2)
                         else:
-                            obj += self.rterm_factor.cat.T@((opt_x['_u', k, s_u]-opt_x['_u', k-1, parent_scenario[k][s_u]])**2)
+                            obj += omega_delta_u[k] * self.rterm_factor.cat.T@((opt_x['_u', k, s_u]-opt_x['_u', k-1, parent_scenario[k][s_u]])**2)
 
                     # Calculate the auxiliary expressions for the current scenario:
                     opt_aux['_aux', k, s] = self.model._aux_expression_fun(
