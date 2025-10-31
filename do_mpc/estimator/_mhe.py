@@ -21,15 +21,11 @@
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-#import casadi as cas
 import casadi.tools as castools
 import pdb
 import copy
 import warnings
 import time
-
-from sympy.solvers.ode.single import solver_map
-
 from ..optimizer import Optimizer
 from ._base import Estimator
 import do_mpc
