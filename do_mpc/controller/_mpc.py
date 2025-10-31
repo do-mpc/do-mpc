@@ -140,7 +140,9 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     During runtime call :py:func:`make_step` with the current state :math:`x` to get the optimal control input :math:`u`.
 
     """
-    def __init__(self, model:Union[do_mpc.model.Model,do_mpc.model.LinearModel], settings: Optional[MPCSettings] = None):
+
+    def __init__(self, model: Union[do_mpc.model.Model, do_mpc.model.LinearModel],
+                 settings: Optional[MPCSettings] = None):
 
         self.model = model
 
@@ -168,6 +170,12 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         # initialize MPC _settings class
         self._settings = MPCSettings()
 
+        # initializes options for nlp solver
+        self.nlpsol_opts = {}  # Will update default options with this dict.
+
+        # List from model object that contains the names of the integer input varables. Integer inputs yield a MINLP problem.
+        self.integer_u = self.model.integer
+
         # Flags are checked when calling .setup.
         self.flags.update({
             'set_objective': False,
@@ -176,6 +184,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             'set_tvp_fun': False,
             'set_p_fun': False,
             'set_initial_guess': False,
+            'MINLP': True if bool(self.integer_u) else False,  # checks if there are any integer inputs
         })
 
     @property
@@ -1123,6 +1132,17 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             castools.entry('_u', repeat=[self._settings.n_horizon, n_u_scenarios], struct=self.model._u),
             castools.entry('_eps', repeat=[n_eps, n_max_scenarios], struct=self._eps),
         ])
+
+        # Create integer list for MINLP if any input is discrete
+        if self.flags['MINLP']:
+            # Create a Sym_Struct with similar structure, but with only booleans of value 'False'
+            opt_x_integer_flag = opt_x(False)
+            # Set all integer variables to true
+            for u_int in self.integer_u:
+                opt_x_integer_flag['_u', :, :, u_int] = True
+            # Convert Sym_Struct to list with boolean entries
+            self.opt_x_integer_flag = np.ndarray.flatten(np.array(opt_x_integer_flag.cat, dtype=bool)).tolist()
+
         self.n_opt_x = self._opt_x.shape[0]
         # NOTE: The entry _x[k,child_scenario[k,s,b],:] starts with the collocation points from s to b at time k
         #       and the last point contains the child node
@@ -1242,17 +1262,17 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                     # For user defined penalty term
                     if self.flags['rterm_fun'] == True:
                         if k==0:
-                            obj += self.rterm_fun(opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s_u], opt_p['_u_prev']/self._u_scaling,
+                            obj += omega_delta_u[k] * self.rterm_fun(opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s_u], opt_p['_u_prev']/self._u_scaling,
                                                      opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
                         else:
-                            obj += self.rterm_fun(opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s_u], opt_x['_u', k-1, parent_scenario[k][s_u]],
+                            obj += omega_delta_u[k] * self.rterm_fun(opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s_u], opt_x['_u', k-1, parent_scenario[k][s_u]],
                                                      opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
                     # Default penalty term
                     if self.flags['rterm_fun'] == False:
                         if k == 0:
-                            obj += self.rterm_factor.cat.T@((opt_x['_u', 0, s_u]-opt_p['_u_prev']/self._u_scaling)**2)
+                            obj += omega_delta_u[k] * self.rterm_factor.cat.T@((opt_x['_u', 0, s_u]-opt_p['_u_prev']/self._u_scaling)**2)
                         else:
-                            obj += self.rterm_factor.cat.T@((opt_x['_u', k, s_u]-opt_x['_u', k-1, parent_scenario[k][s_u]])**2)
+                            obj += omega_delta_u[k] * self.rterm_factor.cat.T@((opt_x['_u', k, s_u]-opt_x['_u', k-1, parent_scenario[k][s_u]])**2)
 
                     # Calculate the auxiliary expressions for the current scenario:
                     opt_aux['_aux', k, s] = self.model._aux_expression_fun(
@@ -1293,8 +1313,19 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             'expand': False,
             'ipopt.linear_solver': 'mumps',
         }.update(self._settings.nlpsol_opts)
-        self.nlp = {'x': castools.vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons, 'p': castools.vertcat(self._opt_p)}
-        self.S = castools.nlpsol('S', 'ipopt', self.nlp, self._settings.nlpsol_opts)
+
+        # Use BOMNIN for MINLP and IPOPT for NLP
+        if self.flags['MINLP']:
+            self._settings.nlpsol_opts.update({
+                'discrete': self.opt_x_integer_flag
+            })
+            solvername = 'bonmin'
+        else:
+            solvername = 'ipopt'
+
+        self.nlp = {'x': castools.vertcat(self._opt_x), 'f': self._nlp_obj, 'g': self._nlp_cons,
+                    'p': castools.vertcat(self._opt_p)}
+        self.S = castools.nlpsol('S', solvername, self.nlp, self._settings.nlpsol_opts)
 
         # Create function to caculate all auxiliary expressions:
         self.opt_aux_expression_fun = castools.Function('opt_aux_expression_fun', [self._opt_x, self._opt_p], [self._opt_aux])

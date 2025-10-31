@@ -748,9 +748,9 @@ class Simulator(do_mpc.model.IteratedVariables):
         # There may be made an error here. sim_p_num fits to values in time step
         # k + 1 (new). However, the values are actually the p values for step
         # k (now).
-        aux_new = self.sim_aux_expression_fun(self.sim_x_num, self.sim_z_num, sim_p_num)
+        # aux_new = self.sim_aux_expression_fun(self.sim_x_num, self.sim_z_num, sim_p_num)
 
-        self.sim_aux_num.master = aux_new
+        # self.sim_aux_num.master = aux_new
 
         return x_new, z_new
 
@@ -817,12 +817,10 @@ class Simulator(do_mpc.model.IteratedVariables):
         self.sim_p_num['_tvp'] = tvp0
         self.sim_p_num['_w'] = w0
 
-        if self.flags['first_step']:
-            # Remember to plug in the unscaled (physical) version of x and z
-            aux0 = self.sim_aux_expression_fun(self.sim_x_num["_x"], self.sim_z_num["_z"], self.sim_p_num)
-        else:
-            # .master is chosen so that a copy is created of the variables.
-            aux0 = self.sim_aux_num.master
+
+        # This new line makes sure that simulate() is computed with the curret tvp and p values. In the previous version there was a bug that the
+        # auxiliary expressions were computed with the previous values of tvp and p.
+        aux0 = self.sim_aux_expression_fun(self.sim_x_num, self.sim_z_num, self.sim_p_num)
 
         x_next, z_next = self.simulate()
 
@@ -850,4 +848,3 @@ class Simulator(do_mpc.model.IteratedVariables):
         self.flags['first_step'] = False
 
         return y_next.full()
-

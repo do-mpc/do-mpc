@@ -20,6 +20,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
+
 # imports
 import numpy as np
 import matplotlib.pyplot as plt
@@ -27,6 +28,7 @@ from casadi import *
 from casadi.tools import *
 import sys
 import os
+
 rel_do_mpc_path = os.path.join('..','..')
 sys.path.append(rel_do_mpc_path)
 import do_mpc
@@ -134,7 +136,9 @@ for k in range(200):
     u0 = mpc.make_step(x0)
     # Simulate with process and measurement noise
 
+    #y_next = simulator.make_step(u0, v0=1e-2*np.random.randn(model.n_v,1), w0=1e-2*np.random.randn(model.n_v,1))
     y_next = simulator.make_step(u0, v0=1e-2*np.random.randn(model.n_v,1))
+    print('shape of y_next:', y_next.shape)
     x0 = mhe.make_step(y_next)
 
     # update the graphics
@@ -153,7 +157,8 @@ for k in range(200):
 
 
 input('Press any key to exit.')
-
+#%%
 # Store results:
 if store_results:
     do_mpc.data.save_results([mpc, mhe, simulator], 'rot_oscillating_masses')
+#%%

@@ -3,3 +3,4 @@ onnx>=1.13.0
 ipykernel
 packaging
 asyncua
+torch>2.0.0

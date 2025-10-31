@@ -33,4 +33,6 @@ testing/model.pkl
 
 .venv/
 
+
+
 .ruff_cache

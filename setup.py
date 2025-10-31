@@ -27,7 +27,7 @@ setup(
               'do_mpc.sysid','do_mpc.tools', 'do_mpc.opcua',
              'do_mpc.approximateMPC'],
     author='Sergio Lucia and Felix Fiedler',
-    author_email='sergio.lucia@tu-berlin.de',
+    author_email='sergio.lucia@tu-dortmund.de',
     url='https://www.do-mpc.com',
     license='GNU Lesser General Public License version 3',
     long_description=open('README.md', 'r').read(),

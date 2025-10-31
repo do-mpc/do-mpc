@@ -53,6 +53,7 @@ class EKF(Estimator):
             'first_step': True
         }
 
+
         # Initialize structure for initial conditions:
         self._P0 = np.eye(self.model.n_x)
 
@@ -97,6 +98,7 @@ class EKF(Estimator):
                 f"to match state dimension, got {val.shape}"
                 )
         self._P0 = ca.DM(val).full()
+
 
     def _check_validity(self):
 
@@ -183,9 +185,11 @@ class EKF(Estimator):
         # setting up counter
         self.counter = 0
 
+
         if not hasattr(self, "P0"):
             # P0 doesn’t exist yet, so initialize it now
             self.P0 = np.eye(self.model.n_x)
+
 
         # initialising a default algebraic initial state
         self.z0 = np.zeros((self.model.n_z))
@@ -254,6 +258,7 @@ class EKF(Estimator):
         assert Q_k.shape == (self.model.n_x, self.model.n_x), 'Q_k must be a square matrix of shape ({}, {})'.format(self.model.n_x, self.model.n_x)
         assert R_k.shape == (self.model.n_y, self.model.n_y), 'R_k must be a square matrix of shape ({}, {})'.format(self.model.n_y, self.model.n_y)
 
+
         if self.flags['first_step']:
             self.flags.update({
             'first_step': False,
@@ -292,6 +297,7 @@ class EKF(Estimator):
             x_apriori = self.model._rhs_fun(x0, u_next, z0, tvp0, p0, w0)
             y_apriori = self.model._meas_fun(x_apriori, u_next, z0, tvp0, p0, v0)
 
+
             P0 = A_k @ P0 @ A_k.T + Q_k
 
         # Kalman gain
@@ -301,11 +307,13 @@ class EKF(Estimator):
         x0 = x_apriori + L @ (y_next - y_apriori)
 
         # Updated error covariance
+
         P0 = (np.eye(self.model.n_x) - L @ C_k) @ P0
 
         # store current state
         self.x0 = ca.DM(x0).full()
         self.z0 = z0
+
 
         # store current covariance matrix
         self.P0 = P0.full()
