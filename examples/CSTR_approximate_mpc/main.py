@@ -24,7 +24,6 @@
 from casadi.tools import *
 import sys
 import os
-import torch
 rel_do_mpc_path = os.path.join("..", "..")
 sys.path.append(rel_do_mpc_path)
 import do_mpc
@@ -38,7 +37,7 @@ from do_mpc.approximateMPC import ApproxMPC, Trainer
 from template_model import template_model
 from template_mpc import template_mpc
 from template_simulator import template_simulator
-
+import torch
 
 
 # user settings
