@@ -902,7 +902,7 @@ class MHE(Optimizer, Estimator):
 
         Warnings:
             Moving horizon estimation will only work reliably once **a full sequence of measurements**
-            corresponding to the set horizon ist available.
+            corresponding to the set horizon is available.
 
         Args:
             y0: Current measurement.
