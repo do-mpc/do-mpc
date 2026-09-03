@@ -23,7 +23,7 @@
 
 import numpy as np
 #import casadi as cas
-import casadi.tools as castools
+from .._casadi_compat import castools
 import pdb
 from do_mpc.tools._casstructure import _SymVar
 from typing import Union,Tuple

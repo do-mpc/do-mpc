@@ -22,7 +22,7 @@
 
 import numpy as np
 from . import Model
-import casadi.tools as castools
+from .._casadi_compat import castools
    
 def dae2odeconversion(model:Model)->Model:
     """Converts index-1 DAE system to ODE system.

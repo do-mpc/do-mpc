@@ -21,7 +21,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
-import casadi.tools as castools
+from .._casadi_compat import castools
 import numpy as np
 import warnings
 import pdb

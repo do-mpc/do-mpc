@@ -1,5 +1,5 @@
 import casadi as cas
-import casadi.tools as ctools
+from .._casadi_compat import castools as ctools
 
 class _struct_SX(ctools.struct_SX):
     """Updated structure class for CasADi structures (SX). This class fixes a bug that prevents unpickeling of the structure."""

@@ -37,6 +37,14 @@ if not do_mpc_path in sys.path:
 
 import do_mpc
 
+# The reference results were recorded with an older casadi, which shipped a
+# different Ipopt/MUMPS build. casadi 3.8 solves this stiff polymerization
+# model to a very slightly different point: the deviation is around 3e-9 on
+# Windows but around 1.7e-8 on Linux, so the 1e-8 the other tests use is below
+# the solver noise floor here.
+TOL = 1e-7
+
+
 class TestIndustrialPoly(unittest.TestCase):
     def setUp(self):
         """Add path of test case and import the modules.
@@ -125,17 +133,17 @@ class TestIndustrialPoly(unittest.TestCase):
         for test_i in test:
             # Check MPC
             max_diff = np.max(np.abs(mpc.data.__dict__[test_i] - ref['mpc'].__dict__[test_i]), initial=0)
-            check = max_diff < 1e-8
+            check = max_diff < TOL
             self.assertTrue(check, msg.format(var=test_i, module='MPC', check=check, max_diff=max_diff))
 
             # Check Simulator
             max_diff = np.max(np.abs(simulator.data.__dict__[test_i] - ref['simulator'].__dict__[test_i]), initial=0)
-            check = max_diff < 1e-8
+            check = max_diff < TOL
             self.assertTrue(check, msg.format(var=test_i, module='Simulator', check=check, max_diff=max_diff))
 
             # Estimator
             max_diff = np.max(np.abs(estimator.data.__dict__[test_i] - ref['estimator'].__dict__[test_i]), initial=0)
-            check = max_diff < 1e-8
+            check = max_diff < TOL
             self.assertTrue(check, msg.format(var=test_i, module='Estimator', check=check, max_diff=max_diff))
 
 

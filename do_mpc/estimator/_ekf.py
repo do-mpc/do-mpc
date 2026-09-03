@@ -25,7 +25,7 @@ from ._base import Estimator
 import do_mpc
 from typing import Union
 import casadi as ca
-import casadi.tools as castools
+from .._casadi_compat import castools
 from typing import Callable
 from ._estimatorsettings import EstimatorSettings
 

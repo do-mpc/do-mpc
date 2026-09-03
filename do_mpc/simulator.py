@@ -26,7 +26,7 @@ Simulate continous-time ODE/DAE or discrete-time dynamic systems.
 """
 
 import numpy as np
-import casadi.tools as castools
+from ._casadi_compat import castools
 import pdb
 import warnings
 import do_mpc

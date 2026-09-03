@@ -27,7 +27,7 @@ import warnings
 from scipy.signal import cont2discrete
 from . import Model
 from typing import Union
-import casadi.tools as castools
+from .._casadi_compat import castools
 
 # Define what is included in the Sphinx documentation.
 __all__ = ['LinearModel']

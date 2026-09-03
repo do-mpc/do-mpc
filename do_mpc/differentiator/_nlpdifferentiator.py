@@ -24,7 +24,7 @@ import numpy as np
 import scipy.linalg as sp_linalg
 import scipy.sparse as sp_sparse
 import casadi as ca
-import casadi.tools as castools 
+from .._casadi_compat import castools
 from dataclasses import dataclass
 from typing import List, Dict, Tuple, Union, Optional, Any
 import pdb
