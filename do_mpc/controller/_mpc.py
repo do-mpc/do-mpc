@@ -22,7 +22,7 @@
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-import casadi.tools as castools
+from .._casadi_compat import castools
 import pdb
 import itertools
 import time
@@ -1275,13 +1275,17 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                             obj += omega_delta_u[k] * self.rterm_factor.cat.T@((opt_x['_u', k, s_u]-opt_x['_u', k-1, parent_scenario[k][s_u]])**2)
 
                     # Calculate the auxiliary expressions for the current scenario:
-                    opt_aux['_aux', k, s] = self.model._aux_expression_fun(
-                        opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s_u], opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
+                    # densify: casadi 3.8 propagates a structural zero through an
+                    # MX function call, so a model whose only aux entry is the
+                    # default DM(0) yields a 1x1 with nnz 0. The struct slot is
+                    # dense, and struct.__setitem__ compares sparsity patterns.
+                    opt_aux['_aux', k, s] = castools.densify(self.model._aux_expression_fun(
+                        opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s_u], opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario]))
 
                     # For some reason when working with MX, the "unused" aux values in the scenario tree must be set explicitly (they are not ever used...)
                 for s_ in range(n_scenarios[k],n_max_scenarios):
-                    opt_aux['_aux', k, s_] = self.model._aux_expression_fun(
-                        opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s_u], opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario])
+                    opt_aux['_aux', k, s_] = castools.densify(self.model._aux_expression_fun(
+                        opt_x_unscaled['_x', k, s, -1], opt_x_unscaled['_u', k, s_u], opt_x_unscaled['_z', k, s, -1], opt_p['_tvp', k], opt_p['_p', current_scenario]))
 
         # Set bounds for all optimization variables
         self._update_bounds()

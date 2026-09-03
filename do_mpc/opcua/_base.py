@@ -28,7 +28,7 @@ from enum import Enum, auto
 from casadi import *
 from ._client import RTClient
 from ._helper import Namespace, NamespaceEntry, ClientOpts
-import casadi.tools as ctools
+from .._casadi_compat import castools as ctools
 from ..model import Model
 
    

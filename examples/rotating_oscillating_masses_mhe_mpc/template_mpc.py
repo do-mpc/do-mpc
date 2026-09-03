@@ -78,7 +78,7 @@ def template_mpc(model, silence_solver = False):
     # depending on the current timestep.
     tvp_template = mpc.get_tvp_template()
     def tvp_fun(t_now):
-        ind = int(t_now/mpc.settings.t_step)
+        ind = int(np.asarray(t_now).item()/mpc.settings.t_step)
         tvp_template['_tvp', :-1] = vertsplit(tvp_traj[ind:ind+mpc.settings.n_horizon])
         return tvp_template
 

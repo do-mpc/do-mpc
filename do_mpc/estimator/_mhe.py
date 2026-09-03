@@ -21,7 +21,7 @@
 #   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-import casadi.tools as castools
+from .._casadi_compat import castools
 import pdb
 import copy
 import warnings
@@ -1191,8 +1191,8 @@ class MHE(Optimizer, Estimator):
 
 
             # Calculate the auxiliary expressions for the current scenario:
-            opt_aux['_aux', k] = self.model._aux_expression_fun(
-                opt_x_unscaled['_x', k, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1], opt_p['_tvp', k], _p)
+            opt_aux['_aux', k] = castools.densify(self.model._aux_expression_fun(
+                opt_x_unscaled['_x', k, -1], opt_x_unscaled['_u', k], opt_x_unscaled['_z', k, -1], opt_p['_tvp', k], _p))
 
         self._update_bounds()
 

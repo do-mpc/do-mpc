@@ -24,7 +24,7 @@
 Shared tools for optimization-based estimation (MHE) and control (MPC).
 """
 import numpy as np
-import casadi.tools as castools
+from ._casadi_compat import castools
 import pdb
 import do_mpc
 from typing import Union,Callable
