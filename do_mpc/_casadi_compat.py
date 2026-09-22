@@ -77,24 +77,23 @@ from casadi.tools import *
 castools = _sys.modules[__name__]
 
 
-# def __getattr__(name):
-#     """Fall back to casadi for anything the star imports did not pick up.
+def __getattr__(name):
+    """Fall back to casadi for anything the star imports did not pick up.
 
-#     This is only reached on a genuine miss, so it costs nothing in normal
-#     operation. It matters for the documentation build, where conf.py mocks
-#     casadi away via ``autodoc_mock_imports``: without this fallback the
-#     import time uses of ``castools.SX`` (a type annotation in Model) and
-#     ``castools.struct_SX`` (a base class in tools._casstructure) would raise
-#     AttributeError against a real module object.
-#     """
-#     try:
-#         return getattr(_castools, name)
-#     except AttributeError:
-#         pass
-#     import casadi as _casadi
-#     try:
-#         return getattr(_casadi, name)
-#     except AttributeError:
-#         raise AttributeError(
-#             "module '{}' has no attribute '{}'".format(__name__, name)
-#         ) from None
+    This is for the documentation build, where conf.py mocks
+    casadi away via ``autodoc_mock_imports``: without this fallback the
+    import time uses of ``castools.SX`` (a type annotation in Model) and
+    ``castools.struct_SX`` (a base class in tools._casstructure) would raise
+    AttributeError against a real module object.
+    """
+    try:
+        return getattr(_castools, name)
+    except AttributeError:
+        pass
+    import casadi as _casadi
+    try:
+        return getattr(_casadi, name)
+    except AttributeError:
+        raise AttributeError(
+            "module '{}' has no attribute '{}'".format(__name__, name)
+        ) from None
