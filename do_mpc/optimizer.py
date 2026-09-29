@@ -472,7 +472,8 @@ class Optimizer:
                             't_proc_callback_fun', 't_proc_nlp_f', 't_proc_nlp_g', 't_proc_nlp_grad',
                             't_proc_nlp_grad_f', 't_proc_nlp_hess_l', 't_proc_nlp_jac_g', 't_wall_total',
                             't_wall_callback_fun', 't_wall_nlp_f', 't_wall_nlp_g', 't_wall_nlp_grad', 't_wall_nlp_grad_f',
-                            't_wall_nlp_hess_l', 't_wall_nlp_jac_g']
+                            't_wall_nlp_hess_l', 't_wall_nlp_jac_g',
+                            'loss']
             # Create data_field(s) for the recorded (valid) stats.
             for stat_i in self.settings.store_solver_stats:
                 assert stat_i in solver_stats, 'The requested {} is not a valid solver stat and cannot be recorded. Please supply one of the following (or none): {}'.format(stat_i, solver_stats)
@@ -776,6 +777,7 @@ class Optimizer:
         self.lam_g_num = r['lam_g']
         self.lam_x_num = r['lam_x']
         self.solver_stats = self.S.stats()
+        self.solver_stats['loss'] = r['f']
 
         # Calculate values of auxiliary expressions (defined in model)
         self.opt_aux_num.master = self.opt_aux_expression_fun(
