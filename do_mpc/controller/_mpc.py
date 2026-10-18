@@ -1253,9 +1253,12 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
                     # Add slack variables to the cost
                     obj += self.epsterm_fun(opt_x_unscaled['_eps', k_eps, s])
 
-                    # In the last step add the terminal cost too
+                    # In the last step add the terminal cost too.
+                    # `s` is the parent. The state at k+1 is the child, and using
+                    # the parent index drops every other leaf when this stage branches.
                     if k == self._settings.n_horizon - 1:
-                        obj += omega[k] * self.mterm_fun(opt_x_unscaled['_x', k + 1, s, -1], opt_p['_tvp', k+1],
+                        s_next = child_scenario[k][s][b]
+                        obj += omega[k] * self.mterm_fun(opt_x_unscaled['_x', k + 1, s_next, -1], opt_p['_tvp', k+1],
                                                          opt_p['_p', current_scenario])
 
                     # U regularization:
