@@ -526,9 +526,9 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         """Sets the objective of the optimal control problem (OCP). We introduce the following cost function:
 
         .. math::
-           J(x,u,z) =  \\sum_{k=0}^{N}\\left(\\underbrace{l(x_k,z_k,u_k,p_k,p_{\\text{tv},k})}_{\\text{lagrange term}}
+           J(x,u,z) =  \\sum_{k=0}^{N-1}\\left(\\underbrace{l(x_k,z_k,u_k,p_k,p_{\\text{tv},k})}_{\\text{lagrange term}}
            + \\underbrace{\\Delta u_k^T R \\Delta u_k}_{\\text{r-term}}\\right)
-           + \\underbrace{m(x_{N+1})}_{\\text{meyer term}}
+           + \\underbrace{m(x_N, p_{\\text{tv},N}, p)}_{\\text{meyer term}}
 
         which is applied to the discrete-time model **AND** the discretized continuous-time model.
         For discretization we use `orthogonal collocation on finite elements`_ .
@@ -536,12 +536,13 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         .. _`orthogonal collocation on finite elements`: ../theory_orthogonal_collocation.html
 
-        :py:func:`set_objective` is used to set the :math:`l(x_k,z_k,u_k,p_k,p_{\\text{tv},k})` (``lterm``) and :math:`m(x_{N+1})` (``mterm``), where ``N`` is the prediction horizon.
+        :py:func:`set_objective` is used to set the :math:`l(x_k,z_k,u_k,p_k,p_{\\text{tv},k})` (``lterm``) and :math:`m(x_N, p_{\\text{tv},N}, p)` (``mterm``), where ``N`` is the prediction horizon (``n_horizon``).
+        The stage cost is thus evaluated for :math:`k=0,\\dots,N-1` and the terminal cost for the final predicted state :math:`x_N`.
         Please see :py:func:`set_rterm` for the penalization of the control inputs.
 
         Args:
             lterm: Stage cost - **scalar** symbolic expression with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``
-            mterm: Terminal cost - **scalar** symbolic expression with respect to ``_x`` and ``_p``
+            mterm: Terminal cost - **scalar** symbolic expression with respect to ``_x``, ``_tvp`` and ``_p``
 
         Raises:
             assertion: mterm must have ``shape=(1,1)`` (scalar expression)
@@ -595,7 +596,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         :py:class:`model` and the penalty factor as the respective value.
 
         We define for :math:`i \\in \\mathbb{I}`, where :math:`\\mathbb{I}` is the set of inputs
-        and all :math:`k=0,\\dots, N` where :math:`N` denotes the horizon:
+        and all :math:`k=0,\\dots, N-1` where :math:`N` denotes the horizon (``n_horizon``) and :math:`u_{-1}` is the previously applied input:
 
         .. math::
 
@@ -605,7 +606,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         .. math::
 
-            \\sum_{k=0}^N \\sum_{i \\in \\mathbb{I}} r_{i}\\Delta u_{k,i}^2,
+            \\sum_{k=0}^{N-1} \\sum_{i \\in \\mathbb{I}} r_{i}\\Delta u_{k,i}^2,
 
         the weighted squared cost to the MPC objective function.
 
