@@ -590,16 +590,20 @@ class Model:
         assert isinstance(input_type_integer, bool), 'integer must be boolean, you have: {}'.format(
             type(input_type_integer))
         assert isinstance(shape, (tuple,int)), 'shape must be tuple or int, you have: {}'.format(type(shape))
+
+        # Get short names (exact match, so that e.g. 'timevarying_parameter' is not partially replaced by 'parameter'):
+        long_names = {
+            'states': '_x',
+            'inputs': '_u',
+            'algebraic': '_z',
+            'parameter': '_p',
+            'timevarying_parameter': '_tvp',
+        }
+        var_type = long_names.get(var_type, var_type)
+
         if input_type_integer == True:
             assert var_type == '_u', 'Only inputs can be declared as integer variables, you tried to declare {} as integer variable'.format(
                 var_type)
-
-        # Get short names:
-        var_type =var_type.replace('states', '_x'
-            ).replace('inputs', '_u'
-            ).replace('algebraic', '_z'
-            ).replace('parameter', '_p'
-            ).replace('timevarying_parameter', '_tvp')
 
         # Check validity of var_type:
         assert var_type in ['_x','_u','_z','_p','_tvp'], 'Trying to set non-existing variable var_type: {} with var_name {}'.format(var_type, var_name)
