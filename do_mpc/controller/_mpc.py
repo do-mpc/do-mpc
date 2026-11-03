@@ -581,8 +581,8 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
 
         # Creating the functions fails if lterm or mterm contain symbolic variables that are not inputs (e.g. model.y).
         err_msg = ('{} contains invalid symbolic variables. It must be an expression of {} only. '
-                   'Note that model.y cannot be used in the objective, use the measurement expression '
-                   'or model.aux instead.')
+                   'Note that model.y cannot be used in the objective, use the expression passed to '
+                   'model.set_meas or model.aux instead.')
         try:
             # TODO: This function should be evaluated with scaled variables.
             self.mterm_fun = castools.Function('mterm', [_x, _tvp, _p], [mterm])
