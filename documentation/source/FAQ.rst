@@ -136,6 +136,43 @@ The final step of the process is to pass this function with :py:meth:`do_mpc.con
 
 The configuration of the MPC controller is thus completed.
 
+.. warning::
+
+	The MPC uses **all** ``n_horizon+1`` entries of the returned ``tvp_template`` as they are.
+	At each call of :py:meth:`do_mpc.controller.MPC.make_step`, ``tvp_fun`` is called **once** with the current time ``t_now``
+	and the entry with index ``k`` is used for the prediction step at time ``t_now + k*t_step``.
+	If only a single value (e.g. the value at ``t_now``) is written to all entries, the MPC predicts
+	a constant parameter over the horizon, even if the parameter changes over time.
+
+Time-varying set-points (trajectories)
+--------------------------------------
+
+A common use case is tracking a reference trajectory that is known in advance.
+In this case, each entry of the ``tvp_template`` must hold the value of the trajectory at the corresponding future time.
+It is good practice to define the trajectory once as a function of time (or as an array) and to evaluate it
+for every step of the horizon:
+
+::
+
+	t_step = mpc.settings.t_step
+	n_horizon = mpc.settings.n_horizon
+
+	def set_point(t):
+		# Reference trajectory, e.g. a ramp that saturates at 50.
+		return min(0.1*t, 50)
+
+	tvp_template = mpc.get_tvp_template()
+
+	def tvp_fun(t_now):
+		for k in range(n_horizon+1):
+			tvp_template['_tvp', k, 'temperature_set_point'] = set_point(t_now + k*t_step)
+		return tvp_template
+
+	mpc.set_tvp_fun(tvp_fun)
+
+If the trajectory is stored as an array ``ref`` sampled with ``t_step``, use the index of the current step instead,
+e.g. ``ref[min(int(round(t_now/t_step)) + k, len(ref)-1)]``.
+
 
 
 MHE configuration
@@ -186,6 +223,42 @@ because we only need a single value of this parameter instead of a sequence:
 	The difference is important only for the MPC controller and MHE estimator.
 	These methods consider a finite sequence of future / past information, e.g. the weather, which can change over time.
 	Parameters, on the other hand, are constant over the entire horizon.
+
+Synchronizing MPC and simulator
+-------------------------------
+
+The MPC controller and the simulator each call their own ``tvp_fun`` with their own internal time.
+Both start at ``t0`` (default ``0``) and advance by ``t_step`` at each call of ``make_step``.
+In the typical closed loop
+
+::
+
+	for k in range(n_steps):
+		u0 = mpc.make_step(x0)        # calls the MPC tvp_fun(t_k)
+		y_next = simulator.make_step(u0) # calls the simulator tvp_fun(t_k)
+		x0 = estimator.make_step(y_next)
+
+both functions are therefore evaluated at the same time ``t_k``, provided that both use the same ``t_step``.
+The value used by the simulator at ``t_k`` should match the first entry (``k=0``) used by the MPC.
+
+To keep the two consistent, derive both ``tvp_fun`` from the **same function of time**
+(e.g. ``set_point(t)`` from above or a function ``external_temperature(t)``) instead of updating
+shared variables between the calls of ``make_step``:
+
+::
+
+	sim_tvp_template = simulator.get_tvp_template()
+
+	def sim_tvp_fun(t_now):
+		sim_tvp_template['temperature_external'] = external_temperature(t_now)
+		return sim_tvp_template
+
+	simulator.set_tvp_fun(sim_tvp_fun)
+
+.. note::
+
+	If a ``tvp_fun`` reads values that are modified elsewhere in the loop (e.g. the state of another system),
+	the result depends on the order of the calls to ``make_step``. Making the ``tvp_fun`` a function of ``t_now`` only avoids this.
 
 
 Feasibility issues
