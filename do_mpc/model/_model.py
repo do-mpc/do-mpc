@@ -80,6 +80,14 @@ class Model:
         All introduced model variables are accessible as **Attributes** of the :py:class:`Model`.
         Use these attributes to query to variables, e.g. to form the cost function in a seperate file for the MPC configuration.
 
+    Note:
+        The structures :py:attr:`u`, :py:attr:`z`, :py:attr:`p`, :py:attr:`tvp`, :py:attr:`w`, :py:attr:`v`, :py:attr:`y`
+        and :py:attr:`aux` always contain an entry with the key ``'default'``, e.g. ``model.u.keys()`` returns ``['default', ...]``.
+        This entry is created internally so that every structure exists even if no variables of this type are introduced.
+        For all variable types it is empty (shape ``(0,0)``) and does therefore not count towards the dimension (e.g. ``model.n_u``).
+        The exception is :py:attr:`aux`, where ``'default'`` is the scalar constant ``0`` and is included in ``model.n_aux``.
+        The ``'default'`` entry can be ignored and should not be used as a variable name.
+
     Args:
         model_type : Set if the model is ``discrete`` or ``continuous``.
         symvar_type : Set if the model is configured with CasADi ``SX`` or ``MX`` variables.
