@@ -408,6 +408,12 @@ class Model:
                 Measured variables are introduced with :py:func:`Model.set_meas` Use this property only to query
                 variables.
 
+            Note:
+                ``model.y`` holds symbolic placeholders for the **measured values** (used e.g. in the MHE objective),
+                not the measurement expressions. They can therefore not be used in the MPC objective or constraints.
+                Use the expression passed to :py:func:`Model.set_meas` (the returned expression includes the
+                measurement noise) or define it with :py:func:`Model.set_expression` and use :py:attr:`Model.aux` instead.
+
             **Example:**
 
             ::
