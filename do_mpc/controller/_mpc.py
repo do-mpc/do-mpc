@@ -543,16 +543,25 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
             lterm: Stage cost - **scalar** symbolic expression with respect to ``_x``, ``_u``, ``_z``, ``_tvp``, ``_p``
             mterm: Terminal cost - **scalar** symbolic expression with respect to ``_x`` and ``_p``
 
+        Note:
+            ``lterm`` and ``mterm`` must be expressions of the model variables listed above.
+            The measurement variables :py:attr:`do_mpc.model.Model.y` are placeholders for measured values
+            (used by the estimators) and cannot be used here.
+            To penalize a measured quantity, use the expression passed to :py:meth:`do_mpc.model.Model.set_meas`
+            or introduce it with :py:meth:`do_mpc.model.Model.set_expression` and use :py:attr:`do_mpc.model.Model.aux`.
+
         Raises:
             assertion: mterm must have ``shape=(1,1)`` (scalar expression)
             assertion: lterm must have ``shape=(1,1)`` (scalar expression)
+            Exception: lterm or mterm depend on symbolic variables that are not valid inputs.
         """
-        assert mterm.shape == (1,1), 'mterm must have shape=(1,1). You have {}'.format(mterm.shape)
-        assert lterm.shape == (1,1), 'lterm must have shape=(1,1). You have {}'.format(lterm.shape)
         assert self.flags['setup'] == False, 'Cannot call .set_objective after .setup().'
 
-        _x, _u, _z, _tvp, _p = self.model['x','u','z','tvp','p']
-
+        # Unset terms default to zero:
+        if mterm is None:
+            mterm = castools.DM(0)
+        if lterm is None:
+            lterm = castools.DM(0)
 
         # Check if mterm is valid:
         if not isinstance(mterm, (castools.DM, castools.SX, castools.MX)):
@@ -562,31 +571,27 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
         if not isinstance(lterm, (castools.DM, castools.SX, castools.MX)):
             raise Exception('lterm must be of type casadi.DM, casadi.SX or casadi.MX. You have: {}.'.format(type(lterm)))
 
-        if mterm is None:
-            self.mterm = castools.DM(0)
-        else:
-            self.mterm = mterm
-        # TODO: This function should be evaluated with scaled variables.
-        self.mterm_fun = castools.Function('mterm', [_x, _tvp, _p], [mterm])
+        assert mterm.shape == (1,1), 'mterm must have shape=(1,1). You have {}'.format(mterm.shape)
+        assert lterm.shape == (1,1), 'lterm must have shape=(1,1). You have {}'.format(lterm.shape)
 
-        if lterm is None:
-            self.lterm = castools.DM(0)
-        else:
-            self.lterm = lterm
+        _x, _u, _z, _tvp, _p = self.model['x','u','z','tvp','p']
 
-        self.lterm_fun = castools.Function('lterm', [_x, _u, _z, _tvp, _p], [lterm])
+        self.mterm = mterm
+        self.lterm = lterm
 
-        # Check if lterm and mterm use invalid variables as inputs.
-        # For the check we evaluate the function with dummy inputs and expect a DM output.
-        err_msg = '{} contains invalid symbolic variables as inputs. Must contain only: {}'
+        # Creating the functions fails if lterm or mterm contain symbolic variables that are not inputs (e.g. model.y).
+        err_msg = ('{} contains invalid symbolic variables. It must be an expression of {} only. '
+                   'Note that model.y cannot be used in the objective, use the measurement expression '
+                   'or model.aux instead.')
         try:
-            self.mterm_fun(_x(0),_tvp(0),_p(0))
-        except:
-            raise Exception(err_msg.format('mterm','_x, _tvp, _p'))
+            # TODO: This function should be evaluated with scaled variables.
+            self.mterm_fun = castools.Function('mterm', [_x, _tvp, _p], [mterm])
+        except Exception as err:
+            raise Exception(err_msg.format('mterm', '_x, _tvp, _p')) from err
         try:
-            self.lterm(_x(0),_u(0), _z(0), _tvp(0), _p(0))
-        except:
-            err_msg.format('lterm', '_x, _u, _z, _tvp, _p')
+            self.lterm_fun = castools.Function('lterm', [_x, _u, _z, _tvp, _p], [lterm])
+        except Exception as err:
+            raise Exception(err_msg.format('lterm', '_x, _u, _z, _tvp, _p')) from err
 
         self.flags['set_objective'] = True
 
