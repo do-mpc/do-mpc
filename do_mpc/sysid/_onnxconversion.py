@@ -315,6 +315,15 @@ class ONNXOperations:
     def __init__(self):
         pass
 
+    def Identity(self, x, attribute=None):
+            return x
+    
+    
+    def Constant(self, *args, attribute=None):
+        attrs = {attr.name: attr for attr in (attribute or ())}
+        value_attr = attrs.get("value")
+        return numpy_helper.to_array(value_attr.t)
+
     def Tanh(self,x, attribute = None):
         return casadi.tanh(x)
 
@@ -345,6 +354,9 @@ class ONNXOperations:
 
     def Sub(self, *args, attribute = None):
         return args[0] - args[1]
+
+    def Div(self, *args, attribute=None):
+            return args[0] / args[1]
 
     def Gemm(self, *args, attribute = None):
         """General Matrix Multiplication.
@@ -409,6 +421,21 @@ class ONNXOperations:
 
         return args[0][tuple(slices)]
 
+    def Gather(self, data, indices, attribute=None):
+        """Gather the elements at indices at the requested axis.
+        See `ONNX documentation <https://github.com/onnx/onnx/blob/main/docs/Operators.md#gather>`_ for more details.
+        """
+
+        index = np.asarray(indices)
+        if index.ndim > 1:
+            raise ValueError("Casadi objects are strictly 2D. Therefore, Gather implements only 1D indices.")
+
+        axis = next((attr.i for attr in (attribute or ()) if attr.name == "axis"), 0)
+
+        # Positions "idx" at the correct axis, e.g. ":, idx" if axis=1
+        slice_idx = (slice(None),) * axis + (indices,) 
+        return data[slice_idx]
+
     def Reshape(self, *args, attribute = None):
         # TODO: Check if this is correct
         data = args[0]
@@ -417,7 +444,3 @@ class ONNXOperations:
 
     def Shape(self, *args, attribute = None):
         return args[0].shape
-
-
-    
-
