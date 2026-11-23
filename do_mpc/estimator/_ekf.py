@@ -285,7 +285,7 @@ class EKF(Estimator):
         D_k = self.D_fun(x0, u_next, p0, tvp0)
 
         # Apriori and Prediction covariance
-        if self.model.model_type is 'continuous':
+        if self.model.model_type == 'continuous':
             initial_cond_x = ca.vertcat(self.x0, P0.reshape((-1,1)))
             initial_guess_z = z0
             sol = self.x_p_integrator(x0 = initial_cond_x, z0 = initial_guess_z, p=ca.vertcat(u_next, tvp0, p0, Q_k.reshape((-1, 1))))

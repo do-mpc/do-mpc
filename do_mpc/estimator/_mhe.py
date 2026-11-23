@@ -487,7 +487,7 @@ class MHE(Optimizer, Estimator):
 
 
     def set_objective(self, stage_cost:Union[castools.SX,castools.MX], arrival_cost:Union[castools.SX,castools.MX])->None:
-        """Set the stage cost :math:`l(\cdot)` and arrival cost :math:`m(\cdot)` function for the MHE problem:
+        """Set the stage cost :math:`l(\\cdot)` and arrival cost :math:`m(\\cdot)` function for the MHE problem:
 
         .. math::
 
@@ -504,7 +504,7 @@ class MHE(Optimizer, Estimator):
             x_{k+1} &= f(x_k,u_k,z_k,p,p_{\\text{tv},k})+ w_k,\\\\
             y_k &= h(x_k,u_k,z_k,p,p_{\\text{tv},k}) + v_k, \\\\
             &g(x_k,u_k,z_k,p_k,p_{\\text{tv},k}) \\leq 0
-            \\end{aligned}\\right\} k=0,\\dots, N
+            \\end{aligned}\\right\\} k=0,\\dots, N
 
         Use the class attributes:
 
@@ -624,11 +624,11 @@ class MHE(Optimizer, Estimator):
             x_{k+1} &= f(x_k,u_k,z_k,p,p_{\\text{tv},k})+ w_k,\\\\
             y_k &= h(x_k,u_k,z_k,p,p_{\\text{tv},k}) + v_k, \\\\
             &g(x_k,u_k,z_k,p_k,p_{\\text{tv},k}) \\leq 0
-            \\end{aligned}\\right\} k=0,\\dots, N
+            \\end{aligned}\\right\\} k=0,\\dots, N
 
         where we introduce the bold letter notation,
-        e.g. :math:`\mathbf{x}_{0:N+1}=[x_0, x_1, \dots, x_{N+1}]^T` to represent sequences and where
-        :math:`\|x\|_P^2=x^T P x` denotes the :math:`P` weighted squared norm.
+        e.g. :math:`\\mathbf{x}_{0:N+1}=[x_0, x_1, \\dots, x_{N+1}]^T` to represent sequences and where
+        :math:`\\|x\\|_P^2=x^T P x` denotes the :math:`P` weighted squared norm.
 
         Pass the weighting matrices :math:`P_x`, :math:`P_p` and :math:`P_v` and :math:`P_w`.
         The matrices must be of appropriate dimension and array-like.
@@ -864,7 +864,7 @@ class MHE(Optimizer, Estimator):
     def set_initial_guess(self)->None:
         """Initial guess for optimization variables.
         Uses the current class attributes :py:obj:`x0`, :py:obj:`z0` and :py:obj:`u0`, :py:obj:`p_est0` to create an initial guess for the MHE.
-        The initial guess is simply the initial values for all :math:`k=0,\dots,N` instances of :math:`x_k`, :math:`u_k` and :math:`z_k`, :math:`p_{\\text{est,k}}`.
+        The initial guess is simply the initial values for all :math:`k=0,\\dots,N` instances of :math:`x_k`, :math:`u_k` and :math:`z_k`, :math:`p_{\\text{est,k}}`.
 
         Warnings:
             If no initial values for :py:attr:`x0`, :py:attr:`z0` and :py:attr:`u0` were supplied during setup, these default to zero.

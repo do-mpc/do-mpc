@@ -70,7 +70,7 @@ class Graphics:
         # Optional configuration of the plot(s) with matplotlib:
         ax[0].set_ylabel('c [mol/l]')
         ax[1].set_ylabel('Temperature [K]')
-        ax[2].set_ylabel('\Delta T [K]')
+        ax[2].set_ylabel('\\Delta T [K]')
         ax[3].set_ylabel('Q_heat [kW]')
         ax[4].set_ylabel('Flow [l/h]')
 
