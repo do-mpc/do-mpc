@@ -825,7 +825,7 @@ class Model:
            0 = g(x_k,u_k,z_k,p_k,p_{\\text{tv},k})
 
         Note:
-            For the introduced algebraic variables :math:`z \in \mathbb{R}^{n_z}`
+            For the introduced algebraic variables :math:`z \\in \\mathbb{R}^{n_z}`
             it is required to introduce exactly :math:`n_z` algebraic equations.
             Otherwise :py:meth:`setup` will throw an error message.
 

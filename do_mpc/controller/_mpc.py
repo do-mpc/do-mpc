@@ -955,7 +955,7 @@ class MPC(do_mpc.optimizer.Optimizer, do_mpc.model.IteratedVariables):
     def set_initial_guess(self)->None:
         """Initial guess for optimization variables.
         Uses the current class attributes :py:attr:`x0`, :py:attr:`z0` and :py:attr:`u0` to create the initial guess.
-        The initial guess is simply the initial values for all :math:`k=0,\dots,N` instances of :math:`x_k`, :math:`u_k` and :math:`z_k`.
+        The initial guess is simply the initial values for all :math:`k=0,\\dots,N` instances of :math:`x_k`, :math:`u_k` and :math:`z_k`.
 
         Warnings:
             If no initial values for :py:attr:`x0`, :py:attr:`z0` and :py:attr:`u0` were supplied during setup, these default to zero.
